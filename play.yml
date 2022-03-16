@@ -7,6 +7,7 @@
     hosts_pack: basic
     thinkpad: true
     user: dnewman
+    sudo_without_password: true
   roles:
     - role: ansible-role-basic
     - role: ansible-role-system
@@ -192,7 +193,7 @@
         fasd_version: 1.0.1
         fd_version: v8.1.1
         fluxctl_version: 1.21.0
-        githubcli_version: 0.6.2
+        githubcli_version: 2.6.0
         gitui_version: 0.17.1
         glab_version: 1.11.1
         helm2_version: v2.16.9
