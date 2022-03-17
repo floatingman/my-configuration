@@ -174,7 +174,7 @@
         - vdirsyncer
     - role: ansible-role-binaries
       vars:
-        argocdcli_version: 1.5.6
+        argocdcli_version: 2.3.1
         awless_version: 0.1.11
         bat_version: 0.12.1
         bit_version: 0.5.8
