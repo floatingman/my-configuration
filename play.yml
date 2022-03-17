@@ -57,6 +57,7 @@
             - sxiv
             - syncthing
             - system-config-printer
+            - ttf-jetbrains-mono
             - urlscan
             - vulkan-icd-loader
             - vulkan-intel
