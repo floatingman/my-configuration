@@ -182,7 +182,7 @@
         delta_version: 0.12.1
         direnv_version: 2.30.3
         dive_version: 0.10.0
-        docker_compose_version: 2.3.3
+        docker_compose_version: v2.3.3
         docker_version: 20.10.13
         doctl_version: 1.71.1
         dua_version: 2.17.0
@@ -255,7 +255,7 @@
             extract: true
 
           - name: bit
-            url: "https://github.com/chriswalz/bit/releases/download/v{{ bit_version }}/bit_{{ bit_version }}_Linux_x86_64.tar.gz"
+            url: "https://github.com/chriswalz/bit/releases/download/v{{ bit_version }}/bit_{{ bit_version }}_linux_amd64.tar.gz"
             extract: true
 
           - name: broot
@@ -279,8 +279,8 @@
             extract: true
 
           - name: docker-compose
-            url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64"
-            bin_name: docker-compose-Linux-x86_64
+            url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-linux-x86_64"
+            bin_name: docker-compose-linux-x86_64
 
           - name: docker
             url: "https://download.docker.com/linux/static/stable/x86_64/docker-{{ docker_version }}.tgz"
@@ -315,9 +315,9 @@
             extract: true
 
           - name: exa
-            url: "https://github.com/ogham/exa/releases/download/v{{ exa_version }}/exa-linux-x86_64-{{ exa_version }}.zip"
+            url: "https://github.com/ogham/exa/releases/download/v{{ exa_version }}/exa-linux-x86_64-v{{ exa_version }}.zip"
             extract: true
-            bin_name: "exa-linux-x86_64"
+            bin_path: "exa-linux-x86_64-v{{ exa_version }}/bin"
 
           - name: fd
             url: "https://github.com/sharkdp/fd/releases/download/{{ fd_version }}/fd-{{ fd_version }}-x86_64-unknown-linux-gnu.tar.gz"
@@ -395,11 +395,11 @@
             url: "https://github.com/ahmetb/kubectx/releases/download/{{ kubens_version }}/kubens"
 
           - name: kubeseal
-            url: "https://github.com/bitnami-labs/sealed-secrets/releases/download/v{{ kubeseal_version }}/kubeseal-linux-amd64"
-            bin_name: kubeseal-linux-amd64
+            url: "https://github.com/bitnami-labs/sealed-secrets/releases/download/v{{ kubeseal_version }}/kubeseal-{{ kubeseal_version }}-linux-amd64.tar.gz"
+            extract: true
 
           - name: kubeval
-            url: "https://github.com/instrumenta/kubeval/releases/download/{{ kubeval_version }}/kubeval-linux-amd64.tar.gz"
+            url: "https://github.com/instrumenta/kubeval/releases/download/v{{ kubeval_version }}/kubeval-linux-amd64.tar.gz"
             extract: true
 
           - name: kustomize
@@ -436,7 +436,7 @@
             extract: true
 
           - name: polaris
-            url: "https://github.com/FairwindsOps/polaris/releases/download/{{ polaris_version }}/polaris_{{ polaris_version }}_linux_amd64.tar.gz"
+            url: "https://github.com/FairwindsOps/polaris/releases/download/{{ polaris_version }}/polaris_linux_amd64.tar.gz"
             extract: true
 
           - name: popeye
@@ -497,9 +497,8 @@
             bin_name: yq_linux_amd64
 
           - name: zoxide
-            url: "https://github.com/ajeetdsouza/zoxide/releases/download/v{{ zoxide_version }}/zoxide-x86_64-unknown-linux-musl.tar.gz"
+            url: "https://github.com/ajeetdsouza/zoxide/releases/download/v{{ zoxide_version }}/zoxide-v{{ zoxide_version }}-x86_64-unknown-linux-musl.tar.gz"
             extract: true
-            bin_path: zoxide-x86_64-unknown-linux-musl
 
           - name: viddy
             url: "https://github.com/sachaos/viddy/releases/download/v{{ viddy_version }}/viddy_{{ viddy_version }}_Linux_x86_64.tar.gz"
