@@ -215,6 +215,7 @@
         lf_version: r26
         mdbook_version: 0.4.15
         nnn_version: 4.4
+        nova_version: 3.0.2
         pet_version: 0.4.0
         polaris_version: 5.1.0
         popeye_version: 0.9.8
@@ -430,6 +431,10 @@
             url: "https://github.com/jarun/nnn/releases/download/v{{ nnn_version }}/nnn-static-{{ nnn_version }}.x86_64.tar.gz"
             extract: true
             bin_name: nnn-static
+
+          - name: nova
+            url: "https://github.com/FairwindsOps/nova/releases/download/{{ nova_version }}/nova_{{ nova_version }}_linux_amd64.tar.gz"
+            extract: true
 
           - name: pet
             url: "https://github.com/knqyf263/pet/releases/download/v{{ pet_version }}/pet_{{ pet_version }}_linux_amd64.tar.gz"
