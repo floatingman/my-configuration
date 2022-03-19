@@ -19,7 +19,7 @@
   version: master
 
 - name: ansible-role-system
-  src: https://github.com/Allaman/ansible-role-system.git
+  src: https://github.com/floatingman/ansible-role-system.git
   scm: git
   version: master
 
