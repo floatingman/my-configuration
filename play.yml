@@ -13,6 +13,8 @@
     - role: ansible-role-system
     - role: ansible-role-shell
     - role: ansible-role-dotfiles
+      vars:
+        github_user: floatingman
     - role: ansible-role-packages
       vars:
         install_aur_helper: true
@@ -318,7 +320,7 @@
           - name: exa
             url: "https://github.com/ogham/exa/releases/download/v{{ exa_version }}/exa-linux-x86_64-v{{ exa_version }}.zip"
             extract: true
-            bin_path: "exa-linux-x86_64-v{{ exa_version }}/bin"
+            bin_path: "bin"
 
           - name: fd
             url: "https://github.com/sharkdp/fd/releases/download/{{ fd_version }}/fd-{{ fd_version }}-x86_64-unknown-linux-gnu.tar.gz"
