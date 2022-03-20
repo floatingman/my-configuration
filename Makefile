@@ -8,14 +8,6 @@ help: ## This help.
 
 .DEFAULT_GOAL := help
 
-AUR_HELPER:=$(shell type -p yay || echo paru)
-ifneq (,$(findstring yay,$(EDITOR)))
-	AUR_HELPER:=yay
-else
-	AUR_HELPER:=paru
-endif
-
-
 bootstrap: req-pip ## Install ansible (pip required)
 	@echo 'Bootstraping your system for ansible'
 	pip install ansible --user
@@ -28,13 +20,13 @@ configure: req-playbook ## Run ansible
 	@echo 'Run ansible-playbook'
 	ansible-playbook play.yml -K
 
-aur: ## Run AUR helper to install AUR packages
-	@echo 'Install AUR packages'
-	$(AUR_HELPER) -S masterpdfeditor urlview telepresence vscodium-bin rofi-emoji glow google-cloud-sdk aws-session-manager-plugin postman nerd-fonts-hack nerd-fonts-fira-code xbanish keyd-git
+# aur: ## Run AUR helper to install AUR packages
+# 	@echo 'Install AUR packages'
+# 	$(AUR_HELPER) -S masterpdfeditor urlview telepresence vscodium-bin rofi-emoji glow google-cloud-sdk aws-session-manager-plugin postman nerd-fonts-hack nerd-fonts-fira-code xbanish keyd-git
 
 all: bootstrap install configure ## Run all goals
 	@echo 'Applying R1c3'
-	bootstrap install configure aur
+	bootstrap install configure
 
 req-pip:
 	@command -v pip >/dev/null 2>&1 || { echo >&2 "require pip"; exit 1; }
