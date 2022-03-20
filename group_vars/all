@@ -4,7 +4,6 @@ thinkpad: true
 user: dnewman
 sudo_without_password: true
 github_user: floatingman
-install_aur_helper: true
 lang:
   enabled: true
   arch:
@@ -131,6 +130,7 @@ cli:
     - entr
     - prettier
     - texlive-core
+    - exa
 pip_packages:
   - "molecule[docker]"
   - aws-shell
@@ -162,6 +162,10 @@ pip_packages:
   - yamllint
   - vdirsyncer
 
+aur:
+  packages:
+    - synergy-git
+    - dropbox
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11

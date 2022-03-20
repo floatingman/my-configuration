@@ -26,7 +26,7 @@ roles:
     version: master
 
   - name: ansible-role-packages
-    src: https://github.com/Allaman/ansible-role-packages.git
+    src: https://github.com/floatingman/ansible-role-packages.git
     scm: git
     version: master
 

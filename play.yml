@@ -3,10 +3,10 @@
   hosts: localhost
   connection: local
   roles:
-    - role: ansible-role-basic
-    - role: ansible-role-system
-    - role: ansible-role-shell
-    - role: ansible-role-dotfiles
-    - role: ansible-role-packages
-    - role: ansible-role-pip
-    - role: ansible-role-binaries
+    - { role: ansible-role-basic, tags: ["basic"] }
+    - { role: ansible-role-system, tags: ["system"] }
+    - { role: ansible-role-shell, tags: ["shell"] }
+    - { role: ansible-role-dotfiles, tags: ["dotfiles"] }
+    - { role: ansible-role-packages, tags: ["packages"] }
+    - { role: ansible-role-pip, tags: ["pip"] }
+    - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
