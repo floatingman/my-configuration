@@ -1,4 +1,3 @@
-gui: true
 hosts_pack: basic
 thinkpad: true
 user: dnewman
