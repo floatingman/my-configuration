@@ -131,6 +131,48 @@ cli:
     - prettier
     - texlive-core
     - exa
+    - hey
+    - argocd
+    - bat
+    - broot
+    - bottom
+    - git-delta
+    - direnv
+    - docker-compose
+    - doctl
+    - dog
+    - dua-cli
+    - duf
+    - dust
+    - fd
+    - fluxctl
+    - github-cli
+    - gitui
+    - glab
+    - helm
+    - jq
+    - k9s
+    - kube-linter
+    - kubectl
+    - kubectx
+    - kubeseal
+    - kustomize
+    - lazygit
+    - logcli
+    - mdbook
+    - nnn
+    - popeye
+    - prettyping
+    - ripgrep
+    - ripgrep-all
+    - sd
+    - stern
+    - tectonic
+    - texlab
+    - tokei
+    - yq
+    - zoxide
+
 pip_packages:
   - "molecule[docker]"
   - aws-shell
@@ -166,6 +208,39 @@ aur:
   packages:
     - synergy-git
     - dropbox
+    - awless
+    - aws-iam-authenticator-bin
+    - bit
+    - dive
+    - dyff-bin
+    - git-quick-stats
+    - highlight-pointer-git
+    - k6
+    - kind
+    - kops-bin
+    - kubeval-bin
+    - lf
+    - nova
+    - pet-bin
+    - polaris-bin
+    - scc
+    - slack-term-bin
+    - tflint-bin
+    - tfswitch-bin
+    - xsv-bin
+    - viddy
+    - masterpdfeditor
+    - urlview
+    - telepresence
+    - vscodium-bin
+    - rofi-emoji
+    - glow
+    - google-cloud-sdk
+    - aws-session-manager-plugin
+    - postman
+    - nerd-fonts-hack
+    - nerd-fonts-fira-code
+    - xbanish
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
