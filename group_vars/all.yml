@@ -11,8 +11,6 @@ lang:
     - python
     - python-pip
     - go
-    - nodejs
-    - npm
 
 gui:
   enabled: true
@@ -151,11 +149,9 @@ cli:
     - github-cli
     - gitui
     - glab
-    - helm
     - jq
     - k9s
     - kube-linter
-    - kubectl
     - kubectx
     - kubeseal
     - kustomize
@@ -249,7 +245,22 @@ asdf_plugins:
     versions:
       - 17.7.1
     global: 17.7.1
-
+  - name: "ruby"
+    versions:
+      - 3.1.1
+    global: 3.1.1
+  - name: "kubectl"
+    versions:
+      - 1.23.4
+    global: 1.23.4
+  - name: "terraform"
+    versions:
+      - 1.1.7
+    global: 1.1.7
+  - name: "helm"
+    versions:
+      - 3.8.0
+    global: 3.8.0
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
