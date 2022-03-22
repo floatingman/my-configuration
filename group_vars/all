@@ -243,6 +243,13 @@ aur:
     - nerd-fonts-hack
     - nerd-fonts-fira-code
     - xbanish
+asdf_user: "{{ user }}"
+asdf_plugins:
+  - name: "nodejs"
+    versions:
+      - 17.7.1
+    global: 17.7.1
+
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11

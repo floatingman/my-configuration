@@ -9,4 +9,5 @@
     - { role: ansible-role-dotfiles, tags: ["dotfiles"] }
     - { role: ansible-role-packages, tags: ["packages"] }
     - { role: ansible-role-pip, tags: ["pip"] }
+    - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
