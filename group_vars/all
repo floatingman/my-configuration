@@ -19,6 +19,7 @@ gui:
   arch:
     - alacritty
     - bitwarden
+    - caffeine-ng
     - chromium
     - clipmenu
     - exiv2
