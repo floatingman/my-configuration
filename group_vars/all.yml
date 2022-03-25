@@ -230,7 +230,7 @@ aur:
     - masterpdfeditor
     - urlview
     - telepresence
-    - vscodium-bin
+    - visual-studio-code-bin
     - rofi-emoji
     - glow
     - google-cloud-sdk
