@@ -261,6 +261,23 @@ asdf_plugins:
     versions:
       - 3.8.0
     global: 3.8.0
+  - name: "concourse"
+    versions:
+      - 7.7.0
+    global: 7.7.0
+  - name: "packer"
+    versions:
+      - 1.8.0
+    global: 1.8.0
+  - name: "minikube"
+    versions:
+      - 1.25.2
+    global: 1.25.2
+  - name: "aws-vault"
+    repository: https://github.com/markosamuli/asdf-aws-vault.git
+    versions:
+      - 4.6.2
+    global: 4.6.2
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
