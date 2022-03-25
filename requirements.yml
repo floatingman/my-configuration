@@ -39,3 +39,5 @@ roles:
     src: https://github.com/floatingman/ansible-role-asdf.git
     scm: git
     version: master
+collections:
+  - name: kewlfft.aur
