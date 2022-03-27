@@ -37,6 +37,7 @@ gui:
     - linux-firmware
     - linux-headers
     - manjaro-printer
+    - mariadb-clients
     - mesa
     - mesa-demos
     - pinta
@@ -65,9 +66,7 @@ cli:
   enabled: true
   common:
     - bison
-    - bitwarden-cli
     - coreutils
-    - clipmenu
     - curl
     - dateutils
     - dnsutils
@@ -82,7 +81,6 @@ cli:
     - iotop
     - ipcalc
     - lsof
-    - mariadb-clients
     - mdp
     - moreutils
     - mpv
@@ -126,6 +124,7 @@ cli:
     - libxext-dev
   arch:
     - ctags
+    - bitwarden-cli
     - bind-tools
     - entr
     - prettier
