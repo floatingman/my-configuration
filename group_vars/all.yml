@@ -4,7 +4,7 @@ user: dnewman
 sudo_without_password: true
 github_user: floatingman
 dotfiles_repo_url: git@github.com:{{ github_user }}/dotfiles.git
-dotfiles_path: "{{ ansible_env.HOME }}/workspace/github.com/{{ github_user }}/public-dotfiles"
+dotfiles_path: "{{ ansible_env.HOME }}/.dotfiles"
 lang:
   enabled: true
   arch:
