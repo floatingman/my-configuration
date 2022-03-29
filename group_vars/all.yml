@@ -170,6 +170,7 @@ cli:
     - texlab
     - tokei
     - yq
+    - yt-dlp
     - zoxide
 
 pip_packages:
