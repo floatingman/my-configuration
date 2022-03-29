@@ -162,6 +162,7 @@ cli:
     - nnn
     - popeye
     - prettyping
+    - rclone
     - ripgrep
     - ripgrep-all
     - sd
