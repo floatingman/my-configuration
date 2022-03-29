@@ -81,6 +81,7 @@ cli:
     - iftop
     - iotop
     - ipcalc
+    - keychain
     - lsof
     - mdp
     - moreutils
