@@ -109,6 +109,7 @@ cli:
     - trash-cli
     - tree
     - vifm
+    - vim
     - w3m
     - wget
     - whois
@@ -171,7 +172,7 @@ cli:
     - texlab
     - tokei
     - yq
-    - yt-dlp
+    - youtube-dl
     - zoxide
 
 pip_packages:
