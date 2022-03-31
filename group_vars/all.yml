@@ -170,6 +170,7 @@ cli:
     - stern
     - tectonic
     - texlab
+    - timew
     - tokei
     - yq
     - youtube-dl
