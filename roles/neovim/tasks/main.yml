@@ -1,0 +1,12 @@
+---
+- name: Add Neovim stable PPA repository
+  become: yes
+  apt_repository:
+    repo: ppa:neovim-ppa/stable
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Install Neovim
+  become: yes
+  package:
+    name: neovim
+  when: ansible_distribution == 'Ubuntu'

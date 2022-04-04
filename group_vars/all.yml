@@ -284,6 +284,22 @@ asdf_plugins:
       - 4.6.2
     global: 4.6.2
 
+pyenv_env: "user"
+pyenv_path: "{{ ansible_env.HOME }}/.pyenv"
+pyenv_owner: "{{ ansible_env.USER }}"
+pyenv_global: "3.10.3"
+pyenv_update: yes
+pyenv_update_git_install: yes
+pyenv_enable_autocompletion: no
+pyenv_python_versions:
+  - "3.10.3"
+  - "2.7.18"
+pyenv_virtualenvs:
+  - venv_name: "latest_v3"
+    py_version: "3.10.3"
+  - venv_name: "latest_v2"
+    py_version: "2.7.18"
+
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
 bat_version: 0.20.0
