@@ -39,5 +39,10 @@ roles:
     src: https://github.com/floatingman/ansible-role-asdf.git
     scm: git
     version: master
+  
+  - name: markosamuli.pyenv
+    src: https://github.com/markosamuli/ansible-pyenv
+    version: v4.0.1
+
 collections:
   - name: kewlfft.aur

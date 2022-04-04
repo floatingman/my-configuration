@@ -202,7 +202,6 @@ pip_packages:
   - s4cmd
   - speedtest-cli
   - pytest-testinfra
-  - thefuck
   - ueberzug
   - yamllint
   - vdirsyncer
