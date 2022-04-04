@@ -125,6 +125,7 @@ cli:
     - libxi-dev
     - texlive
     - libxext-dev
+    - timewarrior
   arch:
     - ctags
     - bitwarden-cli
