@@ -6,7 +6,6 @@
   when: ansible_distribution == 'Ubuntu'
 
 - name: Install Neovim
-  become: yes
   package:
     name: neovim
-  when: ansible_distribution == 'Ubuntu'
+    state: present
