@@ -1,2 +1,3 @@
 ---
 - include: neovim.yml
+- include: emacs.yml

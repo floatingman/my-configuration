@@ -9,3 +9,9 @@
   package:
     name: neovim
     state: present
+
+- name: Clone NeoVim config
+  git:
+    clone: true
+    repo: git@github.com:floatingman/neovim.git
+    dest: "{{ ansible_env.HOME }}/.config/nvim"

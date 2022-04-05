@@ -1,0 +1,5 @@
+- name: Clone Emacs config
+  git:
+    clone: true
+    repo: git@github.com:floatingman/systemcrafteremacs.git
+    dest: "{{ ansible_env.HOME }}/.emacs.d"
