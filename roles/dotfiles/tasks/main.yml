@@ -15,6 +15,7 @@
     name: rcm
     state: present
   when: ansible_facts["distribution"] == "Ubuntu"
+  become: yes
 
 - name: Clone user dotfiles
   git: repo={{ dotfiles.repo_url }} dest=/home/{{ user }}/{{ dotfiles.path }} accept_hostkey=yes update=no
