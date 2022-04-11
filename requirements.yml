@@ -10,11 +10,6 @@ roles:
     scm: git
     version: master
 
-  - name: ansible-role-dotfiles
-    src: https://github.com/floatingman/ansible-role-dotfiles.git
-    scm: git
-    version: master
-
   - name: ansible-role-binaries
     src: https://github.com/Allaman/ansible-role-binaries.git
     scm: git

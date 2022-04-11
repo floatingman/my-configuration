@@ -1,0 +1,48 @@
+---
+- name: Install rcm on Arch
+  kewlfft.aur.aur: 
+    name: rcm 
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install rcm on Ubuntu
+  package: 
+    name: rcm
+    state: present
+  when: ansible_facts["distribution"] == "Ubuntu"
+
+- name: Clone user dotfiles
+  git: repo={{ dotfiles.repo_url }} dest=/home/{{ user }}/{{ dotfiles.path }} accept_hostkey=yes update=no
+  when: dotfiles is defined
+  become: yes
+  become_user: "{{ user }}"
+
+- name: Symlink rcm rc file to user directory
+  file:
+    src: "/home/{{ user }}/{{ dotfiles.path }}/rcrc"
+    dest: "/home/{{ user }}/.rcrc"
+    state: link
+
+- name: Install user dotfiles
+  command: rcup -d /home/{{ user }}/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
+  when: dotfiles is defined
+  become: yes
+  become_user: "{{ user }}"
+
+- name: Install linux gui tagged dotfiles
+  command: rcup -d /home/{{ user }}/{{ dotfiles.path }} -tag linux-gui
+  when: dotfiles is defined and GUI
+  become: yes
+  become_user: "{{ user }}"
+  when: dotfiles.linuxgui | bool 
+
+- name: Create global gitconfig
+  template:
+    src: templates/gitconfig.j2
+    dest: "/home/{{ user }}/.gitconfig"
+    force: true

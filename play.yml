@@ -7,7 +7,7 @@
     - { role: ansible-role-system, tags: ["system"] }
     - { role: ansible-role-shell, tags: ["shell"] }
     - { role: shell, tags: ["shell"] }
-    - { role: ansible-role-dotfiles, tags: ["dotfiles"] }
+    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: ansible-role-packages, tags: ["packages"] }
     - { role: ansible-role-pip, tags: ["pip"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
