@@ -1,0 +1,39 @@
+---
+- name: Install LightDM
+  package:
+    name:
+      - lightdm
+      - lightdm-gtk-greeter
+    state: present
+
+- name: Enable LightDM
+  service: name=lightdm.service enabled=yes
+
+- name: Create background dir
+  file: path=/usr/share/backgrounds state=directory
+  become: yes
+
+- name: Push LightDM greeter background
+  copy: src=M31_Galex_960.jpg dest=/usr/share/backgrounds/M31_Galex_960.jpg
+  become: yes
+
+- name: Specify LightDM greeter background
+  lineinfile: dest=/etc/lightdm/lightdm-gtk-greeter.conf
+              regexp="^background="
+              state=present
+              line="background=/usr/share/backgrounds/M31_Galex_960.jpg"
+  become: yes
+
+- name: Hide user images
+  lineinfile: dest=/etc/lightdm/lightdm-gtk-greeter.conf
+              regexp="^hide-user-image="
+              state=present
+              line="hide-user-image=true"
+  become: yes  
+
+- name: Force LightDM greeter theme
+  lineinfile: dest=/usr/share/xgreeters/lightdm-gtk-greeter.desktop
+              regexp="^Exec="
+              state=present
+              line="Exec=env GTK_THEME=Adwaita:dark lightdm-gtk-greeter"
+  become: yes
