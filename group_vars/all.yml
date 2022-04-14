@@ -188,7 +188,6 @@ cli:
 pip_packages:
   - "molecule[docker]"
   - aws-shell
-  - awscli
   - flake8
   - gita
   - gitlabber
@@ -246,7 +245,6 @@ aur:
     - rofi-emoji
     - glow
     - google-cloud-sdk
-    - aws-session-manager-plugin
     - postman
     - nerd-fonts-hack
     - nerd-fonts-fira-code
@@ -267,8 +265,8 @@ asdf_plugins:
     global: 1.23.4
   - name: "terraform"
     versions:
-      - 1.1.7
-    global: 1.1.7
+      - 1.1.8
+    global: 1.1.8
   - name: "helm"
     versions:
       - 3.8.0

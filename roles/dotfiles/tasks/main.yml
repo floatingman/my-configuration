@@ -18,25 +18,25 @@
   become: yes
 
 - name: Clone user dotfiles
-  git: repo={{ dotfiles.repo_url }} dest=/home/{{ user }}/{{ dotfiles.path }} accept_hostkey=yes update=no
+  git: repo={{ dotfiles.repo_url }} dest=/home/{{ dotfiles.path }} accept_hostkey=yes update=no
   when: dotfiles is defined
   become: yes
   become_user: "{{ user }}"
 
 - name: Symlink rcm rc file to user directory
   file:
-    src: "/home/{{ user }}/{{ dotfiles.path }}/rcrc"
+    src: "/home/{{ dotfiles.path }}/rcrc"
     dest: "/home/{{ user }}/.rcrc"
     state: link
 
 - name: Install user dotfiles
-  command: rcup -d /home/{{ user }}/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
+  command: rcup -d /home/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
   when: dotfiles is defined
   become: yes
   become_user: "{{ user }}"
 
 - name: Install linux gui tagged dotfiles
-  command: rcup -d /home/{{ user }}/{{ dotfiles.path }} -tag linux-gui
+  command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
   when: dotfiles is defined and GUI
   become: yes
   become_user: "{{ user }}"
