@@ -5,6 +5,8 @@
   name = {{ gitconfig.name }}
 [credential]
   username = {{ github_user }}
+[core]
+  excludesfile = /home/{{ user }}/.gitignore_global
 {% if gitconfig.neovim_remote %}
 [diff]
     tool = nvr
