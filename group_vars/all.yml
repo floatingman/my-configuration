@@ -26,15 +26,18 @@ gui:
   arch:
     - alacritty
     - bitwarden
+    - bspwm
     - caffeine-ng
     - chromium
     - clipmenu
+    - dunst
     - exiv2
     - firefox
     - flameshot
     - geeqie
     - hledger
     - hledger-ui
+    - i3-gaps
     - inkscape
     - intel-media-driver
     - intel-ucode
@@ -51,6 +54,7 @@ gui:
     - mesa-demos
     - pinta
     - powertop
+    - polybar
     - sof-firmware
     - sxhkd
     - sxiv
@@ -58,6 +62,7 @@ gui:
     - system-config-printer
     - ttf-jetbrains-mono
     - urlscan
+    - viewnior
     - vulkan-icd-loader
     - vulkan-intel
     - vulkan-mesa-layers
