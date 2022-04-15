@@ -37,6 +37,7 @@ gui:
     - geeqie
     - hledger
     - hledger-ui
+    - hsetroot
     - i3-gaps
     - inkscape
     - intel-media-driver
@@ -53,6 +54,7 @@ gui:
     - mesa
     - mesa-demos
     - pinta
+    - picom
     - powertop
     - polybar
     - sof-firmware
@@ -61,6 +63,7 @@ gui:
     - syncthing
     - system-config-printer
     - ttf-jetbrains-mono
+    - udevil
     - urlscan
     - viewnior
     - vulkan-icd-loader
@@ -69,7 +72,7 @@ gui:
     - vulkan-tools
     - wmctrl
     - xbindkeys
-    - xbindkeys
+    - xsettingsd
     - xcape
     - xclip
     - xf86-input-synaptics
