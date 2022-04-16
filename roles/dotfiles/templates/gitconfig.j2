@@ -48,18 +48,80 @@
 {% endif %}
 [alias]
 	# Common shortcuts I use
-	co = checkout
+	aa = add --all
+  # from trevor bramble https://twitter.com/TrevorBramble/status/774292970681937920
+  alias=!git config -l | grep ^alias | cut -c 7- | sort
+  # Amend the currently staged files to the latest commit
+  amend = commit --amend --reuse-message=HEADco = checkout
 	ci = commit
-  pullr = pull --rebase
-	lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
-	wd = diff --word-diff="color"
-	wds = diff --word-diff="color" --staged
-	s = status --short --branch
-
+  cob = checkout -b
+  # List contributors with number of commits
+  contributors = shortlog --summary --numbered
+  # counts how far behind current branch is
+  count = "!f() { compareBranch=${1-master}; git rev-list --count HEAD ^$compareBranch; }; f"
+  # Credit an author on the latest commit
+  credit = "!f() { git commit --amend --author \"$1 <$2>\" -C HEAD; }; f"
+  # Show the diff between the latest commit and the current state
+  d = !"git diff-index --quiet HEAD -- || clear; git --no-pager diff --patch-with-stat"
+  dc = diff --cached
+  # `git di $number` shows the diff between the stat `$number` revisions ago and the current state
+  di = !"d() { git diff --patch-with-stat HEAD~$1; }; git diff-index --quiet HEAD -- || clear; d"
+  # Remove branches that have already been merged with master
+  # a.k.a. ‘delete merged’
+  dm = "!git branch --merged | grep -v '\\*' | xargs -n 1 git branch -d; git remote -v update -p"
+  ds = diff --staged
+  # guesses which email address to use for a repo
+  email-guess = !. ~/.local/bin/gitscripts/email-guess.sh
+  # Find branches containing commit
+  fb = "!f() { git branch -a --contains $1; }; f"
+  # Find tags containing commit
+  ft = "!f() { git describe --always --contains $1; }; f"
+  # Find commits by source code
+  fc = "!f() { git log --pretty=format:'%C(yellow)%h	%Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short -S$1; }; f"
+  # Find commits by commit message
+  fm = "!f() { git log --pretty=format:'%C(yellow)%h	%Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short --grep=$1; }; f"
+  # Swich to a branch, creating it if necessary
+  go = "!f() { git checkout -b \"$1\" 2> /dev/null || git checkout \"$1\"; }; f"
+  # Color graph log view
+  graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
+  # Show files ignored by git
+  ign = ls-files -o -i --exclude-standard
+  # View abbreviated SHA, description, and history graphy of the latest 20 commits
+  l = log --pretty=oneline -n 20 --graph --abbrev-commit
+  lg = log --color --decorate --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an (%G?)>%Creset' --abbrev-commit
+  lol = log --graph --decorate --pretty=oneline --abbrev-commit
+  lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+  ls = ls-files
+  # Interactive rebase with the given number of latest commits
+  reb = "!r() { git rebase -i HEAD~$1; }; r"
+  # show remote urls for origin
+  rso = remote show origin
+  remote-merged = !. ~/.local/bin/gitscripts/git-remote-merged
+  remote-notmerged = !. ~/.local/bin/gitscripts/git-remote-notmerged
+  # View the current working tree status using the short format
+  s = status -s
+  st = status -sb
+  unpushed = log --branches --not --remotes --simplify-by-decoration --decorate --oneline
+  # subtree add
+  sba = "!f() { git subtree add --prefix $2 $1 master --squash; }; f"
+  # subtree update
+  sbu = "!f() { git subtree pull --prefix $2 $1 master --squash; }; f"
+  # cool trick to use for demos
+  next = '!git checkout `git rev-list HEAD..demo-end | tail -1`'
+  prev = 'checkout HEAD^'
+  # Show verbose output about tags, branches or remotes
+  tags = tag -l
+  branches = branch -a
+  remotes = remote -v
+  top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
+  # from seth vargo https://gist.github.com/sethvargo/6b2f7b592853381690bfe3bd00947e8f
+  unreleased = "!f() { git fetch --tags && git diff $(git tag | tail -n 1); }; f"
+  unstage = reset HEAD --
+  up = !git pull origin master && git remote prune origin && git submodule update --init --recursive
+  undo = !git reset HEAD~1 --mixed
 	# Useful but less often used
 	authors = "!git log --pretty=format:%aN | sort | uniq -c | sort -rn"
 	today = log --stat --since=\"1 Day Ago\" --graph --pretty=oneline --abbrev-commit --date=relative
-	undo = reset --soft HEAD^
 
 [url "git@github.com:{{ github_user }}"]
 	insteadOf = https://github.com/{{ github_user }}
