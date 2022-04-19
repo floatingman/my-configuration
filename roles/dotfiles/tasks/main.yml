@@ -37,7 +37,6 @@
 
 - name: Install linux gui tagged dotfiles
   command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
-  when: dotfiles is defined and GUI
   become: yes
   become_user: "{{ user }}"
   when: dotfiles.linuxgui | bool 
