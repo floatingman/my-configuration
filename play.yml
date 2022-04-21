@@ -15,5 +15,6 @@
     - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
     - { role: avanov.pyenv, tags: ["python"] }
     - { role: lightdm, tags: ["lightdm"], when: "display_manager == 'lightdm'" }
+    - { role: awesomewm, tags: ["awesomewm"], when: "desktop_environment =='awesomewm'" }
     - { role: screensaver, tags: ['screensaver'], when: "display_manager == 'lightdm'" }
     - { role: taskwarrior, tags: ['taskwarrior'] }

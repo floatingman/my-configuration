@@ -15,6 +15,7 @@ dotfiles:
   rcup_flags: -fx README.md
   linuxgui: true
 display_manager: lightdm
+desktop_environment: awesomewm
 lang:
   enabled: true
   arch:
@@ -33,7 +34,6 @@ gui:
     - dunst
     - exiv2
     - firefox
-    - flameshot
     - geeqie
     - hledger
     - hledger-ui
@@ -54,7 +54,6 @@ gui:
     - mesa
     - mesa-demos
     - pinta
-    - picom
     - powertop
     - polybar
     - sof-firmware
@@ -74,7 +73,6 @@ gui:
     - xbindkeys
     - xsettingsd
     - xcape
-    - xclip
     - xf86-input-synaptics
     - xorg-xinput
     - xorg-xwininfo
@@ -113,7 +111,6 @@ cli:
     - pdfgrep
     - pkg-config
     - pwgen
-    - rofi
     - rsync
     - shellcheck
     - sshfs
@@ -250,7 +247,6 @@ aur:
     - urlview
     - telepresence
     - visual-studio-code-bin
-    - rofi-emoji
     - glow
     - google-cloud-sdk
     - postman
