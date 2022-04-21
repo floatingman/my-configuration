@@ -6,6 +6,7 @@
     - { role: ansible-role-basic, tags: ["basic"] }
     - { role: ansible-role-system, tags: ["system"] }
     - { role: ansible-role-shell, tags: ["shell"] }
+    - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: shell, tags: ["shell"] }
     - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: ansible-role-packages, tags: ["packages"] }
