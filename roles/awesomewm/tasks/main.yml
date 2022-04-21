@@ -1,0 +1,36 @@
+---
+- name: Install AwesomeWM
+  package:
+    name: awesome
+    state: present
+
+- name: Install Applications for AwesomeWM
+  package:
+    name:
+      - rofi
+      - rofi-emoji
+      - picom
+      - xclip
+      - ttf-roboto
+      - polkit-gnome
+      - materia-gtk-theme
+      - lxappearance
+      - flameshot
+      - network-manager-applet
+      - xfce4-power-manager
+      - papirus-icon-theme
+  become: yes
+
+- name: Install Applications for AwesomeWM from AUR
+  kewlfft.aur.aur:
+    name:
+      - i3lock-fancy-git
+      - pnmixer
+      - qt5-styleplugins
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
