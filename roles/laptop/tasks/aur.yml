@@ -1,0 +1,33 @@
+---
+- name: Install powerstat
+  kewlfft.aur.aur: 
+    name: powerstat
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install battery-stats
+  kewlfft.aur.aur: 
+    name: battery-stats-git
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install battop
+  kewlfft.aur.aur: 
+    name: battop
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

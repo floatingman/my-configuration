@@ -1,0 +1,4 @@
+---
+- { include: tlp.yml, become: yes }
+- { include: battery.yml, become: yes }
+- { include: aur.yml }
