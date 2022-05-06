@@ -20,3 +20,4 @@
     - { role: awesomewm, tags: ["awesomewm"], when: "desktop_environment =='awesomewm'" }
     - { role: screensaver, tags: ['screensaver'], when: "display_manager == 'lightdm'" }
     - { role: taskwarrior, tags: ['taskwarrior'] }
+    - { role: browsers, tags: ['browsers'], when: "display_manager == 'lightdm'" }

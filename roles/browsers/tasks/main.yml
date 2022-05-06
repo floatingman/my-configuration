@@ -1,0 +1,131 @@
+---
+- name: Install w3m
+  package:
+    name: w3m
+    state: present
+  become: yes
+
+- name: Install lynx
+  package:
+    name: lynx
+    state: present
+  become: yes
+
+- name: Install Firefox
+  package:
+    name: firefox
+    state: present
+  become: yes
+  tags:
+    - firefox
+
+- name: Install Chromium
+  package:
+    name: chromium
+    state: present
+  become: yes
+  tags:
+    - chromium
+
+- name: Install Tor browser
+  package:
+    name: torbrowser-launcher
+    state: present
+  become: yes
+  tags:
+    - tor-browser
+
+- name: Install qutebrowser and dependencies
+  package:
+    name:
+      - qutebrowser
+      - python-adblock
+      - pdfjs
+    state: present
+  become: yes
+  tags:
+    - qutebrowser
+
+- name: Push rofi browser chooser
+  template:
+    src: browser.sh.j2
+    dest: /usr/local/bin/browser
+    mode: 0755
+  become: yes
+  tags:
+    - rofi
+    - chooser
+
+- name: Create local desktop application dir
+  file:
+    path: /usr/local/share/applications
+    state: directory
+  become: yes
+  tags:
+    - rofi
+    - chooser
+
+- name: Push rofi browser chooser desktop file
+  copy:
+    src: browser.desktop
+    dest: /usr/local/share/applications/browser.desktop
+  become: yes
+  tags:
+    - rofi
+    - chooser
+
+- name: Verify mimeapps.list exists
+  copy:
+    content: ""
+    dest: /etc/xdg/mimeapps.list
+    force: false
+  become: yes
+  tags:
+    - rofi
+    - chooser
+
+- name: Set rofi browser chooser as default application for relevant mimetypes
+  lineinfile:
+    dest: /etc/xdg/mimeapps.list
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^text/html=', line: 'text/html=browser.desktop' }
+    - { regexp: '^text/xml=', line: 'text/xml=browser.desktop' }
+    - { regexp: '^text/mml=', line: 'text/mml=browser.desktop' }
+    - { regexp: '^application/xhtml\+xml=', line: 'application/xhtml+xml=browser.desktop' }
+    - { regexp: '^application/xml=', line: 'application/xml=browser.desktop' }
+    - { regexp: '^x-scheme-handler/http=', line: 'x-scheme-handler/http=browser.desktop' }
+    - { regexp: '^x-scheme-handler/https=', line: 'x-scheme-handler/https=browser.desktop' }
+  become: yes
+  tags:
+    - rofi
+    - chooser
+
+- name: Install surfraw
+  package:
+    name: surfraw
+    state: present
+  become: yes
+  tags:
+    - surfraw
+
+- name: Configure surfraw browser
+  lineinfile:
+    dest: /etc/xdg/surfraw/conf
+    regexp: '^def   SURFRAW_graphical_browser	'
+    line: 'def   SURFRAW_graphical_browser	/usr/local/bin/browser'
+  become: yes
+  tags:
+    - surfraw
+    - chooser
+
+- name: Push surfraw-rofi script
+  copy:
+    src: surfraw-rofi
+    dest: /usr/local/bin/surfraw-rofi
+    mode: 0755
+  become: yes  
+  tags:
+    - surfraw
+    - rofi

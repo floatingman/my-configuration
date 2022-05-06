@@ -14,6 +14,15 @@ dotfiles:
   path: "{{ user }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
+browser_choices:
+    - firefox -P default
+    - firefox -P work
+    - chromium
+    - qutebrowser
+    - tor-browser-en
+    - play
+    - qcode
+    - "| xclip -selection c"
 display_manager: lightdm
 desktop_environment: awesomewm
 lang:
@@ -123,7 +132,6 @@ cli:
     - trash-cli
     - tree
     - vifm
-    - vim
     - w3m
     - wget
     - whois

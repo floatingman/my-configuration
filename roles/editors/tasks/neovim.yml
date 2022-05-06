@@ -9,6 +9,7 @@
   package:
     name: neovim
     state: present
+  become: yes
 
 - name: Clone NeoVim config
   git:
