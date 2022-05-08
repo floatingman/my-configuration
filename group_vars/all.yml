@@ -14,6 +14,13 @@ dotfiles:
   path: "{{ user }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
+video_drivers:
+    - vulkan-icd-loader
+    - vulkan-intel
+    - vulkan-mesa-layers
+    - vulkan-tools
+    - intel-media-driver
+    - libva-intel-driver
 browser_choices:
     - firefox -P default
     - firefox -P work
@@ -38,23 +45,19 @@ gui:
     - bitwarden
     - bspwm
     - caffeine-ng
-    - chromium
     - clipmenu
     - dunst
     - exiv2
-    - firefox
     - geeqie
     - hledger
     - hledger-ui
     - hsetroot
     - i3-gaps
     - inkscape
-    - intel-media-driver
     - intel-ucode
     - inxi
     - isync
     - libreoffice
-    - libva-intel-driver
     - libva-utils
     - linux-firmware
     - linux-headers
@@ -74,10 +77,6 @@ gui:
     - udevil
     - urlscan
     - viewnior
-    - vulkan-icd-loader
-    - vulkan-intel
-    - vulkan-mesa-layers
-    - vulkan-tools
     - wmctrl
     - xbindkeys
     - xsettingsd

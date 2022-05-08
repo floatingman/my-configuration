@@ -1,0 +1,23 @@
+---
+- name: Install xdg-user-dirs
+  package: 
+    name: xdg-user-dirs 
+    state: present
+  become: yes
+  tags:
+    - xdg
+
+- name: Create user directories
+  command: /usr/bin/xdg-user-dirs-update
+  become: yes
+  become_user: "{{ user }}"
+  tags:
+    - xdg
+
+- name: Install perl-file-mimeinfo
+  package: 
+    name: perl-file-mimeinfo 
+    state: present
+  become: yes
+  tags:
+    - xdg

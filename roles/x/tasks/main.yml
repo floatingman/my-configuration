@@ -1,0 +1,66 @@
+---
+- name: Install Xorg
+  package: 
+    name: xorg-server 
+    state: present
+  become: yes
+
+- name: Install Xinit
+  package: 
+    name: xorg-xinit 
+    state: present
+  become: yes
+
+- name: Install xmodmap
+  package: 
+    name: xorg-xmodmap 
+    state: present
+  become: yes
+
+- name: Install xdpyinfo
+  package: 
+    name: xorg-xdpyinfo 
+    state: present
+  become: yes
+
+- name: Install xev
+  package: 
+    name: xorg-xev 
+    state: present
+  become: yes
+
+- name: Install xorg-sessreg
+  package: 
+    name: xorg-sessreg 
+    state: present
+  become: yes
+
+- name: Install xorg-xwininfo
+  package: 
+    name: xorg-xwininfo 
+    state: present
+  become: yes
+
+- name: Install xautomation
+  package: 
+    name: xautomation 
+    state: present
+  become: yes
+
+- name: Install video driver(s)
+  package:
+    name: "{{ video_drivers }}"
+    state: present
+  become: yes
+
+- name: Add user to video group
+  user: name={{ user }} groups=video append=yes
+  become: yes
+  tags:
+    - user
+
+- include: sxhkd.yml
+- include: unclutter.yml
+- include: autorandr.yml
+- include: autocutsel.yml
+- include: xdg.yml
