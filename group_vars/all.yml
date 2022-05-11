@@ -361,6 +361,7 @@ pet_version: 0.4.0
 polaris_version: 5.1.0
 popeye_version: 0.9.8
 ripgrep_version: 13.0.0
+rke_version: v1.3.10 
 scc_version: 3.0.0
 sd_version: 0.7.6
 slack_term_version: 0.5.0
@@ -597,6 +598,10 @@ binaries:
     extract: true
     bin_path: "ripgrep-{{ ripgrep_version }}-x86_64-unknown-linux-musl"
     bin_name: rg
+  
+  - name: rke
+    url: "https://github.com/rancher/rke/releases/download/{{ rke_version }}/rke_linux-amd64"
+    bin_name: rke_linux-amd64
 
   - name: scc
     url: "https://github.com/boyter/scc/releases/download/v{{ scc_version }}/scc-{{ scc_version }}-x86_64-unknown-linux.zip"
