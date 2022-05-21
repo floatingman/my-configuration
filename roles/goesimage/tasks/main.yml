@@ -1,0 +1,28 @@
+---
+- name: Install GOESImage
+  kewlfft.aur.aur:
+    name: goesimage
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Push GOESImage service file
+  template:
+    src: goesimage.service.j2
+    dest: /etc/systemd/user/goesimage.service
+  become: yes
+  notify:
+    - reload systemd config
+
+- name: Push GOESImage timer file
+  template:
+    src: goesimage.timer.j2
+    dest: /etc/systemd/user/goesimage.timer
+  become: yes
+  notify:
+    - reload systemd config
+    - restart GOESImage
