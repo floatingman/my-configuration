@@ -20,5 +20,6 @@
     - { role: lightdm, tags: ["lightdm"], when: "display_manager == 'lightdm'" }
     - { role: awesomewm, tags: ["awesomewm"], when: "desktop_environment =='awesomewm'" }
     - { role: screensaver, tags: ['screensaver'], when: "display_manager == 'lightdm'" }
+    - { role: goesimage, tags: ['goesimage'], when: "goesimage is defined" }
     - { role: taskwarrior, tags: ['taskwarrior'] }
     - { role: browsers, tags: ['browsers'], when: "display_manager == 'lightdm'" }

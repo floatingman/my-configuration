@@ -38,6 +38,11 @@ lang:
     - python
     - python-pip
     - go
+goesimage:
+  run_time: 15min
+  run_boot_delay: 2min
+  run_on: all
+  flags: -w -e
 gui:
   enabled: true
   arch:
