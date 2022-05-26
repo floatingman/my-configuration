@@ -1,0 +1,25 @@
+---
+- name: Install mpv
+  package:
+    name: mpv
+    state: present
+  become: yes
+
+- name: Push play script
+  copy:
+    src: play.sh
+    dest: /usr/local/bin/play
+    mode: 0755
+  become: yes
+
+- name: Install mpv sockets plugin
+  git:
+    clone: true
+    repo: https://github.com/wis/mpvSockets.git
+    dest: ~/.config/mpv/scripts/mpvSockets
+
+- name: Install mpv-reload script
+  git:
+    clone: true
+    repo: https://github.com/4e6/mpv-reload
+    dest: ~/.config/mpv/scripts/mpv-reload

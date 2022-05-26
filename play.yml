@@ -25,3 +25,4 @@
     - { role: taskwarrior, tags: ['taskwarrior'] }
     - { role: browsers, tags: ['browsers'], when: "display_manager == 'lightdm'" }
     - { role: ranger, tags: ['ranger'] }
+    - { role: mpv, tags: ['mpv'] }
