@@ -1,6 +1,7 @@
 hosts_pack: basic
 thinkpad: true
 user: dnewman
+uid: 1000
 sudo_without_password: true
 github_user: floatingman
 gitconfig:
@@ -17,6 +18,8 @@ dotfiles:
 network:
   conn_check:
     interval: 5
+  trusted_uuid:
+    - 5619b099-2c22-3276-8a7a-f12f55976a81
 video_drivers:
     - vulkan-icd-loader
     - vulkan-intel
@@ -34,7 +37,7 @@ browser_choices:
     - qcode
     - "| xclip -selection c"
 display_manager: lightdm
-desktop_environment: awesomewm
+desktop_environment: i3
 lang:
   enabled: true
   arch:
@@ -44,7 +47,7 @@ lang:
 goesimage:
   run_time: 15min
   run_boot_delay: 2min
-  run_on: all
+  run_on: trusted
   flags: -w -e
 gui:
   enabled: true
