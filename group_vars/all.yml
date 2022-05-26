@@ -20,6 +20,7 @@ network:
     interval: 5
   trusted_uuid:
     - 5619b099-2c22-3276-8a7a-f12f55976a81
+    - 97a225df-f8f9-4fc4-a95d-289654f71c02
 video_drivers:
     - vulkan-icd-loader
     - vulkan-intel
