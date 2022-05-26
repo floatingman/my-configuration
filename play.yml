@@ -15,6 +15,7 @@
     - { role: editors, tags: ["editors"] }
     - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
     - { role: laptop, tags: ['laptop'], when: "'ThinkPad' in ansible_product_version" }
+    - { role: networkmanager, tags: ['networkmanager'] }    
     - { role: avanov.pyenv, tags: ["python"] }
     - { role: lightdm, tags: ["lightdm"], when: "display_manager == 'lightdm'" }
     - { role: awesomewm, tags: ["awesomewm"], when: "desktop_environment =='awesomewm'" }

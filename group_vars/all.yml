@@ -14,6 +14,9 @@ dotfiles:
   path: "{{ user }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
+network:
+  conn_check:
+    interval: 5
 video_drivers:
     - vulkan-icd-loader
     - vulkan-intel
