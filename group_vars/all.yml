@@ -222,7 +222,6 @@ pip_packages:
   - neovim-remote
   - pandas
   - python-rofi
-  - ranger-fm
   - selenium
   - s4cmd
   - speedtest-cli

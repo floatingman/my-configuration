@@ -20,7 +20,8 @@
 - name: Push lock script
   copy: 
     src: lock.sh 
-    dest: /usr/local/bin/lock mode=0755
+    dest: /usr/local/bin/lock 
+    mode: 0755
   become: yes
 
 - name: Push screen lock service file

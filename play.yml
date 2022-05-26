@@ -5,7 +5,6 @@
   roles:
     - { role: ansible-role-basic, tags: ["basic"] }
     - { role: ansible-role-system, tags: ["system"] }
-    - { role: ansible-role-shell, tags: ["shell"] }
     - { role: x, tags: ['x'], when: ansible_os_family ==  "Archlinux" } 
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: shell, tags: ["shell"] }
@@ -23,3 +22,4 @@
     - { role: goesimage, tags: ['goesimage'], when: "goesimage is defined" }
     - { role: taskwarrior, tags: ['taskwarrior'] }
     - { role: browsers, tags: ['browsers'], when: "display_manager == 'lightdm'" }
+    - { role: ranger, tags: ['ranger'] }
