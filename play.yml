@@ -27,3 +27,4 @@
     - { role: ranger, tags: ['ranger'] }
     - { role: mpv, tags: ['mpv'] }
     - { role: pass, tags: ['pass'] }
+    - { role: spell, tags: ['spell'] }

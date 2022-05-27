@@ -29,7 +29,7 @@ video_drivers:
     - intel-media-driver
     - libva-intel-driver
 browser_choices:
-    - firefox -P default
+    - firefox -P default-release
     - firefox -P work
     - chromium
     - qutebrowser
