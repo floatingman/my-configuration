@@ -28,3 +28,4 @@
     - { role: mpv, tags: ['mpv'] }
     - { role: pass, tags: ['pass'] }
     - { role: spell, tags: ['spell'] }
+    - { role: clipboard, tags: ['clipboard'] }

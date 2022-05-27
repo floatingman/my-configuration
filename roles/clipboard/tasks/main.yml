@@ -1,0 +1,28 @@
+---
+- name: install greenclip from AUR
+  kewlfft.aur.aur:
+    name: rofi-greenclip
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: copy greenclip.service
+  copy:
+    src: greenclip.service
+    dest: /etc/systemd/user/greenclip.service
+  become: yes  
+
+- name: Enable greenclip.service
+  systemd:
+    name: greenclip.service
+    scope: user
+    enabled: yes
+    state: started
+  become: yes
+  become_user: "{{ user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ uid }}"
