@@ -1,0 +1,42 @@
+---
+- name: Install pass
+  pacman:
+    name: pass
+    state: present
+  become: yes
+
+- name: Install pass-otp
+  pacman:
+    name: pass-otp
+    state: present
+  become: yes
+
+- name: Install rofi-pass
+  pacman:
+    name: rofi-pass
+    state: present
+  become: yes
+  tags:
+    - rofi
+
+- name: Install pass-update
+  kewlfft.aur.aur:
+    name: pass-update
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install pwgen-passphrase
+  kewlfft.aur.aur:
+    name: pwgen-passphrase
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
