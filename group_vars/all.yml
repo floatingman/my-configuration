@@ -2,6 +2,8 @@ hosts_pack: basic
 thinkpad: true
 user: dnewman
 uid: 1000
+hostname: rodimus
+bootloader: grub
 sudo_without_password: true
 github_user: floatingman
 gitconfig:
@@ -15,6 +17,7 @@ dotfiles:
   path: "{{ user }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
+kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
 network:
   conn_check:
     interval: 5

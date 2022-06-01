@@ -1,0 +1,73 @@
+---
+- name: Copy pacman configuration file
+  copy:
+    src: pacman.conf
+    dest: /etc/pacman.conf
+  become: yes
+
+- name: Refresh pacman mirrors
+  pacman:
+    update_cache: yes
+  become: yes
+
+- name: Install inetutils for hostname
+  pacman:
+      name: inetutils
+      state: present
+  become: yes
+
+- name: Set the hostname
+  hostname:
+    name: "{{ hostname }}"
+  when: hostname is defined
+  become: yes
+
+- name: Set kernel parameters
+  lineinfile:
+    dest: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT'
+    state: present
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="{{ kernel_parameters }}"'
+  when: kernel_parameters is defined and bootloader == 'grub'
+  notify:
+    - rebuild grub
+  become: yes
+  tags:
+    - kernelparams
+
+- name: Create pacman hook directory
+  file: path=/etc/pacman.d/hooks
+        state=directory
+  become: yes
+  tags:
+    - packages
+
+- name: Use all cores when compressing packages
+  lineinfile:
+    dest: /etc/makepkg.conf
+    regexp: "^COMPRESSXZ"
+    line: "COMPRESSXZ=(xz -c -z - --threads=0)"
+  become: yes
+
+- name: Push pacman cache cleanup service
+  copy: src=paccache.service dest=/etc/systemd/system/paccache.service
+  become: yes
+  notify:
+    - reload systemd config
+  tags:
+    - packages
+
+- name: Push pacman cache cleanup timer
+  copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
+  become: yes
+  notify:
+    - reload systemd config
+    - restart paccache
+  tags:
+    - packages
+
+- name: Enable and start pacman cache cleanup timer
+  service: name=paccache.timer enabled=yes state=started
+  become: yes
+  tags:
+    - packages
