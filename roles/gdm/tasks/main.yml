@@ -1,0 +1,27 @@
+---
+- name: Install GNOME Display Manager (GDM)
+  package: 
+    name: gdm 
+    state: present
+
+- name: Enable GDM
+  service: 
+    name: gdm.service 
+    enabled: yes
+
+- name: Creating DConf configuration profile
+  copy: 
+    src: profile/gdm 
+    dest: /etc/dconf/profile/gdm
+
+- name: Creating gdm.d directory for DConf
+  file: 
+    path: /etc/dconf/db/gdm.d 
+    state: directory 
+    mode: 0755
+
+- name: Configuring GDM
+  template: 
+    src: gdm.d/00-spark.j2 
+    dest: /etc/dconf/db/gdm.d/00-spark
+  notify: update DConf database

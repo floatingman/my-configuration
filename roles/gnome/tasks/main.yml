@@ -1,0 +1,14 @@
+---
+- name: Install GNOME
+  pacman:
+    name:
+      - gnome
+      - gnome-extra
+      - gnome-tweaks
+      - xorg-server-xwayland
+    state: present
+
+- include: dconf.yml
+- include: gtk.yml
+- include: gnome_shell.yml
+- include: online_accounts.yml
