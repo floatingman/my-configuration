@@ -1,0 +1,26 @@
+---
+- name: Install i3
+  pacman:
+    name:
+      - i3-wm
+      - i3blocks
+      - i3lock
+      - i3status
+    state: present
+
+- name: Install py3status
+  pacman: name=py3status state=present
+
+- name: Verify that default applications file exists
+  copy:
+    content: ""
+    dest: /etc/xdg/mimeapps.list
+    force: false
+
+- name: Verify header in default applications file
+  lineinfile: dest=/etc/xdg/mimeapps.list
+              state=present
+              line='[Default Applications]'
+              insertbefore=BOF
+
+- include: rofi.yml
