@@ -6,12 +6,12 @@
   become: yes
 
 - name: Refresh pacman mirrors
-  pacman:
+  package:
     update_cache: yes
   become: yes
 
 - name: Install inetutils for hostname
-  pacman:
+  package:
       name: inetutils
       state: present
   become: yes

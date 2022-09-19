@@ -1,6 +1,6 @@
 ---
 - name: Install hunspell
-  pacman:
+  package:
     name:
       - hunspell
       - hunspell-en_US
@@ -10,7 +10,7 @@
     - hunspell
 
 - name: Install aspell
-  pacman:
+  package:
     name:
       - aspell
       - aspell-en

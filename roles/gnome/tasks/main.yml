@@ -1,6 +1,6 @@
 ---
 - name: Install GNOME
-  pacman:
+  package:
     name:
       - gnome
       - gnome-extra

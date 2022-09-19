@@ -1,6 +1,6 @@
 ---
 - name: Install i3
-  pacman:
+  package:
     name:
       - i3-wm
       - i3blocks
@@ -9,7 +9,7 @@
     state: present
 
 - name: Install py3status
-  pacman: name=py3status state=present
+  package: name=py3status state=present
 
 - name: Verify that default applications file exists
   copy:

@@ -1,6 +1,6 @@
 ---
 - name: Install NetworkManager and dependencies
-  pacman:
+  package:
     name:
       - networkmanager
       - networkmanager-openvpn

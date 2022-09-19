@@ -1,16 +1,21 @@
 ---
 - name: Disabling GNOME Shell top left hot corner
-  aur: name=gnome-shell-extension-no-topleft-hot-corner user={{ user.name }}
-  when: "gnome.gnome_shell.disable_top_left_hot_corner"
+  kewlfft.aur.aur: 
+    name: gnome-shell-extension-no-topleft-hot-corner 
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: "gnome.gnome_shell.disable_top_left_hot_corner" and ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
 
 - name: Enabling GNOME Shell top left hot corner
-  pacman: name=gnome-shell-extension-no-topleft-hot-corner state=absent
+  package: name=gnome-shell-extension-no-topleft-hot-corner state=absent
   when: "not gnome.gnome_shell.disable_top_left_hot_corner"
 
 - name: Configuring GNOME Shell Extensions support
-  pacman:
+  package:
     name:
       - gnome-shell-extensions
       - chrome-gnome-shell
