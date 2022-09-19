@@ -6,7 +6,7 @@
     state: present
   become: yes
   become_user: aur_builder
-  when: "gnome.gnome_shell.disable_top_left_hot_corner" and ansible_facts["os_family"] == "Archlinux"
+  when: ansible_facts["os_family"] == "Archlinux" and "gnome.gnome_shell.disable_top_left_hot_corner"
   tags:
     - aur
 
