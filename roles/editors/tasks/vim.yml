@@ -1,9 +1,9 @@
 ---
-- name: Install gvim 
+- name: Install gvim
   package:
     name: gvim
     state: present
-  when: "display_manager =='lightdm'" 
+  when: "display_manager"
 
 - name: Check if vim is installed
   package_facts:
@@ -13,4 +13,4 @@
   package:
     name: vim
     state: present
-  when: "'gvim' not in ansible_facts.packages" 
+  when: "'gvim' not in ansible_facts.packages"

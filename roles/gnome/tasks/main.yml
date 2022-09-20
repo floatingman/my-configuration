@@ -2,7 +2,6 @@
 - name: Install GNOME
   package:
     name:
-      - gnome
       - gnome-extra
       - gnome-tweaks
       - xorg-server-xwayland
@@ -10,5 +9,4 @@
 
 - include: dconf.yml
 - include: gtk.yml
-- include: gnome_shell.yml
 - include: online_accounts.yml

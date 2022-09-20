@@ -6,6 +6,8 @@ hostname: rodimus
 bootloader: grub
 sudo_without_password: true
 github_user: floatingman
+ssh_key_name: "id_ed25519_dlp"
+ssh_key_path: "{{ user }}/.ssh/{{ ssh_key_name }}"
 gitconfig:
   name: Daniel Newman
   mail: dan@danlovesprogramming.com
@@ -249,6 +251,7 @@ cli:
     - texlab
     - timew
     - tokei
+    - xsv
     - yq
     - youtube-dl
     - zoxide
@@ -302,7 +305,6 @@ aur:
     - slack-term-bin
     - tflint-bin
     - tfswitch-bin
-    - xsv-bin
     - viddy
     - masterpdfeditor
     - urlview

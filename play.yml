@@ -2,6 +2,7 @@
 - name: Playbook
   hosts: localhost
   connection: local
+  become: True
   roles:
     - { role: ansible-role-basic, tags: ["basic"] }
     - { role: ansible-role-system, tags: ["system"] }

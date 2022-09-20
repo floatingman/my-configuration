@@ -18,7 +18,11 @@
   become: yes
 
 - name: Clone user dotfiles
-  git: repo={{ dotfiles.repo_url }} dest=/home/{{ dotfiles.path }} accept_hostkey=yes update=no
+  git: 
+    repo: "{{ dotfiles.repo_url }}" 
+    dest: "/home/{{ dotfiles.path }}"
+    accept_hostkey: yes 
+    update: yes
   when: dotfiles is defined
   become: yes
   become_user: "{{ user }}"

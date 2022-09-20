@@ -2,4 +2,9 @@
   git:
     clone: true
     repo: git@github.com:floatingman/systemcrafteremacs.git
-    dest: "{{ ansible_env.HOME }}/.emacs.d"
+    dest: "/home/{{ user }}/.emacs.d"
+    accept_hostkey: yes
+    update: yes
+  become: yes
+  become_user: "{{ user }}"
+

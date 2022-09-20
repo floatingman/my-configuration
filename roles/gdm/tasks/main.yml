@@ -1,7 +1,7 @@
 ---
 - name: Install GNOME Display Manager (GDM)
   package: 
-    name: gdm 
+    name: gdm-plymouth 
     state: present
 
 - name: Enable GDM

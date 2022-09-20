@@ -15,4 +15,8 @@
   git:
     clone: true
     repo: git@github.com:floatingman/neovim.git
-    dest: "{{ ansible_env.HOME }}/.config/nvim"
+    dest: "/home/{{ user }}/.config/nvim"
+    accept_hostkey: yes
+    update: yes
+  become: yes
+  become_user: "{{ user }}"
