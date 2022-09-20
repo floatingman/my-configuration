@@ -20,10 +20,10 @@
     - { role: nmtrust, tags: ['nmtrust'] }
     - { role: networkmanager, tags: ['networkmanager'] }    
     - { role: avanov.pyenv, tags: ["python"] }
-    - { role: lightdm, tags: ["lightdm"], when: "display_manager == 'lightdm'" }
-    - { role: gdm, tags: ["gdm"], when: "display_manager == 'gdm'" }
-    - { role: i3, tags: ['i3'], when: "desktop_environment == 'i3'" }
-    - { role: gnome, tags: ['gnome'], when: "desktop_environment == 'gnome'" }
+    #- { role: lightdm, tags: ["lightdm"], when: "display_manager == 'lightdm'" }
+    #- { role: gdm, tags: ["gdm"], when: "display_manager == 'gdm'" }
+    #- { role: i3, tags: ['i3'], when: "desktop_environment == 'i3'" }
+    #- { role: gnome, tags: ['gnome'], when: "desktop_environment == 'gnome'" }
     - { role: awesomewm, tags: ["awesomewm"], when: "desktop_environment =='awesomewm'" }
     - { role: screensaver, tags: ['screensaver'], when: "display_manager == 'lightdm'" }
     - { role: goesimage, tags: ['goesimage'], when: "goesimage is defined" }
