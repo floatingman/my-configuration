@@ -15,22 +15,22 @@
     - { role: ansible-role-pip, tags: ["pip"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
-    - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
-    - { role: laptop, tags: ['laptop'], when: "'ThinkPad' in ansible_product_version" }
-    - { role: nmtrust, tags: ['nmtrust'] }
-    - { role: networkmanager, tags: ['networkmanager'] }    
+    # - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
+    - { role: laptop, tags: ['laptop'], when: ("'ThinkPad' in ansible_product_version") and (ansible_os_family ==  "Archlinux") }
+    - { role: nmtrust, tags: ['nmtrust'], when: ansible_os_family ==  "Archlinux"  }
+    - { role: networkmanager, tags: ['networkmanager'], when: ansible_os_family ==  "Archlinux" }
     - { role: avanov.pyenv, tags: ["python"] }
-    #- { role: lightdm, tags: ["lightdm"], when: "display_manager == 'lightdm'" }
-    #- { role: gdm, tags: ["gdm"], when: "display_manager == 'gdm'" }
-    #- { role: i3, tags: ['i3'], when: "desktop_environment == 'i3'" }
-    #- { role: gnome, tags: ['gnome'], when: "desktop_environment == 'gnome'" }
-    - { role: awesomewm, tags: ["awesomewm"], when: "desktop_environment =='awesomewm'" }
-    - { role: screensaver, tags: ['screensaver'], when: "display_manager == 'lightdm'" }
+    - { role: lightdm, tags: ["lightdm"], when: (display_manager is defined) and ("display_manager == 'lightdm'") }
+    - { role: gdm, tags: ["gdm"], when: (display_manager is defined) and ("display_manager == 'gdm'") }
+    - { role: i3, tags: ['i3'], when: (desktop_environment is defined) and ("desktop_environment == 'i3'") }
+    - { role: gnome, tags: ['gnome'], when: (desktop_environment is defined) and ("desktop_environment == 'gnome'") }
+    - { role: awesomewm, tags: ["awesomewm"], when: (desktop_environment is defined) and "desktop_environment =='awesomewm'" }
+    - { role: screensaver, tags: ['screensaver'], when: display_manager is defined }
     - { role: goesimage, tags: ['goesimage'], when: "goesimage is defined" }
-    - { role: taskwarrior, tags: ['taskwarrior'] }
-    - { role: browsers, tags: ['browsers'], when: "display_manager == 'lightdm'" }
+    - { role: taskwarrior, tags: ['taskwarrior'], when: ansible_os_family ==  "Archlinux" }
+    - { role: browsers, tags: ['browsers'], when: display_manager is defined }
     - { role: ranger, tags: ['ranger'] }
     - { role: mpv, tags: ['mpv'] }
-    - { role: pass, tags: ['pass'] }
+    - { role: pass, tags: ['pass'], when: ansible_os_family ==  "Archlinux" }
     - { role: spell, tags: ['spell'] }
     - { role: clipboard, tags: ['clipboard'] }

@@ -1,9 +1,9 @@
 ---
-- name: Install gvim
-  package:
-    name: gvim
-    state: present
-  when: "display_manager"
+# - name: Install gvim
+#   package:
+#     name: gvim
+#     state: present
+#   when: "display_manager"
 
 - name: Check if vim is installed
   package_facts:

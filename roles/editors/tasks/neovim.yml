@@ -14,7 +14,7 @@
 - name: Clone NeoVim config
   git:
     clone: true
-    repo: git@github.com:floatingman/neovim.git
+    repo: git@github.com:floatingman/nvim.git
     dest: "/home/{{ user }}/.config/nvim"
     accept_hostkey: yes
     update: yes

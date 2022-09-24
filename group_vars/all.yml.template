@@ -24,6 +24,8 @@ network:
   conn_check:
     interval: 5
   trusted_uuid:
+    - 5619b099-2c22-3276-8a7a-f12f55976a81
+    - 97a225df-f8f9-4fc4-a95d-289654f71c02
 video_drivers:
     - vulkan-icd-loader
     - vulkan-intel
@@ -31,12 +33,68 @@ video_drivers:
     - vulkan-tools
     - intel-media-driver
     - libva-intel-driver
+browser_choices:
+    - firefox -P default-release
+    - firefox -P work
+    - chromium
+    - qutebrowser
+    - tor-browser-en
+    - play
+    - qcode
+    - "| xclip -selection c"
+display_manager: gdm
+gdm:
+    sound: False
+    font_scaling_factor: 1
+    logo_path: False
+    touchpad:
+        tap_to_click: True
+    accessibility_menu: True
+desktop_environment: gnome
+gnome:
+    night_light:
+        enabled: True
+        color_temperature: 4000 # in Kelvin
+    date_time:
+        show_date_in_clock: True
+        show_weeks_in_calendar: True
+    battery:
+        show_percentage: True
+    power:
+        sleep_timeout_when_computer_on_ac: 3600 # in seconds
+        timeout_action_when_computer_on_ac: suspend
+        sleep_timeout_when_computer_on_battery: 1800 # in seconds
+        timeout_action_when_computer_on_battery: suspend
+        power_button_action: suspend
+    touchpad:
+        tap_to_click: True
+        natural_scrolling: True
+        disabled_while_typing: True
+    online_accounts_support: True
+    lock_screen:
+        automatic_lock: True
+        lock_screen_after_blank_for: 0 # in seconds
+        show_notifications: True
+        show_full_name_of_user: True
+    theme:
+        theme_name: Adwaita
+        icon_theme_name: Adwaita
+        font_name: Dejavu Sans 13
+        dark_variant: True
+    gnome_shell:
+        disable_top_left_hot_corner: False
+        extensions_support: True
 lang:
   enabled: true
   arch:
     - python
     - python-pip
     - go
+goesimage:
+  run_time: 15min
+  run_boot_delay: 2min
+  run_on: trusted
+  flags: -w -e
 gui:
   enabled: true
   arch:
@@ -373,6 +431,7 @@ tokei_version: 12.1.2
 xsv_version: 0.13.0
 viddy_version: 0.3.4
 yq_version: 4.22.1
+zoxide_version: 0.8.0
 logcli_version: v2.4.2
 binaries:
   - name: hey
@@ -644,6 +703,10 @@ binaries:
   - name: yq
     url: "https://github.com/mikefarah/yq/releases/download/v{{ yq_version }}/yq_linux_amd64"
     bin_name: yq_linux_amd64
+
+  - name: zoxide
+    url: "https://github.com/ajeetdsouza/zoxide/releases/download/v{{ zoxide_version }}/zoxide-v{{ zoxide_version }}-x86_64-unknown-linux-musl.tar.gz"
+    extract: true
 
   - name: viddy
     url: "https://github.com/sachaos/viddy/releases/download/v{{ viddy_version }}/viddy_{{ viddy_version }}_Linux_x86_64.tar.gz"

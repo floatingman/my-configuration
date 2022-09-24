@@ -8,6 +8,17 @@
   become: yes 
   tags:
     - hunspell
+  when: ansible_os_family ==  "Archlinux"
+
+- name: Install hunspell
+  package:
+    name:
+      - hunspell
+      - hunspell-en-us
+    state: present
+  become: yes 
+  tags:
+    - hunspell
 
 - name: Install aspell
   package:
