@@ -15,7 +15,7 @@
     - { role: ansible-role-pip, tags: ["pip"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
-    # - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
+    - { role: ansible-role-binaries, tags: ["binaries"], when: ansible_os_family == "Debian" }
     - { role: laptop, tags: ['laptop'], when: ("'ThinkPad' in ansible_product_version") and (ansible_os_family ==  "Archlinux") }
     - { role: nmtrust, tags: ['nmtrust'], when: ansible_os_family ==  "Archlinux"  }
     - { role: networkmanager, tags: ['networkmanager'], when: ansible_os_family ==  "Archlinux" }
