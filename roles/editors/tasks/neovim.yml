@@ -17,6 +17,6 @@
     repo: git@github.com:floatingman/nvim.git
     dest: "/home/{{ user }}/.config/nvim"
     accept_hostkey: yes
-    update: yes
+    update: no
   become: yes
   become_user: "{{ user }}"
