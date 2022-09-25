@@ -150,6 +150,7 @@ cli:
     - texlive
     - libxext-dev
     - timewarrior
+    - youtube-dl
   arch:
     - ctags
     - bitwarden-cli
