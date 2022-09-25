@@ -139,6 +139,7 @@ cli:
   debian:
     - dnsutils
     - exuberant-ctags
+    - cifs-utils
     - libxfixes-dev
     - x11proto-core-dev
     - libx11-dev
