@@ -2,7 +2,6 @@
 - name: Playbook
   hosts: localhost
   connection: local
-  become: True
   roles:
     - { role: ansible-role-basic, tags: ["basic"] }
     - { role: ansible-role-system, tags: ["system"] }
@@ -33,4 +32,4 @@
     - { role: mpv, tags: ['mpv'] }
     - { role: pass, tags: ['pass'], when: ansible_os_family ==  "Archlinux" }
     - { role: spell, tags: ['spell'] }
-    - { role: clipboard, tags: ['clipboard'] }
+    - { role: clipboard, tags: ['clipboard'], when: ansible_os_family == "Archlinux" }
