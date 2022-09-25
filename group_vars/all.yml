@@ -137,6 +137,7 @@ cli:
     - zoxide
     - zip
   debian:
+    - attr
     - dnsutils
     - exuberant-ctags
     - cifs-utils
