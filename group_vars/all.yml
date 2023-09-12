@@ -2,7 +2,7 @@ hosts_pack: basic
 thinkpad: true
 user: dnewman
 uid: 1000
-hostname: rodimus
+hostname: dockervm
 bootloader: grub
 sudo_without_password: true
 github_user: floatingman
@@ -15,7 +15,7 @@ gitconfig:
   neovim_remote: true
   meld: true
 dotfiles:
-  repo_url: git@github.com:{{ github_user }}/dotfiles.git
+  repo_url: https://github.com/{{ github_user }}/dotfiles.git
   path: "{{ user }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
@@ -225,7 +225,6 @@ pip_packages:
   - s4cmd
   - speedtest-cli
   - pytest-testinfra
-  - ueberzug
   - yamllint
   - vdirsyncer
 aur:
@@ -266,24 +265,24 @@ asdf_user: "{{ user }}"
 asdf_plugins:
   - name: "nodejs"
     versions:
-      - 17.7.1
-    global: 17.7.1
+      - 18.17.1
+    global: 18.17.1
   - name: "ruby"
     versions:
       - 3.1.1
     global: 3.1.1
   - name: "kubectl"
     versions:
-      - 1.23.4
-    global: 1.23.4
+      - 1.28.1
+    global: 1.28.1
   - name: "terraform"
     versions:
-      - 1.1.8
-    global: 1.1.8
+      - 1.5.7
+    global: 1.5.7
   - name: "helm"
     versions:
-      - 3.8.0
-    global: 3.8.0
+      - 3.12.3
+    global: 3.12.3
   - name: "concourse"
     versions:
       - 7.7.0
@@ -367,7 +366,7 @@ rke_version: v1.3.10
 scc_version: 3.0.0
 sd_version: 0.7.6
 slack_term_version: 0.5.0
-stern_version: 1.11.0
+stern_version: 1.26.0
 tectonic_version: 0.8.2
 texlab_version: v3.3.2
 tflint_version: v0.34.1
@@ -617,8 +616,8 @@ binaries:
     bin_name: slack-term-linux-amd64
 
   - name: stern
-    url: "https://github.com/wercker/stern/releases/download/{{ stern_version }}/stern_linux_amd64"
-    bin_name: stern_linux_amd64
+    url: "https://github.com/stern/stern/releases/download/v{{ stern_version }}/stern_{{ stern_version }}_linux_amd64.tar.gz"
+    extract: true
 
   - name: tectonic
     url: "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40{{ tectonic_version }}/tectonic-{{ tectonic_version }}-x86_64-unknown-linux-gnu.tar.gz"

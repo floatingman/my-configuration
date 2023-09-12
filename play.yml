@@ -3,8 +3,8 @@
   hosts: localhost
   connection: local
   roles:
-    - { role: ansible-role-basic, tags: ["basic"] }
-    - { role: ansible-role-system, tags: ["system"] }
+    # - { role: ansible-role-basic, tags: ["basic"] }
+      #    - { role: ansible-role-system, tags: ["system"] }
     - { role: base, tags: ['base'], when: ansible_os_family ==  "Archlinux" } 
     - { role: x, tags: ['x'], when: ansible_os_family ==  "Archlinux" } 
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
