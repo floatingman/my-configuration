@@ -1,0 +1,30 @@
+---
+- name: ensure fonts directory
+  file:
+    path: "{{ lookup('env', 'HOME') }}/.fonts"
+    state: directory
+
+- name: Hack exists
+  shell: "ls {{ lookup('env', 'HOME') }}/.fonts/Hack*Nerd*Font*Complete*"
+  register: hack_exists
+  ignore_errors: yes
+
+- name: Download Hack
+  when: hack_exists is failed
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz
+    dest: "{{ lookup('env', 'HOME') }}/.fonts/"
+    remote_src: yes
+
+- name: JetBrains exists
+  shell: "ls {{ lookup('env', 'HOME') }}/.fonts/JetBrains*Nerd*Font*Complete*"
+  register: jetbrains_exists
+  ignore_errors: yes
+
+- name: Download JetBrains Mono Nerd Font
+  when: jetbrains_exists is failed
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
+    dest: "{{ lookup('env', 'HOME') }}/.fonts/"
+    remote_src: yes
+
