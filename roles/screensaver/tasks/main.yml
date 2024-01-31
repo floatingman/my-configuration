@@ -1,39 +1,33 @@
 ---
 - name: Install xautolock
-  package: 
-    name: xautolock 
-    state: present
-  become: yes
-
-- name: Install physlock
-  package: 
-    name: physlock
-    state: present
-  become: yes
-
-- name: Install light for backlight management
   package:
-    name: light
+    name: xautolock
     state: present
-  become: yes
+  become: true
+
+- name: Install i3lock
+  package:
+    name: i3lock
+    state: present
+  become: true
 
 - name: Push lock script
-  copy: 
-    src: lock.sh 
-    dest: /usr/local/bin/lock 
+  copy:
+    src: lock.sh
+    dest: /usr/local/bin/lock
     mode: 0755
-  become: yes
+  become: true
 
 - name: Push screen lock service file
-  copy: 
-    src: screenlock.service 
+  copy:
+    src: screenlock.service
     dest: /etc/systemd/system/screenlock@.service
-  become: yes
+  become: true
   notify:
     - reload systemd config
 
 - name: Enable screen lock service
-  service: 
-    name: "screenlock@{{ user }}.service" 
+  service:
+    name: "screenlock@{{ user }}.service"
     enabled: yes
-  become: yes
+  become: true

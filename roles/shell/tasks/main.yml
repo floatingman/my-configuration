@@ -1,3 +1,3 @@
 ---
-- include: shell.yml
-- include: fzf.yml
+- include_tasks: shell.yml
+- include_tasks: fzf.yml

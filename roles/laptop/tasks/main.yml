@@ -1,4 +1,90 @@
 ---
-- { include: tlp.yml, become: yes }
-- { include: battery.yml, become: yes }
-- { include: aur.yml }
+- include_tasks: tlp.yml
+
+- name: Copy logind configuration file
+  become: true
+  copy:
+    src: logind.conf
+    dest: /etc/systemd/logind.conf
+
+- name: Push low battery warning script
+  become: true
+  copy:
+    src: lowbatt.sh
+    dest: /usr/local/bin/lowbatt
+    mode: 0755
+
+- name: Push low battery warning service file
+  become: true
+  template:
+    src: lowbatt.service.j2
+    dest: /etc/systemd/system/lowbatt.service
+  notify:
+    - reload systemd config
+
+- name: Push low battery timer file
+  become: true
+  template:
+    src: lowbatt.timer.j2
+    dest: /etc/systemd/system/lowbatt.timer
+  notify:
+    - reload systemd config
+    - restart lowbatt
+
+- name: Enable and start lowbatt timer
+  become: true
+  service:
+    name: lowbatt.timer
+    enabled: yes
+    state: started
+
+- name: Install brightnessctl
+  become: true
+  package:
+    name: brightnessctl
+    state: present
+
+# - name: Install light
+#   bebecome: true
+#   package:
+#     name: light
+#     state: present
+
+- name: Install powertop
+  become: true
+  package:
+    name: powertop
+    state: present
+
+- name: Install powerstat
+  kewlfft.aur.aur:
+    name: powerstat
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install battery-stats
+  kewlfft.aur.aur:
+    name: battery-stats-git
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install battop
+  kewlfft.aur.aur:
+    name: battop
+    use: auto
+    state: present
+  become: yes
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

@@ -1,4 +1,2 @@
 ---
-# - include: vim.yml
-# - include: neovim.yml
-- include: emacs.yml
+- include_tasks: neovim.yml

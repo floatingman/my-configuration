@@ -3,19 +3,19 @@
   package:
     name: w3m
     state: present
-  become: yes
+  become: true
 
 - name: Install lynx
   package:
     name: lynx
     state: present
-  become: yes
+  become: true
 
 - name: Install Firefox
   package:
     name: firefox
     state: present
-  become: yes
+  become: true
   tags:
     - firefox
 
@@ -23,7 +23,7 @@
   package:
     name: chromium
     state: present
-  become: yes
+  become: true
   tags:
     - chromium
 
@@ -31,7 +31,7 @@
   package:
     name: torbrowser-launcher
     state: present
-  become: yes
+  become: true
   tags:
     - tor-browser
 
@@ -42,7 +42,7 @@
       - python-adblock
       - pdfjs
     state: present
-  become: yes
+  become: true
   tags:
     - qutebrowser
 
@@ -51,7 +51,7 @@
     src: browser.sh.j2
     dest: /usr/local/bin/browser
     mode: 0755
-  become: yes
+  become: true
   tags:
     - rofi
     - chooser
@@ -60,7 +60,7 @@
   file:
     path: /usr/local/share/applications
     state: directory
-  become: yes
+  become: true
   tags:
     - rofi
     - chooser
@@ -69,7 +69,7 @@
   copy:
     src: browser.desktop
     dest: /usr/local/share/applications/browser.desktop
-  become: yes
+  become: true
   tags:
     - rofi
     - chooser
@@ -79,7 +79,7 @@
     content: ""
     dest: /etc/xdg/mimeapps.list
     force: false
-  become: yes
+  become: true
   tags:
     - rofi
     - chooser
@@ -90,14 +90,23 @@
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
   with_items:
-    - { regexp: '^text/html=', line: 'text/html=browser.desktop' }
-    - { regexp: '^text/xml=', line: 'text/xml=browser.desktop' }
-    - { regexp: '^text/mml=', line: 'text/mml=browser.desktop' }
-    - { regexp: '^application/xhtml\+xml=', line: 'application/xhtml+xml=browser.desktop' }
-    - { regexp: '^application/xml=', line: 'application/xml=browser.desktop' }
-    - { regexp: '^x-scheme-handler/http=', line: 'x-scheme-handler/http=browser.desktop' }
-    - { regexp: '^x-scheme-handler/https=', line: 'x-scheme-handler/https=browser.desktop' }
-  become: yes
+    - { regexp: "^text/html=", line: "text/html=browser.desktop" }
+    - { regexp: "^text/xml=", line: "text/xml=browser.desktop" }
+    - { regexp: "^text/mml=", line: "text/mml=browser.desktop" }
+    - {
+        regexp: '^application/xhtml\+xml=',
+        line: "application/xhtml+xml=browser.desktop",
+      }
+    - { regexp: "^application/xml=", line: "application/xml=browser.desktop" }
+    - {
+        regexp: "^x-scheme-handler/http=",
+        line: "x-scheme-handler/http=browser.desktop",
+      }
+    - {
+        regexp: "^x-scheme-handler/https=",
+        line: "x-scheme-handler/https=browser.desktop",
+      }
+  become: true
   tags:
     - rofi
     - chooser
@@ -106,16 +115,16 @@
   package:
     name: surfraw
     state: present
-  become: yes
+  become: true
   tags:
     - surfraw
 
 - name: Configure surfraw browser
   lineinfile:
     dest: /etc/xdg/surfraw/conf
-    regexp: '^def   SURFRAW_graphical_browser	'
-    line: 'def   SURFRAW_graphical_browser	/usr/local/bin/browser'
-  become: yes
+    regexp: "^def   SURFRAW_graphical_browser	"
+    line: "def   SURFRAW_graphical_browser	/usr/local/bin/browser"
+  become: true
   tags:
     - surfraw
     - chooser
@@ -125,7 +134,7 @@
     src: surfraw-rofi
     dest: /usr/local/bin/surfraw-rofi
     mode: 0755
-  become: yes  
+  become: true
   tags:
     - surfraw
     - rofi

@@ -1,10 +1,19 @@
 ---
 - name: Install rofi
-  package: name=rofi state=present
+  become: true
+  package:
+    name:
+      - rofi
+    state: present
   tags:
     - rofi
 
 - name: Install i3-wm for rofi window switching
-  package: name=i3-wm state=present
+  become: true
+  package:
+    name:
+      - i3-wm
+    state: present
   tags:
     - rofi
+

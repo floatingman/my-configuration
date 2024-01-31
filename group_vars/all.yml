@@ -1,9 +1,20 @@
-hosts_pack: basic
-thinkpad: true
+laptop: true
 user: dnewman
 uid: 1000
-hostname: dockervm
-bootloader: grub
+hostname: tracks
+bootloader: systemd-boot
+browser_choices:
+  - firefox -P default
+  - firefox -P work
+  - tor-browser-en
+  - play
+  - qcode
+  - "| xclip -selection c"
+
+hosts_path: "/etc/hosts"
+hosts_backup: "/etc/hosts.original"
+hosts_pack: basic
+hosts_url: "https://block.energized.pro/{{ hosts_pack }}/formats/hosts"
 sudo_without_password: true
 github_user: floatingman
 ssh_key_name: "id_ed25519_dlp"
@@ -20,17 +31,19 @@ dotfiles:
   rcup_flags: -fx README.md
   linuxgui: true
 kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
+display_manager: lightdm
+desktop_environment: i3
 network:
   conn_check:
     interval: 5
   trusted_uuid:
 video_drivers:
-    - vulkan-icd-loader
-    - vulkan-intel
-    - vulkan-mesa-layers
-    - vulkan-tools
-    - intel-media-driver
-    - libva-intel-driver
+  - vulkan-icd-loader
+  - vulkan-intel
+  - vulkan-mesa-layers
+  - vulkan-tools
+  - intel-media-driver
+  - libva-intel-driver
 lang:
   enabled: true
   arch:
@@ -41,9 +54,7 @@ gui:
   enabled: true
   arch:
     - alacritty
-    - bitwarden
     - bspwm
-    - caffeine-ng
     - clipmenu
     - dunst
     - exiv2
@@ -51,7 +62,6 @@ gui:
     - hledger
     - hledger-ui
     - hsetroot
-    - i3-gaps
     - inkscape
     - intel-ucode
     - inxi
@@ -60,7 +70,6 @@ gui:
     - libva-utils
     - linux-firmware
     - linux-headers
-    - manjaro-printer
     - mariadb-clients
     - mesa
     - mesa-demos
@@ -73,7 +82,6 @@ gui:
     - syncthing
     - system-config-printer
     - ttf-jetbrains-mono
-    - udevil
     - urlscan
     - viewnior
     - wmctrl
@@ -97,9 +105,11 @@ cli:
     - emacs
     - fdupes
     - figlet
+    - flake8
     - flex
     - htop
     - hugo
+    - httpie
     - iftop
     - iotop
     - ipcalc
@@ -129,7 +139,6 @@ cli:
     - translate-shell
     - trash-cli
     - tree
-    - urlview
     - vifm
     - w3m
     - wget
@@ -150,10 +159,9 @@ cli:
     - texlive
     - libxext-dev
     - timewarrior
-    - youtube-dl
+    - yt-dlp
   arch:
     - ctags
-    - bitwarden-cli
     - bind-tools
     - entr
     - prettier
@@ -173,10 +181,10 @@ cli:
     - duf
     - dust
     - fd
-    - fluxctl
     - github-cli
     - gitui
     - glab
+    - python-gitlabber
     - jq
     - k9s
     - kube-linter
@@ -200,13 +208,10 @@ cli:
     - tokei
     - xsv
     - yq
-    - youtube-dl
+    - yt-dlp
 pip_packages:
   - "molecule[docker]"
   - aws-shell
-  - flake8
-  - gita
-  - gitlabber
   - grip
   - httpie
   - ipython
@@ -229,29 +234,36 @@ pip_packages:
   - vdirsyncer
 aur:
   packages:
-    - synergy-git
-    - dropbox
     - awless
     - aws-iam-authenticator-bin
     - bit
+    - brave-bin
+    - caffeine-ng
     - dive
     - dyff-bin
+    - fluxctl
     - git-quick-stats
+    - gita
     - highlight-pointer-git
     - k6
     - kind
     - kops-bin
     - kubeval-bin
     - lf
+    - microsoft-edge-stable-bin
     - nova
     - pet-bin
     - polaris-bin
+    - protonmail-bridge
+    - prontonvpn
+    - python-grip
     - scc
     - slack-term-bin
     - tflint-bin
     - tfswitch-bin
     - viddy
     - masterpdfeditor
+    - udevil
     - urlview
     - telepresence
     - visual-studio-code-bin
@@ -362,7 +374,7 @@ pet_version: 0.4.0
 polaris_version: 5.1.0
 popeye_version: 0.9.8
 ripgrep_version: 13.0.0
-rke_version: v1.3.10 
+rke_version: v1.3.10
 scc_version: 3.0.0
 sd_version: 0.7.6
 slack_term_version: 0.5.0
@@ -598,7 +610,7 @@ binaries:
     extract: true
     bin_path: "ripgrep-{{ ripgrep_version }}-x86_64-unknown-linux-musl"
     bin_name: rg
-  
+
   - name: rke
     url: "https://github.com/rancher/rke/releases/download/{{ rke_version }}/rke_linux-amd64"
     bin_name: rke_linux-amd64

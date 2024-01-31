@@ -1,10 +1,5 @@
 ---
 roles:
-  - name: ansible-role-basic
-    src: https://github.com/Allaman/ansible-role-basic.git
-    scm: git
-    version: master
-
   - name: ansible-role-shell
     src: https://github.com/floatingman/ansible-role-shell.git
     scm: git
@@ -12,11 +7,6 @@ roles:
 
   - name: ansible-role-binaries
     src: https://github.com/Allaman/ansible-role-binaries.git
-    scm: git
-    version: master
-
-  - name: ansible-role-system
-    src: https://github.com/floatingman/ansible-role-system.git
     scm: git
     version: master
 
@@ -39,6 +29,6 @@ roles:
     src: https://github.com/avanov/ansible-galaxy-pyenv
     scm: git
     version: master
-  
+
 collections:
   - name: kewlfft.aur

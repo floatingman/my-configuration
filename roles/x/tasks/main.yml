@@ -1,49 +1,49 @@
 ---
 - name: Install Xorg
-  package: 
-    name: xorg-server 
+  package:
+    name: xorg-server
     state: present
   become: yes
 
 - name: Install Xinit
-  package: 
-    name: xorg-xinit 
+  package:
+    name: xorg-xinit
     state: present
   become: yes
 
 - name: Install xmodmap
-  package: 
-    name: xorg-xmodmap 
+  package:
+    name: xorg-xmodmap
     state: present
   become: yes
 
 - name: Install xdpyinfo
-  package: 
-    name: xorg-xdpyinfo 
+  package:
+    name: xorg-xdpyinfo
     state: present
   become: yes
 
 - name: Install xev
-  package: 
-    name: xorg-xev 
+  package:
+    name: xorg-xev
     state: present
   become: yes
 
 - name: Install xorg-sessreg
-  package: 
-    name: xorg-sessreg 
+  package:
+    name: xorg-sessreg
     state: present
   become: yes
 
 - name: Install xorg-xwininfo
-  package: 
-    name: xorg-xwininfo 
+  package:
+    name: xorg-xwininfo
     state: present
   become: yes
 
 - name: Install xautomation
-  package: 
-    name: xautomation 
+  package:
+    name: xautomation
     state: present
   become: yes
 
@@ -59,8 +59,8 @@
   tags:
     - user
 
-- include: sxhkd.yml
-- include: unclutter.yml
-- include: autorandr.yml
-- include: autocutsel.yml
-- include: xdg.yml
+- include_tasks: sxhkd.yml
+- include_tasks: unclutter.yml
+- include_tasks: autorandr.yml
+- include_tasks: autocutsel.yml
+- include_tasks: xdg.yml

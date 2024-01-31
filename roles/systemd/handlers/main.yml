@@ -2,3 +2,7 @@
 - name: reload systemd config
   command: systemctl daemon-reload
   become: yes
+
+- name: reload systctl
+  command: sysctl --system
+  become: yes

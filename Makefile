@@ -50,7 +50,7 @@ configure: req-playbook ## Run ansible
 	ansible-playbook play.yml -K
 
 .PHONY: all
-all: bootstrap install configure ## Run all goals
+all: install configure ## Run all goals
 	@echo 'Applying R1c3'
 
 req-pip:

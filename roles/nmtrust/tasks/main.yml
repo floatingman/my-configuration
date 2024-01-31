@@ -1,9 +1,9 @@
 ---
 - name: Install nmtrust
   kewlfft.aur.aur:
-      name: nmtrust-git
-      use: auto
-      state: present
+    name: nmtrust-git
+    use: auto
+    state: present
   become: yes
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
@@ -12,19 +12,19 @@
 
 - name: Create nmtrust config directory
   file:
-      path: /etc/nmtrust
-      state: directory
+    path: /etc/nmtrust
+    state: directory
   become: true
 
-- name: Push trusted network list
-  template:
-      src: trusted_networks.j2
-      dest: /etc/nmtrust/trusted_networks
-  become: true
+# - name: Push trusted network list
+#   template:
+#       src: trusted_networks.j2
+#       dest: /etc/nmtrust/trusted_networks
+#   become: true
 
 - name: Verify trusted unit list exists
   copy:
-      content: ""
-      dest: /etc/nmtrust/trusted_units
-      force: false
+    content: ""
+    dest: /etc/nmtrust/trusted_units
+    force: false
   become: true

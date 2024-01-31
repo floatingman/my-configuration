@@ -1,5 +1,6 @@
 ---
 - name: Install i3
+  become: true
   package:
     name:
       - i3-wm
@@ -9,18 +10,24 @@
     state: present
 
 - name: Install py3status
-  package: name=py3status state=present
+  become: true
+  package:
+    name:
+      - py3status
+    state: present
 
 - name: Verify that default applications file exists
+  become: true
   copy:
     content: ""
     dest: /etc/xdg/mimeapps.list
     force: false
 
 - name: Verify header in default applications file
+  become: true
   lineinfile: dest=/etc/xdg/mimeapps.list
-              state=present
-              line='[Default Applications]'
-              insertbefore=BOF
+    state=present
+    line='[Default Applications]'
+    insertbefore=BOF
 
-- include: rofi.yml
+- include_tasks: rofi.yml

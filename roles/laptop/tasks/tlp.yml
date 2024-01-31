@@ -1,5 +1,6 @@
 ---
 - name: Install TLP
+  become: true
   package:
     name:
       - x86_energy_perf_policy
@@ -11,6 +12,7 @@
     - tlp
 
 - name: Push TLP battery threshold config
+  become: true
   copy:
     src: tlp/20-battery.conf
     dest: /etc/tlp.d/
@@ -20,6 +22,7 @@
     - tlp
 
 - name: Push TLP radio device config
+  become: true
   copy:
     src: tlp/20-rdw.conf
     dest: /etc/tlp.d/
@@ -29,6 +32,7 @@
     - tlp
 
 - name: Push TLP PCIe config
+  become: true
   copy:
     src: tlp/20-pcie.conf
     dest: /etc/tlp.d/
@@ -38,16 +42,19 @@
     - tlp
 
 - name: Mask systemd radio service
+  become: true
   command: systemctl mask systemd-rfkill.service
   tags:
     - tlp
 
 - name: Mask systemd radio socket
+  become: true
   command: systemctl mask systemd-rfkill.socket
   tags:
     - tlp
 
 - name: Enable TLP
+  become: true
   service:
     name: tlp.service
     enabled: yes
