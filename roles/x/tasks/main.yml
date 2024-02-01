@@ -54,7 +54,7 @@
   become: true
 
 - name: Add user to video group
-  user: name={{ user }} groups=video append=yes
+  user: name={{ user.name }} groups=video append=yes
   become: true
   tags:
     - user

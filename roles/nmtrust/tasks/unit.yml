@@ -36,9 +36,9 @@
     state: started
     scope: user
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ uid }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: run_on == "all" and user_unit is defined and user_unit == true
 
 - name: Disable user {{ unit }} for user
@@ -47,16 +47,16 @@
     enabled: no
     scope: user
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ uid }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: run_on != "all" and user_unit is defined and user_unit == true
 
 - name: Add {{ unit }} for user to trusted unit list
   lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
-    line: "{{ unit }},user:{{ user }}"
+    line: "{{ unit }},user:{{ user.name }}"
   when: run_on == "trusted" and user_unit is defined and user_unit == true
   become: true
 
@@ -64,6 +64,6 @@
   lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: absent
-    line: "{{ unit }},user:{{ user }}"
+    line: "{{ unit }},user:{{ user.name }}"
   when: run_on != "trusted" and user_unit is defined and user_unit == true
   become: true

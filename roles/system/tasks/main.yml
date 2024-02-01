@@ -46,7 +46,7 @@
 
 - name: Install hdparm
   become: true
-  pacman:
+  package:
     name: hdparm
     state: present
   when: ansible_facts["distribution"] == "Archlinux"

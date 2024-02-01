@@ -14,7 +14,7 @@
   copy:
     src: greenclip.service
     dest: /etc/systemd/user/greenclip.service
-  become: true  
+  become: true
 
 - name: Enable greenclip.service
   systemd:
@@ -23,6 +23,6 @@
     enabled: yes
     state: started
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ uid }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"

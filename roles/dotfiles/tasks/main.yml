@@ -25,28 +25,28 @@
     update: no
   when: dotfiles is defined
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
 
 - name: Symlink rcm rc file to user directory
   file:
     src: "/home/{{ dotfiles.path }}/rcrc"
-    dest: "/home/{{ user }}/.rcrc"
+    dest: "/home/{{ user.name }}/.rcrc"
     state: link
 
 - name: Install user dotfiles
   command: rcup -d /home/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
   when: dotfiles is defined
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
 
 - name: Install linux gui tagged dotfiles
   command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
   when: dotfiles.linuxgui | bool
 
 - name: Create global gitconfig
   template:
     src: templates/gitconfig.j2
-    dest: "/home/{{ user }}/.gitconfig"
+    dest: "/home/{{ user.name }}/.gitconfig"
     force: true

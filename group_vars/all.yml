@@ -1,6 +1,14 @@
 laptop: true
-user: dnewman
-uid: 1000
+user:
+  name: dnewman
+  uid: 1000
+  group: dnewman
+  shell: /usr/bin/bash
+  email: dan@danlovesprogramming.com
+  log:
+    dir: log
+    rotate: 8
+
 hostname: tracks
 bootloader: systemd-boot
 browser_choices:
@@ -17,8 +25,9 @@ hosts_pack: basic
 hosts_url: "https://block.energized.pro/{{ hosts_pack }}/formats/hosts"
 sudo_without_password: true
 github_user: floatingman
-ssh_key_name: "id_ed25519_dlp"
-ssh_key_path: "{{ user }}/.ssh/{{ ssh_key_name }}"
+ssh:
+  port: 22
+  enable_sshd: True
 gitconfig:
   name: Daniel Newman
   mail: dan@danlovesprogramming.com
@@ -27,7 +36,7 @@ gitconfig:
   meld: true
 dotfiles:
   repo_url: https://github.com/{{ github_user }}/dotfiles.git
-  path: "{{ user }}/.dotfiles"
+  path: "{{ user.name }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
 kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
@@ -273,7 +282,7 @@ aur:
     - viddy
     - visual-studio-code-bin
     - xbanish
-asdf_user: "{{ user }}"
+asdf_user: "{{ user.name }}"
 asdf_plugins:
   - name: "nodejs"
     versions:

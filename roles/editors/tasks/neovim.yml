@@ -14,8 +14,8 @@
 #   git:
 #     clone: true
 #     repo: git@github.com:floatingman/nvim.git
-#     dest: "/home/{{ user }}/.config/nvim"
+#     dest: "/home/{{ user.name }}/.config/nvim"
 #     accept_hostkey: yes
 #     update: no
 #   become: true
-#   become_user: "{{ user }}"
+#   become_user: "{{ user.name }}"

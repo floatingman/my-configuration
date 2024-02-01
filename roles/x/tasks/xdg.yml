@@ -10,7 +10,7 @@
 - name: Create user directories
   command: /usr/bin/xdg-user-dirs-update
   become: true
-  become_user: "{{ user }}"
+  become_user: "{{ user.name }}"
   tags:
     - xdg
 

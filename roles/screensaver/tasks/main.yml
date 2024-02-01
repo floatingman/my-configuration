@@ -28,6 +28,6 @@
 
 - name: Enable screen lock service
   service:
-    name: "screenlock@{{ user }}.service"
+    name: "screenlock@{{ user.name }}.service"
     enabled: yes
   become: true
