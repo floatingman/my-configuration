@@ -3,7 +3,7 @@
   package:
     name: ranger
     state: present
-  become: yes
+  become: true
 
 - name: Install ranger devicons
   git:

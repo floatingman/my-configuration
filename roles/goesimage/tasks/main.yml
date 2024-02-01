@@ -4,7 +4,7 @@
     name: goesimage
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -14,7 +14,7 @@
   template:
     src: goesimage.service.j2
     dest: /etc/systemd/user/goesimage.service
-  become: yes
+  become: true
   notify:
     - reload systemd config
 
@@ -22,7 +22,7 @@
   template:
     src: goesimage.timer.j2
     dest: /etc/systemd/user/goesimage.timer
-  become: yes
+  become: true
   notify:
     - reload systemd config
     - restart GOESImage

@@ -3,24 +3,24 @@
   copy:
     src: pacman.conf
     dest: /etc/pacman.conf
-  become: yes
+  become: true
 
 - name: Refresh pacman mirrors
   package:
     update_cache: yes
-  become: yes
+  become: true
 
 - name: Install inetutils for hostname
   package:
       name: inetutils
       state: present
-  become: yes
+  become: true
 
 - name: Set the hostname
   hostname:
     name: "{{ hostname }}"
   when: hostname is defined
-  become: yes
+  become: true
 
 - name: Set kernel parameters
   lineinfile:
@@ -31,14 +31,14 @@
   when: kernel_parameters is defined and bootloader == 'grub'
   notify:
     - rebuild grub
-  become: yes
+  become: true
   tags:
     - kernelparams
 
 - name: Create pacman hook directory
   file: path=/etc/pacman.d/hooks
         state=directory
-  become: yes
+  become: true
   tags:
     - packages
 
@@ -47,11 +47,11 @@
     dest: /etc/makepkg.conf
     regexp: "^COMPRESSXZ"
     line: "COMPRESSXZ=(xz -c -z - --threads=0)"
-  become: yes
+  become: true
 
 - name: Push pacman cache cleanup service
   copy: src=paccache.service dest=/etc/systemd/system/paccache.service
-  become: yes
+  become: true
   notify:
     - reload systemd config
   tags:
@@ -59,7 +59,7 @@
 
 - name: Push pacman cache cleanup timer
   copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
-  become: yes
+  become: true
   notify:
     - reload systemd config
     - restart paccache
@@ -68,6 +68,6 @@
 
 - name: Enable and start pacman cache cleanup timer
   service: name=paccache.timer enabled=yes state=started
-  become: yes
+  become: true
   tags:
     - packages

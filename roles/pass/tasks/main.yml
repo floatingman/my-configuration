@@ -3,19 +3,19 @@
   package:
     name: pass
     state: present
-  become: yes
+  become: true
 
 - name: Install pass-otp
   package:
     name: pass-otp
     state: present
-  become: yes
+  become: true
 
 - name: Install rofi-pass
   package:
     name: rofi-pass
     state: present
-  become: yes
+  become: true
   tags:
     - rofi
 
@@ -24,7 +24,7 @@
     name: pass-update
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -35,7 +35,7 @@
     name: pwgen-passphrase
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

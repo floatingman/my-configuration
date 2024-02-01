@@ -1,8 +1,8 @@
 ---
 - name: Install sxhkd
-  package: 
-    name: sxhkd 
+  package:
+    name: sxhkd
     state: present
-  become: yes
+  become: true
   tags:
     - sxhkd

@@ -1,8 +1,8 @@
 ---
 - name: Install unclutter
-  package: 
-    name: unclutter 
+  package:
+    name: unclutter
     state: present
-  become: yes
+  become: true
   tags:
     - unclutter

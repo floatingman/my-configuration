@@ -1,8 +1,15 @@
 ---
 - name: Install autorandr
-  package: 
-    name: autorandr 
+  package:
+    name: autorandr
     state: present
-  become: yes
+  become: true
+  tags:
+    - autorandr
+
+- name: Enable autorandr.service to ensure it starts after wake from suspend
+  ansible.builtin.systemd:
+    name: autorandr
+    enabled: true
   tags:
     - autorandr

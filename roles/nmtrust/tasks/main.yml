@@ -4,7 +4,7 @@
     name: nmtrust-git
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

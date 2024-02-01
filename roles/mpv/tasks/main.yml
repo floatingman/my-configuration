@@ -3,14 +3,14 @@
   package:
     name: mpv
     state: present
-  become: yes
+  become: true
 
 - name: Push play script
   copy:
     src: play.sh
     dest: /usr/local/bin/play
     mode: 0755
-  become: yes
+  become: true
 
 - name: Install mpv sockets plugin
   git:

@@ -19,7 +19,7 @@
       - network-manager-applet
       - xfce4-power-manager
       - papirus-icon-theme
-  become: yes
+  become: true
 
 - name: Install Applications for AwesomeWM from AUR
   kewlfft.aur.aur:
@@ -29,7 +29,7 @@
       - qt5-styleplugins
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

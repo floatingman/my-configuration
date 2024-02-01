@@ -1,6 +1,6 @@
 ---
 - name: Allow sudo without password
-  become: yes
+  become: true
   lineinfile:
     dest: /etc/sudoers
     state: present
@@ -10,7 +10,7 @@
   when: sudo_without_password|default(false) == true
 
 - name: Ensures /etc/keyd/ exists
-  become: yes
+  become: true
   file:
     path: /etc/keyd
     state: directory
@@ -21,7 +21,7 @@
     name: keyd-git
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: "{{ ansible_user_id }}"
   when: ansible_facts["distribution"] == "Archlinux"
 
@@ -30,11 +30,11 @@
     name: keyd
     state: started
     enabled: yes
-  become: yes
+  become: true
   when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Copy keyd config file
-  become: yes
+  become: true
   copy:
     src: "keyd_default.conf"
     dest: /etc/keyd/default.conf
@@ -45,14 +45,14 @@
   when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Install hdparm
-  become: yes
+  become: true
   pacman:
     name: hdparm
     state: present
   when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Enable and start weekly filesystem TRIM timer
-  become: yes
+  become: true
   service:
     name: fstrim.timer
     enabled: yes

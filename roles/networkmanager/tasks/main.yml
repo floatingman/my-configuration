@@ -34,4 +34,4 @@
 #   service:
 #       name: dhcpcd.service
 #       enabled: no
-#   become: yes
+#   become: true

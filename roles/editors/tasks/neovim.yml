@@ -1,6 +1,6 @@
 ---
 - name: Add Neovim stable PPA repository
-  become: yes
+  become: true
   apt_repository:
     repo: ppa:neovim-ppa/stable
   when: ansible_distribution == 'Ubuntu'
@@ -9,7 +9,7 @@
   package:
     name: neovim
     state: present
-  become: yes
+  become: true
 # - name: Clone NeoVim config
 #   git:
 #     clone: true
@@ -17,5 +17,5 @@
 #     dest: "/home/{{ user }}/.config/nvim"
 #     accept_hostkey: yes
 #     update: no
-#   become: yes
+#   become: true
 #   become_user: "{{ user }}"

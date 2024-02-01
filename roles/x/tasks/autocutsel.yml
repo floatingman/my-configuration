@@ -1,8 +1,8 @@
 ---
 - name: Install autocutsel
-  package: 
-    name: autocutsel 
+  package:
+    name: autocutsel
     state: present
-  become: yes
+  become: true
   tags:
     - autocutsel

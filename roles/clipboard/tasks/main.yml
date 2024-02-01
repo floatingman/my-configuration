@@ -4,7 +4,7 @@
     name: rofi-greenclip
     use: auto
     state: present
-  become: yes
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -14,7 +14,7 @@
   copy:
     src: greenclip.service
     dest: /etc/systemd/user/greenclip.service
-  become: yes  
+  become: true  
 
 - name: Enable greenclip.service
   systemd:
@@ -22,7 +22,7 @@
     scope: user
     enabled: yes
     state: started
-  become: yes
+  become: true
   become_user: "{{ user }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ uid }}"
