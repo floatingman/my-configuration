@@ -74,8 +74,8 @@ gui:
     - mesa
     - mesa-demos
     - pinta
-    - powertop
     - polybar
+    - powertop
     - sof-firmware
     - sxhkd
     - sxiv
@@ -86,19 +86,19 @@ gui:
     - viewnior
     - wmctrl
     - xbindkeys
-    - xsettingsd
     - xcape
     - xf86-input-synaptics
     - xorg-xinput
     - xorg-xwininfo
+    - xsettingsd
     - zathura-pdf-mupdf
 cli:
   enabled: true
   common:
     - bison
+    - cmake
     - coreutils
     - curl
-    - cmake
     - dateutils
     - dnsutils
     - docker
@@ -108,8 +108,8 @@ cli:
     - flake8
     - flex
     - htop
-    - hugo
     - httpie
+    - hugo
     - iftop
     - iotop
     - ipcalc
@@ -143,36 +143,30 @@ cli:
     - w3m
     - wget
     - whois
-    - zoxide
     - zip
+    - zoxide
   debian:
     - attr
+    - cifs-utils
     - dnsutils
     - exuberant-ctags
-    - cifs-utils
-    - libxfixes-dev
-    - x11proto-core-dev
     - libx11-dev
-    - libxt-dev
+    - libxext-dev
+    - libxfixes-dev
     - libxfixes-dev
     - libxi-dev
+    - libxt-dev
     - texlive
-    - libxext-dev
     - timewarrior
+    - x11proto-core-dev
     - yt-dlp
   arch:
-    - ctags
-    - bind-tools
-    - entr
-    - prettier
-    - texlive-core
-    - exa
-    - hey
     - argocd
     - bat
-    - broot
+    - bind-tools
     - bottom
-    - git-delta
+    - broot
+    - ctags
     - direnv
     - docker-compose
     - doctl
@@ -180,11 +174,14 @@ cli:
     - dua-cli
     - duf
     - dust
+    - entr
+    - exa
     - fd
+    - git-delta
     - github-cli
     - gitui
     - glab
-    - python-gitlabber
+    - hey
     - jq
     - k9s
     - kube-linter
@@ -196,7 +193,9 @@ cli:
     - mdbook
     - nnn
     - popeye
+    - prettier
     - prettyping
+    - python-gitlabber
     - rclone
     - ripgrep
     - ripgrep-all
@@ -204,6 +203,7 @@ cli:
     - stern
     - tectonic
     - texlab
+    - texlive-core
     - timew
     - tokei
     - xsv
@@ -225,13 +225,13 @@ pip_packages:
   - mycli
   - neovim-remote
   - pandas
-  - python-rofi
-  - selenium
-  - s4cmd
-  - speedtest-cli
   - pytest-testinfra
-  - yamllint
+  - python-rofi
+  - s4cmd
+  - selenium
+  - speedtest-cli
   - vdirsyncer
+  - yamllint
 aur:
   packages:
     - awless
@@ -244,34 +244,34 @@ aur:
     - fluxctl
     - git-quick-stats
     - gita
+    - glow
+    - google-cloud-sdk
     - highlight-pointer-git
     - k6
     - kind
     - kops-bin
     - kubeval-bin
     - lf
+    - masterpdfeditor
     - microsoft-edge-stable-bin
+    - nerd-fonts-fira-code
+    - nerd-fonts-hack
     - nova
     - pet-bin
     - polaris-bin
-    - protonmail-bridge
+    - postman
     - prontonvpn
+    - protonmail-bridge
     - python-grip
     - scc
     - slack-term-bin
+    - telepresence
     - tflint-bin
     - tfswitch-bin
-    - viddy
-    - masterpdfeditor
     - udevil
     - urlview
-    - telepresence
+    - viddy
     - visual-studio-code-bin
-    - glow
-    - google-cloud-sdk
-    - postman
-    - nerd-fonts-hack
-    - nerd-fonts-fira-code
     - xbanish
 asdf_user: "{{ user }}"
 asdf_plugins:
@@ -339,8 +339,8 @@ dive_version: 0.10.0
 docker_compose_version: v2.3.3
 docker_version: 20.10.13
 doctl_version: 1.71.1
-dua_version: 2.17.0
 dog_version: v0.1.0
+dua_version: 2.17.0
 duf_version: 0.8.1
 dust_version: 0.8.1-alpha.2
 dyff_version: 1.5.1
@@ -367,6 +367,7 @@ kubeval_version: 0.16.1
 kustomize_version: 4.5.2
 lazygit_version: 0.34
 lf_version: r26
+logcli_version: v2.4.2
 mdbook_version: 0.4.15
 nnn_version: 4.4
 nova_version: 3.0.2
@@ -384,10 +385,9 @@ texlab_version: v3.3.2
 tflint_version: v0.34.1
 tfswitch_version: 0.13.1218
 tokei_version: 12.1.2
-xsv_version: 0.13.0
 viddy_version: 0.3.4
+xsv_version: 0.13.0
 yq_version: 4.22.1
-logcli_version: v2.4.2
 binaries:
   - name: hey
     url: "https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64"
