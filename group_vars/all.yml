@@ -25,6 +25,11 @@ hosts_pack: basic
 hosts_url: "https://block.energized.pro/{{ hosts_pack }}/formats/hosts"
 sudo_without_password: true
 github_user: floatingman
+goesimage:
+  run_time: 15min
+  run_boot_delay: 2min
+  run_on: trusted
+  flags: -w -e
 ssh:
   port: 22
   enable_sshd: True
