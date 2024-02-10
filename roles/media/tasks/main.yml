@@ -1,0 +1,52 @@
+---
+- name: Install misc media codecs and helpers
+  become: true
+  package:
+    name:
+      - flac
+      - lame
+      - gst-libav
+      - gst-plugins-good
+      - exiv2
+      - perl-image-exiftool
+      - perl-archive-zip
+      - opus-tools
+    state: present
+
+- name: Install Metadata Anonymisation Toolkit
+  become: true
+  package:
+    name: mat2
+    state: present
+  tags:
+    - mat
+
+- name: Install zbar
+  become: true
+  package:
+    name: zbar
+    state: present
+
+- name: Install sxiv
+  become: true
+  package:
+    name: sxiv
+    state: present
+
+- name: Install svgcleaner
+  become: true
+  package:
+    name: svgcleaner
+    state: present
+
+- name: Install flameshot
+  become: true
+  package:
+    name: flameshot
+    state: present
+
+- name: Install digikam
+  become: true
+  package:
+    name: digikam
+    state: present
