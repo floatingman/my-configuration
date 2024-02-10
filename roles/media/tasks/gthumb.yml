@@ -1,0 +1,8 @@
+---
+- name: Install gThumb
+  become: true
+  package:
+    name: gthumb
+    state: present
+  tags:
+    - gthumb
