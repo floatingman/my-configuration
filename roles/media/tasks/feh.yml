@@ -1,0 +1,19 @@
+---
+- name: Install feh
+  package:
+    name: feh
+    state: present
+  tags:
+    - feh
+
+- name: Install imlib2-heic
+  kewlfft.aur.aur:
+    name: imlib2-heic
+    use: auto
+    state: present
+  become: true
+  become_user: "{{ ansible_user_id }}"
+  when: ansible_facts["distribution"] == "Archlinux"
+  tags:
+    - aur
+    - feh

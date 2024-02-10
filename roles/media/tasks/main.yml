@@ -1,5 +1,6 @@
 ---
 - include_tasks: qcode.yml
+- include_tasks: feh.yml
 
 - name: Install misc media codecs and helpers
   become: true
