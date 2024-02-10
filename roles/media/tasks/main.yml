@@ -1,4 +1,6 @@
 ---
+- include_tasks: qcode.yml
+
 - name: Install misc media codecs and helpers
   become: true
   package:

@@ -1,0 +1,17 @@
+---
+- name: Install qrencode
+  become: true
+  package:
+    name: qrencode
+    state: present
+  tags:
+    - qcode
+
+- name: Push qcode script
+  become: true
+  copy:
+    src: qcode.sh
+    dest: /usr/local/bin/qcode
+    mode: 0755
+  tags:
+    - qcode
