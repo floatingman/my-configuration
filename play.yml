@@ -10,6 +10,7 @@
     - { role: shell, tags: ["shell"] }
     # - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: system, tags: ["system"] }
+    - { role: archive, tags: ["archive"] }
     - { role: ssh, tags: ["ssh"] }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }

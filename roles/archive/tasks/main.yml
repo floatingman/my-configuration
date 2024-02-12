@@ -1,0 +1,91 @@
+---
+- name: Install zip archive utilities
+  become: true
+  package:
+    name:
+      - zip
+      - unzip
+      - p7zip
+    state: present
+  tags:
+    - zip
+
+- name: Install unrar
+  become: true
+  package:
+    name: unrar
+    state: present
+  tags:
+    - unrar
+
+- name: Install atool
+  become: true
+  package:
+    name: atool
+    state: present
+  tags:
+    - atool
+
+- name: Install hashdeep
+  become: true
+  package:
+    name: hashdeep
+    state: present
+  tags:
+    - hashdeep
+
+- name: Install par2cmdline
+  become: true
+  package:
+    name: par2cmdline
+    state: present
+  tags:
+    - par2
+
+- name: Install ddrescue
+  become: true
+  package:
+    name: ddrescue
+    state: present
+  tags:
+    - ddrescue
+
+- name: Install lesspipe
+  become: true
+  package:
+    name: lesspipe
+    state: present
+  tags:
+    - lesspipe
+
+- name: Install pigz
+  become: true
+  package:
+    name: pigz
+    state: present
+  tags:
+    - pigz
+
+- name: Install geteltorito
+  kewlfft.aur.aur:
+    name: geteltorito
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+    - geteltorito
+
+- name: Install ventoy
+  kewlfft.aur.aur:
+    name: ventoy-bin
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+    - ventoy
