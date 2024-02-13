@@ -16,6 +16,7 @@
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
+    - { role: filesystem, tags: ["filesystem"] }
     - {
         role: ansible-role-binaries,
         tags: ["binaries"],

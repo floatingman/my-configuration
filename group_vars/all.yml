@@ -12,13 +12,18 @@ user:
 hostname: tracks
 bootloader: systemd-boot
 browser_choices:
-  - firefox -P default
+  - firefox -P default-release
   - firefox -P work
   - tor-browser-en
   - play
   - qcode
   - "| xclip -selection c"
-
+filesystem_packages:
+  - dosfstools
+  - ntfs-3g
+  - exfatprogs
+  - gparted
+  - udftools
 hosts_path: "/etc/hosts"
 hosts_backup: "/etc/hosts.original"
 hosts_pack: basic

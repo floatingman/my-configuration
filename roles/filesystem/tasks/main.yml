@@ -1,0 +1,6 @@
+---
+- name: Install filesystem packages
+  become: true
+  package:
+    name: "{{ filesystem_packages }}"
+    state: present
