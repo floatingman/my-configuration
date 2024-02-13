@@ -1,0 +1,21 @@
+---
+- name: Install android-tools
+  become: true
+  package:
+    name: android-tools
+    state: present
+
+- name: Install android-udev
+  become: true
+  package:
+    name: android-udev
+    state: present
+
+- name: Add {{ user.name }} to adbusers group
+  become: true
+  user:
+    name: "{{ user.name }}"
+    groups: adbusers
+    append: yes
+  tags:
+    - user

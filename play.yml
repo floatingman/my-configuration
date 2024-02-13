@@ -59,6 +59,7 @@
       }
     - { role: browsers, tags: ["browsers"], when: display_manager is defined }
     - { role: ranger, tags: ["ranger"] }
+    - { role: android, tags: ["android"] }
     - { role: mpv, tags: ["mpv"] }
     - { role: media, tags: ["media"] }
     - { role: pass, tags: ["pass"], when: ansible_os_family ==  "Archlinux" }
