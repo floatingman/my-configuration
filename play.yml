@@ -27,6 +27,7 @@
         tags: ["laptop"],
         when: (laptop) and (ansible_os_family ==  "Archlinux"),
       }
+    - { role: notes, tags: ["notes"] }
     - {
         role: nmtrust,
         tags: ["nmtrust"],

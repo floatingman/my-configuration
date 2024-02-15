@@ -1,0 +1,8 @@
+---
+- name: Install obsidian
+  become: true
+  package:
+    name: obsidian
+    state: present
+  tags:
+    - notes
