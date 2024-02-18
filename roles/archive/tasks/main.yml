@@ -39,6 +39,7 @@
   package:
     name: par2cmdline
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - par2
 
@@ -47,6 +48,7 @@
   package:
     name: ddrescue
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - ddrescue
 
@@ -55,6 +57,7 @@
   package:
     name: lesspipe
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - lesspipe
 

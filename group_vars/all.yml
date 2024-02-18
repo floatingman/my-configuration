@@ -8,8 +8,9 @@ user:
   log:
     dir: log
     rotate: 8
-
-hostname: tracks
+display_manger: none
+desktop_environment: none
+hostname: BLURR
 bootloader: systemd-boot
 browser_choices:
   - firefox -P default-release
@@ -50,8 +51,6 @@ dotfiles:
   rcup_flags: -fx README.md
   linuxgui: true
 kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
-display_manager: lightdm
-desktop_environment: i3
 network:
   conn_check:
     interval: 5
@@ -69,48 +68,6 @@ lang:
     - python
     - python-pip
     - go
-gui:
-  enabled: true
-  arch:
-    - alacritty
-    - bspwm
-    - clipmenu
-    - dunst
-    - exiv2
-    - geeqie
-    - hledger
-    - hledger-ui
-    - hsetroot
-    - inkscape
-    - intel-ucode
-    - inxi
-    - isync
-    - libreoffice
-    - libva-utils
-    - linux-firmware
-    - linux-headers
-    - mariadb-clients
-    - mesa
-    - mesa-demos
-    - pinta
-    - polybar
-    - powertop
-    - sof-firmware
-    - sxhkd
-    - sxiv
-    - syncthing
-    - system-config-printer
-    - ttf-jetbrains-mono
-    - urlscan
-    - viewnior
-    - wmctrl
-    - xbindkeys
-    - xcape
-    - xf86-input-synaptics
-    - xorg-xinput
-    - xorg-xwininfo
-    - xsettingsd
-    - zathura-pdf-mupdf
 cli:
   enabled: true
   common:
@@ -121,7 +78,6 @@ cli:
     - dateutils
     - dnsutils
     - docker
-    - emacs
     - fdupes
     - figlet
     - flake8
