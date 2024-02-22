@@ -8,9 +8,9 @@ user:
   log:
     dir: log
     rotate: 8
-display_manger: none
-desktop_environment: none
-hostname: BLURR
+display_manager: lightdm
+desktop_environment: i3
+hostname: tracks
 bootloader: systemd-boot
 browser_choices:
   - firefox -P default-release

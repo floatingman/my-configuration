@@ -27,7 +27,7 @@
         tags: ["laptop"],
         when: (laptop) and (ansible_os_family ==  "Archlinux"),
       }
-    - { role: notes, tags: ["notes"], when: "display_manager is defined"}
+    - { role: notes, tags: ["notes"], when: "display_manager is defined" }
     - {
         role: nmtrust,
         tags: ["nmtrust"],
@@ -39,21 +39,42 @@
         when: ansible_os_family ==  "Archlinux",
       }
     # - { role: avanov.pyenv, tags: ["python"] }
-    - { role: lightdm, tags: ["lightdm"], when: ("display_manager is defined") and "display_manager == 'lightdm'" }
-    - { role: gdm, tags: ["gdm"], when: not ("display_manager is defined") and "display_manager == 'gdm'" }
-    - { role: i3, tags: ["i3"], when: not ("desktop_environemnt is defined") and "desktop_environment == 'i3'" }
-    - { role: gnome, tags: ["gnome"], when: not ("desktop_environemnt is defined") and "desktop_environment == 'gnome'" }
+    - {
+        role: lightdm,
+        tags: ["lightdm"],
+        when: ("display_manager is defined") and "display_manager == 'lightdm'",
+      }
+    - {
+        role: gdm,
+        tags: ["gdm"],
+        when: not ("display_manager is defined") and "display_manager == 'gdm'",
+      }
+    - {
+        role: i3,
+        tags: ["i3"],
+        when: not ("desktop_environemnt is defined") and "desktop_environment == 'i3'",
+      }
+    - {
+        role: gnome,
+        tags: ["gnome"],
+        when: not ("desktop_environemnt is defined") and "desktop_environment == 'gnome'",
+      }
     - {
         role: awesomewm,
         tags: ["awesomewm"],
         when: not ("desktop_environemnt is defined") and "desktop_environment =='awesomewm'",
       }
+    - { role: docker, tags: ["docker"] }
     - {
         role: screensaver,
         tags: ["screensaver"],
         when: display_manager is defined,
       }
-    - { role: goesimage, tags: ["goesimage"], when: not ("desktop_environemnt is defined") and "goesimage is defined" }
+    - {
+        role: goesimage,
+        tags: ["goesimage"],
+        when: not ("desktop_environemnt is defined") and "goesimage is defined",
+      }
     - {
         role: taskwarrior,
         tags: ["taskwarrior"],
@@ -64,6 +85,7 @@
     - { role: android, tags: ["android"], when: display_manager is defined }
     - { role: mpv, tags: ["mpv"], when: display_manager is defined }
     - { role: media, tags: ["media"], when: display_manager is defined }
+    - { role: nettools, tags: ["nettools"] }
     - { role: pass, tags: ["pass"], when: ansible_os_family ==  "Archlinux" }
     - { role: spell, tags: ["spell"] }
     - {
