@@ -83,6 +83,11 @@
     - { role: browsers, tags: ["browsers"], when: display_manager is defined }
     - { role: ranger, tags: ["ranger"] }
     - { role: android, tags: ["android"], when: display_manager is defined }
+    - {
+        role: mirrorlist,
+        tags: ["mirrorlist"],
+        when: ansible_os_family == "Archlinux",
+      }
     - { role: mpv, tags: ["mpv"], when: display_manager is defined }
     - { role: media, tags: ["media"], when: display_manager is defined }
     - { role: nettools, tags: ["nettools"] }

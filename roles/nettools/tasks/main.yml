@@ -1,0 +1,116 @@
+---
+- name: Install OpenVPN
+  become: true
+  package:
+    name: openvpn
+    state: present
+
+- name: Install MTR
+  become: true
+  package:
+    name: mtr
+    state: present
+
+- name: Install net-tools
+  become: true
+  package:
+    name: net-tools
+    state: present
+
+- name: Install bind-tools
+  become: true
+  package:
+    name: bind-tools
+    state: present
+
+- name: Install whois
+  become: true
+  package:
+    name: whois
+    state: present
+
+- name: Install netcat
+  become: true
+  package:
+    name: gnu-netcat
+    state: present
+
+- name: Install lftp
+  become: true
+  package:
+    name: lftp
+    state: present
+
+- name: Install nmap
+  become: true
+  package:
+    name: nmap
+    state: present
+
+- name: Install tcpdump
+  become: true
+  package:
+    name: tcpdump
+    state: present
+
+- name: Install sshuttle
+  become: true
+  package:
+    name: sshuttle
+    state: present
+
+- name: Install pdsh
+  kewlfft.aur.aur:
+    name: pdsh
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install wireshark
+  become: true
+  package:
+    name: wireshark-qt
+    state: present
+
+- name: Add user to wireshark group
+  become: true
+  user:
+    name: "{{ user.name }}"
+    groups: wireshark
+    append: yes
+  tags:
+    - user
+
+- name: Install socat
+  become: true
+  package:
+    name: socat
+    state: present
+
+- name: Install nethogs
+  become: true
+  package:
+    name: nethogs
+    state: present
+
+- name: Install bmon
+  become: true
+  package:
+    name: bmon
+    state: present
+
+- name: Install speedtest-cli
+  become: true
+  package:
+    name: speedtest-cli
+    state: present
+
+- name: Install wireguard and kernel modules
+  become: true
+  package:
+    name: wireguard-tools
+    state: present

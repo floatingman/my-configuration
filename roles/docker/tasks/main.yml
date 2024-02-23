@@ -1,0 +1,26 @@
+---
+- name: Install Docker
+  become: true
+  package:
+    name:
+      - runc
+      - containerd
+      - docker
+      - docker-compose
+      - docker-machine
+    state: present
+  tags:
+    - docker
+
+- name: Enable Docker service
+  become: true
+  service:
+    name: docker.service
+    enabled: yes
+
+- name: Add user to the docker group
+  become: true
+  user:
+    name: "{{ user.name }}"
+    groups: docker
+    append: yes
