@@ -1,4 +1,12 @@
 ---
+- name: Install arandr
+  package:
+    name: arandr
+    state: present
+  become: true
+  tags:
+    - autorandr
+
 - name: Install autorandr
   package:
     name: autorandr

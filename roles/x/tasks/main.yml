@@ -47,6 +47,12 @@
     state: present
   become: true
 
+- name: Install xinput
+  package:
+    name: xorg-xinput
+    state: present
+  become: true
+
 - name: Install video driver(s)
   package:
     name: "{{ video_drivers }}"
