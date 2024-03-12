@@ -98,3 +98,8 @@
         tags: ["clipboard"],
         when: ansible_os_family == "Archlinux",
       }
+    - {
+        role: clouddrive,
+        tags: ["clouddrive"],
+        when: ansible_os_family == "Archlinux",
+      }
