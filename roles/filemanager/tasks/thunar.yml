@@ -1,0 +1,15 @@
+---
+- name: Install Thunar
+  package:
+    name: thunar
+    state: present
+  become: true
+
+- name: Install Thunar plugins
+  package:
+    name:
+      - thunar-volman
+      - thunar-archive-plugin
+      - thunar-media-tags-plugin
+    state: present
+  become: true

@@ -81,7 +81,11 @@
         when: ansible_os_family ==  "Archlinux",
       }
     - { role: browsers, tags: ["browsers"], when: display_manager is defined }
-    - { role: ranger, tags: ["ranger"] }
+    - {
+        role: filemanager,
+        tags: ["filemanager"],
+        when: display_manager is defined,
+      }
     - { role: android, tags: ["android"], when: display_manager is defined }
     - {
         role: mirrorlist,
