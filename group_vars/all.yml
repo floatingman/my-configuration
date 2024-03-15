@@ -34,7 +34,7 @@ github_user: floatingman
 goesimage:
   run_time: 15min
   run_boot_delay: 2min
-  run_on: trusted
+  run_on: all
   flags: -w -e
 network:
   spoof_mac: True
@@ -59,10 +59,6 @@ dotfiles:
   rcup_flags: -fx README.md
   linuxgui: true
 kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
-network:
-  conn_check:
-    interval: 5
-  trusted_uuid:
 video_drivers:
   - vulkan-icd-loader
   - vulkan-intel
