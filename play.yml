@@ -107,3 +107,4 @@
         tags: ["clouddrive"],
         when: ansible_os_family == "Archlinux",
       }
+    - { role: sound, tags: ["sound"], when: display_manager is defined }

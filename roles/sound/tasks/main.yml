@@ -1,0 +1,21 @@
+---
+- name: Install alsa-utils
+  package:
+    name: alsa-utils
+    state: present
+  become: true
+
+- name: Install Pipewire
+  package:
+    name:
+      - pipewire
+      - pipewire-pulse
+      - pavucontrol
+    state: present
+  become: true
+
+- name: Install pasystray
+  package:
+    name: pasystray
+    state: present
+  become: true
