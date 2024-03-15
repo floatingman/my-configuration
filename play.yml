@@ -104,3 +104,4 @@
         when: ansible_os_family == "Archlinux",
       }
     - { role: sound, tags: ["sound"], when: display_manager is defined }
+    - { role: bluetooth, tags: ["bluetooth"], when: "bluetooth is defined" }

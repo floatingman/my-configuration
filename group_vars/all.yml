@@ -12,6 +12,8 @@ display_manager: lightdm
 desktop_environment: i3
 hostname: tracks
 bootloader: systemd-boot
+bluetooth:
+  disable: False
 browser_choices:
   - firefox -P default-release
   - brave
