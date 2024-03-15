@@ -14,8 +14,8 @@ hostname: tracks
 bootloader: systemd-boot
 browser_choices:
   - firefox -P default-release
-  - firefox -P work
-  - tor-browser-en
+  - brave
+  - torbrowser-launcher
   - play
   - qcode
   - "| xclip -selection c"
@@ -36,6 +36,14 @@ goesimage:
   run_boot_delay: 2min
   run_on: trusted
   flags: -w -e
+network:
+  spoof_mac: True
+  conn_check:
+    interval: 0
+  trusted_uuid:
+    - 8c60f8cd-b8a8-48df-b58b-10886f73a9c3
+    - 54caeabc-0a90-41b2-b641-b4c3565e3c8b
+    - b70a7980-1b70-4819-8bbe-380d028f6a0b
 ssh:
   port: 22
   enable_sshd: True
