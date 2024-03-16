@@ -12,8 +12,8 @@
 
 - name: Install inetutils for hostname
   package:
-      name: inetutils
-      state: present
+    name: inetutils
+    state: present
   become: true
 
 - name: Set the hostname
@@ -25,7 +25,7 @@
 - name: Set kernel parameters
   lineinfile:
     dest: /etc/default/grub
-    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT'
+    regexp: "^GRUB_CMDLINE_LINUX_DEFAULT"
     state: present
     line: 'GRUB_CMDLINE_LINUX_DEFAULT="{{ kernel_parameters }}"'
   when: kernel_parameters is defined and bootloader == 'grub'
@@ -37,7 +37,7 @@
 
 - name: Create pacman hook directory
   file: path=/etc/pacman.d/hooks
-        state=directory
+    state=directory
   become: true
   tags:
     - packages
@@ -71,3 +71,11 @@
   become: true
   tags:
     - packages
+
+- name: Install man pages
+  package:
+    name:
+      - man-db
+      - man-pages
+    state: present
+  become: true

@@ -1,3 +1,15 @@
 ---
 - include_tasks: ranger.yml
 - include_tasks: thunar.yml
+
+- name: Install mucommander
+  kewlfft.aur.aur:
+    name: mucommander
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - filemanager
+    - aur
