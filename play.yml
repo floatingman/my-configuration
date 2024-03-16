@@ -109,6 +109,6 @@
       }
     - { role: sound, tags: ["sound"], when: display_manager is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: "bluetooth is defined" }
-    vars_prompt:
-      - name: user_password
-        prompt: "Enter desired user password"
+  vars_prompt:
+    - name: user_password
+      prompt: "Enter desired user password"
