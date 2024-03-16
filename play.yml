@@ -17,6 +17,7 @@
     - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
     - { role: filesystem, tags: ["filesystem"] }
+    - { role: fonts, tags: ["fonts"], when: "display_manager is defined" }
     - {
         role: ansible-role-binaries,
         tags: ["binaries"],
@@ -33,6 +34,7 @@
         tags: ["nmtrust"],
         when: ansible_os_family ==  "Archlinux",
       }
+    - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
     - {
         role: networkmanager,
         tags: ["networkmanager"],

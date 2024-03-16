@@ -4,7 +4,7 @@
   lineinfile:
     dest: /etc/sudoers
     state: present
-    line: "{{ ansible_user_id }}	ALL=NOPASSWD: ALL"
+    line: "{{ user.name }}	ALL=NOPASSWD: ALL"
     insertafter: '^%admin\tALL=\(ALL\) ALL'
     validate: "visudo -cf %s"
   when: sudo_without_password|default(false) == true
@@ -22,7 +22,7 @@
     use: auto
     state: present
   become: true
-  become_user: "{{ ansible_user_id }}"
+  become_user: aur_builder
   when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Enable and start keyd service

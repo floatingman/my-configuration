@@ -60,7 +60,7 @@ dotfiles:
   path: "{{ user.name }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
-kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
+kernel_parameters: "quiet consoleblank=60"
 video_drivers:
   - vulkan-icd-loader
   - vulkan-intel
@@ -74,6 +74,35 @@ lang:
     - python
     - python-pip
     - go
+base_packages:
+    - base-devel
+    - man-db
+    - man-pages
+    - pacman-contrib
+    - fwupd
+    - dmidecode
+    - tmux
+    - git
+    - rsync
+    - coreutils
+    - moreutils
+    - dateutils
+    - bc
+    - ranger
+    - arch-wiki-lite
+    - arch-wiki-docs
+    - python-keyring
+    - python-secretstorage
+    - tig
+    - ruby
+    - pv
+    - minicom
+    - jq
+    - screen
+    - termdown
+    - fzf
+    - cpulimit
+    - vivid
 cli:
   enabled: true
   common:
@@ -254,6 +283,38 @@ aur:
     - viddy
     - visual-studio-code-bin
     - xbanish
+base_fonts:
+    - adobe-source-code-pro-fonts
+    - cantarell-fonts
+    - gsfonts
+    - noto-fonts
+    - terminus-font
+    - tex-gyre-fonts
+    - ttc-iosevka
+    - ttc-iosevka-aile
+    - ttc-iosevka-ss08
+    - ttf-caladea
+    - ttf-carlito
+    - ttf-dejavu
+    - ttf-droid
+    - ttf-fira-mono
+    - ttf-ibm-plex
+    - ttf-inconsolata
+    - ttf-liberation
+    - ttf-opensans
+    - ttf-ubuntu-font-family
+
+aur_fonts:
+    - ttf-bitstream-charter
+    - ttf-cooper-hewitt
+    - ttf-courier-prime
+    - ttf-heuristica
+    - ttf-merriweather
+    - ttf-merriweather-sans
+    - ttf-mplus-git
+    - ttf-oswald
+    - ttf-quintessential
+    - ttf-signika
 asdf_user: "{{ user.name }}"
 asdf_plugins:
   - name: "nodejs"

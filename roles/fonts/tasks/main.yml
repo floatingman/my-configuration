@@ -1,0 +1,83 @@
+---
+- name: Install freetype2
+  pacman:
+    name: freetype2
+    state: present
+
+- name: Install cairo
+  pacman:
+    name: cairo
+    state: present
+
+- name: Install fontconfig
+  pacman:
+    name: fontconfig
+    state: present
+
+- name: Enable LCD filter
+  file:
+    src: /usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf
+    dest: /etc/fonts/conf.d/11-lcdfilter-default.conf
+    state: link
+
+- name: Enable sub-pixel rendering
+  file:
+    src: /usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf
+    dest: /etc/fonts/conf.d/10-sub-pixel-rgb.conf
+    state: link
+
+- name: Enable hinting
+  file:
+    src: /usr/share/fontconfig/conf.avail/10-hinting-slight.conf
+    dest: /etc/fonts/conf.d/10-hinting-slight.conf
+    state: link
+
+- name: Push font substitutions
+  copy:
+    src: local.conf
+    dest: /etc/fonts/local.conf
+
+- name: ensure fonts directory
+  file:
+    path: "{{ lookup('env', 'HOME') }}/.fonts"
+    state: directory
+
+- name: Hack exists
+  shell: "ls {{ lookup('env', 'HOME') }}/.fonts/Hack*Nerd*Font*"
+  register: hack_exists
+  ignore_errors: true
+
+- name: Download Hack
+  when: hack_exists is failed
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz
+    dest: "{{ lookup('env', 'HOME') }}/.fonts/"
+    remote_src: yes
+
+- name: JetBrains exists
+  shell: "ls {{ lookup('env', 'HOME') }}/.fonts/JetBrains*Nerd*Font*"
+  register: jetbrains_exists
+  ignore_errors: true
+
+- name: Download JetBrains Mono Nerd Font
+  when: jetbrains_exists is failed
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
+    dest: "{{ lookup('env', 'HOME') }}/.fonts/"
+    remote_src: yes
+
+- name: Install base fonts
+  package:
+    name: "{{ base_fonts }}"
+    state: present
+
+- name: Install AUR fonts
+  kewlfft.aur.aur:
+    name: "{{ aur_fonts }}"
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
