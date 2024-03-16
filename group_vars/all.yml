@@ -104,7 +104,6 @@ base_packages:
     - screen
     - termdown
     - fzf
-    - cpulimit
     - vivid
 cli:
   enabled: true
