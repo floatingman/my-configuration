@@ -2,6 +2,7 @@
 - name: Playbook
   hosts: localhost
   connection: local
+  become: true
   roles:
     # - { role: ansible-role-basic, tags: ["basic"] }
     - { role: base, tags: ["base"], when: ansible_os_family ==  "Archlinux" }
@@ -108,3 +109,6 @@
       }
     - { role: sound, tags: ["sound"], when: display_manager is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: "bluetooth is defined" }
+    vars_prompt:
+      - name: user_password
+        prompt: "Enter desired user password"
