@@ -35,6 +35,7 @@
         when: ansible_os_family ==  "Archlinux",
       }
     - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
+    - { role: terminal, tags: ["terminal"], when: "display_manager is defined" }
     - {
         role: networkmanager,
         tags: ["networkmanager"],

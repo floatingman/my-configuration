@@ -2,6 +2,7 @@ laptop: true
 user:
   name: dnewman
   uid: 1000
+  gid: 1000
   group: dnewman
   shell: /usr/bin/bash
   email: dan@danlovesprogramming.com
@@ -31,6 +32,8 @@ hosts_path: "/etc/hosts"
 hosts_backup: "/etc/hosts.original"
 hosts_pack: basic
 hosts_url: "https://block.energized.pro/{{ hosts_pack }}/formats/hosts"
+journal:
+  max_size: 500M
 sudo_without_password: true
 github_user: floatingman
 goesimage:

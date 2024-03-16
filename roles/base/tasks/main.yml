@@ -23,4 +23,5 @@
   become: true
 
 - include_tasks: user.yml
-- include_tasks: package.yml
+- include_tasks: packages.yml
+- include_tasks: journal.yml
