@@ -78,33 +78,33 @@ lang:
     - python-pip
     - go
 base_packages:
-    - base-devel
-    - man-db
-    - man-pages
-    - pacman-contrib
-    - fwupd
-    - dmidecode
-    - tmux
-    - git
-    - rsync
-    - coreutils
-    - moreutils
-    - dateutils
-    - bc
-    - ranger
-    - arch-wiki-lite
-    - arch-wiki-docs
-    - python-keyring
-    - python-secretstorage
-    - tig
-    - ruby
-    - pv
-    - minicom
-    - jq
-    - screen
-    - termdown
-    - fzf
-    - vivid
+  - base-devel
+  - man-db
+  - man-pages
+  - pacman-contrib
+  - fwupd
+  - dmidecode
+  - tmux
+  - git
+  - rsync
+  - coreutils
+  - moreutils
+  - dateutils
+  - bc
+  - ranger
+  - arch-wiki-lite
+  - arch-wiki-docs
+  - python-keyring
+  - python-secretstorage
+  - tig
+  - ruby
+  - pv
+  - minicom
+  - jq
+  - screen
+  - termdown
+  - fzf
+  - vivid
 cli:
   enabled: true
   common:
@@ -266,8 +266,7 @@ aur:
     - lf
     - masterpdfeditor
     - microsoft-edge-stable-bin
-    - nerd-fonts-fira-code
-    - nerd-fonts-hack
+    - nerd--fira-code
     - nova
     - pet-bin
     - polaris-bin
@@ -286,37 +285,44 @@ aur:
     - visual-studio-code-bin
     - xbanish
 base_fonts:
-    - adobe-source-code-pro-fonts
-    - cantarell-fonts
-    - gsfonts
-    - noto-fonts
-    - terminus-font
-    - tex-gyre-fonts
-    - ttc-iosevka
-    - ttc-iosevka-aile
-    - ttc-iosevka-ss08
-    - ttf-caladea
-    - ttf-carlito
-    - ttf-dejavu
-    - ttf-droid
-    - ttf-fira-mono
-    - ttf-ibm-plex
-    - ttf-inconsolata
-    - ttf-liberation
-    - ttf-opensans
-    - ttf-ubuntu-font-family
+  - adobe-source-code-pro-fonts
+  - cantarell-fonts
+  - gsfonts
+  - noto-fonts
+  - terminus-font
+  - ttf-firacode-nerd
+  - ttf-firamono-nerd
+  - tex-gyre-fonts
+  - ttf-iosevka-nerd
+  - ttc-iosevka
+  - ttc-iosevka-aile
+  - ttc-iosevka-ss08
+  - ttf-caladea
+  - ttf-carlito
+  - ttf-dejavu
+  - ttf-droid
+  - ttf-fira-mono
+  - ttf-hack-nerd
+  - ttf-ibm-plex
+  - ttf-ibmplex-mono-nerd
+  - ttf-inconsolata
+  - ttf-jetbrains-mono-nerd
+  - ttf-liberation
+  - ttf-sourcecodepro-nerd
+  - ttf-opensans
+  - ttf-ubuntu-font-family
 
 aur_fonts:
-    - ttf-bitstream-charter
-    - ttf-cooper-hewitt
-    - ttf-courier-prime
-    - ttf-heuristica
-    - ttf-merriweather
-    - ttf-merriweather-sans
-    - ttf-mplus-git
-    - ttf-oswald
-    - ttf-quintessential
-    - ttf-signika
+  - ttf-bitstream-charter
+  - ttf-cooper-hewitt
+  - ttf-courier-prime
+  - ttf-heuristica
+  - ttf-merriweather
+  - ttf-merriweather-sans
+  - ttf-mplus-git
+  - ttf-oswald
+  - ttf-quintessential
+  - ttf-signika
 asdf_user: "{{ user.name }}"
 asdf_plugins:
   - name: "nodejs"
