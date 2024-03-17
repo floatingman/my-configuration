@@ -266,7 +266,6 @@ aur:
     - lf
     - masterpdfeditor
     - microsoft-edge-stable-bin
-    - nerd--fira-code
     - nova
     - pet-bin
     - polaris-bin
@@ -291,7 +290,7 @@ base_fonts:
   - noto-fonts
   - terminus-font
   - ttf-firacode-nerd
-  - ttf-firamono-nerd
+  - otf-firamono-nerd
   - tex-gyre-fonts
   - ttf-iosevka-nerd
   - ttc-iosevka
