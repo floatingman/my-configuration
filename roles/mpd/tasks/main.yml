@@ -1,0 +1,22 @@
+---
+- name: Install mpd
+  package:
+    name: mpd
+    state: present
+
+- name: Push mpd service file
+  copy:
+    src: mpd.service
+    dest: /etc/systemd/user/mpd.service
+  notify:
+    - reload systemd config
+
+- name: Install mpc
+  package:
+    name: mpc
+    state: present
+
+- name: Install ncmpcpp
+  package:
+    name: ncmpcpp
+    state: present
