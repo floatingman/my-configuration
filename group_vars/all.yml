@@ -78,32 +78,33 @@ lang:
     - python-pip
     - go
 base_packages:
+  - arch-wiki-docs
+  - arch-wiki-lite
   - base-devel
+  - bc
+  - coreutils
+  - dateutils
+  - dmidecode
+  - fwupd
+  - fzf
+  - git
+  - jq
   - man-db
   - man-pages
-  - pacman-contrib
-  - fwupd
-  - dmidecode
-  - tmux
-  - git
-  - rsync
-  - coreutils
+  - minicom
   - moreutils
-  - dateutils
-  - bc
-  - ranger
-  - arch-wiki-lite
-  - arch-wiki-docs
+  - pacman-contrib
+  - pv
   - python-keyring
   - python-secretstorage
-  - tig
+  - ranger
+  - redshift
+  - rsync
   - ruby
-  - pv
-  - minicom
-  - jq
   - screen
   - termdown
-  - fzf
+  - tig
+  - tmux
   - vivid
 cli:
   enabled: true
@@ -288,11 +289,9 @@ base_fonts:
   - cantarell-fonts
   - gsfonts
   - noto-fonts
-  - terminus-font
-  - ttf-firacode-nerd
   - otf-firamono-nerd
+  - terminus-font
   - tex-gyre-fonts
-  - ttf-iosevka-nerd
   - ttc-iosevka
   - ttc-iosevka-aile
   - ttc-iosevka-ss08
@@ -300,15 +299,17 @@ base_fonts:
   - ttf-carlito
   - ttf-dejavu
   - ttf-droid
+  - ttf-firacode-nerd
   - ttf-fira-mono
   - ttf-hack-nerd
   - ttf-ibm-plex
   - ttf-ibmplex-mono-nerd
   - ttf-inconsolata
+  - ttf-iosevka-nerd
   - ttf-jetbrains-mono-nerd
   - ttf-liberation
-  - ttf-sourcecodepro-nerd
   - ttf-opensans
+  - ttf-sourcecodepro-nerd
   - ttf-ubuntu-font-family
 
 aur_fonts:
