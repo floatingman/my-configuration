@@ -1,0 +1,6 @@
+---
+- name: restart cups
+  become: true
+  service:
+    name: cups.service
+    state: restarted

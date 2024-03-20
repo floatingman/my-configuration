@@ -74,6 +74,7 @@
         tags: ["screensaver"],
         when: display_manager is defined,
       }
+    - { role: cups, tags: ["cups"], when: display_manager is defined }
     - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
         role: taskwarrior,

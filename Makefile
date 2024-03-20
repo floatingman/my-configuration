@@ -47,7 +47,7 @@ install: req-galaxy ## Install roles via ansible-galaxy
 .PHONY: configure
 configure: req-playbook ## Run ansible
 	@echo 'Run ansible-playbook'
-	ansible-playbook play.yml -K
+	sudo ansible-playbook play.yml -K
 
 .PHONY: all
 all: install configure ## Run all goals
