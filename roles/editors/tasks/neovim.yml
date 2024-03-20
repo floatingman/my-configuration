@@ -10,12 +10,3 @@
     name: neovim
     state: present
   become: true
-# - name: Clone NeoVim config
-#   git:
-#     clone: true
-#     repo: git@github.com:floatingman/nvim.git
-#     dest: "/home/{{ user.name }}/.config/nvim"
-#     accept_hostkey: yes
-#     update: no
-#   become: true
-#   become_user: "{{ user.name }}"
