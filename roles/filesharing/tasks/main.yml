@@ -1,0 +1,31 @@
+---
+- name: Install Samba Client Utilities
+  become: true
+  package:
+    name:
+      - smbclient
+      - cifs-utils
+    state: present
+
+- name: Create empty samba directory
+  become: true
+  file:
+    path: /etc/samba
+    owner: root
+    group: root
+    state: directory
+
+- name: Create empty smb config
+  become: true
+  file:
+    path: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+    state: touch
+
+- name: Install nfs
+  become: true
+  package:
+    name: nfs-utils
+    state: present

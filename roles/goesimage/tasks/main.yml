@@ -4,7 +4,6 @@
     name: goesimage
     use: auto
     state: present
-  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -29,6 +28,6 @@
 
 - include_tasks: roles/nmtrust/tasks/unit.yml
   vars:
-      unit: goesimage.timer
-      run_on: "{{ goesimage.run_on }}"
-      user_unit: true
+    unit: goesimage.timer
+    run_on: "{{ goesimage.run_on }}"
+    user_unit: true

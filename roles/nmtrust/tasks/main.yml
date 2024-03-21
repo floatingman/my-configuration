@@ -4,7 +4,6 @@
     name: nmtrust-git
     use: auto
     state: present
-  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -16,11 +15,11 @@
     state: directory
   become: true
 
-# - name: Push trusted network list
-#   template:
-#       src: trusted_networks.j2
-#       dest: /etc/nmtrust/trusted_networks
-#   become: true
+- name: Push trusted network list
+  template:
+    src: trusted_networks.j2
+    dest: /etc/nmtrust/trusted_networks
+  become: true
 
 - name: Verify trusted unit list exists
   copy:

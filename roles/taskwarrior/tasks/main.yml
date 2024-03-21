@@ -1,24 +1,23 @@
 ---
 - name: Install taskwarrior
-  package: 
-    name: task 
+  package:
+    name: task
     state: present
   become: true
 
 - name: Install timewarrior
-  package: 
-    name: timew 
+  package:
+    name: timew
     state: present
   notify:
     - refresh holidays
   become: true
 
 - name: Install taskopen
-  kewlfft.aur.aur: 
+  kewlfft.aur.aur:
     name: taskopen
     use: auto
     state: present
-  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

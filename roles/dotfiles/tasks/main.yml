@@ -4,7 +4,6 @@
     name: rcm
     use: auto
     state: present
-  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -24,7 +23,6 @@
     accept_hostkey: yes
     update: no
   when: dotfiles is defined
-  become: true
   become_user: "{{ user.name }}"
 
 - name: Symlink rcm rc file to user directory
@@ -36,12 +34,10 @@
 - name: Install user dotfiles
   command: rcup -d /home/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
   when: dotfiles is defined
-  become: true
   become_user: "{{ user.name }}"
 
 - name: Install linux gui tagged dotfiles
   command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
-  become: true
   become_user: "{{ user.name }}"
   when: dotfiles.linuxgui | bool
 

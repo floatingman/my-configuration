@@ -10,9 +10,3 @@
   command: ./install --bin
   args:
     chdir: "{{ ansible_env.HOME }}/.fzf"
-
-- name: Install fzf-tab
-  git:
-    clone: true
-    repo: https://github.com/Aloxaf/fzf-tab
-    dest: "{{ ansible_env.HOME }}/.shell/fzf-tab"
