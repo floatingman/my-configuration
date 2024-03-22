@@ -116,6 +116,7 @@
         tags: ["filesharing"],
         when: ansible_os_family == "Archlinux",
       }
+    - { role: twitch, tags: ["twitch"], when: display_manager is defined }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"

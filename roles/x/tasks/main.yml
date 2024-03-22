@@ -66,6 +66,7 @@
     - user
 
 - name: Install video tools
+  become: true
   package:
     name:
       - radeontop
