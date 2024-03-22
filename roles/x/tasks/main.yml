@@ -65,6 +65,15 @@
   tags:
     - user
 
+- name: Install video tools
+  package:
+    name:
+      - radeontop
+      - libva-utils
+      - intel-gpu-tools
+      - nvtop
+      - vdpauinfo
+
 - include_tasks: sxhkd.yml
 - include_tasks: unclutter.yml
 - include_tasks: autorandr.yml
