@@ -13,13 +13,15 @@
   become: true
 
 - name: Install mpv sockets plugin
-  git:
-    clone: true
-    repo: https://github.com/wis/mpvSockets.git
-    dest: ~/.config/mpv/scripts/mpvSockets
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/wis/mpvSockets/master/mpvSockets.lua
+    dest: ~/.config/mpv/scripts/mpvSockets.lua
+    mode: "755"
+  become_user: "{{user.name}}"
 
 - name: Install mpv-reload script
-  git:
-    clone: true
-    repo: https://github.com/4e6/mpv-reload
-    dest: ~/.config/mpv/scripts/mpv-reload
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/4e6/mpv-reload/master/reload.lua
+    dest: ~/.config/mpv/scripts/reload.lua
+    mode: "755"
+  become_user: "{{user.name}}"
