@@ -12,6 +12,36 @@
     mode: 0755
   become: true
 
+- name: Install Subliminal for sub download
+  kewlfft.aur.aur:
+    name: subliminal
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+# - name: Install ffsubsync for sub sync
+#   kewlfft.aur.aur:
+#     name: python-ffsubsync
+#     use: auto
+#     state: present
+#   become_user: aur_builder
+#   when: ansible_facts["os_family"] == "Archlinux"
+#   tags:
+#     - aur
+
+# - name: Install alass for sub sync
+#   kewlfft.aur.aur:
+#     name: alass-git
+#     use: auto
+#     state: present
+#   become_user: aur_builder
+#   when: ansible_facts["os_family"] == "Archlinux"
+#   tags:
+#     - aur
+
 - name: Install mpv sockets plugin
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/wis/mpvSockets/master/mpvSockets.lua
