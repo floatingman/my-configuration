@@ -9,6 +9,9 @@ user:
   log:
     dir: log
     rotate: 8
+udisks:
+  auto_mount: True
+  shared_mount: True
 display_manager: lightdm
 desktop_environment: i3
 hostname: tracks

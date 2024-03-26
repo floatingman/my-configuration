@@ -30,6 +30,12 @@
     line='[Default Applications]'
     insertbefore=BOF
 
+- name: Install dunst
+  become: true
+  package:
+    name: dunst
+    state: present
+
 - name: Install dmenu
   become: true
   package:

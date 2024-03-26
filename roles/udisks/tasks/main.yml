@@ -1,0 +1,30 @@
+---
+- name: Install udisks2
+  become: true
+  package:
+    name: udisks2
+    state: present
+
+- name: Configure auto mount
+  become: true
+  template:
+    src: 10-udisks.rules.j2
+    dest: /etc/udev/rules.d/10-udisks.rules
+
+- name: Verify /media exists
+  become: true
+  file:
+    path: /media
+    state: directory
+
+- name: Configure mount location
+  become: true
+  template:
+    src: 99-udisks2.rules.j2
+    dest: /etc/udev/rules.d/99-udisks2.rules
+
+- name: Install udiskie
+  become: true
+  package:
+    name: udiskie
+    state: present

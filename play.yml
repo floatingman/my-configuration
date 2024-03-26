@@ -76,6 +76,7 @@
       }
     - { role: cups, tags: ["cups"], when: display_manager is defined }
     - { role: proton, tags: ["proton"], when: display_manager is defined }
+    - { role: udisks, tags: ["udisks"], when: display_manager is defined }
     - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
         role: taskwarrior,
