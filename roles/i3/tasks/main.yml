@@ -30,4 +30,10 @@
     line='[Default Applications]'
     insertbefore=BOF
 
+- name: Install dmenu
+  become: true
+  package:
+    name: dmenu
+    state: present
+
 - include_tasks: rofi.yml

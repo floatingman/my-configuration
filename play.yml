@@ -42,6 +42,7 @@
         when: ansible_os_family ==  "Archlinux",
       }
     # - { role: avanov.pyenv, tags: ["python"] }
+    - { role: python, tags: ["python"] }
     - {
         role: lightdm,
         tags: ["lightdm"],
