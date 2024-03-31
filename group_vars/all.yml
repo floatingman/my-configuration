@@ -332,12 +332,13 @@ aur_fonts:
   - ttf-oswald
   - ttf-quintessential
   - ttf-signika
+  - ttf-segoe-ui-variable
 asdf_user: "{{ user.name }}"
 asdf_plugins:
   - name: "nodejs"
     versions:
-      - 18.17.1
-    global: 18.17.1
+      - 20.12.0
+    global: 20.12.0
   - name: "ruby"
     versions:
       - 3.1.1
