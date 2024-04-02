@@ -20,3 +20,8 @@
   package:
     name: ncmpcpp
     state: present
+
+- name: Install python-mpd2
+  package:
+    name: python-mpd2
+    state: present
