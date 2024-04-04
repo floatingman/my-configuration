@@ -42,6 +42,12 @@
 #   tags:
 #     - aur
 
+- name: Install mpv-file-browser
+  git:
+    clone: true
+    repo: https://github.com/CogentRedTester/mpv-file-browser.git
+    dest: ~/.config/mpv/scripts/file-browser
+
 - name: Install mpv sockets plugin
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/wis/mpvSockets/master/mpvSockets.lua
