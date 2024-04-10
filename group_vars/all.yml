@@ -108,6 +108,7 @@ base_packages:
   - pv
   - python-keyring
   - python-secretstorage
+  - qalculate-gtk
   - ranger
   - redshift
   - rsync
@@ -279,6 +280,7 @@ aur:
     - masterpdfeditor
     - microsoft-edge-stable-bin
     - nova
+    - oranchello-icon-theme
     - pet-bin
     - polaris-bin
     - postman
@@ -318,10 +320,12 @@ base_fonts:
   - ttf-jetbrains-mono-nerd
   - ttf-liberation
   - ttf-opensans
+  - ttf-sarasa-gothic
   - ttf-sourcecodepro-nerd
   - ttf-ubuntu-font-family
 
 aur_fonts:
+  - nerd-fonts-sarasa-term
   - ttf-bitstream-charter
   - ttf-cooper-hewitt
   - ttf-courier-prime
@@ -331,6 +335,7 @@ aur_fonts:
   - ttf-mplus-git
   - ttf-oswald
   - ttf-quintessential
+  - ttf-sarasa-gothic-nerd-fonts
   - ttf-signika
   - ttf-segoe-ui-variable
 asdf_user: "{{ user.name }}"

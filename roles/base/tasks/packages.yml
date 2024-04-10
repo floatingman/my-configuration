@@ -1,14 +1,15 @@
 ---
 - name: Install universal base packages
+  become: true
   package:
-      name: "{{ base_packages }}"
-      state: present
+    name: "{{ base_packages }}"
+    state: present
   tags:
     - packages
 
 - name: Create pacman hook directory
   file: path=/etc/pacman.d/hooks
-        state=directory
+    state=directory
   tags:
     - packages
 
