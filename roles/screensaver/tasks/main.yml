@@ -5,11 +5,25 @@
     state: present
   become: true
 
-- name: Install i3lock
-  package:
-    name: i3lock
+- name: Install xidlehook
+  kewlfft.aur.aur:
+    name: xidlehook
+    use: auto
     state: present
-  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install betterlockscreen
+  kewlfft.aur.aur:
+    name: betterlockscreen
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
 
 - name: Push lock script
   copy:
