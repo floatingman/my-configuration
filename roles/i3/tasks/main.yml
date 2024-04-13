@@ -41,4 +41,14 @@
     name: dmenu
     state: present
 
+- name: Install autotiling
+  kewlfft.aur.aur:
+    name: autotiling
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
 - include_tasks: rofi.yml
