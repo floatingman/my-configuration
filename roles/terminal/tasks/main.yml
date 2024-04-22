@@ -1,7 +1,17 @@
 ---
 - name: Install alacritty
-  pacman:
+  become: true
+  package:
     name: alacritty
     state: present
   tags:
     - terminal
+
+- name: Install kitty
+  become: true
+  package:
+    name: kitty
+    state: present
+  tags:
+    - terminal
+

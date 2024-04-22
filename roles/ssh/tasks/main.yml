@@ -66,7 +66,7 @@
   package:
     name: x11-ssh-askpass
     state: present
-  when: "display_manager is defined"
+  when: "display_manager is defined and ansible_facts['os_family'] == 'Archlinux'"
 
 - name: Export SSH_ASKPASS environment variable
   become: true

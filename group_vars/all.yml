@@ -12,9 +12,9 @@ user:
 udisks:
   auto_mount: True
   shared_mount: True
-display_manager: lightdm
-desktop_environment: i3
-hostname: tracks
+display_manager: butts
+desktop_environment: butts
+hostname: sunstreaker
 bootloader: systemd-boot
 bluetooth:
   disable: False
@@ -112,7 +112,6 @@ base_packages:
   - ranger
   - redshift
   - rsync
-  - ruby
   - screen
   - termdown
   - tig
@@ -346,8 +345,8 @@ asdf_plugins:
     global: 20.12.0
   - name: "ruby"
     versions:
-      - 3.2.3
-    global: 3.2.3
+      - 3.1.2
+    global: 3.1.2
   - name: "kubectl"
     versions:
       - 1.29.3

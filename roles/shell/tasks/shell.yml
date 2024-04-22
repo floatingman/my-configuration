@@ -1,5 +1,6 @@
 ---
 - name: Install Bash
+  become: true
   package:
     name:
       - bash

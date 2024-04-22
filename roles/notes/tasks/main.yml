@@ -1,8 +1,18 @@
 ---
-- name: Install obsidian
+- name: Install Obsidian On Arch
   become: true
-  package:
+  pacman:
     name: obsidian
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - notes
+
+- name: Install Obsidian on Debian
+  flatpak:
+    name: md.obsidian.Obsidian
+    state: present
+    method: user
+  when: ansible_facts["os_family"] == "Debian"
   tags:
     - notes

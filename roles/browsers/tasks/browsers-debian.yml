@@ -1,0 +1,7 @@
+---
+- name: Install Chromium
+  package:
+    name: chromium-browser
+    state: present
+  tags:
+    - browser

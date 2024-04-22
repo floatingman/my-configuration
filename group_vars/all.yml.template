@@ -1,13 +1,60 @@
+laptop: true
+user:
+  name: dnewman
+  uid: 1000
+  gid: 1000
+  group: dnewman
+  shell: /usr/bin/bash
+  email: dan@danlovesprogramming.com
+  log:
+    dir: log
+    rotate: 8
+udisks:
+  auto_mount: True
+  shared_mount: True
+display_manager: lightdm
+desktop_environment: i3
+hostname: tracks
+bootloader: systemd-boot
+bluetooth:
+  disable: False
+browser_choices:
+  - firefox -P default-release
+  - brave
+  - torbrowser-launcher
+  - play
+  - qcode
+  - "| xclip -selection c"
+filesystem_packages:
+  - dosfstools
+  - ntfs-3g
+  - exfatprogs
+  - gparted
+  - udftools
+hosts_path: "/etc/hosts"
+hosts_backup: "/etc/hosts.original"
 hosts_pack: basic
-thinkpad: true
-user: dnewman
-uid: 1000
-hostname: rodimus
-bootloader: grub
+hosts_url: "https://block.energized.pro/{{ hosts_pack }}/formats/hosts"
+journal:
+  max_size: 500M
 sudo_without_password: true
 github_user: floatingman
-ssh_key_name: "id_ed25519_dlp"
-ssh_key_path: "{{ user }}/.ssh/{{ ssh_key_name }}"
+goesimage:
+  run_time: 15min
+  run_boot_delay: 2min
+  run_on: all
+  flags: -w -e
+network:
+  spoof_mac: True
+  conn_check:
+    interval: 0
+  trusted_uuid:
+    - 8c60f8cd-b8a8-48df-b58b-10886f73a9c3
+    - 54caeabc-0a90-41b2-b641-b4c3565e3c8b
+    - b70a7980-1b70-4819-8bbe-380d028f6a0b
+ssh:
+  port: 22
+  enable_sshd: True
 gitconfig:
   name: Daniel Newman
   mail: dan@danlovesprogramming.com
@@ -15,148 +62,77 @@ gitconfig:
   neovim_remote: true
   meld: true
 dotfiles:
-  repo_url: git@github.com:{{ github_user }}/dotfiles.git
-  path: "{{ user }}/.dotfiles"
+  repo_url: https://github.com/{{ github_user }}/dotfiles.git
+  path: "{{ user.name }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true
-kernel_parameters: "quiet consoleblank=60 i915.enable_psr=2"
-network:
-  conn_check:
-    interval: 5
-  trusted_uuid:
-    - 5619b099-2c22-3276-8a7a-f12f55976a81
-    - 97a225df-f8f9-4fc4-a95d-289654f71c02
+kernel_parameters: "quiet consoleblank=60"
 video_drivers:
-    - vulkan-icd-loader
-    - vulkan-intel
-    - vulkan-mesa-layers
-    - vulkan-tools
-    - intel-media-driver
-    - libva-intel-driver
-browser_choices:
-    - firefox -P default-release
-    - firefox -P work
-    - chromium
-    - qutebrowser
-    - tor-browser-en
-    - play
-    - qcode
-    - "| xclip -selection c"
-display_manager: gdm
-gdm:
-    sound: False
-    font_scaling_factor: 1
-    logo_path: False
-    touchpad:
-        tap_to_click: True
-    accessibility_menu: True
-desktop_environment: gnome
-gnome:
-    night_light:
-        enabled: True
-        color_temperature: 4000 # in Kelvin
-    date_time:
-        show_date_in_clock: True
-        show_weeks_in_calendar: True
-    battery:
-        show_percentage: True
-    power:
-        sleep_timeout_when_computer_on_ac: 3600 # in seconds
-        timeout_action_when_computer_on_ac: suspend
-        sleep_timeout_when_computer_on_battery: 1800 # in seconds
-        timeout_action_when_computer_on_battery: suspend
-        power_button_action: suspend
-    touchpad:
-        tap_to_click: True
-        natural_scrolling: True
-        disabled_while_typing: True
-    online_accounts_support: True
-    lock_screen:
-        automatic_lock: True
-        lock_screen_after_blank_for: 0 # in seconds
-        show_notifications: True
-        show_full_name_of_user: True
-    theme:
-        theme_name: Adwaita
-        icon_theme_name: Adwaita
-        font_name: Dejavu Sans 13
-        dark_variant: True
-    gnome_shell:
-        disable_top_left_hot_corner: False
-        extensions_support: True
+  - lib32-mesa
+  - xf86-video-amdgpu
+  - vulkan-radeon
+  - lib32-vulkan-radeon
+  - libva-mesa-driver
+  - lib32-libva-mesa-driver
+  - mesa-vdpau
+  - lib32-mesa-vdpau
+  - vulkan-icd-loader
+  - vulkan-intel
+  - vulkan-mesa-layers
+  - vulkan-tools
+  - intel-media-driver
+  - libva-intel-driver
 lang:
   enabled: true
   arch:
     - python
     - python-pip
     - go
-goesimage:
-  run_time: 15min
-  run_boot_delay: 2min
-  run_on: trusted
-  flags: -w -e
-gui:
-  enabled: true
-  arch:
-    - alacritty
-    - bitwarden
-    - bspwm
-    - caffeine-ng
-    - clipmenu
-    - dunst
-    - exiv2
-    - geeqie
-    - hledger
-    - hledger-ui
-    - hsetroot
-    - i3-gaps
-    - inkscape
-    - intel-ucode
-    - inxi
-    - isync
-    - libreoffice
-    - libva-utils
-    - linux-firmware
-    - linux-headers
-    - manjaro-printer
-    - mariadb-clients
-    - mesa
-    - mesa-demos
-    - pinta
-    - powertop
-    - polybar
-    - sof-firmware
-    - sxhkd
-    - sxiv
-    - syncthing
-    - system-config-printer
-    - ttf-jetbrains-mono
-    - udevil
-    - urlscan
-    - viewnior
-    - wmctrl
-    - xbindkeys
-    - xsettingsd
-    - xcape
-    - xf86-input-synaptics
-    - xorg-xinput
-    - xorg-xwininfo
-    - zathura-pdf-mupdf
+base_packages:
+  - arch-wiki-docs
+  - arch-wiki-lite
+  - base-devel
+  - bc
+  - coreutils
+  - dateutils
+  - dmidecode
+  - fwupd
+  - fzf
+  - git
+  - jq
+  - man-db
+  - man-pages
+  - minicom
+  - moreutils
+  - pacman-contrib
+  - pv
+  - python-keyring
+  - python-secretstorage
+  - qalculate-gtk
+  - ranger
+  - redshift
+  - rsync
+  - screen
+  - termdown
+  - tig
+  - tmux
+  - vivid
 cli:
   enabled: true
   common:
     - bison
+    - cmake
     - coreutils
     - curl
-    - cmake
     - dateutils
     - dnsutils
     - docker
-    - emacs
     - fdupes
     - figlet
+    - flake8
     - flex
     - htop
+    - httpie
     - hugo
     - iftop
     - iotop
@@ -187,39 +163,34 @@ cli:
     - translate-shell
     - trash-cli
     - tree
-    - urlview
     - vifm
     - w3m
     - wget
     - whois
-    - zoxide
     - zip
+    - zoxide
   debian:
+    - attr
+    - cifs-utils
     - dnsutils
     - exuberant-ctags
-    - libxfixes-dev
-    - x11proto-core-dev
     - libx11-dev
-    - libxt-dev
+    - libxext-dev
+    - libxfixes-dev
     - libxfixes-dev
     - libxi-dev
+    - libxt-dev
     - texlive
-    - libxext-dev
     - timewarrior
+    - x11proto-core-dev
+    - yt-dlp
   arch:
-    - ctags
-    - bitwarden-cli
-    - bind-tools
-    - entr
-    - prettier
-    - texlive-core
-    - exa
-    - hey
     - argocd
     - bat
-    - broot
+    - bind-tools
     - bottom
-    - git-delta
+    - broot
+    - ctags
     - direnv
     - docker-compose
     - doctl
@@ -227,11 +198,14 @@ cli:
     - dua-cli
     - duf
     - dust
+    - entr
+    - exa
     - fd
-    - fluxctl
+    - git-delta
     - github-cli
     - gitui
     - glab
+    - hey
     - jq
     - k9s
     - kube-linter
@@ -243,7 +217,9 @@ cli:
     - mdbook
     - nnn
     - popeye
+    - prettier
     - prettyping
+    - python-gitlabber
     - rclone
     - ripgrep
     - ripgrep-all
@@ -251,17 +227,15 @@ cli:
     - stern
     - tectonic
     - texlab
+    - texlive-core
     - timew
     - tokei
     - xsv
     - yq
-    - youtube-dl
+    - yt-dlp
 pip_packages:
   - "molecule[docker]"
   - aws-shell
-  - flake8
-  - gita
-  - gitlabber
   - grip
   - httpie
   - ipython
@@ -275,87 +249,132 @@ pip_packages:
   - mycli
   - neovim-remote
   - pandas
-  - python-rofi
-  - selenium
-  - s4cmd
-  - speedtest-cli
   - pytest-testinfra
-  - ueberzug
-  - yamllint
+  - python-rofi
+  - s4cmd
+  - selenium
+  - speedtest-cli
   - vdirsyncer
+  - yamllint
 aur:
   packages:
-    - synergy-git
-    - dropbox
     - awless
     - aws-iam-authenticator-bin
     - bit
+    - brave-bin
+    - caffeine-ng
     - dive
     - dyff-bin
+    - fluxctl
     - git-quick-stats
+    - gita
+    - glow
+    - google-cloud-sdk
     - highlight-pointer-git
     - k6
     - kind
     - kops-bin
     - kubeval-bin
     - lf
+    - masterpdfeditor
+    - microsoft-edge-stable-bin
     - nova
+    - oranchello-icon-theme
     - pet-bin
     - polaris-bin
+    - postman
+    - python-grip
     - scc
     - slack-term-bin
+    - telepresence
     - tflint-bin
     - tfswitch-bin
-    - viddy
-    - masterpdfeditor
+    - udevil
     - urlview
-    - telepresence
+    - viddy
     - visual-studio-code-bin
-    - glow
-    - google-cloud-sdk
-    - postman
-    - nerd-fonts-hack
-    - nerd-fonts-fira-code
     - xbanish
-asdf_user: "{{ user }}"
+base_fonts:
+  - adobe-source-code-pro-fonts
+  - cantarell-fonts
+  - gsfonts
+  - noto-fonts
+  - otf-firamono-nerd
+  - terminus-font
+  - tex-gyre-fonts
+  - ttc-iosevka
+  - ttc-iosevka-aile
+  - ttc-iosevka-ss08
+  - ttf-caladea
+  - ttf-carlito
+  - ttf-dejavu
+  - ttf-droid
+  - ttf-firacode-nerd
+  - ttf-fira-mono
+  - ttf-hack-nerd
+  - ttf-ibm-plex
+  - ttf-ibmplex-mono-nerd
+  - ttf-inconsolata
+  - ttf-iosevka-nerd
+  - ttf-jetbrains-mono-nerd
+  - ttf-liberation
+  - ttf-opensans
+  - ttf-sarasa-gothic
+  - ttf-sourcecodepro-nerd
+  - ttf-ubuntu-font-family
+
+aur_fonts:
+  - nerd-fonts-sarasa-term
+  - ttf-bitstream-charter
+  - ttf-cooper-hewitt
+  - ttf-courier-prime
+  - ttf-heuristica
+  - ttf-merriweather
+  - ttf-merriweather-sans
+  - ttf-mplus-git
+  - ttf-oswald
+  - ttf-quintessential
+  - ttf-sarasa-gothic-nerd-fonts
+  - ttf-signika
+  - ttf-segoe-ui-variable
+asdf_user: "{{ user.name }}"
 asdf_plugins:
   - name: "nodejs"
     versions:
-      - 17.7.1
-    global: 17.7.1
+      - 20.12.0
+    global: 20.12.0
   - name: "ruby"
     versions:
-      - 3.1.1
-    global: 3.1.1
+      - 3.1.2
+    global: 3.1.2
   - name: "kubectl"
     versions:
-      - 1.23.4
-    global: 1.23.4
+      - 1.29.3
+    global: 1.29.3
   - name: "terraform"
     versions:
-      - 1.1.8
-    global: 1.1.8
+      - 1.7.5
+    global: 1.7.5
   - name: "helm"
     versions:
-      - 3.8.0
-    global: 3.8.0
+      - 3.14.0
+    global: 3.14.0
   - name: "concourse"
     versions:
-      - 7.7.0
-    global: 7.7.0
+      - 7.11.2
+    global: 7.11.2
   - name: "packer"
     versions:
-      - 1.8.0
-    global: 1.8.0
+      - 1.10.2
+    global: 1.10.2
   - name: "minikube"
     versions:
-      - 1.25.2
-    global: 1.25.2
+      - 1.32.0
+    global: 1.32.0
   - name: "aws-vault"
-    repository: https://github.com/markosamuli/asdf-aws-vault.git
     versions:
-      - 4.6.2
-    global: 4.6.2
+      - 7.2.0
+    global: 7.2.0
 pyenv_env: "user"
 pyenv_path: "{{ ansible_env.HOME }}/.pyenv"
 pyenv_owner: "{{ ansible_env.USER }}"
@@ -383,8 +402,8 @@ dive_version: 0.10.0
 docker_compose_version: v2.3.3
 docker_version: 20.10.13
 doctl_version: 1.71.1
-dua_version: 2.17.0
 dog_version: v0.1.0
+dua_version: 2.17.0
 duf_version: 0.8.1
 dust_version: 0.8.1-alpha.2
 dyff_version: 1.5.1
@@ -411,6 +430,7 @@ kubeval_version: 0.16.1
 kustomize_version: 4.5.2
 lazygit_version: 0.34
 lf_version: r26
+logcli_version: v2.4.2
 mdbook_version: 0.4.15
 nnn_version: 4.4
 nova_version: 3.0.2
@@ -418,21 +438,19 @@ pet_version: 0.4.0
 polaris_version: 5.1.0
 popeye_version: 0.9.8
 ripgrep_version: 13.0.0
-rke_version: v1.3.10 
+rke_version: v1.3.10
 scc_version: 3.0.0
 sd_version: 0.7.6
 slack_term_version: 0.5.0
-stern_version: 1.11.0
+stern_version: 1.26.0
 tectonic_version: 0.8.2
 texlab_version: v3.3.2
 tflint_version: v0.34.1
 tfswitch_version: 0.13.1218
 tokei_version: 12.1.2
-xsv_version: 0.13.0
 viddy_version: 0.3.4
+xsv_version: 0.13.0
 yq_version: 4.22.1
-zoxide_version: 0.8.0
-logcli_version: v2.4.2
 binaries:
   - name: hey
     url: "https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64"
@@ -655,7 +673,7 @@ binaries:
     extract: true
     bin_path: "ripgrep-{{ ripgrep_version }}-x86_64-unknown-linux-musl"
     bin_name: rg
-  
+
   - name: rke
     url: "https://github.com/rancher/rke/releases/download/{{ rke_version }}/rke_linux-amd64"
     bin_name: rke_linux-amd64
@@ -673,8 +691,8 @@ binaries:
     bin_name: slack-term-linux-amd64
 
   - name: stern
-    url: "https://github.com/wercker/stern/releases/download/{{ stern_version }}/stern_linux_amd64"
-    bin_name: stern_linux_amd64
+    url: "https://github.com/stern/stern/releases/download/v{{ stern_version }}/stern_{{ stern_version }}_linux_amd64.tar.gz"
+    extract: true
 
   - name: tectonic
     url: "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40{{ tectonic_version }}/tectonic-{{ tectonic_version }}-x86_64-unknown-linux-gnu.tar.gz"
@@ -703,10 +721,6 @@ binaries:
   - name: yq
     url: "https://github.com/mikefarah/yq/releases/download/v{{ yq_version }}/yq_linux_amd64"
     bin_name: yq_linux_amd64
-
-  - name: zoxide
-    url: "https://github.com/ajeetdsouza/zoxide/releases/download/v{{ zoxide_version }}/zoxide-v{{ zoxide_version }}-x86_64-unknown-linux-musl.tar.gz"
-    extract: true
 
   - name: viddy
     url: "https://github.com/sachaos/viddy/releases/download/v{{ viddy_version }}/viddy_{{ viddy_version }}_Linux_x86_64.tar.gz"
