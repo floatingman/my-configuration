@@ -12,8 +12,8 @@ user:
 udisks:
   auto_mount: True
   shared_mount: True
-display_manager: butts
-desktop_environment: butts
+display_manager:
+desktop_environment:
 hostname: sunstreaker
 bootloader: systemd-boot
 bluetooth:

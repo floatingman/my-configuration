@@ -1,0 +1,26 @@
+---
+- name: Install misc media codecs and helpers Arch
+  become: true
+  package:
+    name:
+      - flac
+      - lame
+      - gst-libav
+      - gst-plugins-good
+      - exiv2
+      - perl-image-exiftool
+      - perl-archive-zip
+      - opus-tools
+    state: present
+
+- name: Install zbar
+  become: true
+  package:
+    name: zbar
+    state: present
+
+- name: Install svgcleaner
+  become: true
+  package:
+    name: svgcleaner
+    state: present

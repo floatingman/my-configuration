@@ -3,19 +3,13 @@
 - include_tasks: feh.yml
 - include_tasks: gthumb.yml
 
-- name: Install misc media codecs and helpers
-  become: true
-  package:
-    name:
-      - flac
-      - lame
-      - gst-libav
-      - gst-plugins-good
-      - exiv2
-      - perl-image-exiftool
-      - perl-archive-zip
-      - opus-tools
-    state: present
+- name: Install media tools for Arch
+  include_tasks: media-tasks-arch.yml
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install media tools for Debian
+  include_tasks: media-tasks-debian.yml
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install Metadata Anonymisation Toolkit
   become: true
@@ -25,22 +19,10 @@
   tags:
     - mat
 
-- name: Install zbar
-  become: true
-  package:
-    name: zbar
-    state: present
-
 - name: Install sxiv
   become: true
   package:
     name: sxiv
-    state: present
-
-- name: Install svgcleaner
-  become: true
-  package:
-    name: svgcleaner
     state: present
 
 - name: Install flameshot

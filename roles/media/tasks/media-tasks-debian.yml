@@ -1,0 +1,20 @@
+---
+- name: Install misc media codecs and helpers Debian
+  become: true
+  package:
+    name:
+      - flac
+      - lame
+      - exiv2
+      - libimage-exiftool-perl
+      - opus-tools
+    state: present
+
+- name: Install zbar
+  become: true
+  package:
+    name: zbar-tools
+    state: present
+
+
+
