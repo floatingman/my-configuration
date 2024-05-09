@@ -1,12 +1,27 @@
 ---
-- name: Add Neovim stable PPA repository
-  become: true
-  apt_repository:
-    repo: ppa:neovim-ppa/stable
-  when: ansible_distribution == 'Ubuntu'
+  - name: Remove old versions of neovim
+    ansible.builtin.file:
+       path: "/home/{{ user.name }}/repos/neovim"
+       state: absent
 
-- name: Install Neovim
-  package:
-    name: neovim
-    state: present
-  become: true
+  - name: Clone neovim
+    ansible.builtin.git:
+       repo: https://github.com/neovim/neovim.git
+       dest: "/home/{{ user.name }}/repos/neovim"
+       depth: 1
+       version: stable
+
+  - name: "Install neovim deps"
+    become: true
+    package:
+      name:
+        - cmake
+        - gettext
+        - lua5.1
+        - liblua5.1-0-dev
+
+  - name: Neovim Make Install
+    become: true
+    ansible.builtin.command: sudo make install
+    args:
+      chdir: "/home/{{ user.name }}/repos/neovim"
