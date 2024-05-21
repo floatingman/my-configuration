@@ -14,7 +14,6 @@
   file:
     path: /etc/keyd
     state: directory
-  when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Install keyd-git
   kewlfft.aur.aur:
@@ -24,13 +23,31 @@
   become_user: aur_builder
   when: ansible_facts["distribution"] == "Archlinux"
 
+- name: Remove old versions of keyd
+  become: true
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/git/keyd"
+    state: absent
+  when: ansible_facts["distribution"] == "Debian"
+
+- name: Clone keyd
+  ansible.builtin.git:
+    repo: https://github.com/rvaiya/keyd
+    dest: "/home/{{ user.name }}/git/keyd"
+  when: ansible_facts["distribution"] == "Debian"
+
+- name: Install keyd from source
+  ansible.builtin.command: make && sudo make install
+  args:
+    chdir: "/home/{{ user.name }}/git/keyd"
+  when: ansible_facts["distribution"] == "Debian"
+
 - name: Enable and start keyd service
   service:
     name: keyd
     state: started
     enabled: yes
   become: true
-  when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Copy keyd config file
   become: true
@@ -41,7 +58,6 @@
     group: root
   notify:
     - reload systemd config
-  when: ansible_facts["distribution"] == "Archlinux"
 
 - name: Install hdparm
   become: true
