@@ -12,8 +12,7 @@ user:
 udisks:
   auto_mount: True
   shared_mount: True
-display_manager:
-desktop_environment:
+desktop_environment: i3
 hostname: sunstreaker
 bootloader: systemd-boot
 bluetooth:
@@ -40,10 +39,10 @@ journal:
 sudo_without_password: true
 github_user: floatingman
 goesimage:
-  run_time: 15min
-  run_boot_delay: 2min
-  run_on: all
-  flags: -w -e
+  run_time: 
+  run_boot_delay: 
+  run_on: 
+  flags: 
 network:
   spoof_mac: True
   conn_check:
@@ -69,9 +68,6 @@ dotfiles:
 kernel_parameters: "quiet consoleblank=60"
 video_drivers:
   - lib32-mesa
-  - xf86-video-amdgpu
-  - vulkan-radeon
-  - lib32-vulkan-radeon
   - libva-mesa-driver
   - lib32-libva-mesa-driver
   - mesa-vdpau

@@ -18,7 +18,7 @@
     - { role: editors, tags: ["editors"] }
     - { role: filesystem, tags: ["filesystem"] }
     - { role: fonts, tags: ["fonts"], when: ansible_os_family == "Archlinux" and "display_manager is defined" }
-    - { role: nerd-fonts, tags: ["fonts"], when: "display_manager is defined" }
+    - { role: nerd-fonts, tags: ["fonts"], when: "desktop_environment is defined" }
     - {
         role: ansible-role-binaries,
         tags: ["binaries"],
@@ -29,14 +29,14 @@
         tags: ["laptop"],
         when: (laptop) and (ansible_os_family ==  "Archlinux"),
       }
-    - { role: notes, tags: ["notes"], when: "display_manager is defined" }
+    - { role: notes, tags: ["notes"], when: "desktop_environment is defined" }
     - {
         role: nmtrust,
         tags: ["nmtrust"],
         when: ansible_os_family ==  "Archlinux",
       }
     - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
-    - { role: terminal, tags: ["terminal"], when: "display_manager is defined" }
+    - { role: terminal, tags: ["terminal"], when: "desktop_environment is defined" }
     - {
         role: networkmanager,
         tags: ["networkmanager"],
@@ -47,7 +47,7 @@
     - {
         role: lightdm,
         tags: ["lightdm"],
-        when: ("display_manager == 'lightdm'") and ("display_manager is defined"),
+        when: not ("display_manager is defined") and ("display_manager == 'lightdm'"), 
       }
     - {
         role: gdm,
@@ -73,31 +73,31 @@
     - {
         role: screensaver,
         tags: ["screensaver"],
-        when: display_manager is defined,
+        when: desktop_environment is defined,
       }
     - { role: cups, tags: ["cups"], when: (ansible_os_family == "Archlinux") and (display_manager is defined) }
-    - { role: proton, tags: ["proton"], when: display_manager is defined }
+    - { role: proton, tags: ["proton"], when: desktop_environment is defined }
     - { role: udisks, tags: ["udisks"], when: (ansible_os_family == "Archlinux") and (display_manager is defined) }
-    - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
+    # - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
         role: taskwarrior,
         tags: ["taskwarrior"],
         when: ansible_os_family ==  "Archlinux",
       }
-    - { role: browsers, tags: ["browsers"], when: display_manager is defined }
+    - { role: browsers, tags: ["browsers"], when: desktop_environment is defined }
     - {
         role: filemanager,
         tags: ["filemanager"],
-        when: display_manager is defined,
+        when: desktop_environment is defined,
       }
-    - { role: android, tags: ["android"], when: display_manager is defined }
+    - { role: android, tags: ["android"], when: desktop_environment is defined }
     - {
         role: mirrorlist,
         tags: ["mirrorlist"],
         when: ansible_os_family == "Archlinux",
       }
-    - { role: mpv, tags: ["mpv"], when: display_manager is defined }
-    - { role: media, tags: ["media"], when: display_manager is defined }
+    - { role: mpv, tags: ["mpv"], when: desktop_environment is defined }
+    - { role: media, tags: ["media"], when: desktop_environment is defined }
     - { role: nettools, tags: ["nettools"] }
     - { role: pass, tags: ["pass"], when: ansible_os_family ==  "Archlinux" }
     - { role: spell, tags: ["spell"] }
@@ -111,15 +111,15 @@
         tags: ["clouddrive"],
         when: ansible_os_family == "Archlinux",
       }
-    - { role: sound, tags: ["sound"], when: display_manager is defined }
+    - { role: sound, tags: ["sound"], when: desktop_environment is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: (ansible_os_family ==  "Archlinux") and ("bluetooth is defined") }
-    - { role: mpd, tags: ["mpd"], when: display_manager is defined }
+    - { role: mpd, tags: ["mpd"], when: desktop_environment is defined }
     - {
         role: filesharing,
         tags: ["filesharing"],
         when: ansible_os_family == "Archlinux",
       }
-    - { role: twitch, tags: ["twitch"], when: display_manager is defined }
+    - { role: twitch, tags: ["twitch"], when: desktop_environment is defined }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"

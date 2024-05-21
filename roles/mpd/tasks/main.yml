@@ -1,10 +1,12 @@
 ---
 - name: Install mpd
+  become: true
   package:
     name: mpd
     state: present
 
 - name: Push mpd service file
+  become: true
   copy:
     src: mpd.service
     dest: /etc/systemd/user/mpd.service
@@ -12,16 +14,27 @@
     - reload systemd config
 
 - name: Install mpc
+  become: true
   package:
     name: mpc
     state: present
 
 - name: Install ncmpcpp
+  become: true
   package:
     name: ncmpcpp
     state: present
 
-- name: Install python-mpd2
+- name: Install Python MPD client
+  become: true
   package:
     name: python-mpd2
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install Python MPD client
+  become: true
+  package:
+    name: python3-mpd
+    state: present
+  when: ansible_facts["os_family"] == "Debian"

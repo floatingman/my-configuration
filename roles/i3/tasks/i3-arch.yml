@@ -1,0 +1,15 @@
+- name: Install i3
+  become: true
+  package:
+    name:
+      - i3-wm
+      - i3blocks
+      - i3status
+    state: present
+
+- name: Install py3status
+  become: true
+  package:
+    name:
+      - py3status
+    state: present

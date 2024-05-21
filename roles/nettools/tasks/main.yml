@@ -47,7 +47,7 @@
 - name: Install netcat
   become: true
   package:
-    name: netcat
+    name: netcat-traditional
     state: present
   when: ansible_facts["os_family"] == "Debian"
 
@@ -90,6 +90,14 @@
   package:
     name: wireshark-qt
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install wireshark
+  become: true
+  package:
+    name: wireshark
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Add user to wireshark group
   become: true
