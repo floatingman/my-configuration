@@ -27,7 +27,7 @@
     name: sshd.service
     enabled: yes
     state: started
-  when: ssh.enable_sshd is defined and ssh.enable_sshd == True
+  when: ssh.enable_sshd is defined and ssh.enable_sshd == True and ansible_facts["os_family"] == "Archlinux"
 
 - name: Disable and stop OpenSSH
   become: true

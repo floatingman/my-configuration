@@ -1,13 +1,14 @@
 ---
   - name: Remove old versions of neovim
+    become: true
     ansible.builtin.file:
-       path: "/home/{{ user.name }}/repos/neovim"
+       path: "/home/{{ user.name }}/git/neovim"
        state: absent
 
   - name: Clone neovim
     ansible.builtin.git:
        repo: https://github.com/neovim/neovim.git
-       dest: "/home/{{ user.name }}/repos/neovim"
+       dest: "/home/{{ user.name }}/git/neovim"
        depth: 1
        version: stable
 
@@ -21,7 +22,6 @@
         - liblua5.1-0-dev
 
   - name: Neovim Make Install
-    become: true
     ansible.builtin.command: sudo make install
     args:
-      chdir: "/home/{{ user.name }}/repos/neovim"
+      chdir: "/home/{{ user.name }}/git/neovim"
