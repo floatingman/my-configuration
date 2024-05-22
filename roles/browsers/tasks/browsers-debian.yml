@@ -2,7 +2,15 @@
 - name: Install Chromium
   become: true
   package:
-    name: chromium-browser
+    name: chromium
+    state: present
+  tags:
+    - browser
+
+- name: Install Firefox
+  become: true
+  flatpak:
+    name: org.mozilla.firefox
     state: present
   tags:
     - browser

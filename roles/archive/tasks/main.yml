@@ -10,13 +10,23 @@
   tags:
     - zip
 
-- name: Install unrar
+- name: Install unrar on Arch
   become: true
   package:
     name: unrar
     state: present
   tags:
     - unrar
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install unrar
+  become: true
+  package:
+    name: unrar-free
+    state: present
+  tags:
+    - unrar
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install atool
   become: true

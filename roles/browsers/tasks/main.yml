@@ -19,22 +19,6 @@
     state: present
   become: true
 
-- name: Install Firefox
-  package:
-    name: firefox
-    state: present
-  become: true
-  tags:
-    - firefox
-
-- name: Install Tor browser
-  package:
-    name: torbrowser-launcher
-    state: present
-  become: true
-  tags:
-    - tor-browser
-
 - name: Install qutebrowser
   package:
     name:

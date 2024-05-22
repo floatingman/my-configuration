@@ -8,25 +8,11 @@
   tags:
     - notes
 
-- name: Install flatpak on Debian
-  become: true
-  package:
-    name: flatpak
-    state: present
-  when: ansible_facts["os_family"] == "Debian"
-
-- name: Add the flathub flatpak repository remote to the user installation
-  community.general.flatpak_remote:
-    name: flathub
-    state: present
-    flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
-    method: user
-
 - name: Install Obsidian on Debian
+  become: true
   flatpak:
     name: md.obsidian.Obsidian
     state: present
-    method: user
   when: ansible_facts["os_family"] == "Debian"
   tags:
     - notes

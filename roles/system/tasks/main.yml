@@ -36,8 +36,14 @@
     dest: "/home/{{ user.name }}/git/keyd"
   when: ansible_facts["distribution"] == "Debian"
 
+- name: Make keyd from source
+  ansible.builtin.command: make 
+  args:
+    chdir: "/home/{{ user.name }}/git/keyd"
+  when: ansible_facts["distribution"] == "Debian"
+
 - name: Install keyd from source
-  ansible.builtin.command: make && sudo make install
+  ansible.builtin.command: sudo make install
   args:
     chdir: "/home/{{ user.name }}/git/keyd"
   when: ansible_facts["distribution"] == "Debian"
