@@ -3,11 +3,20 @@
   become: true
   package:
     name:
-      - x86_energy_perf_policy
       - ethtool
       - tlp
       - tlp-rdw
     state: present
+  tags:
+    - tlp
+
+- name: Install x86 Performance policy
+  become: true
+  package:
+    name:
+      - x86_energy_perf_policy
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - tlp
 

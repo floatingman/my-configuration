@@ -1,0 +1,51 @@
+---
+- name: Install Xorg
+  package:
+    name: xorg
+    state: present
+  become: true
+
+- name: Install Xinit
+  package:
+    name: xinit
+    state: present
+  become: true
+
+- name: Install x11-xserver-utils
+  package:
+    name: x11-xserver-utils
+    state: present
+  become: true
+
+- name: Install x11-utils
+  package:
+    name: x11-utils
+    state: present
+  become: true
+
+- name: Install xautomation
+  package:
+    name: xautomation
+    state: present
+  become: true
+
+- name: Install xinput
+  package:
+    name: xinput
+    state: present
+  become: true
+
+- name: Add user to video group
+  user: name={{ user.name }} groups=video append=yes
+  become: true
+  tags:
+    - user
+
+- name: Install video tools
+  become: true
+  package:
+    name:
+      - radeontop
+      - vainfo
+      - intel-gpu-tools
+      - vdpauinfo

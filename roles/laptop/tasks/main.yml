@@ -74,6 +74,13 @@
   tags:
     - aur
 
+- name: Install powerstat
+  become: true
+  package:
+    name: powerstat
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
+
 - name: Install battery-stats
   kewlfft.aur.aur:
     name: battery-stats-git
@@ -83,6 +90,13 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+- name: Install battery-stats
+  become: true
+  package:
+    name: battery-stats
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install battop
   kewlfft.aur.aur:

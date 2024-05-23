@@ -19,5 +19,15 @@
     name: perl-file-mimeinfo
     state: present
   become: true
+  when: ansible_facts["os_family"]=="Archlinux"
+  tags:
+    - xdg
+
+- name: Install perl-file-mimeinfo
+  package:
+    name: libfile-mimeinfo-perl
+    state: present
+  become: true
+  when: ansible_facts["os_family"]=="Debian"
   tags:
     - xdg
