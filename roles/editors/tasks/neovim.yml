@@ -12,14 +12,14 @@
        depth: 1
        version: stable
 
-  - name: "Install neovim deps"
-    become: true
-    package:
-      name:
-        - cmake
-        - gettext
-        - lua5.1
-        - liblua5.1-0-dev
+  # - name: "Install neovim deps"
+  #   become: true
+  #   package:
+  #     name:
+  #       - cmake
+  #       - gettext
+  #       - lua5.1
+  #       - liblua5.1-0-dev
 
   - name: Neovim Make Install
     ansible.builtin.command: sudo make install

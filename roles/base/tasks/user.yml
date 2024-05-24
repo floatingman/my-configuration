@@ -1,5 +1,6 @@
 ---
 - name: Create user group
+  become: true
   group:
     name: "{{ user.group }}"
     gid: "{{ user.gid }}"
@@ -8,6 +9,7 @@
     - user
 
 - name: Create user and assign to group
+  become: true
   user:
     name: "{{ user.name }}"
     group: "{{ user.group }}"
@@ -31,11 +33,13 @@
     - user
 
 - name: Install logrotate
+  become: true
   pacman:
       name: logrotate
       state: present
 
 - name: Push logrotate config for user logs
+  become: true
   template:
     src: logrotate.j2
     dest: /etc/logrotate.d/user
@@ -44,6 +48,7 @@
     - user
 
 - name: Create user socket directory
+  become: true
   file:
     path: /run/user/{{ user.uid }}
     state: directory
