@@ -1,2 +1,8 @@
 ---
+- name: Install vim
+  package:
+    name: vim
+    state: present
+  become: true
+
 - include_tasks: neovim.yml

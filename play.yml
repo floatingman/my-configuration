@@ -48,7 +48,7 @@
     - {
         role: lightdm,
         tags: ["lightdm"],
-        when: not ("display_manager is defined") and ("display_manager == 'lightdm'"), 
+        when: ("display_manager is defined") and ("display_manager == 'lightdm'"), 
       }
     - {
         role: gdm,

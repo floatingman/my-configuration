@@ -1,43 +1,51 @@
 ---
 - name: Install freetype2
+  become: true
   package:
     name: freetype2
     state: present
 
 - name: Install cairo
+  become: true
   package:
     name: cairo
     state: present
 
 - name: Install fontconfig
+  become: true
   package:
     name: fontconfig
     state: present
 
 - name: Enable LCD filter
+  become: true
   file:
     src: /usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf
     dest: /etc/fonts/conf.d/11-lcdfilter-default.conf
     state: link
 
 - name: Enable sub-pixel rendering
+  become: true
   file:
     src: /usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf
     dest: /etc/fonts/conf.d/10-sub-pixel-rgb.conf
     state: link
 
 - name: Enable hinting
+  become: true
   file:
     src: /usr/share/fontconfig/conf.avail/10-hinting-slight.conf
     dest: /etc/fonts/conf.d/10-hinting-slight.conf
     state: link
 
 - name: Push font substitutions
+  become: true
   copy:
     src: local.conf
     dest: /etc/fonts/local.conf
 
 - name: Install base fonts
+  become: true
   package:
     name: "{{ base_fonts }}"
     state: present

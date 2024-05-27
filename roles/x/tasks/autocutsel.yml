@@ -1,8 +1,11 @@
 ---
 - name: Install autocutsel
-  package:
+  kewlfft.aur.aur:
     name: autocutsel
+    use: auto
     state: present
-  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - autocutsel
+    - aur

@@ -13,3 +13,14 @@
       - thunar-media-tags-plugin
     state: present
   become: true
+
+- name: Install GVFS for filesharing functionality
+  package:
+    name:
+      - gvfs
+      - gvfs-afc
+      - gvfs-mtp
+      - gvfs-nfs
+      - gvfs-smb
+    state: present
+  become: true

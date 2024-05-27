@@ -1,5 +1,6 @@
 ---
 - name: Set kernel parameters
+  become: true
   lineinfile:
     dest: /etc/default/grub
     regexp: "^GRUB_CMDLINE_LINUX_DEFAULT"
@@ -10,6 +11,7 @@
     - rebuild grub
 
 - name: Disable Grub submenus
+  become: true
   lineinfile:
     dest: /etc/default/grub
     regexp: "^GRUB_DISABLE_SUBMENU"

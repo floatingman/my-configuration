@@ -12,3 +12,4 @@
     name: flathub
     state: present
     flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+  when: ansible_facts["os_family"] == "Debian"

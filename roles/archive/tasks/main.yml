@@ -19,7 +19,7 @@
     - unrar
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Install unrar
+- name: Install unrar on Debian
   become: true
   package:
     name: unrar-free
@@ -37,10 +37,12 @@
     - atool
 
 - name: Install hashdeep
-  become: true
-  package:
+  kewlfft.aur.aur:
     name: hashdeep
+    use: auto    
     state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - hashdeep
 
@@ -78,17 +80,6 @@
     state: present
   tags:
     - pigz
-
-- name: Install geteltorito
-  kewlfft.aur.aur:
-    name: geteltorito
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
-    - geteltorito
 
 - name: Install ventoy
   kewlfft.aur.aur:

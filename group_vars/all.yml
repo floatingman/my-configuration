@@ -4,7 +4,7 @@ user:
   uid: 1000
   gid: 1000
   group: dnewman
-  shell: /usr/bin/bash
+  shell: /usr/bin/zsh
   email: dan@danlovesprogramming.com
   log:
     dir: log
@@ -13,12 +13,13 @@ udisks:
   auto_mount: True
   shared_mount: True
 desktop_environment: i3
+display_manager: lightdm
 hostname: sunstreaker
-bootloader: systemd-boot
+bootloader: grub
 bluetooth:
   disable: False
 browser_choices:
-  - firefox -P default-release
+  - firefox
   - brave
   - torbrowser-launcher
   - play
@@ -277,11 +278,9 @@ aur:
     - python-grip
     - scc
     - slack-term-bin
-    - telepresence
     - tflint-bin
     - tfswitch-bin
     - udevil
-    - urlview
     - viddy
     - visual-studio-code-bin
     - xbanish
