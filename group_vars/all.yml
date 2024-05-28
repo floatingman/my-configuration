@@ -89,8 +89,8 @@ base_packages:
   - dateutils
   - dmidecode
   - fwupd
-  - fzf
   - git
+  - htop
   - jq
   - man-db
   - man-pages
