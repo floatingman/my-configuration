@@ -159,6 +159,7 @@ cli:
     - w3m
     - wget
     - whois
+    - yt-dlp
     - zip
     - zoxide
   debian:
@@ -175,7 +176,6 @@ cli:
     - texlive
     - timewarrior
     - x11proto-core-dev
-    - yt-dlp
   arch:
     - argocd
     - bat
