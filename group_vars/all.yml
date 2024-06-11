@@ -221,6 +221,7 @@ cli:
     - texlab
     - texlive-core
     - timew
+    - the_silver_searcher
     - tokei
     - xsv
     - yq
