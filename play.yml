@@ -12,7 +12,7 @@
     # - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: archive, tags: ["archive"] }
     - { role: ssh, tags: ["ssh"] }
-    # - { role: ansible-role-packages, tags: ["packages"] }
+    - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
