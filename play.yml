@@ -121,6 +121,7 @@
         when: ansible_os_family == "Archlinux",
       }
     - { role: twitch, tags: ["twitch"], when: desktop_environment is defined }
+    - { role: devtools, tags: ["devtools"], when: desktop_environment is defined }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"

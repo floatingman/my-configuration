@@ -2,7 +2,7 @@
 - name: Install Goland
   kewlfft.aur.aur:
     name: goland
-    use: aut
+    use: auto
     state: present
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
@@ -12,7 +12,7 @@
 - name: Install VSCode
   kewlfft.aur.aur:
     name: visual-studio-code-bin
-    use: aut
+    use: auto
     state: present
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
