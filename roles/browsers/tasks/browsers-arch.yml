@@ -118,3 +118,13 @@
   tags:
     - surfraw
     - rofi
+
+- name: Install Microsoft Edge
+  kewlfft.aur.aur:
+    name: microsoft-edge-stable-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

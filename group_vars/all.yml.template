@@ -277,7 +277,6 @@ aur:
     - kubeval-bin
     - lf
     - masterpdfeditor
-    - microsoft-edge-stable-bin
     - nova
     - oranchello-icon-theme
     - pet-bin
@@ -292,7 +291,6 @@ aur:
     - udevil
     - urlview
     - viddy
-    - visual-studio-code-bin
     - xbanish
 base_fonts:
   - adobe-source-code-pro-fonts
