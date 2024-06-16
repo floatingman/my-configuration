@@ -81,6 +81,7 @@ lang:
     - python-pip
     - go
 base_packages:
+  - abiword
   - arch-wiki-docs
   - arch-wiki-lite
   - base-devel
@@ -255,6 +256,7 @@ aur:
     - aws-iam-authenticator-bin
     - bit
     - brave-bin
+    - brother-mfc-7460dn
     - caffeine-ng
     - dive
     - dyff-bin
