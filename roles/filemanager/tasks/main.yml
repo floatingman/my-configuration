@@ -1,6 +1,7 @@
 ---
 - include_tasks: ranger.yml
 - include_tasks: thunar.yml
+- include_tasks: yazi.yml
 
 - name: Install mucommander
   kewlfft.aur.aur:

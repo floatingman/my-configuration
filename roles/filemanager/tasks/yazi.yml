@@ -1,0 +1,12 @@
+---
+- name: Install yazi
+  package:
+    name: yazi
+    state: present
+  become: true
+
+- name: Install ffmpegthumbnailer
+  package:
+    name: ffmpegthumbnailer
+    state: present
+  become: true

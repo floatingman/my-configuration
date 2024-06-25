@@ -160,7 +160,6 @@ cli:
     - w3m
     - wget
     - whois
-    - yt-dlp
     - zip
     - zoxide
   debian:
@@ -177,6 +176,7 @@ cli:
     - texlive
     - timewarrior
     - x11proto-core-dev
+    - yt-dlp
   arch:
     - argocd
     - bat
@@ -226,7 +226,6 @@ cli:
     - tokei
     - xsv
     - yq
-    - yt-dlp
 pip_packages:
   - "molecule[docker]"
   - aws-shell
@@ -286,6 +285,7 @@ aur:
     - viddy
     - visual-studio-code-bin
     - xbanish
+    - yt-dlp-git
 base_fonts:
   - adobe-source-code-pro-fonts
   - cantarell-fonts

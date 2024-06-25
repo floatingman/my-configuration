@@ -232,7 +232,6 @@ cli:
     - tokei
     - xsv
     - yq
-    - yt-dlp
 pip_packages:
   - "molecule[docker]"
   - aws-shell
@@ -292,6 +291,7 @@ aur:
     - urlview
     - viddy
     - xbanish
+    - yt-dlp-git
 base_fonts:
   - adobe-source-code-pro-fonts
   - cantarell-fonts
