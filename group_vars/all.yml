@@ -291,6 +291,7 @@ base_fonts:
   - cantarell-fonts
   - gsfonts
   - noto-fonts
+  - noto-fonts-emoji
   - otf-firamono-nerd
   - terminus-font
   - tex-gyre-fonts
@@ -310,6 +311,7 @@ base_fonts:
   - ttf-iosevka-nerd
   - ttf-jetbrains-mono-nerd
   - ttf-liberation
+  - ttf-nerd-fonts-symbols-mono
   - ttf-opensans
   - ttf-sarasa-gothic
   - ttf-sourcecodepro-nerd
