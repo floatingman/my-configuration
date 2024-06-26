@@ -5,12 +5,6 @@
     state: present
   become: true
 
-- name: Install Ueberzug
-  package:
-    name: ueberzug
-    state: present
-  become: true
-
 - name: Install ranger devicons
   git:
     clone: true

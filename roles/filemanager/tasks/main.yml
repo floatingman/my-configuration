@@ -3,6 +3,17 @@
 - include_tasks: thunar.yml
 - include_tasks: yazi.yml
 
+- name: Install ueberzugpp
+  kewlfft.aur.aur:
+    name: ueberzugpp
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - filemanager
+    - aur
+
 - name: Install mucommander
   kewlfft.aur.aur:
     name: mucommander
