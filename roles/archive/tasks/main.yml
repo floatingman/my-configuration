@@ -10,24 +10,6 @@
   tags:
     - zip
 
-- name: Install unrar on Arch
-  become: true
-  package:
-    name: unrar
-    state: present
-  tags:
-    - unrar
-  when: ansible_facts["os_family"] == "Archlinux"
-
-- name: Install unrar on Debian
-  become: true
-  package:
-    name: unrar-free
-    state: present
-  tags:
-    - unrar
-  when: ansible_facts["os_family"] == "Debian"
-
 - name: Install atool
   become: true
   package:
@@ -35,43 +17,6 @@
     state: present
   tags:
     - atool
-
-- name: Install hashdeep
-  kewlfft.aur.aur:
-    name: hashdeep
-    use: auto    
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - hashdeep
-
-- name: Install par2cmdline
-  become: true
-  package:
-    name: par2cmdline
-    state: present
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - par2
-
-- name: Install ddrescue
-  become: true
-  package:
-    name: ddrescue
-    state: present
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - ddrescue
-
-- name: Install lesspipe
-  become: true
-  package:
-    name: lesspipe
-    state: present
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - lesspipe
 
 - name: Install pigz
   become: true
@@ -81,13 +26,19 @@
   tags:
     - pigz
 
-- name: Install ventoy
-  kewlfft.aur.aur:
-    name: ventoy-bin
-    use: auto
+- name: Install xarchiver
+  become: true
+  package:
+    name: xarchiver
     state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
+  when: "desktop_environment is defined"
   tags:
-    - aur
-    - ventoy
+    - xarchive
+
+- name: Install archivers on Arch
+  include_tasks: archive-arch.yml
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install archivers on Debian
+  include_tasks: archive-debian.yml
+  when: ansible_facts["os_family"] == "Debian"

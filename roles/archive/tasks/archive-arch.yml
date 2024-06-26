@@ -1,0 +1,51 @@
+---
+- name: Install unrar on Arch
+  become: true
+  package:
+    name: unrar
+    state: present
+  tags:
+    - unrar
+
+- name: Install hashdeep
+  kewlfft.aur.aur:
+    name: hashdeep
+    use: auto    
+    state: present
+  become_user: aur_builder
+  tags:
+    - hashdeep
+
+- name: Install par2cmdline
+  become: true
+  package:
+    name: par2cmdline
+    state: present
+  tags:
+    - par2
+
+- name: Install ddrescue
+  become: true
+  package:
+    name: ddrescue
+    state: present
+  tags:
+    - ddrescue
+
+- name: Install lesspipe
+  become: true
+  package:
+    name: lesspipe
+    state: present
+  tags:
+    - lesspipe
+
+- name: Install ventoy
+  kewlfft.aur.aur:
+    name: ventoy-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  tags:
+    - aur
+    - ventoy

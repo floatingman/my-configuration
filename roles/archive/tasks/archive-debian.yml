@@ -1,0 +1,8 @@
+---
+- name: Install unrar on Debian
+  become: true
+  package:
+    name: unrar-free
+    state: present
+  tags:
+    - unrar
