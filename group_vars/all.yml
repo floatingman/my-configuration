@@ -134,7 +134,6 @@ cli:
     - lsof
     - mdp
     - moreutils
-    - mpv
     - msmtp
     - neomutt
     - newsboat

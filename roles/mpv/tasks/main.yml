@@ -1,9 +1,13 @@
 ---
-- name: Install mpv
-  package:
-    name: mpv
+- name: Install mpv-full-git
+  kewlfft.aur.aur:
+    name: mpv-full-git
+    use: auto
     state: present
-  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
 
 - name: Push play script
   copy:
@@ -15,6 +19,62 @@
 - name: Install Subliminal for sub download
   kewlfft.aur.aur:
     name: subliminal
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Vapoursynth
+  package:
+    name: vapoursynth
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install vapoursynth-plugin-rife-ncnn-vulkan-git
+  kewlfft.aur.aur:
+    name: vapoursynth-plugin-rife-ncnn-vulkan-git
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install vapoursynth-plugin-vmaf-git
+  kewlfft.aur.aur:
+    name: vapoursynth-plugin-vmaf-git
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install vapoursynth-miscfilters-obsolete-git
+  kewlfft.aur.aur:
+    name: vapoursynth-miscfilters-obsolete-git 
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install vapoursynth-plugin-mvtools-git
+  kewlfft.aur.aur:
+    name: vapoursynth-plugin-mvtools-git 
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install vapoursynth-plugin-svpflow
+  kewlfft.aur.aur:
+    name: vapoursynth-plugin-svpflow
     use: auto
     state: present
   become_user: aur_builder
@@ -42,22 +102,22 @@
 #   tags:
 #     - aur
 
-- name: Install mpv-file-browser
-  git:
-    clone: true
-    repo: https://github.com/CogentRedTester/mpv-file-browser.git
-    dest: ~/.config/mpv/scripts/file-browser
-
-- name: Install mpv sockets plugin
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/wis/mpvSockets/master/mpvSockets.lua
-    dest: ~/.config/mpv/scripts/mpvSockets.lua
-    mode: "755"
-  become_user: "{{user.name}}"
-
-- name: Install mpv-reload script
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/4e6/mpv-reload/master/reload.lua
-    dest: ~/.config/mpv/scripts/reload.lua
-    mode: "755"
-  become_user: "{{user.name}}"
+# - name: Install mpv-file-browser
+#   git:
+#     clone: true
+#     repo: https://github.com/CogentRedTester/mpv-file-browser.git
+#     dest: ~/.config/mpv/scripts/file-browser
+#
+# - name: Install mpv sockets plugin
+#   ansible.builtin.get_url:
+#     url: https://raw.githubusercontent.com/wis/mpvSockets/master/mpvSockets.lua
+#     dest: ~/.config/mpv/scripts/mpvSockets.lua
+#     mode: "755"
+#   become_user: "{{user.name}}"
+#
+# - name: Install mpv-reload script
+#   ansible.builtin.get_url:
+#     url: https://raw.githubusercontent.com/4e6/mpv-reload/master/reload.lua
+#     dest: ~/.config/mpv/scripts/reload.lua
+#     mode: "755"
+#   become_user: "{{user.name}}"
