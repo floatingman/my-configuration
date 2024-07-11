@@ -79,7 +79,7 @@
     - { role: cups, tags: ["cups"], when: (ansible_os_family == "Archlinux") and (display_manager is defined) }
     - { role: proton, tags: ["proton"], when: desktop_environment is defined }
     - { role: udisks, tags: ["udisks"], when: (ansible_os_family == "Archlinux") and (display_manager is defined) }
-    # - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
+    - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
         role: taskwarrior,
         tags: ["taskwarrior"],

@@ -39,6 +39,11 @@ journal:
   max_size: 500M
 sudo_without_password: true
 github_user: floatingman
+goesimage:
+  run_time: 15min
+  run_boot_delay: 2min
+  run_on: all
+  flags: -w -e
 network:
   spoof_mac: True
   conn_check:

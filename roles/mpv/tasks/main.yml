@@ -1,7 +1,7 @@
 ---
-- name: Install mpv-full-git
+- name: Install mpv-full
   kewlfft.aur.aur:
-    name: mpv-full-git
+    name: mpv-full
     use: auto
     state: present
   become_user: aur_builder
