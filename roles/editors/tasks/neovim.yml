@@ -28,10 +28,11 @@
       name:
         - cmake
         - gettext
-        - lua
+        - lua51
+        - luarocks
     when: ansible_facts["os_family"] == "Archlinux"
   
   - name: Neovim Make Install
-    ansible.builtin.command: sudo make install
+    ansible.builtin.command: sudo make install CMAKE_BUILD_TYPE=Release
     args:
       chdir: "/home/{{ user.name }}/git/neovim"
