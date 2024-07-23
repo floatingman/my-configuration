@@ -12,3 +12,4 @@
 - include_tasks: autorandr.yml
 - include_tasks: autocutsel.yml
 - include_tasks: xdg.yml
+- include_tasks: keyd.yml

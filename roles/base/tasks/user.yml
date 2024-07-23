@@ -65,3 +65,13 @@
   notify: stop systemd per-user instance
   tags:
     - user
+
+- name: Allow sudo without password
+  become: true
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    line: "{{ user.name }}	ALL=NOPASSWD: ALL"
+    insertafter: '^%admin\tALL=\(ALL\) ALL'
+    validate: "visudo -cf %s"
+  when: sudo_without_password|default(false) == true
