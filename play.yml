@@ -58,12 +58,12 @@
     - {
         role: i3,
         tags: ["i3"],
-        when: "desktop_environment == 'i3'",
+        when: not ("desktop_environment is defined") and "desktop_environment == 'i3'",
       }
     - {
         role: gnome,
         tags: ["gnome"],
-        when: "desktop_environment == 'gnome'",
+        when: not ("desktop_environment is defined") and "desktop_environment == 'gnome'",
       }
     - {
         role: awesomewm,
