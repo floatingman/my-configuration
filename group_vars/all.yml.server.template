@@ -4,7 +4,7 @@ user:
   uid: 1000
   gid: 1000
   group: dnewman
-  shell: /usr/bin/bash
+  shell: /usr/bin/zsh
   email: dan@danlovesprogramming.com
   log:
     dir: log
@@ -12,19 +12,8 @@ user:
 udisks:
   auto_mount: True
   shared_mount: True
-display_manager: lightdm
-desktop_environment: i3
-hostname: tracks
-bootloader: systemd-boot
-bluetooth:
-  disable: False
-browser_choices:
-  - firefox -P default-release
-  - brave
-  - torbrowser-launcher
-  - play
-  - qcode
-  - "| xclip -selection c"
+hostname: <ChangeThis>
+bootloader: grub
 filesystem_packages:
   - dosfstools
   - ntfs-3g
@@ -39,11 +28,6 @@ journal:
   max_size: 500M
 sudo_without_password: true
 github_user: floatingman
-goesimage:
-  run_time: 15min
-  run_boot_delay: 2min
-  run_on: all
-  flags: -w -e
 network:
   spoof_mac: True
   conn_check:
@@ -67,21 +51,6 @@ dotfiles:
   rcup_flags: -fx README.md
   linuxgui: true
 kernel_parameters: "quiet consoleblank=60"
-video_drivers:
-  - lib32-mesa
-  - xf86-video-amdgpu
-  - vulkan-radeon
-  - lib32-vulkan-radeon
-  - libva-mesa-driver
-  - lib32-libva-mesa-driver
-  - mesa-vdpau
-  - lib32-mesa-vdpau
-  - vulkan-icd-loader
-  - vulkan-intel
-  - vulkan-mesa-layers
-  - vulkan-tools
-  - intel-media-driver
-  - libva-intel-driver
 lang:
   enabled: true
   arch:
@@ -89,6 +58,7 @@ lang:
     - python-pip
     - go
 base_packages:
+  - abiword
   - arch-wiki-docs
   - arch-wiki-lite
   - base-devel
@@ -97,8 +67,8 @@ base_packages:
   - dateutils
   - dmidecode
   - fwupd
-  - fzf
   - git
+  - htop
   - jq
   - man-db
   - man-pages
@@ -228,6 +198,7 @@ cli:
     - texlab
     - texlive-core
     - timew
+    - the_silver_searcher
     - tokei
     - xsv
     - yq
@@ -260,6 +231,7 @@ aur:
     - aws-iam-authenticator-bin
     - bit
     - brave-bin
+    - brother-mfc-7460dn
     - caffeine-ng
     - dive
     - dyff-bin
@@ -283,12 +255,11 @@ aur:
     - python-grip
     - scc
     - slack-term-bin
-    - telepresence
     - tflint-bin
     - tfswitch-bin
     - udevil
-    - urlview
     - viddy
+    - visual-studio-code-bin
     - xbanish
     - yt-dlp-git
 base_fonts:
@@ -296,6 +267,7 @@ base_fonts:
   - cantarell-fonts
   - gsfonts
   - noto-fonts
+  - noto-fonts-emoji
   - otf-firamono-nerd
   - terminus-font
   - tex-gyre-fonts
@@ -315,6 +287,7 @@ base_fonts:
   - ttf-iosevka-nerd
   - ttf-jetbrains-mono-nerd
   - ttf-liberation
+  - ttf-nerd-fonts-symbols-mono
   - ttf-opensans
   - ttf-sarasa-gothic
   - ttf-sourcecodepro-nerd
