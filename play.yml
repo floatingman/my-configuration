@@ -58,7 +58,7 @@
     - {
         role: i3,
         tags: ["i3"],
-        when: not ("desktop_environment is defined") and "desktop_environment == 'i3'",
+        when: ("desktop_environment is defined") and "desktop_environment == 'i3'",
       }
     - {
         role: gnome,
