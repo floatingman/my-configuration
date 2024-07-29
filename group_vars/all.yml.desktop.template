@@ -4,7 +4,7 @@ user:
   uid: 1000
   gid: 1000
   group: dnewman
-  shell: /usr/bin/zsh
+  shell: /bin/bash
   email: dan@danlovesprogramming.com
   log:
     dir: log
