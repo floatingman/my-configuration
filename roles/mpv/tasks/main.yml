@@ -1,13 +1,19 @@
 ---
-- name: Install mpv-full
-  kewlfft.aur.aur:
-    name: mpv-full
-    use: auto
+# - name: Install mpv-full
+#   kewlfft.aur.aur:
+#     name: mpv-full
+#     use: auto
+#     state: present
+#   become_user: aur_builder
+#   when: ansible_facts["os_family"] == "Archlinux"
+#   tags:
+#     - aur
+
+- name: Install mpv
+  package:
+    name: mpv
     state: present
-  become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
 
 - name: Push play script
   copy:

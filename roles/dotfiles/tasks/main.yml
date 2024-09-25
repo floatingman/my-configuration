@@ -13,7 +13,7 @@
   package:
     name: rcm
     state: present
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] != "Archlinux"
   become: true
 
 - name: Clone user dotfiles

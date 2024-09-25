@@ -5,7 +5,7 @@
 
 - name: Install i3 for Debian
   include_tasks: i3-debian.yml
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install i3
   become: true

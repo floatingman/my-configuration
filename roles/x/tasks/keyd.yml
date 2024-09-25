@@ -18,25 +18,25 @@
   ansible.builtin.file:
     path: "/home/{{ user.name }}/git/keyd"
     state: absent
-  when: ansible_facts["distribution"] == "Debian"
+  when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Clone keyd
   ansible.builtin.git:
     repo: https://github.com/rvaiya/keyd
     dest: "/home/{{ user.name }}/git/keyd"
-  when: ansible_facts["distribution"] == "Debian"
+  when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Make keyd from source
-  ansible.builtin.command: make 
+  ansible.builtin.command: make
   args:
     chdir: "/home/{{ user.name }}/git/keyd"
-  when: ansible_facts["distribution"] == "Debian"
+  when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Install keyd from source
   ansible.builtin.command: sudo make install
   args:
     chdir: "/home/{{ user.name }}/git/keyd"
-  when: ansible_facts["distribution"] == "Debian"
+  when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Enable and start keyd service
   service:

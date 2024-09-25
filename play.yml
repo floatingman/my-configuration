@@ -18,18 +18,22 @@
     - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
     - { role: filesystem, tags: ["filesystem"] }
-    - { role: fonts, tags: ["fonts"], when: ansible_os_family == "Archlinux" and "display_manager is defined" }
-    - { role: nerd-fonts, tags: ["fonts"], when: "desktop_environment is defined" }
+    - {
+        role: fonts,
+        tags: ["fonts"],
+        when: ansible_os_family == "Archlinux" and "display_manager is defined",
+      }
+    - {
+        role: nerd-fonts,
+        tags: ["fonts"],
+        when: "desktop_environment is defined",
+      }
     - {
         role: ansible-role-binaries,
         tags: ["binaries"],
-        when: ansible_os_family == "Debian",
+        when: ansible_os_family != "Archlinux",
       }
-    - {
-        role: laptop,
-        tags: ["laptop"],
-        when: (laptop),
-      }
+    - { role: laptop, tags: ["laptop"], when: (laptop) }
     - { role: notes, tags: ["notes"], when: "desktop_environment is defined" }
     - {
         role: nmtrust,
@@ -37,7 +41,11 @@
         when: ansible_os_family ==  "Archlinux",
       }
     - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
-    - { role: terminal, tags: ["terminal"], when: "desktop_environment is defined" }
+    - {
+        role: terminal,
+        tags: ["terminal"],
+        when: "desktop_environment is defined",
+      }
     - {
         role: networkmanager,
         tags: ["networkmanager"],
@@ -48,7 +56,7 @@
     - {
         role: lightdm,
         tags: ["lightdm"],
-        when: ("display_manager is defined") and ("display_manager == 'lightdm'"), 
+        when: ("display_manager is defined") and ("display_manager == 'lightdm'"),
       }
     - {
         role: gdm,
@@ -76,16 +84,28 @@
         tags: ["screensaver"],
         when: desktop_environment is defined,
       }
-    - { role: cups, tags: ["cups"], when: (ansible_os_family == "Archlinux") and (display_manager is defined) }
+    - {
+        role: cups,
+        tags: ["cups"],
+        when: (ansible_os_family == "Archlinux") and (display_manager is defined),
+      }
     - { role: proton, tags: ["proton"], when: desktop_environment is defined }
-    - { role: udisks, tags: ["udisks"], when: (ansible_os_family == "Archlinux") and (display_manager is defined) }
+    - {
+        role: udisks,
+        tags: ["udisks"],
+        when: (ansible_os_family == "Archlinux") and (display_manager is defined),
+      }
     - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
         role: taskwarrior,
         tags: ["taskwarrior"],
         when: ansible_os_family ==  "Archlinux",
       }
-    - { role: browsers, tags: ["browsers"], when: desktop_environment is defined }
+    - {
+        role: browsers,
+        tags: ["browsers"],
+        when: desktop_environment is defined,
+      }
     - {
         role: filemanager,
         tags: ["filemanager"],
@@ -113,7 +133,11 @@
         when: ansible_os_family == "Archlinux",
       }
     - { role: sound, tags: ["sound"], when: desktop_environment is defined }
-    - { role: bluetooth, tags: ["bluetooth"], when: (ansible_os_family ==  "Archlinux") and ("bluetooth is defined") }
+    - {
+        role: bluetooth,
+        tags: ["bluetooth"],
+        when: (ansible_os_family ==  "Archlinux") and ("bluetooth is defined"),
+      }
     - { role: mpd, tags: ["mpd"], when: desktop_environment is defined }
     - {
         role: filesharing,
@@ -121,7 +145,11 @@
         when: ansible_os_family == "Archlinux",
       }
     - { role: twitch, tags: ["twitch"], when: desktop_environment is defined }
-    - { role: devtools, tags: ["devtools"], when: desktop_environment is defined }
+    - {
+        role: devtools,
+        tags: ["devtools"],
+        when: desktop_environment is defined,
+      }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"

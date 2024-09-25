@@ -37,4 +37,4 @@
   package:
     name: python3-mpd
     state: present
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] != "Archlinux"

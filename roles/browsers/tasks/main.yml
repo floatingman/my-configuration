@@ -1,5 +1,4 @@
 ---
-
 - name: Install w3m
   package:
     name: w3m
@@ -35,4 +34,4 @@
 
 - name: Install browsers on Debian
   include_tasks: browsers-debian.yml
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] != "Archlinux"

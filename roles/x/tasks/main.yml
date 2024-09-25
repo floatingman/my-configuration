@@ -5,7 +5,7 @@
 
 - name: Install X11 for Debian
   include_tasks: x-debian.yml
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] != "Archlinux"
 
 - include_tasks: sxhkd.yml
 - include_tasks: unclutter.yml

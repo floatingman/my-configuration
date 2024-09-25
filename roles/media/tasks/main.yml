@@ -9,7 +9,7 @@
 
 - name: Install media tools for Debian
   include_tasks: media-tasks-debian.yml
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install Metadata Anonymisation Toolkit
   become: true

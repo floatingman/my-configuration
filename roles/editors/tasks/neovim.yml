@@ -1,38 +1,38 @@
 ---
-  - name: Remove old versions of neovim
-    become: true
-    ansible.builtin.file:
-       path: "/home/{{ user.name }}/git/neovim"
-       state: absent
+- name: Remove old versions of neovim
+  become: true
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/git/neovim"
+    state: absent
 
-  - name: Clone neovim
-    ansible.builtin.git:
-       repo: https://github.com/neovim/neovim.git
-       dest: "/home/{{ user.name }}/git/neovim"
-       depth: 1
-       version: stable
+- name: Clone neovim
+  ansible.builtin.git:
+    repo: https://github.com/neovim/neovim.git
+    dest: "/home/{{ user.name }}/git/neovim"
+    depth: 1
+    version: stable
 
-  - name: "Install neovim deps on Debian"
-    become: true
-    package:
-      name:
-        - cmake
-        - gettext
-        - lua5.1
-        - liblua5.1-0-dev
-    when: ansible_facts["os_family"] == "Debian"
+- name: "Install neovim deps on Debian"
+  become: true
+  package:
+    name:
+      - cmake
+      - gettext
+      - lua5.1
+      - liblua5.1-0-dev
+  when: ansible_facts["os_family"] != "Archlinux"
 
-  - name: "Install neovim deps on Arch"
-    become: true
-    package:
-      name:
-        - cmake
-        - gettext
-        - lua51
-        - luarocks
-    when: ansible_facts["os_family"] == "Archlinux"
-  
-  - name: Neovim Make Install
-    ansible.builtin.command: sudo make install CMAKE_BUILD_TYPE=Release
-    args:
-      chdir: "/home/{{ user.name }}/git/neovim"
+- name: "Install neovim deps on Arch"
+  become: true
+  package:
+    name:
+      - cmake
+      - gettext
+      - lua51
+      - luarocks
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Neovim Make Install
+  ansible.builtin.command: sudo make install CMAKE_BUILD_TYPE=Release
+  args:
+    chdir: "/home/{{ user.name }}/git/neovim"
