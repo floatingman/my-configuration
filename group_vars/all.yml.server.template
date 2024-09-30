@@ -97,7 +97,6 @@ cli:
     - curl
     - dateutils
     - dnsutils
-    - docker
     - fdupes
     - figlet
     - flake8
@@ -114,7 +113,6 @@ cli:
     - moreutils
     - msmtp
     - neomutt
-    - newsboat
     - notmuch
     - notmuch-mutt
     - npm
