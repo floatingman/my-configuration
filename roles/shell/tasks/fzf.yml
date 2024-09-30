@@ -7,6 +7,6 @@
     dest: "{{ ansible_env.HOME }}/.fzf"
 
 - name: Install FZF
-  command: ./install --bin
+  command: ./install --key-bindings --completion  --no-update-rc
   args:
     chdir: "{{ ansible_env.HOME }}/.fzf"

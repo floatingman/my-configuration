@@ -8,3 +8,12 @@
     state: present
   tags:
     - shell
+
+- name: Install Zsh
+  become: true
+  package:
+    name:
+      - zsh
+    state: present
+  tags:
+    - shell
