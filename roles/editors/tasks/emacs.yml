@@ -1,0 +1,5 @@
+---
+- name: Install emacs
+  pacman:
+    name: emacs
+    state: present

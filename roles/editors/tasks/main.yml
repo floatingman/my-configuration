@@ -6,3 +6,4 @@
   become: true
 
 - include_tasks: neovim.yml
+- include_tasks: emacs.yml
