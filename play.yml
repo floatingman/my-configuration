@@ -15,7 +15,7 @@
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
-    - { role: ansible-role-asdf, tags: ["asdf"] }
+    # - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
     - { role: filesystem, tags: ["filesystem"] }
     - {
