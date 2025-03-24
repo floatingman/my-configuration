@@ -6,12 +6,12 @@
     # - { role: ansible-role-basic, tags: ["basic"] }
     - { role: base, tags: ["base"], when: ansible_os_family ==  "Archlinux" }
     - { role: system, tags: ["system"] }
-    - { role: x, tags: ["x"], when: "desktop_environment is defined" }
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: shell, tags: ["shell"] }
     # - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: archive, tags: ["archive"] }
     - { role: ssh, tags: ["ssh"] }
+    - { role: x, tags: ["x"], when: "desktop_environment is defined" }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
