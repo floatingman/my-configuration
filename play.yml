@@ -8,7 +8,7 @@
     - { role: system, tags: ["system"] }
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: shell, tags: ["shell"] }
-    # - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
+    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: archive, tags: ["archive"] }
     - { role: ssh, tags: ["ssh"] }
     - { role: x, tags: ["x"], when: "desktop_environment is defined" }
@@ -66,7 +66,7 @@
     - {
         role: i3,
         tags: ["i3"],
-        when: ("desktop_environment is defined") and "desktop_environment == 'i3'",
+        when: not ("desktop_environment is defined") and "desktop_environment == 'i3'",
       }
     - {
         role: gnome,

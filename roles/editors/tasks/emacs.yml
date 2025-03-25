@@ -1,6 +1,6 @@
 ---
 - name: Install emacs
   become: true
-  pacman:
+  package:
     name: emacs
     state: present
