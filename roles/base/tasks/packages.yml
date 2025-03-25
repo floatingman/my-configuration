@@ -8,18 +8,21 @@
     - packages
 
 - name: Create pacman hook directory
+  become: true
   file: path=/etc/pacman.d/hooks
     state=directory
   tags:
     - packages
 
 - name: Use all cores when compressing packages
+  become: true
   lineinfile:
     dest: /etc/makepkg.conf
     regexp: "^COMPRESSXZ"
     line: "COMPRESSXZ=(xz -c -z - --threads=0)"
 
 - name: Push pacman cache cleanup service
+  become: true
   copy: src=paccache.service dest=/etc/systemd/system/paccache.service
   notify:
     - reload systemd config
@@ -27,6 +30,7 @@
     - packages
 
 - name: Push pacman cache cleanup timer
+  become: true 
   copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
   notify:
     - reload systemd config
@@ -35,6 +39,7 @@
     - packages
 
 - name: Enable and start pacman cache cleanup timer
+  become: true
   service: name=paccache.timer enabled=yes state=started
   tags:
     - packages

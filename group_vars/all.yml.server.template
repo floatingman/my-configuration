@@ -172,7 +172,6 @@ cli:
     - github-cli
     - gitui
     - glab
-    - hey
     - jq
     - k9s
     - kube-linter
@@ -195,6 +194,7 @@ cli:
     - tectonic
     - texlab
     - texlive-core
+    - tflint
     - timew
     - the_silver_searcher
     - tokei
@@ -238,6 +238,7 @@ aur:
     - gita
     - glow
     - google-cloud-sdk
+    - hey-bin
     - highlight-pointer-git
     - k6
     - kind
@@ -253,7 +254,6 @@ aur:
     - python-grip
     - scc
     - slack-term-bin
-    - tflint-bin
     - tfswitch-bin
     - udevil
     - viddy
