@@ -23,15 +23,15 @@
     mode: 0755
   become: true
 
-- name: Install Subliminal for sub download
-  kewlfft.aur.aur:
-    name: subliminal
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
+#- name: Install Subliminal for sub download
+#  kewlfft.aur.aur:
+#    name: subliminal
+#    use: auto
+#    state: present
+#  become_user: aur_builder
+#  when: ansible_facts["os_family"] == "Archlinux"
+#  tags:
+#    - aur
 
 - name: Install Vapoursynth
   become: true
