@@ -10,6 +10,7 @@
 #     - aur
 
 - name: Install mpv
+  become: true
   package:
     name: mpv
     state: present
@@ -33,6 +34,7 @@
     - aur
 
 - name: Install Vapoursynth
+  become: true
   package:
     name: vapoursynth
     state: present
