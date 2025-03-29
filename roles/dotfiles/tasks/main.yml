@@ -21,7 +21,8 @@
     repo: "{{ dotfiles.repo_url }}"
     dest: "/home/{{ dotfiles.path }}"
     accept_hostkey: yes
-    update: no
+    update: false
+    recursive: true
   when: dotfiles is defined
   become_user: "{{ user.name }}"
 
