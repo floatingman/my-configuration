@@ -19,3 +19,23 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+- name: Install Proton Pass
+  kewlfft.aur.aur:
+    name: proton-pass-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Proton mail
+  kewlfft.aur.aur:
+    name: proton-mail-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
