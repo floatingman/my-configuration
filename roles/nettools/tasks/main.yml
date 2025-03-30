@@ -141,7 +141,7 @@
 
 - name: Install mullvad vpn
   kewlfft.aur.aur:
-    name: mullvad-vpn
+    name: mullvad-vpn-bin
     use: auto
     state: present
   become_user: aur_builder
