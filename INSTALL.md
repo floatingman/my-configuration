@@ -19,7 +19,7 @@ Verify that the system clock is up to date.
 
     $ timedatectl set-ntp true
 
-Store your desination disk in an environment variable.
+Store your destination disk in an environment variable.
 
     $ export DISK=/dev/nvme0n1
 
