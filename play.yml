@@ -6,11 +6,11 @@
     # - { role: ansible-role-basic, tags: ["basic"] }
     - { role: base, tags: ["base"], when: ansible_os_family ==  "Archlinux" }
     - { role: system, tags: ["system"] }
-    - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: shell, tags: ["shell"] }
-    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
-    - { role: archive, tags: ["archive"] }
     - { role: ssh, tags: ["ssh"] }
+    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
+    - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
+    - { role: archive, tags: ["archive"] }
     - { role: x, tags: ["x"], when: "desktop_environment is defined" }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
@@ -56,7 +56,7 @@
     - {
         role: lightdm,
         tags: ["lightdm"],
-        when: not ("display_manager is defined") and ("display_manager == 'lightdm'"),
+        when: ("display_manager is defined") and ("display_manager == 'lightdm'"),
       }
     - {
         role: gdm,
@@ -66,7 +66,7 @@
     - {
         role: i3,
         tags: ["i3"],
-        when: not ("desktop_environment is defined") and "desktop_environment == 'i3'",
+        when: ("desktop_environment is defined") and "desktop_environment == 'i3'",
       }
     - {
         role: gnome,

@@ -40,15 +40,15 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Install vapoursynth-plugin-rife-ncnn-vulkan-git
-  kewlfft.aur.aur:
-    name: vapoursynth-plugin-rife-ncnn-vulkan-git
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
+# - name: Install vapoursynth-plugin-rife-ncnn-vulkan-git
+#   kewlfft.aur.aur:
+#     name: vapoursynth-plugin-rife-ncnn-vulkan-git
+#     use: auto
+#     state: present
+#   become_user: aur_builder
+#   when: ansible_facts["os_family"] == "Archlinux"
+#   tags:
+#     - aur
 
 - name: Install vapoursynth-plugin-vmaf-git
   kewlfft.aur.aur:
@@ -62,7 +62,7 @@
 
 - name: Install vapoursynth-miscfilters-obsolete-git
   kewlfft.aur.aur:
-    name: vapoursynth-miscfilters-obsolete-git 
+    name: vapoursynth-miscfilters-obsolete-git
     use: auto
     state: present
   become_user: aur_builder
@@ -72,7 +72,7 @@
 
 - name: Install vapoursynth-plugin-mvtools-git
   kewlfft.aur.aur:
-    name: vapoursynth-plugin-mvtools-git 
+    name: vapoursynth-plugin-mvtools-git
     use: auto
     state: present
   become_user: aur_builder
