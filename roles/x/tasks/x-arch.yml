@@ -81,6 +81,12 @@
     name: picom
     state: present
 
+- name: Install xiccd
+  become: true
+  package:
+    name: xiccd
+    state: present
+
 - name: Install devour
   kewlfft.aur.aur:
     name: devour
