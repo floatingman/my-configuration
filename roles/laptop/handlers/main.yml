@@ -1,10 +1,18 @@
 ---
 - name: restart tlp
-  service: 
-    name: tlp.service 
+  become: true
+  service:
+    name: tlp.service
     state: restarted
 
-- name: restart lowbatt
-  service: 
-    name: lowbatt.timer 
+- name: restart power monitor
+  become: true
+  service:
+    name: power_monitor.service
+    state: restarted
+
+- name: restart charge control
+  become: true
+  service:
+    name: charge_control.service
     state: restarted

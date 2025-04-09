@@ -1,11 +1,24 @@
 ---
 - include_tasks: tlp.yml
+  when: power_management is defined and power_management == "tlp"
 
-- name: Copy libinput configuration file
+- include_tasks: tuned.yml
+  when: power_management is defined and power_management == "tuned"
+
+- include_tasks: framework.yml
+  when: power_management is defined and power_management == "tuned" and ansible_system_vendor == "Framework"
+
+- name: Install x86_energy_perf_policy
+  become: true
+  package:
+    name: x86_energy_perf_policy
+    state: present
+
+- name: Copy touchpad configuration file
   become: true
   copy:
-    src: 40-libinput.conf
-    dest: /etc/X11/xorg.conf.d/40-libinput.conf
+    src: 30-touchpad.conf
+    dest: /etc/X11/xorg.conf.d/30-touchpad.conf
   tags:
     - libinput
 
@@ -15,48 +28,28 @@
     src: logind.conf
     dest: /etc/systemd/logind.conf
 
-- name: Push low battery warning script
-  become: true
-  copy:
-    src: lowbatt.sh
-    dest: /usr/local/bin/lowbatt
-    mode: 0755
-
-- name: Push low battery warning service file
-  become: true
-  template:
-    src: lowbatt.service.j2
-    dest: /etc/systemd/system/lowbatt.service
-  notify:
-    - reload systemd config
-
-- name: Push low battery timer file
-  become: true
-  template:
-    src: lowbatt.timer.j2
-    dest: /etc/systemd/system/lowbatt.timer
-  notify:
-    - reload systemd config
-    - restart lowbatt
-
-- name: Enable and start lowbatt timer
-  become: true
-  service:
-    name: lowbatt.timer
-    enabled: yes
-    state: started
-
-- name: Install brightnessctl
-  become: true
-  package:
-    name: brightnessctl
+- name: Install poweralertd
+  kewlfft.aur.aur:
+    name: poweralertd
+    use: auto
     state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
 
-# - name: Install light
-#   bebecome: true
-#   package:
-#     name: light
-#     state: present
+- name: Enable and start poweralertd
+  systemd:
+    name: poweralertd.service
+    scope: user
+    enabled: true
+    state: started
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  tags:
+    - aur
 
 - name: Install powertop
   become: true
@@ -74,29 +67,21 @@
   tags:
     - aur
 
-- name: Install powerstat
+- name: Install cmake for battery-stats
   become: true
   package:
-    name: powerstat
+    name: cmake
     state: present
-  when: ansible_facts["os_family"] != "Archlinux"
-
-# - name: Install battery-stats
-#   kewlfft.aur.aur:
-#     name: battery-stats-git
-#     use: auto
-#     state: present
-#   become_user: aur_builder
-#   when: ansible_facts["os_family"] == "Archlinux"
-#   tags:
-#     - aur
 
 - name: Install battery-stats
-  become: true
-  package:
-    name: battery-stats
+  kewlfft.aur.aur:
+    name: battery-stats-git
+    use: auto
     state: present
-  when: ansible_facts["os_family"] != "Archlinux"
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
 
 - name: Install battop
   kewlfft.aur.aur:

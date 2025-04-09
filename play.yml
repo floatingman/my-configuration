@@ -133,11 +133,13 @@
         when: ansible_os_family == "Archlinux",
       }
     - { role: sound, tags: ["sound"], when: desktop_environment is defined }
+    - { role: regdomain, tags: ["regdomain"], when: "regdomain is defined" }
     - {
         role: bluetooth,
         tags: ["bluetooth"],
         when: (ansible_os_family ==  "Archlinux") and ("bluetooth is defined"),
       }
+    - { role: backlight, tags: ["backlight"] }
     - { role: mpd, tags: ["mpd"], when: desktop_environment is defined }
     - {
         role: filesharing,

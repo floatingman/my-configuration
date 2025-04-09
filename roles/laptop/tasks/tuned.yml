@@ -1,0 +1,48 @@
+---
+- name: Install TuneD
+  become: true
+  package:
+    name: tuned-ppd
+    state: present
+  tags:
+    - tuned
+
+- name: Enable and start TuneD
+  become: true
+  service:
+    name: tuned.service
+    enabled: yes
+    state: started
+  tags:
+    - tuned
+
+- name: Install power monitor script
+  become: true
+  copy:
+    src: power_monitor.sh
+    dest: /usr/local/bin/
+    mode: 0755
+  notify:
+    - restart power monitor
+  tags:
+    - tuned
+
+- name: Copy power monitor service
+  become: true
+  copy:
+    src: power_monitor.service
+    dest: /etc/systemd/system/
+  notify:
+    - reload systemd config
+    - restart power monitor
+  tags:
+    - tuned
+
+- name: Enable and start power monitor service
+  become: true
+  service:
+    name: power_monitor.service
+    enabled: yes
+    state: started
+  tags:
+    - tuned

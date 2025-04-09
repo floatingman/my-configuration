@@ -10,16 +10,6 @@
   tags:
     - tlp
 
-- name: Install x86 Performance policy
-  become: true
-  package:
-    name:
-      - x86_energy_perf_policy
-    state: present
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - tlp
-
 - name: Push TLP battery threshold config
   become: true
   copy:
