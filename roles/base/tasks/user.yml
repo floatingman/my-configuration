@@ -34,7 +34,7 @@
 
 - name: Install logrotate
   become: true
-  pacman:
+  package:
       name: logrotate
       state: present
 

@@ -1,0 +1,48 @@
+---
+- name: Install sysstat
+  become: true
+  package:
+    name: sysstat
+    state: present
+
+- name: Install glances
+  become: true
+  package:
+    name: glances
+    state: present
+
+- name: Install btop
+  become: true
+  package:
+    name: btop
+    state: present
+
+- name: Install htop
+  become: true
+  package:
+    name: htop
+    state: present
+
+- name: Install lsof
+  become: true
+  package:
+    name: lsof
+    state: present
+
+- name: Install strace
+  become: true
+  package:
+    name: strace
+    state: present
+
+- name: Install smartmontools
+  become: true
+  package:
+    name: smartmontools
+    state: present
+
+- name: Install progress
+  become: true
+  package:
+    name: progress
+    state: present

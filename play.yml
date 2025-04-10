@@ -1,10 +1,11 @@
 ---
-- name: Playbook
-  hosts: localhost
+- hosts: localhost
   connection: local
   roles:
     # - { role: ansible-role-basic, tags: ["basic"] }
-    - { role: base, tags: ["base"], when: ansible_os_family ==  "Archlinux" }
+    - { role: base, tags: ["base"], when: ansible_os_family == "Archlinux" }
+    - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
+    - { role: sysmon, tags: ["sysmon"] }
     - { role: system, tags: ["system"] }
     - { role: shell, tags: ["shell"] }
     - { role: ssh, tags: ["ssh"] }
@@ -40,7 +41,6 @@
         tags: ["nmtrust"],
         when: ansible_os_family ==  "Archlinux",
       }
-    - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
     - {
         role: terminal,
         tags: ["terminal"],

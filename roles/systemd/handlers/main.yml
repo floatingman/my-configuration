@@ -1,8 +1,11 @@
 ---
 - name: reload systemd config
+  become: true
   command: systemctl daemon-reload
-  become: true
 
-- name: reload systctl
-  command: sysctl --system
+- name: reload user systemd config
+  command: systemctl --user daemon-reload
   become: true
+  become_user: "{{ user.name }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
