@@ -9,13 +9,11 @@
   when: power_management is defined and power_management == "tuned" and ansible_system_vendor == "Framework"
 
 - name: Install x86_energy_perf_policy
-  become: true
   package:
     name: x86_energy_perf_policy
     state: present
 
 - name: Copy touchpad configuration file
-  become: true
   copy:
     src: 30-touchpad.conf
     dest: /etc/X11/xorg.conf.d/30-touchpad.conf
@@ -23,7 +21,6 @@
     - libinput
 
 - name: Copy logind configuration file
-  become: true
   copy:
     src: logind.conf
     dest: /etc/systemd/logind.conf
@@ -33,6 +30,7 @@
     name: poweralertd
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -44,7 +42,6 @@
     scope: user
     enabled: true
     state: started
-  become: true
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
@@ -52,7 +49,6 @@
     - aur
 
 - name: Install powertop
-  become: true
   package:
     name: powertop
     state: present
@@ -62,6 +58,7 @@
     name: powerstat
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

@@ -1,10 +1,11 @@
 ---
 - hosts: localhost
-  connection: local
+  become: true
   roles:
     # - { role: ansible-role-basic, tags: ["basic"] }
     - { role: base, tags: ["base"], when: ansible_os_family == "Archlinux" }
     - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
+    - { role: gnupg, tags: ["gnupg"] }
     - { role: sysmon, tags: ["sysmon"] }
     - { role: system, tags: ["system"] }
     - { role: shell, tags: ["shell"] }

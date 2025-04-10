@@ -4,6 +4,7 @@
     name: fw-ectool-git
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -11,7 +12,6 @@
     - framework
 
 - name: Copy charge control service
-  become: true
   copy:
     src: chargecontrol.service
     dest: /etc/systemd/system/
@@ -22,10 +22,16 @@
     - framework
 
 - name: Enable and start charge control service
-  become: true
   service:
     name: chargecontrol.service
     enabled: yes
     state: started
+  tags:
+    - framework
+
+- name: Copy touchpad settings
+  copy:
+    src: 50-framework.quirks
+    dest: /usr/share/libinput/
   tags:
     - framework
