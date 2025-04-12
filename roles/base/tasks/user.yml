@@ -1,6 +1,5 @@
 ---
 - name: Create user group
-  become: true
   group:
     name: "{{ user.group }}"
     gid: "{{ user.gid }}"
@@ -9,16 +8,15 @@
     - user
 
 - name: Create user and assign to group
-  become: true
   user:
     name: "{{ user.name }}"
     group: "{{ user.group }}"
-    password: "{{ user_password|password_hash('sha512') }}"
+    password: "{{ user_password | password_hash('sha512') }}"
     shell: "{{ user.shell }}"
     update_password: on_create
     uid: "{{ user.uid }}"
     groups: uucp
-    append: yes
+    append: true
   tags:
     - user
 
@@ -33,13 +31,11 @@
     - user
 
 - name: Install logrotate
-  become: true
   package:
-      name: logrotate
-      state: present
+    name: logrotate
+    state: present
 
 - name: Push logrotate config for user logs
-  become: true
   template:
     src: logrotate.j2
     dest: /etc/logrotate.d/user
@@ -48,7 +44,6 @@
     - user
 
 - name: Create user socket directory
-  become: true
   file:
     path: /run/user/{{ user.uid }}
     state: directory
@@ -67,7 +62,6 @@
     - user
 
 - name: Allow sudo without password
-  become: true
   lineinfile:
     dest: /etc/sudoers
     state: present
