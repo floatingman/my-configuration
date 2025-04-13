@@ -1,18 +1,15 @@
 ---
 - name: Install brightnessctl
-  become: true
   package:
     name: brightnessctl
     state: present
 
 - name: Install illuminanced
-  become: true
   package:
     name: illuminanced
   when: illuminanced is defined
 
 - name: Set max backlight file
-  become: true
   lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^max_backlight_file
@@ -23,7 +20,6 @@
     - restart illuminanced
 
 - name: Set backlight file
-  become: true
   lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^backlight_file
@@ -34,7 +30,6 @@
     - restart illuminanced
 
 - name: Set illuminance file
-  become: true
   lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^illuminance_file
@@ -45,7 +40,6 @@
     - restart illuminanced
 
 - name: Set min backlight value
-  become: true
   lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^min_backlight
@@ -56,9 +50,8 @@
     - restart illuminanced
 
 - name: Enable and start illuminanced
-  become: true
   service:
     name: illuminanced.service
-    enabled: yes
+    enabled: true
     state: started
   when: illuminanced is defined

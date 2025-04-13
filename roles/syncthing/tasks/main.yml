@@ -1,0 +1,15 @@
+---
+- name: Install Syncthing
+  package:
+    name: syncthing
+    state: present
+
+- name: Install Syncthingtray
+  kewlfft.aur.aur:
+    name: syncthingtray
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
