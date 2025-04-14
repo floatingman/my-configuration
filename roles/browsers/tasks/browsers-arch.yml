@@ -1,5 +1,4 @@
 ---
-
 - name: Install Chromium
   package:
     name: chromium
@@ -25,6 +24,16 @@
   become: true
   tags:
     - firefox
+
+- name: Install Google Chrome
+  kewlfft.aur.aur:
+    name: google-chrome
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
 
 - name: Install Tor browser
   package:
