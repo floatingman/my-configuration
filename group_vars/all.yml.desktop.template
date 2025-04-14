@@ -55,6 +55,9 @@ network:
 ssh:
   port: 22
   enable_sshd: True
+gnupg:
+  enable_agent: true
+  emulate_ssh: true
 gitconfig:
   name: Daniel Newman
   mail: dan@danlovesprogramming.com
