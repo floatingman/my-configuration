@@ -1,12 +1,4 @@
 ---
-- name: Install Chromium
-  become: true
-  package:
-    name: chromium
-    state: present
-  tags:
-    - browser
-
 - name: Install Firefox
   become: true
   flatpak:

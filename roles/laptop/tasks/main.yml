@@ -12,6 +12,7 @@
   package:
     name: x86_energy_perf_policy
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Copy touchpad configuration file
   copy:
@@ -45,6 +46,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
 

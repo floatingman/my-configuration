@@ -1,7 +1,22 @@
 ---
 - include_tasks: ranger.yml
 - include_tasks: thunar.yml
-- include_tasks: yazi.yml
+- name: Install yazi on Archlinux
+  include_tasks: yazi.yml
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install helper apps for yazi
+  package:
+    name:
+      - ffmpeg
+      - 7zip
+      - jq
+      - poppler-utils
+      - fd-find
+      - ripgrep
+      - zoxide
+      - imagemagick
+    state: present
 
 - name: Install ueberzugpp
   kewlfft.aur.aur:
