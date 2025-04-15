@@ -21,10 +21,22 @@
   tags:
     - terminal
 
-- name: Install Wezterm
-  flatpak:
-    name: org.wezfurlong.wezterm
+- name: Download the wezterm signing key
+  ansible.builtin.apt_key:
+    url: https://apt.fury.io/wez/gpg.key
     state: present
+    keyring: /etc/apt/keyrings/wezterm-fury.gpg
   when: ansible_facts["os_family"] != "Archlinux"
-  tags:
-    - terminal
+
+- name: Add wezterm repository into sources list
+  ansible.builtin.apt_repository:
+    repo: deb [signed-by=/etc/apt/keyrings/wezterm-fury.gpg] https://apt.fury.io/wez/ * *
+    state: present
+    filename: wezterm
+  when: ansible_facts["os_family"] != "Archlinux"
+
+- name: Install wezterm
+  ansible.builtin.apt:
+    name: wezterm
+    update_cache: yes
+  when: ansible_facts["os_family"] != "Archlinux"
