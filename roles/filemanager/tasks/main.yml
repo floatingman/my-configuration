@@ -11,8 +11,6 @@
       - ffmpeg
       - 7zip
       - jq
-      - poppler-utils
-      - fd-find
       - ripgrep
       - zoxide
       - imagemagick

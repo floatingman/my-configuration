@@ -174,12 +174,14 @@ cli:
     - cifs-utils
     - dnsutils
     - exuberant-ctags
+    - fd-find
     - libx11-dev
     - libxext-dev
     - libxfixes-dev
     - libxfixes-dev
     - libxi-dev
     - libxt-dev
+    - poppler-utils
     - texlive
     - timewarrior
     - x11proto-core-dev
@@ -215,6 +217,7 @@ cli:
     - mdbook
     - nnn
     - popeye
+    - poppler
     - prettier
     - prettyping
     - python-gitlabber
