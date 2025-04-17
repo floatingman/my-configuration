@@ -338,59 +338,16 @@ aur_fonts:
   - ttf-sarasa-gothic-nerd-fonts
   - ttf-signika
   - ttf-segoe-ui-variable
-asdf_user: "{{ user.name }}"
-asdf_plugins:
-  - name: "nodejs"
-    versions:
-      - 20.12.0
-    global: 20.12.0
-  - name: "ruby"
-    versions:
-      - 3.1.2
-    global: 3.1.2
-  - name: "kubectl"
-    versions:
-      - 1.29.3
-    global: 1.29.3
-  - name: "terraform"
-    versions:
-      - 1.7.5
-    global: 1.7.5
-  - name: "helm"
-    versions:
-      - 3.14.0
-    global: 3.14.0
-  - name: "concourse"
-    versions:
-      - 7.11.2
-    global: 7.11.2
-  - name: "packer"
-    versions:
-      - 1.10.2
-    global: 1.10.2
-  - name: "minikube"
-    versions:
-      - 1.32.0
-    global: 1.32.0
-  - name: "aws-vault"
-    versions:
-      - 7.2.0
-    global: 7.2.0
-pyenv_env: "user"
-pyenv_path: "{{ ansible_env.HOME }}/.pyenv"
-pyenv_owner: "{{ ansible_env.USER }}"
-pyenv_global: "3.10.3"
-pyenv_update: yes
-pyenv_update_git_install: yes
-pyenv_enable_autocompletion: no
-pyenv_python_versions:
-  - "3.10.3"
-  - "2.7.18"
-pyenv_virtualenvs:
-  - venv_name: "py3nvim"
-    py_version: "3.10.3"
-  - venv_name: "py2nvim"
-    py_version: "2.7.18"
+
+power_management: "tuned"
+
+regdomain: "US"
+
+illuminanced:
+    max_backlight_file: /sys/class/backlight/amdgpu_bl2/max_brightness
+    backlight_file: /sys/class/backlight/amdgpu_bl2/brightness
+    illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_raw
+    min_backlight: 60
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
