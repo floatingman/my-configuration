@@ -420,6 +420,7 @@ tokei_version: 12.1.2
 viddy_version: 0.3.4
 xsv_version: 0.13.0
 yq_version: 4.22.1
+yazi_version: 25.4.8
 binaries:
   - name: hey
     url: "https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64"
@@ -690,6 +691,10 @@ binaries:
   - name: yq
     url: "https://github.com/mikefarah/yq/releases/download/v{{ yq_version }}/yq_linux_amd64"
     bin_name: yq_linux_amd64
+
+  - name: yazi
+    url: "https://github.com/sxyazi/yazi/releases/download/v{{ yazi_version }}/yazi-aarch64-unknown-linux-gnu.zip"
+    extract: true
 
   - name: viddy
     url: "https://github.com/sachaos/viddy/releases/download/v{{ viddy_version }}/viddy_{{ viddy_version }}_Linux_x86_64.tar.gz"
