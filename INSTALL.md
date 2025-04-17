@@ -69,7 +69,7 @@ Optionally edit the mirror list.
 
 Install the base system.
 
-    $ pacstrap -i /mnt base base-devel linux linux-firmware lvm2 dhcpcd net-tools wireless_tools dialog wpa_supplicant efibootmgr vi git grub ansible
+    $ pacstrap -i /mnt base base-devel linux linux-firmware lvm2 dhcpcd net-tools wireless_tools dialog wpa_supplicant efibootmgr vi git grub ansible iwd
 
 Generate and verify fstab.
 
