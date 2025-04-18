@@ -343,6 +343,7 @@ power_management: "tuned"
 
 regdomain: "US"
 
+# You have to look up these values https://github.com/mikhail-m1/illuminanced
 illuminanced:
     max_backlight_file: /sys/class/backlight/amdgpu_bl2/max_brightness
     backlight_file: /sys/class/backlight/amdgpu_bl2/brightness

@@ -72,15 +72,15 @@
     name: cmake
     state: present
 
-- name: Install battery-stats
-  kewlfft.aur.aur:
-    name: battery-stats-git
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
+# - name: Install battery-stats
+#   kewlfft.aur.aur:
+#     name: battery-stats-git
+#     use: auto
+#     state: present
+#   become_user: aur_builder
+#   when: ansible_facts["os_family"] == "Archlinux"
+#   tags:
+#     - aur
 
 - name: Install battop
   kewlfft.aur.aur:

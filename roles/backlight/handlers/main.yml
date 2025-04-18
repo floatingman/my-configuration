@@ -1,6 +1,5 @@
 ---
 - name: restart illuminanced
-  become: true
   service:
     name: illuminanced.service
     state: restarted
