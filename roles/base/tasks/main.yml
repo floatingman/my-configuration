@@ -3,25 +3,26 @@
   copy:
     src: pacman.conf
     dest: /etc/pacman.conf
-  become: true
 
 - name: Refresh pacman mirrors
   package:
-    update_cache: yes
-  become: true
+    update_cache: true
 
 - name: Install inetutils for hostname
   package:
     name: inetutils
     state: present
-  become: true
 
 - name: Set the hostname
   hostname:
     name: "{{ hostname }}"
   when: hostname is defined
-  become: true
 
-- include_tasks: user.yml
-- include_tasks: packages.yml
-- include_tasks: journal.yml
+- name: User tasks
+  include_tasks: user.yml
+- name: Sudo tasks
+  include_tasks: sudo.yml
+- name: packages tasks
+  include_tasks: packages.yml
+- name: journal tasks
+  include_tasks: journal.yml
