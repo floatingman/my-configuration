@@ -1,7 +1,77 @@
 ---
+- name: Install Pycharm
+  kewlfft.aur.aur:
+    name: pycharm-professional
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Intellij
+  kewlfft.aur.aur:
+    name: intellij-idea-ultimate-edition
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Webstorm
+  kewlfft.aur.aur:
+    name: webstorm
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Webstorm JRE
+  kewlfft.aur.aur:
+    name: webstorm-jre
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Clion
+  kewlfft.aur.aur:
+    name: clion
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Clion JRE
+  kewlfft.aur.aur:
+    name: clion-jre
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
 - name: Install Goland
   kewlfft.aur.aur:
     name: goland
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Goland JRE
+  kewlfft.aur.aur:
+    name: goland-jre
     use: auto
     state: present
   become_user: aur_builder

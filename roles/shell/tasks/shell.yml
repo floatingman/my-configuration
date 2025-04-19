@@ -1,6 +1,5 @@
 ---
 - name: Install Bash
-  become: true
   package:
     name:
       - bash
@@ -10,10 +9,29 @@
     - shell
 
 - name: Install Zsh
-  become: true
   package:
     name:
       - zsh
+      - zsh-completions
     state: present
   tags:
     - shell
+
+- name: Install Starship
+  package:
+    name:
+      - ttf-nerd-fonts-symbols-mono
+      - starship
+    state: present
+  tags:
+    - shell
+
+- name: Install blesh
+  kewlfft.aur.aur:
+    name: blesh
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

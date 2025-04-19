@@ -8,30 +8,38 @@
       - xfce4-notifyd
       - gnome-keyring
     state: present
-  become: true
 
 - name: Push connectivity check config
   template:
     src: connectivity.conf.j2
     dest: /etc/NetworkManager/conf.d/20-connectivity.conf
   when: network.conn_check is defined
-  become: true
+
+- name: Push MAC address randomization config
+  template:
+    src: random_mac.conf.j2
+    dest: /etc/NetworkManager/conf.d/20-random_mac.conf
+
+- name: Push WiFi/Wired Exclusive dispatcher
+  copy:
+    src: wifi-wired-exclusive.sh
+    dest: /etc/NetworkManager/dispatcher.d/70-wifi-wired-exclusive
+    mode: "0755"
+  when: network.wifi_wired_exclusive is defined and network.wifi_wired_exclusive == True
 
 - name: Enable and start NetworkManager
   service:
     name: NetworkManager.service
-    enabled: yes
+    enabled: true
     state: started
-  become: true
 
 - name: Enable and start NetworkManager dispatcher
   service:
     name: NetworkManager-dispatcher.service
-    enabled: yes
+    enabled: true
     state: started
-  become: true
-# - name: Disable dhcpcd service
-#   service:
-#       name: dhcpcd.service
-#       enabled: no
-#   become: true
+
+- name: Disable dhcpcd service
+  service:
+    name: dhcpcd.service
+    enabled: false
