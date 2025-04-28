@@ -1,27 +1,19 @@
 ---
-- name: Install Chromium
-  package:
-    name: chromium
-    state: present
-  become: true
-  tags:
-    - chromium
-
 - name: Install qutebrowser dependencies
   package:
     name:
       - python-adblock
       - pdfjs
     state: present
-  become: true
   tags:
     - qutebrowser
 
 - name: Install Firefox
   package:
-    name: firefox
+    name:
+      - firefox
+      - speech-dispatcher
     state: present
-  become: true
   tags:
     - firefox
 
@@ -30,6 +22,7 @@
     name: google-chrome
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
@@ -39,7 +32,6 @@
   package:
     name: torbrowser-launcher
     state: present
-  become: true
   tags:
     - tor-browser
 
@@ -47,8 +39,7 @@
   template:
     src: browser.sh.j2
     dest: /usr/local/bin/browser
-    mode: 0755
-  become: true
+    mode: "0755"
   tags:
     - rofi
     - chooser
@@ -57,7 +48,6 @@
   file:
     path: /usr/local/share/applications
     state: directory
-  become: true
   tags:
     - rofi
     - chooser
@@ -66,7 +56,6 @@
   copy:
     src: browser.desktop
     dest: /usr/local/share/applications/browser.desktop
-  become: true
   tags:
     - rofi
     - chooser
@@ -76,7 +65,6 @@
     content: ""
     dest: /etc/xdg/mimeapps.list
     force: false
-  become: true
   tags:
     - rofi
     - chooser
@@ -103,7 +91,6 @@
         regexp: "^x-scheme-handler/https=",
         line: "x-scheme-handler/https=browser.desktop",
       }
-  become: true
   tags:
     - rofi
     - chooser
@@ -113,7 +100,6 @@
     dest: /etc/xdg/surfraw/conf
     regexp: "^def   SURFRAW_graphical_browser	"
     line: "def   SURFRAW_graphical_browser	/usr/local/bin/browser"
-  become: true
   tags:
     - surfraw
     - chooser
@@ -122,8 +108,7 @@
   copy:
     src: surfraw-rofi
     dest: /usr/local/bin/surfraw-rofi
-    mode: 0755
-  become: true
+    mode: "0755"
   tags:
     - surfraw
     - rofi
@@ -133,6 +118,7 @@
     name: microsoft-edge-stable-bin
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

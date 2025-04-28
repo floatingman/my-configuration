@@ -3,70 +3,61 @@
   package:
     name: xorg-server
     state: present
-  become: true
 
 - name: Install Xinit
   package:
     name: xorg-xinit
     state: present
-  become: true
 
 - name: Install xmodmap
   package:
     name: xorg-xmodmap
     state: present
-  become: true
 
 - name: Install xdpyinfo
   package:
     name: xorg-xdpyinfo
     state: present
-  become: true
 
 - name: Install xev
   package:
     name: xorg-xev
     state: present
-  become: true
 
 - name: Install xorg-sessreg
   package:
     name: xorg-sessreg
     state: present
-  become: true
 
 - name: Install xorg-xwininfo
   package:
     name: xorg-xwininfo
     state: present
-  become: true
 
 - name: Install xautomation
   package:
     name: xautomation
     state: present
-  become: true
 
 - name: Install xinput
   package:
     name: xorg-xinput
     state: present
-  become: true
 
 - name: Install video driver(s)
   package:
     name: "{{ video_drivers }}"
     state: present
-  become: true
 
 - name: Add user to video group
-  user: name={{ user.name }} groups=video append=yes
-  become: true
+  user:
+    name: "{{ user.name }}"
+    groups: video
+    append: yes
   tags:
     - user
 
 - name: Install video tools
-  become: true
   package:
     name:
       - radeontop
@@ -76,15 +67,18 @@
       - vdpauinfo
 
 - name: Install picom for compositor
-  become: true
   package:
     name: picom
     state: present
 
 - name: Install xiccd
-  become: true
   package:
     name: xiccd
+    state: present
+
+- name: Install xsel
+  package:
+    name: xsel
     state: present
 
 - name: Install devour
@@ -92,6 +86,7 @@
     name: devour
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

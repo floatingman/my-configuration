@@ -88,3 +88,13 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+- name: Install Windsurf
+  kewlfft.aur.aur:
+    name: windsurf
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
