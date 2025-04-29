@@ -1,0 +1,11 @@
+---
+- name: Install cronie
+  package:
+    name: cronie
+    state: present
+
+- name: Enable cronie
+  service:
+    name: cronie.service
+    enabled: true
+    state: started

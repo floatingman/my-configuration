@@ -43,6 +43,7 @@
     scope: user
     enabled: true
     state: started
+  become: true
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
@@ -87,6 +88,7 @@
     name: battop
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:

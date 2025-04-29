@@ -7,6 +7,8 @@
     - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
     - { role: gnupg, tags: ["gnupg"] }
     - { role: sysmon, tags: ["sysmon"] }
+    - { role: cron, tags: ["cron"] }
+    - { role: microcode, tags: ["microcode"] }
     - { role: system, tags: ["system"] }
     - { role: shell, tags: ["shell"] }
     - { role: ssh, tags: ["ssh"] }
