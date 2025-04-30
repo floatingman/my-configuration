@@ -48,6 +48,7 @@ Create and mount the encrypted root filesystem.
     $ cryptsetup luksOpen $DEVCRYPT lvm
     $ pvcreate /dev/mapper/lvm
     $ vgcreate arch /dev/mapper/lvm
+    # For sleep and hibernate to work, this size should be ram x 1.5
     $ lvcreate -L 8G arch -n swap
     $ lvcreate -l +100%FREE arch -n root
     $ lvreduce -L -256M arch/root
