@@ -12,19 +12,27 @@
   package:
     name:
       - zsh
-      - zsh-completions
     state: present
   tags:
     - shell
 
+- name: Install Zsh Completions
+  package:
+    name:
+      - zsh-completions
+    state: present
+  tags:
+    - shell
+  when: ansible_os_family == "Archlinux"
+
 - name: Install Starship
   package:
     name:
-      - ttf-nerd-fonts-symbols-mono
       - starship
     state: present
   tags:
     - shell
+  when: ansible_os_family == "Archlinux"
 
 - name: Install blesh
   kewlfft.aur.aur:

@@ -1,17 +1,17 @@
 ---
-- name: Install OpenSSH
+- name: Install OpenSSH on Arch
   become: true
   package:
     name: openssh
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Install OpenSSH
+- name: Install OpenSSH on Debian
   become: true
   package:
     name: ssh
     state: present
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Push OpenSSH daemon configuration file
   become: true
@@ -35,7 +35,8 @@
     name: sshd.service
     enabled: no
     state: stopped
-  when: ssh.enable_sshd is defined and ssh.enable_sshd == False
+  when: ssh.enable_sshd is defined and ssh.enable_sshd == False and ansible_facts["os_family"] == "Archlinux"
+
 
 - name: Install sshfs
   become: true
