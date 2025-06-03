@@ -49,9 +49,19 @@
   tags:
     - aur
 
-- name: Install Clion JRE
+- name: Install Clion GDB
   kewlfft.aur.aur:
-    name: clion-jre
+    name: clion-gdb
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install Clion LLDB
+  kewlfft.aur.aur:
+    name: clion-lldb
     use: auto
     state: present
   become_user: aur_builder
