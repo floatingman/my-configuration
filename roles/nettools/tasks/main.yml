@@ -136,7 +136,9 @@
 - name: Install wireguard and kernel modules
   become: true
   package:
-    name: wireguard-tools
+    name:
+      - wireguard-tools
+      - openresolv
     state: present
 # - name: Install mullvad vpn
 #   kewlfft.aur.aur:
