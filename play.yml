@@ -8,7 +8,11 @@
     - { role: gnupg, tags: ["gnupg"] }
     - { role: sysmon, tags: ["sysmon"] }
     - { role: cron, tags: ["cron"] }
-    - { role: microcode, tags: ["microcode"], when: ansible_os_family == "Archlinux" }
+    - {
+        role: microcode,
+        tags: ["microcode"],
+        when: ansible_os_family == "Archlinux",
+      }
     - { role: system, tags: ["system"] }
     - { role: shell, tags: ["shell"] }
     - { role: ssh, tags: ["ssh"] }
@@ -160,6 +164,7 @@
         tags: ["devtools"],
         when: desktop_environment is defined,
       }
+    - { role: kubernetes, tags: ["kubernetes"] }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"

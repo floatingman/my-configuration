@@ -1,0 +1,12 @@
+---
+- name: Install helm
+  become: true
+  package:
+    name: helm
+    state: present
+
+- name: Install kubectl
+  become: true
+  package:
+    name: kubectl
+    state: present
