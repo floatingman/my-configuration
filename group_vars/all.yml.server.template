@@ -409,7 +409,7 @@ nova_version: 3.0.2
 pet_version: 0.4.0
 polaris_version: 5.1.0
 popeye_version: 0.9.8
-ripgrep_version: 13.0.0
+ripgrep_version: 14.1.1
 rke_version: v1.8.4
 scc_version: 3.0.0
 sd_version: 0.7.6
