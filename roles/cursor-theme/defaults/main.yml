@@ -1,0 +1,32 @@
+---
+# Cursor theme configuration
+base_url: "https://github.com/ful1e5/Bibata_Cursor"
+cursor_theme:
+  enabled: true
+  variant: "Bibata-Modern-Classic"
+  version: "2.0.6"
+  install_path: "/usr/share/icons"
+
+  # Available variants
+  variants:
+    - "Bibata-Modern-Classic"
+    - "Bibata-Modern-Ice"
+    - "Bibata-Original-Classic"
+    - "Bibata-Original-Ice"
+    - "Bibata-Modern-Amber"
+    - "Bibata-Original-Amber"
+
+  # Packages that conflict with cursor themes
+  conflicts:
+    - bibata-cursor-theme
+    - bibata-cursor-theme-bin
+    - xcursor-themes
+
+  # GitHub repository information
+  repo:
+    owner: "ful1e5"
+    name: "Bibata_Cursor"
+    base_url: "https://github.com/ful1e5/Bibata_Cursor"
+
+  # Temporary download directory
+  temp_dir: "/tmp/cursor-theme"

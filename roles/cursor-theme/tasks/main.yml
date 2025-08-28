@@ -1,0 +1,82 @@
+---
+- name: Check if cursor theme installation is enabled
+  debug:
+    msg: "Installing cursor theme: {{ cursor_theme.variant }} v{{ cursor_theme.version }}"
+  when: cursor_theme.enabled
+
+- name: Validate cursor theme variant
+  fail:
+    msg: "Invalid cursor theme variant: {{ cursor_theme.variant }}. Available variants: {{ cursor_theme.variants | default([]) | join(', ') }}"
+  when: cursor_theme.enabled and cursor_theme.variants is defined and cursor_theme.variant not in cursor_theme.variants
+
+- name: Remove conflicting cursor theme packages (Arch Linux)
+  package:
+    name: "{{ cursor_theme.conflicts | default(['bibata-cursor-theme', 'bibata-cursor-theme-bin']) }}"
+    state: absent
+  become: true
+  when: cursor_theme.enabled and ansible_os_family == "Archlinux"
+  ignore_errors: true
+
+- name: Create temporary download directory
+  file:
+    path: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}"
+    state: directory
+    mode: '0755'
+  when: cursor_theme.enabled
+
+- name: Download cursor theme archive
+  get_url:
+    url: "https://github.com/ful1e5/Bibata_Cursor/releases/download/v{{ cursor_theme.version }}/{{ cursor_theme.variant }}.tar.xz"
+    dest: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}/{{ cursor_theme.variant }}-{{ cursor_theme.version }}.tar.xz"
+    mode: '0644'
+    timeout: 30
+    force: false
+  when: cursor_theme.enabled
+  register: download_result
+
+- name: Extract cursor theme archive
+  unarchive:
+    src: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}/{{ cursor_theme.variant }}-{{ cursor_theme.version }}.tar.xz"
+    dest: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}"
+    remote_src: true
+    creates: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}/{{ cursor_theme.variant }}"
+  when: cursor_theme.enabled and download_result is succeeded
+
+- name: Create icons directory
+  file:
+    path: "{{ cursor_theme.install_path | default('/usr/share/icons') }}"
+    state: directory
+    mode: '0755'
+  become: true
+  when: cursor_theme.enabled
+
+- name: Install cursor theme
+  copy:
+    src: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}/{{ cursor_theme.variant }}/"
+    dest: "{{ cursor_theme.install_path | default('/usr/share/icons') }}/{{ cursor_theme.variant }}"
+    mode: preserve
+    remote_src: true
+  become: true
+  when: cursor_theme.enabled
+  notify: update cursor theme cache
+
+- name: Set cursor theme permissions
+  file:
+    path: "{{ cursor_theme.install_path | default('/usr/share/icons') }}/{{ cursor_theme.variant }}"
+    state: directory
+    mode: '0755'
+    recurse: true
+  become: true
+  when: cursor_theme.enabled
+
+- name: Clean up temporary files
+  file:
+    path: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}"
+    state: absent
+  when: cursor_theme.enabled
+  ignore_errors: true
+
+- name: Display installation completion message
+  debug:
+    msg: "Cursor theme {{ cursor_theme.variant }} v{{ cursor_theme.version }} installed successfully to {{ cursor_theme.install_path | default('/usr/share/icons') }}"
+  when: cursor_theme.enabled
