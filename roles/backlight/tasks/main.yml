@@ -55,3 +55,13 @@
     enabled: true
     state: started
   when: illuminanced is defined
+
+- name: Install ddcutil
+  package:
+    name: ddcutil
+    state: present
+
+- name: Install geoclue
+  package:
+    name: geoclue
+    state: present

@@ -1,2 +1,3 @@
 venv
 group_vars/all.yml
+.vscode
