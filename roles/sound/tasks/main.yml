@@ -11,6 +11,10 @@
       - pipewire
       - pipewire-pulse
       - pavucontrol
+      - pavucontrol-qt
+      - cava
+      - wireplumber
+      - playerctl
     state: present
   become: true
 

@@ -29,7 +29,7 @@
     - {
         role: fonts,
         tags: ["fonts"],
-        when: ansible_os_family == "Archlinux" and "display_manager is defined",
+        when: ansible_os_family == "Archlinux" and display_manager is defined,
       }
     - {
         role: nerd-fonts,
@@ -63,7 +63,7 @@
     - {
         role: lightdm,
         tags: ["lightdm"],
-        when: ("display_manager is defined") and ("display_manager == 'lightdm'"),
+        when: display_manager is defined and display_manager == 'lightdm',
       }
     - {
         role: gdm,
@@ -73,7 +73,7 @@
     - {
         role: i3,
         tags: ["i3"],
-        when: ("desktop_environment is defined") and "desktop_environment == 'i3'",
+        when: (desktop_environment is defined) and desktop_environment == 'i3',
       }
     - {
         role: gnome,
@@ -145,7 +145,7 @@
     - {
         role: bluetooth,
         tags: ["bluetooth"],
-        when: (ansible_os_family ==  "Archlinux") and ("bluetooth is defined"),
+        when: (ansible_os_family ==  "Archlinux") and (bluetooth is defined),
       }
     - {
         role: backlight,
