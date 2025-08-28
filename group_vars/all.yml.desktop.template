@@ -337,6 +337,12 @@ aur_fonts:
   - ttf-signika
   - ttf-segoe-ui-variable
 
+# Cursor theme configuration
+cursor_theme:
+  enabled: true
+  variant: "Bibata-Modern-Classic"
+  version: "2.0.6"
+
 power_management: "tuned"
 
 regdomain: "US"

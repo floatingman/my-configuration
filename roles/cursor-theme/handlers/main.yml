@@ -1,0 +1,12 @@
+---
+- name: update cursor theme cache
+  command: gtk-update-icon-cache {{ cursor_theme.install_path | default('/usr/share/icons') }}/{{ cursor_theme.variant }}
+  become: true
+  ignore_errors: true
+  listen: "update cursor theme cache"
+
+- name: reload cursor theme
+  command: xrdb -merge ~/.Xresources
+  become: false
+  ignore_errors: true
+  listen: "update cursor theme cache"

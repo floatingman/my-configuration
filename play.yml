@@ -38,6 +38,11 @@
         when: "desktop_environment is defined",
       }
     - {
+        role: cursor-theme,
+        tags: ["cursor-theme"],
+        when: "desktop_environment is defined and cursor_theme.enabled",
+      }
+    - {
         role: ansible-role-binaries,
         tags: ["binaries"],
         when: ansible_os_family != "Archlinux",

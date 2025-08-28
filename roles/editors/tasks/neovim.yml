@@ -14,7 +14,7 @@
 
 - name: Install common neovim dependencies
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - cmake
       - gettext
@@ -22,7 +22,7 @@
 
 - name: "Install neovim deps on Debian"
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - lua5.1
       - liblua5.1-0-dev
@@ -31,7 +31,7 @@
 
 - name: "Install neovim deps on Arch"
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - lua51
       - python-black
