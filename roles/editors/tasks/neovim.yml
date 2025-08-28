@@ -12,15 +12,20 @@
     depth: 1
     version: stable
 
+- name: Install common neovim dependencies
+  become: true
+  packages:
+    name:
+      - cmake
+      - gettext
+      - luarocks
+
 - name: "Install neovim deps on Debian"
   become: true
   package:
     name:
-      - cmake
-      - gettext
       - lua5.1
       - liblua5.1-0-dev
-      - luarocks
       - black
   when: ansible_facts["os_family"] != "Archlinux"
 
@@ -28,10 +33,7 @@
   become: true
   package:
     name:
-      - cmake
-      - gettext
       - lua51
-      - luarocks
       - python-black
   when: ansible_facts["os_family"] == "Archlinux"
 

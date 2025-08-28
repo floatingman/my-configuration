@@ -122,7 +122,6 @@ cli:
   enabled: true
   common:
     - bison
-    - cmake
     - coreutils
     - curl
     - dateutils
