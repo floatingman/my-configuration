@@ -14,7 +14,7 @@
 
 - name: Install common neovim dependencies
   become: true
-  packages:
+  package:
     name:
       - cmake
       - gettext

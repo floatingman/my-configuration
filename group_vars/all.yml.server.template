@@ -73,7 +73,6 @@ base_packages:
   - fwupd
   - git
   - htop
-  - jq
   - man-db
   - man-pages
   - minicom
