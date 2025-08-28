@@ -1,0 +1,9 @@
+---
+- name: Install wayland
+  package:
+    name: wayland
+    state: present
+- name: Install cliphist
+  package:
+    name: cliphist
+    state: present

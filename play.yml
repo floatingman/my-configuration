@@ -19,7 +19,8 @@
     - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: archive, tags: ["archive"] }
-    - { role: x, tags: ["x"], when: "desktop_environment is defined" }
+    - { role: x, tags: ["x"], when: "desktop_environment is defined and desktop_environment == 'i3'" }
+    - { role: wayland, tags: ["wayland"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
@@ -58,7 +59,12 @@
         tags: ["networkmanager"],
         when: ansible_os_family ==  "Archlinux",
       }
-    # - { role: avanov.pyenv, tags: ["python"] }
+    - {
+        role: nettools,
+        tags: ["nettools"],
+        when: ansible_os_family ==  "Archlinux",
+      }
+    # -  { role: avanov.pyenv, tags: ["python"] }
     - { role: python, tags: ["python"] }
     - {
         role: lightdm,
