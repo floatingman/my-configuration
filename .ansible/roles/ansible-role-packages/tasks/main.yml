@@ -1,0 +1,72 @@
+# tasks file for ansible-role-packages
+---
+- name: Install common CLI packages
+  become: true
+  package:
+    name: "{{ cli.common }}"
+    state: present
+  when: cli.common is defined and cli.enabled|default(false) == true
+
+- name: Install Arch CLI packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ cli.arch}}"
+    state: present
+  when: ansible_os_family == "Archlinux" and cli.arch is defined and cli.enabled|default(false) == true
+
+- name: Install Debian packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ cli.debian }}"
+    state: present
+  when: ansible_os_family == "Debian" and cli.debian is defined and cli.enabled|default(false) == true
+
+- name: Install common GUI packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ gui.common }}"
+    state: present
+  when: gui.common is defined and gui.enabled|default(false) == true
+
+- name: Install Arch GUI packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ gui.arch }}"
+    state: present
+  when: ansible_os_family == "Archlinux" and gui.arch is defined and gui.enabled|default(false) == true
+
+- name: Install Debian GUI packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ gui.debian }}"
+    state: present
+  when: ansible_os_family == "Debian" and gui.debian is defined and gui.enabled|default(false) == true
+
+- name: Install common language packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ lang.common }}"
+    state: present
+  when: lang.common is defined and lang.enabled|default(false) == true
+
+- name: Install Arch lang packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ lang.arch }}"
+    state: present
+  when: ansible_os_family == "Archlinux" and lang.arch is defined and lang.enabled|default(false) == true
+
+- name: Install Debian lang packages
+  become: true
+  package:
+    update_cache: true
+    name: "{{ lang.debian }}"
+    state: present
+  when: ansible_os_family == "Debian" and lang.debian is defined and lang.enabled|default(false) == true

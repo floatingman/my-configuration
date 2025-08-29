@@ -1,0 +1,8 @@
+---
+# tasks file for ansible-role-pip
+- name: Install pip packages
+  pip:
+    name: "{{ pip_packages }}"
+    extra_args: --user
+    state: present
+    executable: pip

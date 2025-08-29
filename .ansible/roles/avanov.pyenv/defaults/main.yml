@@ -1,0 +1,55 @@
+---
+# defaults file for pyenv
+pyenv_env: "user"
+pyenv_path: "{% if pyenv_env == 'user' %}{{ ansible_env.HOME }}/pyenv{% else %}/usr/local/pyenv{% endif %}"
+pyenv_owner: "{{ ansible_env.USER }}"
+pyenv_setting_path: "{% if pyenv_env == 'user' %}~/.bashrc{% else %}/etc/profile.d/pyenv.sh{% endif %}"
+pyenv_update_git_install: no
+pyenv_enable_autocompletion: no
+pyenv_python_versions: []
+pyenv_virtualenvs: []
+# For a system install, the shims dir will not be writable by users, disable rehashing
+pyenv_init_options: "{% if pyenv_env != 'user' %}--no-rehash{% endif %}"
+
+pyenv_update: no
+
+# additional options for the build process, e.g "--enable-shared"
+pyenv_python_configure_opts: ""
+pyenv_uninstall_python_w_wrong_configure_opts: no
+
+pyenv_debian_packages:
+  - build-essential
+  # On Ubuntu 12.04 build may fail with the following error:
+  #   python-build: wget (< 1.14) doesn't support Server Name Indication.
+  #   Please install curl (>= 7.18.1) and try again
+  - curl
+  - git
+  - llvm
+  - libbz2-dev
+  - libffi-dev
+  - liblzma-dev
+  - libncurses5-dev
+  - libncursesw5-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - libssl-dev
+  - python3-openssl
+  - tk-dev
+  - wget
+  - xz-utils
+  - zlib1g-dev
+pyenv_redhat_packages:
+  - make
+  - git
+  - gcc
+  - "{{ ( (ansible_facts.distribution_major_version | default(0) | int) < 8) | ternary('libselinux-python','python3-libselinux') }}"
+  - zlib-devel
+  - openssl-devel
+  - bzip2-devel
+  - readline-devel
+  - libffi-devel
+  - sqlite-devel
+  - gdbm-devel
+pyenv_osx_packages:
+  - readline
+  - xz

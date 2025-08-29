@@ -1,0 +1,36 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    pip_packages:
+      - "molecule[docker]"
+      - aws-shell
+      - awscli
+      - flake8
+      - gita
+      - gitlabber
+      - grip
+      - httpie
+      - ipython
+      - jedi
+      - jupyterlab
+      - khal
+      - khard
+      - matplotlib
+      - molecule
+      - mycli
+      - neovim-remote
+      - pandas
+      - python-rofi
+      - selenium
+      - s4cmd
+      - speedtest-cli
+      - pytest-testinfra
+      - thefuck
+      - ueberzug
+      - yamllint
+      - vdirsyncer
+  tasks:
+    - name: "Include ansible-role-pip"
+      include_role:
+        name: "ansible-role-pip"

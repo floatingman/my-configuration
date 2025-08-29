@@ -1,0 +1,34 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yaml
+    force: True
+driver:
+  name: docker
+platforms:
+  - name: pip
+    image: archlinux
+    dockerfile: Dockerfile.j2
+    pull: false
+    pre_build_image: false
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: testinfra
+  options:
+    # show which tests where executed in test output
+    v: 1
+scenario:
+  name: default
+  test_sequence:
+    - destroy
+    - dependency
+    - lint
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

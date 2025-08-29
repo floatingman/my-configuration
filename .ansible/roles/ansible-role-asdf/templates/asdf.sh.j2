@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[ -n "$BASH_VERSION" ] || return 0
+
+export ASDF_CONFIG_FILE="{{ asdf_config_file }}"
+export ASDF_DEFAULT_TOOL_VERSIONS_FILENAME="{{ asdf_default_tool_versions_file }}"
+export ASDF_DIR="{{ asdf_dir }}"
+export ASDF_DATA_DIR="{{ asdf_dir }}"
+
+if [ -f "$ASDF_DIR/asdf.sh" ]; then
+  source "$ASDF_DIR/asdf.sh"
+fi

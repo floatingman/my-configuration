@@ -1,0 +1,41 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    install_aur_helper: true
+    is_test: true
+    cli:
+      enabled: true
+      common:
+        - curl
+        - shellcheck
+        - w3m
+      arch:
+        - ctags
+      debian:
+        - exuberant-ctags
+    gui:
+      enabled: true
+      common:
+        - firefox
+        - syncthing
+        - chromium
+      arch:
+        - alacritty
+        - xclip
+      debian:
+        - pinta
+    lang:
+      enabled: true
+      common:
+      arch:
+        - python
+        - go
+        - nodejs
+        - python-pip
+        - npm
+      debian:
+  tasks:
+    - name: "Include ansible-role-packages"
+      include_role:
+        name: "ansible-role-packages"
