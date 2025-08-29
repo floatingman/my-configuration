@@ -171,6 +171,7 @@ cli:
     - entr
     - exa
     - fd
+    = fish
     - git-delta
     - github-cli
     - gitui

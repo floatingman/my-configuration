@@ -200,6 +200,7 @@ cli:
     - entr
     - exa
     - fd
+    - fish
     - git-delta
     - github-cli
     - gitui
@@ -325,6 +326,7 @@ base_fonts:
 
 aur_fonts:
   - nerd-fonts-sarasa-term
+  - otf-space-grotesk
   - ttf-bitstream-charter
   - ttf-cooper-hewitt
   - ttf-courier-prime
@@ -336,12 +338,6 @@ aur_fonts:
   - ttf-sarasa-gothic-nerd-fonts
   - ttf-signika
   - ttf-segoe-ui-variable
-
-# Cursor theme configuration
-cursor_theme:
-  enabled: true
-  variant: "Bibata-Modern-Classic"
-  version: "2.0.6"
 
 power_management: "tuned"
 

@@ -14,3 +14,53 @@
     name: xdg-user-dirs
     state: present
   become: true
+- name: Install adw-gtk-theme-git
+  kewlfft.aur.aur:
+    name: adw-gtk-theme-git
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+- name: Install breeze
+  package:
+    name: breeze
+    state: present
+  become: true
+- name: Install breeze-plus
+  kewlfft.aur.aur:
+    name: breeze-plus
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+- name: Install darkly-bin
+  kewlfft.aur.aur:
+    name: darkly-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+- name: Install kde-material-you-colors
+  kewlfft.aur.aur:
+    name: kde-material-you-colors
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+- name: Install matugen-bin
+  kewlfft.aur.aur:
+    name: matugen-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
