@@ -17,7 +17,7 @@
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Push play script
-  copy:
+  ansible.builtin.copy:
     src: play.sh
     dest: /usr/local/bin/play
     mode: 0755

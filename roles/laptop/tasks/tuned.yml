@@ -9,16 +9,16 @@
 
 - name: Enable and start TuneD
   become: true
-  service:
+  ansible.builtin.service:
     name: tuned.service
-    enabled: yes
+    enabled: true
     state: started
   tags:
     - tuned
 
 - name: Install power monitor script
   become: true
-  copy:
+  ansible.builtin.copy:
     src: power_monitor.sh
     dest: /usr/local/bin/
     mode: 0755
@@ -29,7 +29,7 @@
 
 - name: Copy power monitor service
   become: true
-  copy:
+  ansible.builtin.copy:
     src: power_monitor.service
     dest: /etc/systemd/system/
   notify:
@@ -40,9 +40,9 @@
 
 - name: Enable and start power monitor service
   become: true
-  service:
+  ansible.builtin.service:
     name: power_monitor.service
-    enabled: yes
+    enabled: true
     state: started
   tags:
     - tuned

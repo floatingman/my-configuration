@@ -22,10 +22,10 @@
 
 - name: Add {{ user.name }} to adbusers group
   become: true
-  user:
+  ansible.builtin.user:
     name: "{{ user.name }}"
     groups: adbusers
-    append: yes
+    append: true
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - user

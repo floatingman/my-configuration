@@ -12,7 +12,7 @@
     - framework
 
 - name: Copy charge control service
-  copy:
+  ansible.builtin.copy:
     src: chargecontrol.service
     dest: /etc/systemd/system/
   notify:
@@ -22,15 +22,15 @@
     - framework
 
 - name: Enable and start charge control service
-  service:
+  ansible.builtin.service:
     name: chargecontrol.service
-    enabled: yes
+    enabled: true
     state: started
   tags:
     - framework
 
 - name: Copy touchpad settings
-  copy:
+  ansible.builtin.copy:
     src: 50-framework.quirks
     dest: /usr/share/libinput/
   tags:

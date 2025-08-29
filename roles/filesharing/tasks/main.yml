@@ -9,7 +9,7 @@
 
 - name: Create empty samba directory
   become: true
-  file:
+  ansible.builtin.file:
     path: /etc/samba
     owner: root
     group: root
@@ -17,7 +17,7 @@
 
 - name: Create empty smb config
   become: true
-  file:
+  ansible.builtin.file:
     path: /etc/samba/smb.conf
     owner: root
     group: root

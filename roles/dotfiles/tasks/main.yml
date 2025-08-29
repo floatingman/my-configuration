@@ -20,30 +20,30 @@
   git:
     repo: "{{ dotfiles.repo_url }}"
     dest: "/home/{{ dotfiles.path }}"
-    accept_hostkey: yes
+    accept_hostkey: true
     update: false
     recursive: true
   when: dotfiles is defined
   become_user: "{{ user.name }}"
 
 - name: Symlink rcm rc file to user directory
-  file:
+  ansible.builtin.file:
     src: "/home/{{ dotfiles.path }}/rcrc"
     dest: "/home/{{ user.name }}/.rcrc"
     state: link
 
 - name: Install user dotfiles
-  command: rcup -d /home/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
+  ansible.builtin.command: rcup -d /home/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
   when: dotfiles is defined
   become_user: "{{ user.name }}"
 
 - name: Install linux gui tagged dotfiles
-  command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
+  ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
   become_user: "{{ user.name }}"
   when: dotfiles.linuxgui | bool
 
 - name: Create global gitconfig
-  template:
+  ansible.builtin.template:
     src: templates/gitconfig.j2
     dest: "/home/{{ user.name }}/.gitconfig"
     force: true

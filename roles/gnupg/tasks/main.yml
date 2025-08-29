@@ -5,36 +5,36 @@
     state: present
 
 - name: Enable gpg-agent.socket
-  systemd:
+  ansible.builtin.systemd:
     name: gpg-agent.socket
     scope: user
-    enabled: yes
+    enabled: true
     state: started
-  become: yes
+  become: true
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: gnupg.enable_agent == True
 
 - name: Enable dirmngr.socket
-  systemd:
+  ansible.builtin.systemd:
     name: dirmngr.socket
     scope: user
-    enabled: yes
+    enabled: true
     state: started
-  become: yes
+  become: true
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: gnupg.enable_agent == True
 
 - name: Enable gpg-agent-ssh.socket
-  systemd:
+  ansible.builtin.systemd:
     name: gpg-agent-ssh.socket
     scope: user
-    enabled: yes
+    enabled: true
     state: started
-  become: yes
+  become: true
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"

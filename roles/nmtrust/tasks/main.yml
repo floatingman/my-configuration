@@ -10,19 +10,19 @@
     - aur
 
 - name: Create nmtrust config directory
-  file:
+  ansible.builtin.file:
     path: /etc/nmtrust
     state: directory
   become: true
 
 - name: Push trusted network list
-  template:
+  ansible.builtin.template:
     src: trusted_networks.j2
     dest: /etc/nmtrust/trusted_networks
   become: true
 
 - name: Verify trusted unit list exists
-  copy:
+  ansible.builtin.copy:
     content: ""
     dest: /etc/nmtrust/trusted_units
     force: false

@@ -7,7 +7,7 @@
     - sudo
 
 - name: Add user to wheel group
-  user:
+  ansible.builtin.user:
     name: "{{ user.name }}"
     groups: wheel
     append: true
@@ -16,7 +16,7 @@
     - user
 
 - name: Copy sudo wheel group configuration
-  template:
+  ansible.builtin.template:
     src: sudo_wheel.j2
     dest: /etc/sudoers.d/01_wheel
     mode: 440

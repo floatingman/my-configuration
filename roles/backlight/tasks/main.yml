@@ -10,7 +10,7 @@
   when: illuminanced is defined
 
 - name: Set max backlight file
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^max_backlight_file
     state: present
@@ -20,7 +20,7 @@
     - restart illuminanced
 
 - name: Set backlight file
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^backlight_file
     state: present
@@ -30,7 +30,7 @@
     - restart illuminanced
 
 - name: Set illuminance file
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^illuminance_file
     state: present
@@ -40,7 +40,7 @@
     - restart illuminanced
 
 - name: Set min backlight value
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^min_backlight
     state: present
@@ -50,7 +50,7 @@
     - restart illuminanced
 
 - name: Enable and start illuminanced
-  service:
+  ansible.builtin.service:
     name: illuminanced.service
     enabled: true
     state: started

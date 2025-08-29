@@ -8,7 +8,7 @@
     - user
 
 - name: Create user and assign to group
-  user:
+  ansible.builtin.user:
     name: "{{ user.name }}"
     group: "{{ user.group }}"
     password: "{{ user_password | password_hash('sha512') }}"
@@ -21,7 +21,7 @@
     - user
 
 - name: Create user log dir
-  file:
+  ansible.builtin.file:
     path: /home/{{ user.name }}/{{ user.log.dir }}
     state: directory
     owner: "{{ user.name }}"
@@ -36,7 +36,7 @@
     state: present
 
 - name: Push logrotate config for user logs
-  template:
+  ansible.builtin.template:
     src: logrotate.j2
     dest: /etc/logrotate.d/user
   when: user.log.dir is defined
@@ -44,7 +44,7 @@
     - user
 
 - name: Create user socket directory
-  file:
+  ansible.builtin.file:
     path: /run/user/{{ user.uid }}
     state: directory
     owner: "{{ user.name }}"
@@ -54,7 +54,7 @@
     - user
 
 - name: Start user systemd instance
-  service:
+  ansible.builtin.service:
     name: "user@{{ user.uid }}"
     state: started
   notify: stop systemd per-user instance

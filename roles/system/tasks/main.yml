@@ -8,7 +8,7 @@
 
 - name: Enable and start weekly filesystem TRIM timer
   become: true
-  service:
+  ansible.builtin.service:
     name: fstrim.timer
-    enabled: yes
+    enabled: true
   when: ansible_facts["distribution"] == "Archlinux"

@@ -101,10 +101,10 @@
 
 - name: Add user to wireshark group
   become: true
-  user:
+  ansible.builtin.user:
     name: "{{ user.name }}"
     groups: wireshark
-    append: yes
+    append: true
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - user

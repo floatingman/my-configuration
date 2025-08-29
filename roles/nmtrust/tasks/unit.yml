@@ -1,20 +1,20 @@
 - name: Enable and start {{ unit }}
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ unit }}"
-    enabled: yes
+    enabled: true
     state: started
   when: run_on == "all" and user_unit is not defined
   become: true
 
 - name: Disable {{ unit }}
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ unit }}"
-    enabled: no
+    enabled: false
   when: run_on != "all" and user_unit is not defined
   become: true
 
 - name: Add {{ unit }} to trusted unit list
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
     line: "{{ unit }}"
@@ -22,7 +22,7 @@
   become: true
 
 - name: Remove {{ unit }} from trusted unit list
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: absent
     line: "{{ unit }}"
@@ -30,9 +30,9 @@
   become: true
 
 - name: Enable and start {{ unit }} for user
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ unit }}"
-    enabled: yes
+    enabled: true
     state: started
     scope: user
   become: true
@@ -42,9 +42,9 @@
   when: run_on == "all" and user_unit is defined and user_unit == true
 
 - name: Disable user {{ unit }} for user
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ unit }}"
-    enabled: no
+    enabled: false
     scope: user
   become: true
   become_user: "{{ user.name }}"
@@ -53,17 +53,17 @@
   when: run_on != "all" and user_unit is defined and user_unit == true
 
 - name: Add {{ unit }} for user to trusted unit list
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
-    line: "{{ unit }},user:{{ user.name }}"
+    line: "{{ unit }},ansible.builtin.user:{{ user.name }}"
   when: run_on == "trusted" and user_unit is defined and user_unit == true
   become: true
 
 - name: Remove {{ unit }} for user from trusted unit list
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: absent
-    line: "{{ unit }},user:{{ user.name }}"
+    line: "{{ unit }},ansible.builtin.user:{{ user.name }}"
   when: run_on != "trusted" and user_unit is defined and user_unit == true
   become: true

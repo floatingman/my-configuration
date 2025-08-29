@@ -7,7 +7,7 @@
 
 - name: Push mpd service file
   become: true
-  copy:
+  ansible.builtin.copy:
     src: mpd.service
     dest: /etc/systemd/user/mpd.service
   notify:

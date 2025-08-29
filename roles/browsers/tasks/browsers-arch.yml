@@ -36,7 +36,7 @@
     - tor-browser
 
 - name: Push rofi browser chooser
-  template:
+  ansible.builtin.template:
     src: browser.sh.j2
     dest: /usr/local/bin/browser
     mode: "0755"
@@ -45,7 +45,7 @@
     - chooser
 
 - name: Create local desktop application dir
-  file:
+  ansible.builtin.file:
     path: /usr/local/share/applications
     state: directory
   tags:
@@ -53,7 +53,7 @@
     - chooser
 
 - name: Push rofi browser chooser desktop file
-  copy:
+  ansible.builtin.copy:
     src: browser.desktop
     dest: /usr/local/share/applications/browser.desktop
   tags:
@@ -61,7 +61,7 @@
     - chooser
 
 - name: Verify mimeapps.list exists
-  copy:
+  ansible.builtin.copy:
     content: ""
     dest: /etc/xdg/mimeapps.list
     force: false
@@ -70,7 +70,7 @@
     - chooser
 
 - name: Set rofi browser chooser as default application for relevant mimetypes
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/xdg/mimeapps.list
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
@@ -96,7 +96,7 @@
     - chooser
 
 - name: Configure surfraw browser
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/xdg/surfraw/conf
     regexp: "^def   SURFRAW_graphical_browser	"
     line: "def   SURFRAW_graphical_browser	/usr/local/bin/browser"
@@ -105,7 +105,7 @@
     - chooser
 
 - name: Push surfraw-rofi script
-  copy:
+  ansible.builtin.copy:
     src: surfraw-rofi
     dest: /usr/local/bin/surfraw-rofi
     mode: "0755"

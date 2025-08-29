@@ -15,14 +15,14 @@
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Copy touchpad configuration file
-  copy:
+  ansible.builtin.copy:
     src: 30-touchpad.conf
     dest: /etc/X11/xorg.conf.d/30-touchpad.conf
   tags:
     - libinput
 
 - name: Copy logind configuration file
-  copy:
+  ansible.builtin.copy:
     src: logind.conf
     dest: /etc/systemd/logind.conf
 
@@ -38,7 +38,7 @@
     - aur
 
 - name: Enable and start poweralertd
-  systemd:
+  ansible.builtin.systemd:
     name: poweralertd.service
     scope: user
     enabled: true

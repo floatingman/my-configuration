@@ -10,36 +10,36 @@
     state: present
 
 - name: Push connectivity check config
-  template:
+  ansible.builtin.template:
     src: connectivity.conf.j2
     dest: /etc/NetworkManager/conf.d/20-connectivity.conf
   when: network.conn_check is defined
 
 - name: Push MAC address randomization config
-  template:
+  ansible.builtin.template:
     src: random_mac.conf.j2
     dest: /etc/NetworkManager/conf.d/20-random_mac.conf
 
 - name: Push WiFi/Wired Exclusive dispatcher
-  copy:
+  ansible.builtin.copy:
     src: wifi-wired-exclusive.sh
     dest: /etc/NetworkManager/dispatcher.d/70-wifi-wired-exclusive
     mode: "0755"
   when: network.wifi_wired_exclusive is defined and network.wifi_wired_exclusive == True
 
 - name: Enable and start NetworkManager
-  service:
+  ansible.builtin.service:
     name: NetworkManager.service
     enabled: true
     state: started
 
 - name: Enable and start NetworkManager dispatcher
-  service:
+  ansible.builtin.service:
     name: NetworkManager-dispatcher.service
     enabled: true
     state: started
 
 - name: Disable dhcpcd service
-  service:
+  ansible.builtin.service:
     name: dhcpcd.service
     enabled: false

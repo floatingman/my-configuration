@@ -10,16 +10,16 @@
     - aur
 
 - name: copy greenclip.service
-  copy:
+  ansible.builtin.copy:
     src: greenclip.service
     dest: /etc/systemd/user/greenclip.service
   become: true
 
 - name: Enable greenclip.service
-  systemd:
+  ansible.builtin.systemd:
     name: greenclip.service
     scope: user
-    enabled: yes
+    enabled: true
     state: started
   become_user: "{{ user.name }}"
   environment:

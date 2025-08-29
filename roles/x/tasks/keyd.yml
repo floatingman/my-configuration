@@ -1,7 +1,7 @@
 ---
 - name: Ensures /etc/keyd/ exists
   become: true
-  file:
+  ansible.builtin.file:
     path: /etc/keyd
     state: directory
 
@@ -39,15 +39,15 @@
   when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Enable and start keyd service
-  service:
+  ansible.builtin.service:
     name: keyd
     state: started
-    enabled: yes
+    enabled: true
   become: true
 
 - name: Copy keyd config file
   become: true
-  copy:
+  ansible.builtin.copy:
     src: "keyd_default.conf"
     dest: /etc/keyd/default.conf
     owner: root

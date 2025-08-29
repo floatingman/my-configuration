@@ -38,5 +38,5 @@
 - name: Install wezterm
   ansible.builtin.apt:
     name: wezterm
-    update_cache: yes
+    update_cache: true
   when: ansible_facts["os_family"] != "Archlinux"

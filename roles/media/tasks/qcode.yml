@@ -9,7 +9,7 @@
 
 - name: Push qcode script
   become: true
-  copy:
+  ansible.builtin.copy:
     src: qcode.sh
     dest: /usr/local/bin/qcode
     mode: 0755

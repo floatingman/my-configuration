@@ -1,6 +1,6 @@
 ---
 - name: Set kernel parameters
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/default/grub
     regexp: "^GRUB_CMDLINE_LINUX_DEFAULT"
     state: present
@@ -10,7 +10,7 @@
     - rebuild grub
 
 - name: Disable Grub submenus
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/default/grub
     regexp: "^GRUB_DISABLE_SUBMENU"
     state: present

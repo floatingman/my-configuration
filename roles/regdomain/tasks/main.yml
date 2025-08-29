@@ -7,7 +7,7 @@
 
 - name: Set wireless regulatory domain
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/conf.d/wireless-regdom
     regexp: ^WIRELESS_REGDOM
     state: present

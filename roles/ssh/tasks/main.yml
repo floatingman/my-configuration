@@ -15,7 +15,7 @@
 
 - name: Push OpenSSH daemon configuration file
   become: true
-  template:
+  ansible.builtin.template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
   notify:
@@ -23,17 +23,17 @@
 
 - name: Enable and start OpenSSH
   become: true
-  service:
+  ansible.builtin.service:
     name: sshd.service
-    enabled: yes
+    enabled: true
     state: started
   when: ssh.enable_sshd is defined and ssh.enable_sshd == True and ansible_facts["os_family"] == "Archlinux"
 
 - name: Disable and stop OpenSSH
   become: true
-  service:
+  ansible.builtin.service:
     name: sshd.service
-    enabled: no
+    enabled: false
     state: stopped
   when: ssh.enable_sshd is defined and ssh.enable_sshd == False and ansible_facts["os_family"] == "Archlinux"
 
@@ -52,7 +52,7 @@
 
 - name: Copy fuse configuration file
   become: true
-  copy:
+  ansible.builtin.copy:
     src: fuse.conf
     dest: /etc/fuse.conf
 
@@ -71,21 +71,21 @@
 
 - name: Export SSH_ASKPASS environment variable
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/profile
     state: present
     line: 'export SSH_ASKPASS="/usr/lib/ssh/x11-ssh-askpass"'
   when: "display_manager is defined"
 
 - name: Make directory for user SSH key
-  file:
+  ansible.builtin.file:
     path: /home/{{ user.name }}/.ssh
     state: directory
     owner: "{{ user.name }}"
     group: "{{ user.group }}"
 
 - name: Install user SSH key
-  copy:
+  ansible.builtin.copy:
     src: "{{ ssh.user_key }}"
     dest: /home/{{ user.name }}/.ssh/id_rsa
     mode: 600

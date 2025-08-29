@@ -1,13 +1,13 @@
 ---
 - name: ensure fonts directory
-  file:
+  ansible.builtin.file:
     path: "/home/{{ user.name }}/.fonts"
     state: directory
   become: true
   become_user: "{{ user.name }}"
 
 - name: Hack exists
-  shell: "ls /home/{{ user.name }}/.fonts/Hack*Nerd*Font*"
+  ansible.builtin.shell: "ls /home/{{ user.name }}/.fonts/Hack*Nerd*Font*"
   register: hack_exists
   ignore_errors: true
   become: true
@@ -18,12 +18,12 @@
   ansible.builtin.unarchive:
     src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz
     dest: "/home/{{ user.name }}/.fonts/"
-    remote_src: yes
+    remote_src: true
   become: true
   become_user: "{{ user.name }}"
 
 - name: JetBrains exists
-  shell: "ls /home/{{ user.name }}/.fonts/JetBrains*Nerd*Font*"
+  ansible.builtin.shell: "ls /home/{{ user.name }}/.fonts/JetBrains*Nerd*Font*"
   register: jetbrains_exists
   ignore_errors: true
   become: true
@@ -34,6 +34,6 @@
   ansible.builtin.unarchive:
     src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
     dest: "/home/{{ user.name }}/.fonts/"
-    remote_src: yes
+    remote_src: true
   become: true
   become_user: "{{ user.name }}"

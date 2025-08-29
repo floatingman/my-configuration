@@ -9,7 +9,7 @@
   become_user: "{{ user.name }}"
 
 - name: Install FZF
-  command: ./install --key-bindings --completion  --no-update-rc
+  ansible.builtin.command: ./install --key-bindings --completion  --no-update-rc
   args:
     chdir: "/home/{{ user.name }}/.fzf"
   become: true

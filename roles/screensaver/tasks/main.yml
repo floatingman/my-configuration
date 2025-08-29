@@ -26,14 +26,14 @@
     - aur
 
 - name: Push lock script
-  copy:
+  ansible.builtin.copy:
     src: lock.sh
     dest: /usr/local/bin/lock
     mode: 0755
   become: true
 
 - name: Push screen lock service file
-  copy:
+  ansible.builtin.copy:
     src: screenlock.service
     dest: /etc/systemd/system/screenlock@.service
   become: true
@@ -41,7 +41,7 @@
     - reload systemd config
 
 - name: Enable screen lock service
-  service:
+  ansible.builtin.service:
     name: "screenlock@{{ user.name }}.service"
-    enabled: yes
+    enabled: true
   become: true

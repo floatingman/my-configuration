@@ -7,26 +7,26 @@
     - packages
 
 - name: Create pacman hook directory
-  file: path=/etc/pacman.d/hooks
+  ansible.builtin.file: path=/etc/pacman.d/hooks
     state=directory
   tags:
     - packages
 
 - name: Use all cores when compressing packages
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/makepkg.conf
     regexp: "^COMPRESSXZ"
     line: "COMPRESSXZ=(xz -c -z - --threads=0)"
 
 - name: Push pacman cache cleanup service
-  copy: src=paccache.service dest=/etc/systemd/system/paccache.service
+  ansible.builtin.copy: src=paccache.service dest=/etc/systemd/system/paccache.service
   notify:
     - reload systemd config
   tags:
     - packages
 
 - name: Push pacman cache cleanup timer
-  copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
+  ansible.builtin.copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
   notify:
     - reload systemd config
     - restart paccache
@@ -34,6 +34,6 @@
     - packages
 
 - name: Enable and start pacman cache cleanup timer
-  service: name=paccache.timer enabled=yes state=started
+  ansible.builtin.service: name=paccache.timer enabled=yes state=started
   tags:
     - packages

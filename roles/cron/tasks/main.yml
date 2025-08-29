@@ -5,7 +5,7 @@
     state: present
 
 - name: Enable cronie
-  service:
+  ansible.builtin.service:
     name: cronie.service
     enabled: true
     state: started

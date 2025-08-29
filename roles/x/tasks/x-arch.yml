@@ -50,10 +50,10 @@
     state: present
 
 - name: Add user to video group
-  user:
+  ansible.builtin.user:
     name: "{{ user.name }}"
     groups: video
-    append: yes
+    append: true
   tags:
     - user
 

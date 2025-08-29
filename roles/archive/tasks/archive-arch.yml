@@ -10,7 +10,7 @@
 - name: Install hashdeep
   kewlfft.aur.aur:
     name: hashdeep
-    use: auto    
+    use: auto
     state: present
   become_user: aur_builder
   tags:
