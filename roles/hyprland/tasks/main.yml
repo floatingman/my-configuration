@@ -1,0 +1,25 @@
+---
+- name: Install hyprland
+  package:
+    name: hyprland
+    state: present
+  become: true
+
+- name: Install hyprland utils
+  package:
+    name:
+      - hypridle
+      - hyprcursor
+      - hyprland
+      - hyprland-qtutils
+      - hyprland-qt-support
+      - hyprlang
+      - hyprlock
+      - hyprpicker
+      - hyprsunset
+      - hyprutils
+      - hyprwayland-scanner
+      - xdg-desktop-portal-hyprland
+      - wl-clipboard
+    state: present
+  become: true
