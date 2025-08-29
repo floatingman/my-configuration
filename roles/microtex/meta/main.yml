@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: Daniel Newman
+  description: Ansible role to build and install MicroTeX from source
+  company: illogical-impulse
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: ArchLinux
+      versions:
+        - all
+  galaxy_tags:
+    - latex
+    - microtex
+    - build
+    - development
+    - math
+
+dependencies: []

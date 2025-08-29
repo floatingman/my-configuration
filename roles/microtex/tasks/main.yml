@@ -1,0 +1,91 @@
+---
+- name: Install MicroTeX dependencies
+  ansible.builtin.package:
+    name: "{{ microtex_dependencies }}"
+    state: present
+  when: ansible_os_family == "Archlinux"
+
+- name: Create build directory
+  ansible.builtin.file:
+    path: "{{ microtex_build_dir }}"
+    state: directory
+    mode: "0755"
+  become: false
+
+- name: Clone MicroTeX repository
+  ansible.builtin.git:
+    repo: "{{ microtex_repo_url }}"
+    dest: "{{ microtex_build_dir }}/MicroTeX"
+    version: "{{ microtex_git_version }}"
+    force: true
+  become: false
+
+- name: Apply CMakeLists.txt patches
+  ansible.builtin.replace:
+    path: "{{ microtex_build_dir }}/MicroTeX/CMakeLists.txt"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - regexp: 'gtksourceviewmm-3\.0'
+      replace: 'gtksourceviewmm-4.0'
+    - regexp: 'tinyxml2\.so\.10'
+      replace: 'tinyxml2.so.11'
+  become: false
+
+- name: Configure build with CMake
+  ansible.builtin.command:
+    cmd: cmake -B build -S . -DCMAKE_BUILD_TYPE={{ microtex_cmake_build_type }}
+    chdir: "{{ microtex_build_dir }}/MicroTeX"
+    creates: "{{ microtex_build_dir }}/MicroTeX/build/CMakeCache.txt"
+  become: false
+
+- name: Build MicroTeX
+  ansible.builtin.command:
+    cmd: cmake --build build
+    chdir: "{{ microtex_build_dir }}/MicroTeX"
+    creates: "{{ microtex_build_dir }}/MicroTeX/build/LaTeX"
+  become: false
+
+- name: Create installation directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ microtex_install_path }}"
+    - "{{ microtex_license_path }}"
+
+- name: Install MicroTeX binary
+  ansible.builtin.copy:
+    src: "{{ microtex_build_dir }}/MicroTeX/build/LaTeX"
+    dest: "{{ microtex_install_path }}/LaTeX"
+    mode: "0755"
+    remote_src: true
+
+- name: Install MicroTeX resources
+  ansible.builtin.copy:
+    src: "{{ microtex_build_dir }}/MicroTeX/build/res/"
+    dest: "{{ microtex_install_path }}/res/"
+    mode: "0644"
+    remote_src: true
+
+- name: Install license file
+  ansible.builtin.copy:
+    src: "{{ microtex_build_dir }}/MicroTeX/LICENSE"
+    dest: "{{ microtex_license_path }}/LICENSE"
+    mode: "0644"
+    remote_src: true
+
+- name: Create symbolic link for LaTeX binary
+  ansible.builtin.file:
+    src: "{{ microtex_install_path }}/LaTeX"
+    dest: "/usr/local/bin/microtex"
+    state: link
+  when: microtex_create_symlink | bool
+
+- name: Clean up build directory
+  ansible.builtin.file:
+    path: "{{ microtex_build_dir }}"
+    state: absent
+  when: microtex_cleanup_build | bool
+  become: false

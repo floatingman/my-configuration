@@ -1,0 +1,28 @@
+---
+# MicroTeX role default variables
+
+# Repository settings
+microtex_repo_url: "https://github.com/NanoMichael/MicroTeX.git"
+microtex_git_version: "master"
+microtex_package_name: "illogical-impulse-microtex-git"
+
+# Build settings
+microtex_build_dir: "/tmp/microtex-build"
+microtex_cleanup_build: true
+
+# Installation settings
+microtex_create_symlink: true
+microtex_install_path: "/opt/MicroTeX"
+microtex_license_path: "/usr/share/licenses/{{ microtex_package_name }}"
+
+# Dependencies (Arch Linux packages)
+microtex_dependencies:
+  - tinyxml2
+  - gtkmm3
+  - gtksourceviewmm
+  - cairomm
+  - git
+  - cmake
+
+# CMake build type
+microtex_cmake_build_type: "None"
