@@ -1,0 +1,31 @@
+---
+- name: Install plasma-nm
+  package:
+    name: plasma-nm
+    state: present
+  become: true
+- name: Install bluedevil
+  package:
+    name: bluedevil
+    state: present
+  become: true
+- name: Install gnome-keyring
+  package:
+    name: gnome-keyring
+    state: present
+  become: true
+- name: Install polkit-kde-agent
+  package:
+    name: polkit-kde-agent
+    state: present
+  become: true
+- name: Install dolphin
+  package:
+    name: dolphin
+    state: present
+  become: true
+- name: Install systemsettings
+  package:
+    name: systemsettings
+    state: present
+  become: true
