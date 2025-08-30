@@ -28,20 +28,21 @@ def fix_fqcn(content):
         r'\buser:': 'ansible.builtin.user:',
         r'\bgroup:': 'ansible.builtin.group:',
         r'\bservice:': 'ansible.builtin.service:',
+        r'\bpackage:': 'ansible.builtin.package'
     }
-    
+
     # First, fix any existing incorrect patterns
     content = re.sub(r'ansible\.builtin\.ansible\.builtin\.', 'ansible.builtin.', content)
     content = re.sub(r'lineinansible\.builtin\.file:', 'ansible.builtin.lineinfile:', content)
     content = re.sub(r'ansible\.builtin\.lineinansible\.builtin\.file:', 'ansible.builtin.lineinfile:', content)
     content = re.sub(r'become_ansible\.builtin\.user:', 'become_user:', content)
     content = re.sub(r'ansible\.builtin\.group:', 'group:', content)
-    
+
     # Only apply replacements if not already FQCN
     for pattern, replacement in patterns.items():
         # Don't replace if already has ansible.builtin prefix
         content = re.sub(f'(?<!ansible\.builtin\.){pattern}', replacement, content)
-    
+
     return content
 
 def fix_truthy_values(content):
@@ -61,20 +62,20 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: fix_ansible_lint_v2.py <file>")
         sys.exit(1)
-    
+
     filename = sys.argv[1]
-    
+
     with open(filename, 'r') as f:
         content = f.read()
-    
+
     # Apply fixes
     content = fix_fqcn(content)
     content = fix_truthy_values(content)
     content = fix_trailing_spaces(content)
-    
+
     with open(filename, 'w') as f:
         f.write(content)
-    
+
     print(f"Fixed {filename}")
 
 if __name__ == '__main__':
