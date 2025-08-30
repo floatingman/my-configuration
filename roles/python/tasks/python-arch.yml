@@ -22,3 +22,18 @@
   package:
     name: python-docs
     state: present
+
+- name: Install python utils
+  become: true
+  package:
+    name:
+      - clang
+      - uv
+      - gtk4
+      - libadwaita
+      - libsoup3
+      - libportal-gtk4
+      - gobject-introspection
+      - sassc
+      - python-opencv
+    state: present
