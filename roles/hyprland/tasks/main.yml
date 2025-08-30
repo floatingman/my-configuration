@@ -21,5 +21,8 @@
       - hyprwayland-scanner
       - xdg-desktop-portal-hyprland
       - wl-clipboard
+      - xdg-desktop-portal
+      - xdg-desktop-portal-kde
+      - xdg-desktop-portal-gtk
     state: present
   become: true
