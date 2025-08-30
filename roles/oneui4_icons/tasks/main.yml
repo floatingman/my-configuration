@@ -1,0 +1,70 @@
+---
+- name: Check if OneUI4-Icons installation is enabled
+  ansible.builtin.debug:
+    msg: "Installing OneUI4-Icons from {{ oneui4_icons_repo_url }}"
+  when: oneui4_icons_enabled
+
+- name: Install OneUI4-Icons dependencies
+  ansible.builtin.package:
+    name: "{{ oneui4_icons_dependencies }}"
+    state: present
+  become: true
+  when: oneui4_icons_enabled and ansible_os_family == "Archlinux"
+
+- name: Create build directory
+  ansible.builtin.file:
+    path: "{{ oneui4_icons_build_dir }}"
+    state: directory
+    mode: "0755"
+  become: false
+  when: oneui4_icons_enabled
+
+- name: Clone OneUI4-Icons repository
+  ansible.builtin.git:
+    repo: "{{ oneui4_icons_repo_url }}"
+    dest: "{{ oneui4_icons_build_dir }}/OneUI4-Icons"
+    version: "{{ oneui4_icons_git_version }}"
+    force: true
+  become: false
+  when: oneui4_icons_enabled
+
+- name: Create icons installation directory
+  ansible.builtin.file:
+    path: "{{ oneui4_icons_install_path }}"
+    state: directory
+    mode: "0755"
+  become: true
+  when: oneui4_icons_enabled
+
+- name: Install OneUI4-Icons themes
+  ansible.builtin.copy:
+    src: "{{ oneui4_icons_build_dir }}/OneUI4-Icons/{{ item }}/"
+    dest: "{{ oneui4_icons_install_path }}/{{ item }}"
+    mode: preserve
+    remote_src: true
+  become: true
+  loop: "{{ oneui4_icons_themes }}"
+  when: oneui4_icons_enabled
+  notify: update icon cache
+
+- name: Set icon theme permissions
+  ansible.builtin.file:
+    path: "{{ oneui4_icons_install_path }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    recurse: true
+  become: true
+  loop: "{{ oneui4_icons_themes }}"
+  when: oneui4_icons_enabled
+
+- name: Clean up build directory
+  ansible.builtin.file:
+    path: "{{ oneui4_icons_build_dir }}"
+    state: absent
+  when: oneui4_icons_enabled and oneui4_icons_cleanup_build | bool
+  become: false
+
+- name: Display installation completion message
+  ansible.builtin.debug:
+    msg: "OneUI4-Icons themes {{ oneui4_icons_themes | join(', ') }} installed successfully to {{ oneui4_icons_install_path }}"
+  when: oneui4_icons_enabled

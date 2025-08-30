@@ -25,6 +25,7 @@
     - { role: hyprland, tags: ["hyprland"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: kde, tags: ["kde"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: microtex, tags: ["microtex"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
+    - { role: oneui4_icons, tags: ["oneui4_icons"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }

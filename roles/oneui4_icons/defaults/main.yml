@@ -1,0 +1,28 @@
+---
+# OneUI4-Icons role default variables
+
+# Repository settings
+oneui4_icons_repo_url: "https://github.com/end-4/OneUI4-Icons.git"
+oneui4_icons_git_version: "HEAD"
+oneui4_icons_package_name: "illogical-impulse-oneui4-icons-git"
+
+# Build settings
+oneui4_icons_build_dir: "/tmp/oneui4-icons-build"
+oneui4_icons_cleanup_build: true
+
+# Installation settings
+oneui4_icons_install_path: "/usr/share/icons"
+oneui4_icons_enabled: true
+
+# Icon themes to install (from PKGBUILD: OneUI, OneUI-dark, OneUI-light)
+oneui4_icons_themes:
+  - "OneUI"
+  - "OneUI-dark"
+  - "OneUI-light"
+
+# Dependencies (git is needed for cloning)
+oneui4_icons_dependencies:
+  - git
+
+# Update icon cache after installation
+oneui4_icons_update_cache: true

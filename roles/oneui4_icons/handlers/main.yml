@@ -1,0 +1,18 @@
+---
+- name: Update icon cache
+  ansible.builtin.command:
+    cmd: gtk-update-icon-cache {{ oneui4_icons_install_path }}/{{ item }}
+  become: true
+  failed_when: false
+  changed_when: false
+  loop: "{{ oneui4_icons_themes }}"
+  when: oneui4_icons_update_cache | bool
+  listen: "update icon cache"
+
+- name: Refresh desktop environment
+  ansible.builtin.command:
+    cmd: xdg-desktop-menu forceupdate
+  become: false
+  failed_when: false
+  changed_when: false
+  listen: "update icon cache"
