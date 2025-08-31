@@ -1,0 +1,38 @@
+---
+- name: Install Hyperland widgets (official repos)
+  become: true
+  ansible.builtin.package:
+    name:
+      - fuzzel
+      - glib2
+      - hypridle
+      - hyprutils
+      - hyprlock
+      - hyprpicker
+      - nm-connection-editor
+      - translate-shell
+    state: present
+  tags:
+    - widgets
+
+- name: Remove conflicting quickshell package
+  become: true
+  ansible.builtin.package:
+    name: quickshell
+    state: absent
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - widgets
+
+- name: Install Hyperland widgets (AUR)
+  kewlfft.aur.aur:
+    name:
+      - quickshell-git
+      - wlogout
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - widgets
+    - aur
