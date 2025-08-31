@@ -1,0 +1,67 @@
+---
+# defaults file for uv_python_packages
+
+# Installation mode: 'tool' for individual tools, 'pip' for shared environment
+uv_python_packages_mode: "tool"
+
+# List of Python packages to install using uv tool (for tool mode)
+# Each package can be a simple string or a dictionary with additional options
+uv_python_packages_list: []
+
+# Example packages (commented out by default):
+# uv_python_packages_list:
+#   - "black"
+#   - "flake8"
+#   - "pytest"
+#   - "jupyterlab"
+#   - "httpie"
+#   - "molecule[docker]"
+
+# Requirements file path or URL (for pip mode)
+uv_python_packages_requirements_file: ""
+
+# Example requirements file:
+# uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/raw/main/scriptdata/requirements.txt"
+
+# Virtual environment path (for pip mode)
+uv_python_packages_venv_path: "~/.local/share/uv-python-packages"
+
+# Global uv tool install options (for tool mode)
+uv_python_packages_tool_options:
+  # Force installation even if already installed
+  force: false
+  # Use quiet output
+  quiet: false
+  # Use verbose output
+  verbose: false
+  # Upgrade packages if they already exist
+  upgrade: false
+  # Python interpreter to use (optional)
+  python: ""
+  # Additional requirements to include with each package
+  with_requirements: []
+  # Constraints file to use
+  constraints: []
+  # Override file to use
+  overrides: []
+
+# Global uv pip install options (for pip mode)
+uv_python_packages_pip_options:
+  # Use quiet output
+  quiet: false
+  # Use verbose output
+  verbose: false
+  # Upgrade packages if they already exist
+  upgrade: false
+  # Python interpreter to use (optional)
+  python: ""
+  # Index URL to use
+  index_url: ""
+  # Extra index URLs
+  extra_index_url: []
+
+# Whether to update shell PATH after installation
+uv_python_packages_update_shell: true
+
+# Whether to enable the role (useful for conditional execution)
+uv_python_packages_enabled: true

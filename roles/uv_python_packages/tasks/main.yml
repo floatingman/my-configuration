@@ -1,0 +1,158 @@
+---
+# tasks file for uv_python_packages
+
+- name: Check if role is enabled
+  ansible.builtin.debug:
+    msg: "uv_python_packages role is disabled"
+  when: not uv_python_packages_enabled
+
+- name: End play if role is disabled
+  ansible.builtin.meta: end_host
+  when: not uv_python_packages_enabled
+
+- name: Ensure uv is installed
+  ansible.builtin.command: which uv
+  register: uv_python_packages_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail if uv is not installed
+  ansible.builtin.fail:
+    msg: "uv package manager is not installed. Please install uv first."
+  when: uv_python_packages_check.rc != 0
+
+- name: Get current user
+  ansible.builtin.set_fact:
+    uv_python_packages_current_user: "{{ ansible_user_id }}"
+
+# Tool mode tasks
+- name: Build uv tool install command
+  ansible.builtin.set_fact:
+    uv_python_packages_install_cmd: >-
+      uv tool install
+      {{ '--force' if (uv_python_packages_tool_options.force | default(false)) else '' }}
+      {{ '--quiet' if (uv_python_packages_tool_options.quiet | default(false)) else '' }}
+      {{ '--verbose' if (uv_python_packages_tool_options.verbose | default(false)) else '' }}
+      {{ '--upgrade' if (uv_python_packages_tool_options.upgrade | default(false)) else '' }}
+      {{ ('--python ' + uv_python_packages_tool_options.python) if (uv_python_packages_tool_options.python | default('')) else '' }}
+  when: uv_python_packages_mode == "tool"
+
+- name: Install Python packages using uv tool
+  ansible.builtin.command: "{{ uv_python_packages_install_cmd }} {{ item }}"
+  loop: "{{ uv_python_packages_list }}"
+  register: uv_python_packages_install_result
+  changed_when: "'already installed' not in uv_python_packages_install_result.stderr"
+  failed_when:
+    - uv_python_packages_install_result.rc != 0
+    - "'already installed' not in uv_python_packages_install_result.stderr"
+  become: false
+  when:
+    - uv_python_packages_mode == "tool"
+    - uv_python_packages_list is defined
+    - uv_python_packages_list | length > 0
+
+- name: Update shell PATH for uv tools
+  ansible.builtin.command: uv tool update-shell
+  register: uv_python_packages_shell_update
+  changed_when: "'already up to date' not in uv_python_packages_shell_update.stdout"
+  become: false
+  when:
+    - uv_python_packages_mode == "tool"
+    - uv_python_packages_update_shell
+    - uv_python_packages_list is defined
+    - uv_python_packages_list | length > 0
+
+- name: Get uv tools directory
+  ansible.builtin.command: uv tool dir
+  register: uv_python_packages_tools_dir
+  changed_when: false
+  become: false
+  when:
+    - uv_python_packages_mode == "tool"
+    - uv_python_packages_list is defined
+    - uv_python_packages_list | length > 0
+
+# Pip mode tasks
+- name: Expand virtual environment path
+  ansible.builtin.set_fact:
+    uv_python_packages_venv_expanded: "{{ uv_python_packages_venv_path | expanduser }}"
+  when: uv_python_packages_mode == "pip"
+
+- name: Create virtual environment using uv
+  ansible.builtin.command: >-
+    uv venv {{ uv_python_packages_venv_expanded }}
+    {{ ('--python ' + uv_python_packages_pip_options.python) if (uv_python_packages_pip_options.python | default('')) else '' }}
+  register: uv_python_packages_venv_result
+  changed_when: "'already exists' not in uv_python_packages_venv_result.stderr"
+  failed_when:
+    - uv_python_packages_venv_result.rc != 0
+    - "'already exists' not in uv_python_packages_venv_result.stderr"
+  become: false
+  when:
+    - uv_python_packages_mode == "pip"
+    - uv_python_packages_requirements_file != ""
+
+- name: Build uv pip install command
+  ansible.builtin.set_fact:
+    uv_python_packages_pip_cmd: >-
+      uv pip install
+      --python {{ uv_python_packages_venv_expanded }}/bin/python
+      {{ '--quiet' if (uv_python_packages_pip_options.quiet | default(false)) else '' }}
+      {{ '--verbose' if (uv_python_packages_pip_options.verbose | default(false)) else '' }}
+      {{ '--upgrade' if (uv_python_packages_pip_options.upgrade | default(false)) else '' }}
+      {{ ('--index-url ' + uv_python_packages_pip_options.index_url) if (uv_python_packages_pip_options.index_url | default('')) else '' }}
+      {% for extra_index in uv_python_packages_pip_options.extra_index_url %}
+      --extra-index-url {{ extra_index }}
+      {% endfor %}
+  when: uv_python_packages_mode == "pip"
+
+- name: Install packages from requirements file using uv pip
+  ansible.builtin.command: "{{ uv_python_packages_pip_cmd }} -r {{ uv_python_packages_requirements_file }}"
+  register: uv_python_packages_pip_result
+  changed_when: "'already satisfied' not in uv_python_packages_pip_result.stdout"
+  become: false
+  when:
+    - uv_python_packages_mode == "pip"
+    - uv_python_packages_requirements_file != ""
+
+- name: Install individual packages using uv pip
+  ansible.builtin.command: "{{ uv_python_packages_pip_cmd }} {{ item }}"
+  loop: "{{ uv_python_packages_list }}"
+  register: uv_python_packages_pip_individual_result
+  changed_when: "'already satisfied' not in uv_python_packages_pip_individual_result.stdout"
+  become: false
+  when:
+    - uv_python_packages_mode == "pip"
+    - uv_python_packages_list is defined
+    - uv_python_packages_list | length > 0
+
+# Common display tasks
+- name: Display installed packages (tool mode)
+  ansible.builtin.debug:
+    msg: "Successfully installed Python tools: {{ uv_python_packages_list | join(', ') }}"
+  when:
+    - uv_python_packages_mode == "tool"
+    - uv_python_packages_list is defined
+    - uv_python_packages_list | length > 0
+
+- name: Display installed packages (pip mode)
+  ansible.builtin.debug:
+    msg: "Successfully installed Python packages in virtual environment: {{ uv_python_packages_venv_expanded }}"
+  when:
+    - uv_python_packages_mode == "pip"
+    - (uv_python_packages_requirements_file != "" or (uv_python_packages_list is defined and uv_python_packages_list | length > 0))
+
+- name: Display uv tools directory
+  ansible.builtin.debug:
+    msg: "uv tools are installed in: {{ uv_python_packages_tools_dir.stdout }}"
+  when:
+    - uv_python_packages_mode == "tool"
+    - uv_python_packages_tools_dir is defined
+    - uv_python_packages_tools_dir.stdout is defined
+
+- name: Display virtual environment path
+  ansible.builtin.debug:
+    msg: "Virtual environment created at: {{ uv_python_packages_venv_expanded }}"
+  when:
+    - uv_python_packages_mode == "pip"
+    - uv_python_packages_venv_expanded is defined

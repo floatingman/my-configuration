@@ -1,0 +1,21 @@
+---
+# handlers file for uv_python_packages
+
+- name: Update uv tool cache
+  ansible.builtin.command: uv cache clean
+  become: false
+  changed_when: true
+  listen: "clean uv cache"
+
+- name: Refresh uv tools
+  ansible.builtin.command: uv tool list
+  register: uv_python_packages_tools_list
+  changed_when: false
+  become: false
+  listen: "refresh uv tools"
+
+- name: Update shell environment
+  ansible.builtin.command: uv tool update-shell
+  become: false
+  changed_when: true
+  listen: "update shell"

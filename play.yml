@@ -29,6 +29,7 @@
     - { role: screencapture, tags: ["screencapture"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: qt_gtk_toolkit, tags: ["qt_gtk_toolkit"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: widgets, tags: ["widgets"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
+    - { role: uv_python_packages, tags: ["uv_python_packages"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
