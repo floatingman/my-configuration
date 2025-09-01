@@ -109,7 +109,7 @@
     - {
       role: screensaver,
       tags: ["screensaver"],
-      when: desktop_environment is defined,
+      when: desktop_environment is defined
     }
     - {
       role: cups,

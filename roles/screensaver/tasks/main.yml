@@ -29,13 +29,14 @@
   ansible.builtin.copy:
     src: lock.sh
     dest: /usr/local/bin/lock
-    mode: 0755
+    mode: 'u=rwx,g=rx,o=rx'
   become: true
 
 - name: Push screen lock service file
   ansible.builtin.copy:
     src: screenlock.service
     dest: /etc/systemd/system/screenlock@.service
+    mode: 'u=rw,g=r,o=r'
   become: true
   notify:
     - reload systemd config
@@ -45,3 +46,12 @@
     name: "screenlock@{{ user.name }}.service"
     enabled: true
   become: true
+  when: desktop_environment == 'i3'
+
+- name: Disable screen lock service for non-i3
+  ansible.builtin.service:
+    name: "screenlock@{{ user.name }}.service"
+    enabled: false
+    state: stopped
+  become: true
+  when: desktop_environment != 'i3'
