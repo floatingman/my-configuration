@@ -1,31 +1,34 @@
 ---
 - name: Install NetworkManager and dependencies
-  package:
+  ansible.builtin.package:
     name:
       - networkmanager
       - networkmanager-openvpn
       - network-manager-applet
       - xfce4-notifyd
       - gnome-keyring
+      - nwg-displays
     state: present
 
 - name: Push connectivity check config
   ansible.builtin.template:
     src: connectivity.conf.j2
     dest: /etc/NetworkManager/conf.d/20-connectivity.conf
+    mode: "0644"
   when: network.conn_check is defined
 
 - name: Push MAC address randomization config
   ansible.builtin.template:
     src: random_mac.conf.j2
     dest: /etc/NetworkManager/conf.d/20-random_mac.conf
+    mode: "0644"
 
 - name: Push WiFi/Wired Exclusive dispatcher
   ansible.builtin.copy:
     src: wifi-wired-exclusive.sh
     dest: /etc/NetworkManager/dispatcher.d/70-wifi-wired-exclusive
     mode: "0755"
-  when: network.wifi_wired_exclusive is defined and network.wifi_wired_exclusive == True
+  when: network.wifi_wired_exclusive | default(false)
 
 - name: Enable and start NetworkManager
   ansible.builtin.service:
