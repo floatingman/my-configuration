@@ -48,8 +48,9 @@ goesimage:
 network:
   spoof_mac: True
   conn_check:
-    url: https://google.com
+    url: http://connectivitycheck.gstatic.com/generate_204
     interval: 5
+    response: 204
   wifi_wired_exclusive: true
   trusted_uuid:
     - 8c60f8cd-b8a8-48df-b58b-10886f73a9c3
