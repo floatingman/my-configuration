@@ -14,13 +14,14 @@ udisks:
   shared_mount: True
 desktop_environment: i3
 display_manager: lightdm
-hostname: sunstreaker
+hostname: <changthis>
 bootloader: grub
 bluetooth:
   disable: False
 browser_choices:
   - firefox
   - brave
+  - google-chrome-stable
   - torbrowser-launcher
   - play
   - qcode
@@ -47,7 +48,9 @@ goesimage:
 network:
   spoof_mac: True
   conn_check:
-    interval: 0
+    url: https://google.com
+    interval: 5
+  wifi_wired_exclusive: true
   trusted_uuid:
     - 8c60f8cd-b8a8-48df-b58b-10886f73a9c3
     - 54caeabc-0a90-41b2-b641-b4c3565e3c8b
@@ -184,6 +187,7 @@ cli:
     - timewarrior
     - x11proto-core-dev
   arch:
+    - ansible-lint
     - argocd
     - bat
     - bind-tools
@@ -198,7 +202,7 @@ cli:
     - duf
     - dust
     - entr
-    - exa
+    - eza
     - fd
     - fish
     - git-delta
@@ -214,6 +218,7 @@ cli:
     - lazygit
     - logcli
     - mdbook
+    - meson
     - nnn
     - popeye
     - poppler
@@ -288,6 +293,7 @@ aur:
     - python-grip
     - scc
     - slack-term-bin
+    - synergy3-bin
     - tfswitch-bin
     - udevil
     - viddy
@@ -330,14 +336,36 @@ aur_fonts:
   - ttf-bitstream-charter
   - ttf-cooper-hewitt
   - ttf-courier-prime
+  - ttf-gabarito-git
+  - ttf-jetbrains-mono-nerd
+  - ttf-material-symbols-variable-git
   - ttf-merriweather
   - ttf-merriweather-sans
   - ttf-mplus-git
   - ttf-oswald
   - ttf-quintessential
+  - ttf-readex-pro
+  - ttf-rubik-vf
   - ttf-sarasa-gothic-nerd-fonts
-  - ttf-signika
   - ttf-segoe-ui-variable
+  - ttf-signika
+  - ttf-twemoji
+
+# Cursor theme configuration
+cursor_theme:
+  enabled: true
+  variant: "Bibata-Modern-Classic"
+  version: "2.0.6"
+  conflicts:
+    - bibata-cursor-theme
+    - bibata-cursor-theme-bin
+    - xcursor-themes
+  temp_dir: "/tmp/cursor-theme"
+
+uv_python_packages_mode: "pip"
+uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/raw/main/scriptdata/requirements.txt"
+uv_python_packages_venv_path: "/home/dnewman/.local/state/quickshell/.venv"
+uv_python_packages_enabled: truepower_management: "tuned"
 
 power_management: "tuned"
 
