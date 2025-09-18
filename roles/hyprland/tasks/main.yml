@@ -24,5 +24,6 @@
       - xdg-desktop-portal
       - xdg-desktop-portal-kde
       - xdg-desktop-portal-gtk
+      - fcitx5
     state: present
   become: true

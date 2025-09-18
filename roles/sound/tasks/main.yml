@@ -15,6 +15,7 @@
       - cava
       - wireplumber
       - playerctl
+      - easyeffects
     state: present
   become: true
 
