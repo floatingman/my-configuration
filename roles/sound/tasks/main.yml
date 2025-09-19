@@ -16,6 +16,10 @@
       - wireplumber
       - playerctl
       - easyeffects
+      - lsp-plugins-lv2
+      - zam-plugins
+      - calf
+      - mda.lv2
     state: present
   become: true
 
