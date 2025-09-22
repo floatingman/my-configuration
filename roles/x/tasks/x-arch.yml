@@ -44,6 +44,14 @@
     name: xorg-xinput
     state: present
 
+- name: Add user to input group
+  ansible.builtin.user:
+    name: "{{ user.name }}"
+    groups: input
+    append: true
+  tags:
+    - user
+
 - name: Install video driver(s)
   package:
     name: "{{ video_drivers }}"
