@@ -10,8 +10,8 @@ user:
     dir: log
     rotate: 8
 udisks:
-  auto_mount: True
-  shared_mount: True
+  auto_mount: true
+  shared_mount: true
 desktop_environment: i3
 display_manager: lightdm
 hostname: <changthis>
@@ -46,7 +46,7 @@ goesimage:
   run_on: all
   flags: -w -e
 network:
-  spoof_mac: True
+  spoof_mac: true
   conn_check:
     url: http://connectivitycheck.gstatic.com/generate_204
     interval: 5
@@ -58,7 +58,7 @@ network:
     - b70a7980-1b70-4819-8bbe-380d028f6a0b
 ssh:
   port: 22
-  enable_sshd: True
+  enable_sshd: true
 gnupg:
   enable_agent: true
   emulate_ssh: true

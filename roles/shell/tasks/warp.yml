@@ -1,0 +1,38 @@
+---
+- name: Install warp-terminal from AUR
+  kewlfft.aur.aur:
+    name: warp-terminal
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+    - warp
+    - terminal
+
+- name: Install warp-terminal via pacman (if available in official repos)
+  package:
+    name: warp-terminal
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+  ignore_errors: yes
+  tags:
+    - warp
+    - terminal
+
+- name: Check if warp-terminal is installed
+  command: which warp-terminal
+  register: warp_installed
+  ignore_errors: yes
+  changed_when: false
+  tags:
+    - warp
+    - terminal
+
+- name: Display warp-terminal installation status
+  debug:
+    msg: "Warp terminal {{ 'is installed' if warp_installed.rc == 0 else 'installation failed or not available' }}"
+  tags:
+    - warp
+    - terminal
