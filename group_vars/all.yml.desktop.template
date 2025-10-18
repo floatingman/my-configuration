@@ -364,7 +364,7 @@ cursor_theme:
   temp_dir: "/tmp/cursor-theme"
 
 uv_python_packages_mode: "pip"
-uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/raw/main/scriptdata/requirements.txt"
+uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/raw/main/sdata/uv/requirements.txt"
 uv_python_packages_venv_path: "/home/dnewman/.local/state/quickshell/.venv"
 uv_python_packages_enabled: truepower_management: "tuned"
 
