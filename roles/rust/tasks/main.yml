@@ -3,6 +3,7 @@
   ansible.builtin.stat:
     path: "{{ user_home }}/.cargo/bin/rustup"
   register: rustup_installed
+  check_mode: false
   vars:
     user_home: "{{ ansible_env.HOME }}"
 
@@ -32,6 +33,7 @@
   ansible.builtin.stat:
     path: "{{ user_home }}/.config/fish"
   register: fish_config
+  check_mode: false
   vars:
     user_home: "{{ ansible_env.HOME }}"
 
@@ -51,6 +53,7 @@
   register: installed_cargo_packages
   changed_when: false
   failed_when: false
+  check_mode: false
   vars:
     user_home: "{{ ansible_env.HOME }}"
 
