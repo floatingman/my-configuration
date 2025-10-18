@@ -718,3 +718,11 @@ binaries:
   - name: viddy
     url: "https://github.com/sachaos/viddy/releases/download/v{{ viddy_version }}/viddy_{{ viddy_version }}_Linux_x86_64.tar.gz"
     extract: true
+
+# Rust cargo packages to install
+cargo_packages:
+  - ripgrep
+  - fd-find
+  - bat
+  - exa
+  - tokei

@@ -1,0 +1,3 @@
+---
+# Default list of cargo packages to install
+cargo_packages: []
