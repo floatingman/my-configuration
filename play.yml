@@ -1,7 +1,6 @@
 ---
 - name: Configure localhost
   hosts: localhost
-  become: true
   roles:
     # - { role: ansible-role-basic, tags: ["basic"] }
     - { role: base, tags: ["base"], when: ansible_os_family == "Archlinux" }

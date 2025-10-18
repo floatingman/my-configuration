@@ -3,12 +3,14 @@
   package:
     name: "{{ base_packages }}"
     state: present
+  become: true
   tags:
     - packages
 
 - name: Create pacman hook directory
   ansible.builtin.file: path=/etc/pacman.d/hooks
     state=directory
+  become: true
   tags:
     - packages
 
@@ -17,9 +19,11 @@
     dest: /etc/makepkg.conf
     regexp: "^COMPRESSXZ"
     line: "COMPRESSXZ=(xz -c -z - --threads=0)"
+  become: true
 
 - name: Push pacman cache cleanup service
   ansible.builtin.copy: src=paccache.service dest=/etc/systemd/system/paccache.service
+  become: true
   notify:
     - reload systemd config
   tags:
@@ -27,6 +31,7 @@
 
 - name: Push pacman cache cleanup timer
   ansible.builtin.copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
+  become: true
   notify:
     - reload systemd config
     - restart paccache
@@ -35,5 +40,6 @@
 
 - name: Enable and start pacman cache cleanup timer
   ansible.builtin.service: name=paccache.timer enabled=yes state=started
+  become: true
   tags:
     - packages
