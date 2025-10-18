@@ -69,35 +69,39 @@
     state: directory
   become: True
 
-- name: "detect system architecture"
-  set_fact:
-    asdf_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
-
-- name: "detect system OS"
-  set_fact:
-    asdf_os: "{{ 'linux' if ansible_system == 'Linux' else 'darwin' if ansible_system == 'Darwin' else ansible_system | lower }}"
-
-- name: "download asdf binary"
-  get_url:
-    url: "https://github.com/asdf-vm/asdf/releases/download/{{ asdf_version }}/asdf_{{ asdf_version }}_{{ asdf_os }}_{{ asdf_arch }}.tar.gz"
-    dest: "/tmp/asdf_{{ asdf_version }}.tar.gz"
-    mode: 0644
-  become: True
-
-- name: "extract asdf binary"
-  unarchive:
-    src: "/tmp/asdf_{{ asdf_version }}.tar.gz"
+- name: "clone asdf repository"
+  git:
+    repo: "https://github.com/asdf-vm/asdf.git"
     dest: "{{ asdf_dir }}"
-    remote_src: yes
-    owner: "{{ asdf_user }}"
-    group: "{{ asdf_group }}"
+    version: "{{ asdf_version }}"
+    depth: 1
   become: True
+  become_user: "{{ asdf_user }}"
 
-- name: "cleanup asdf download"
-  file:
-    path: "/tmp/asdf_{{ asdf_version }}.tar.gz"
-    state: absent
+- name: "install Go for building asdf (Debian)"
+  apt:
+    name: "golang-go"
+    state: present
+    cache_valid_time: "{{ apt_cache_valid_time }}"
   become: True
+  when: ansible_os_family == "Debian"
+
+- name: "install Go for building asdf (Arch)"
+  pacman:
+    name: "go"
+    state: present
+  become: True
+  when: ansible_os_family == "Archlinux"
+
+- name: "build asdf from source"
+  command: "make build"
+  args:
+    chdir: "{{ asdf_dir }}"
+    creates: "{{ asdf_dir }}/asdf"
+  become: True
+  become_user: "{{ asdf_user }}"
+  environment:
+    PATH: "/usr/bin:/usr/local/bin:{{ ansible_env.PATH }}"
 
 - name: "create asdf bin symlink directory"
   file:
@@ -108,9 +112,10 @@
 
 - name: "symlink asdf binary to /usr/local/bin"
   file:
-    src: "{{ asdf_dir }}/bin/asdf"
+    src: "{{ asdf_dir }}/asdf"
     dest: "/usr/local/bin/asdf"
     state: link
+    force: yes
   become: True
 
 - name: "source asdf script"
