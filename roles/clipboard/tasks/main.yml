@@ -1,5 +1,6 @@
 ---
 - name: install greenclip from AUR
+  become: true
   kewlfft.aur.aur:
     name: rofi-greenclip
     use: auto

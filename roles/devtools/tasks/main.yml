@@ -1,5 +1,6 @@
 ---
 - name: Install Pycharm
+  become: true
   kewlfft.aur.aur:
     name: pycharm-professional
     use: auto
@@ -10,6 +11,7 @@
     - aur
 
 - name: Install Intellij
+  become: true
   kewlfft.aur.aur:
     name: intellij-idea-ultimate-edition
     use: auto
@@ -20,6 +22,7 @@
     - aur
 
 - name: Install Webstorm
+  become: true
   kewlfft.aur.aur:
     name: webstorm
     use: auto
@@ -30,6 +33,7 @@
     - aur
 
 - name: Install Webstorm JRE
+  become: true
   kewlfft.aur.aur:
     name: webstorm-jre
     use: auto
@@ -40,6 +44,7 @@
     - aur
 
 - name: Install Clion
+  become: true
   kewlfft.aur.aur:
     name: clion
     use: auto
@@ -50,6 +55,7 @@
     - aur
 
 - name: Install Clion GDB
+  become: true
   kewlfft.aur.aur:
     name: clion-gdb
     use: auto
@@ -60,6 +66,7 @@
     - aur
 
 - name: Install Clion LLDB
+  become: true
   kewlfft.aur.aur:
     name: clion-lldb
     use: auto
@@ -70,6 +77,7 @@
     - aur
 
 - name: Install Goland
+  become: true
   kewlfft.aur.aur:
     name: goland
     use: auto
@@ -80,6 +88,7 @@
     - aur
 
 - name: Install Goland JRE
+  become: true
   kewlfft.aur.aur:
     name: goland-jre
     use: auto
@@ -90,6 +99,7 @@
     - aur
 
 - name: Install VSCode
+  become: true
   kewlfft.aur.aur:
     name: visual-studio-code-bin
     use: auto
@@ -100,6 +110,7 @@
     - aur
 
 - name: Install Windsurf
+  become: true
   kewlfft.aur.aur:
     name: windsurf
     use: auto

@@ -6,6 +6,7 @@
   become: true
 
 - name: Install xidlehook
+  become: true
   kewlfft.aur.aur:
     name: xidlehook
     use: auto
@@ -16,6 +17,7 @@
     - aur
 
 - name: Install betterlockscreen
+  become: true
   kewlfft.aur.aur:
     name: betterlockscreen
     use: auto

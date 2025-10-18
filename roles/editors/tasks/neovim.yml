@@ -1,6 +1,5 @@
 ---
 - name: Remove old versions of neovim
-  become: true
   ansible.builtin.file:
     path: "/home/{{ user.name }}/git/neovim"
     state: absent
@@ -38,6 +37,7 @@
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Neovim Make Install
-  ansible.builtin.command: sudo make install CMAKE_BUILD_TYPE=Release
+  ansible.builtin.command: make install CMAKE_BUILD_TYPE=Release
   args:
     chdir: "/home/{{ user.name }}/git/neovim"
+  become: true

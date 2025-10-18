@@ -16,6 +16,7 @@
     - autorandr
 
 - name: Enable autorandr.service to ensure it starts after wake from suspend
+  become: true
   ansible.builtin.systemd:
     name: autorandr
     enabled: true

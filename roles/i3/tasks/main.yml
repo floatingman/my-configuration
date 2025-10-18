@@ -50,6 +50,7 @@
     state: present
 
 - name: Install autotiling
+  become: true
   kewlfft.aur.aur:
     name: autotiling
     use: auto

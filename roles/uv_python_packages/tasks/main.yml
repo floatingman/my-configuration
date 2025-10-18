@@ -45,7 +45,6 @@
   failed_when:
     - uv_python_packages_install_result.rc != 0
     - "'already installed' not in uv_python_packages_install_result.stderr"
-  become: false
   when:
     - uv_python_packages_mode == "tool"
     - uv_python_packages_list is defined
@@ -55,7 +54,6 @@
   ansible.builtin.command: uv tool update-shell
   register: uv_python_packages_shell_update
   changed_when: "'already up to date' not in uv_python_packages_shell_update.stdout"
-  become: false
   when:
     - uv_python_packages_mode == "tool"
     - uv_python_packages_update_shell
@@ -66,7 +64,6 @@
   ansible.builtin.command: uv tool dir
   register: uv_python_packages_tools_dir
   changed_when: false
-  become: false
   when:
     - uv_python_packages_mode == "tool"
     - uv_python_packages_list is defined
@@ -87,7 +84,6 @@
   failed_when:
     - uv_python_packages_venv_result.rc != 0
     - "'already exists' not in uv_python_packages_venv_result.stderr"
-  become: false
   when:
     - uv_python_packages_mode == "pip"
     - uv_python_packages_requirements_file != ""
@@ -110,7 +106,6 @@
   ansible.builtin.command: "{{ uv_python_packages_pip_cmd }} -r {{ uv_python_packages_requirements_file }}"
   register: uv_python_packages_pip_result
   changed_when: "'already satisfied' not in uv_python_packages_pip_result.stdout"
-  become: false
   when:
     - uv_python_packages_mode == "pip"
     - uv_python_packages_requirements_file != ""
@@ -120,7 +115,6 @@
   loop: "{{ uv_python_packages_list }}"
   register: uv_python_packages_pip_individual_result
   changed_when: "'already satisfied' not in uv_python_packages_pip_individual_result.stdout"
-  become: false
   when:
     - uv_python_packages_mode == "pip"
     - uv_python_packages_list is defined

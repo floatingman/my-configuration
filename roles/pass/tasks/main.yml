@@ -20,6 +20,7 @@
     - rofi
 
 - name: Install pass-update
+  become: true
   kewlfft.aur.aur:
     name: pass-update
     use: auto
@@ -30,6 +31,7 @@
     - aur
 
 - name: Install pwgen-passphrase
+  become: true
   kewlfft.aur.aur:
     name: pwgen-passphrase
     use: auto

@@ -3,20 +3,24 @@
   ansible.builtin.copy:
     src: pacman.conf
     dest: /etc/pacman.conf
+  become: true
 
 - name: Refresh pacman mirrors
   package:
     update_cache: true
+  become: true
 
 - name: Install inetutils for hostname
   package:
     name: inetutils
     state: present
+  become: true
 
 - name: Set the hostname
   hostname:
     name: "{{ hostname }}"
   when: hostname is defined
+  become: true
 
 - name: User tasks
   include_tasks: user.yml

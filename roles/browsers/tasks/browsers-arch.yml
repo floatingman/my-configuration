@@ -1,5 +1,6 @@
 ---
 - name: Install qutebrowser dependencies
+  become: true
   package:
     name:
       - python-adblock
@@ -9,6 +10,7 @@
     - qutebrowser
 
 - name: Install Firefox
+  become: true
   package:
     name:
       - firefox
@@ -29,6 +31,7 @@
     - aur
 
 - name: Install Tor browser
+  become: true
   package:
     name: torbrowser-launcher
     state: present
@@ -36,6 +39,7 @@
     - tor-browser
 
 - name: Push rofi browser chooser
+  become: true
   ansible.builtin.template:
     src: browser.sh.j2
     dest: /usr/local/bin/browser
@@ -45,6 +49,7 @@
     - chooser
 
 - name: Create local desktop application dir
+  become: true
   ansible.builtin.file:
     path: /usr/local/share/applications
     state: directory
@@ -53,6 +58,7 @@
     - chooser
 
 - name: Push rofi browser chooser desktop file
+  become: true
   ansible.builtin.copy:
     src: browser.desktop
     dest: /usr/local/share/applications/browser.desktop
@@ -61,6 +67,7 @@
     - chooser
 
 - name: Verify mimeapps.list exists
+  become: true
   ansible.builtin.copy:
     content: ""
     dest: /etc/xdg/mimeapps.list
@@ -70,6 +77,7 @@
     - chooser
 
 - name: Set rofi browser chooser as default application for relevant mimetypes
+  become: true
   ansible.builtin.lineinfile:
     dest: /etc/xdg/mimeapps.list
     regexp: "{{ item.regexp }}"
@@ -96,6 +104,7 @@
     - chooser
 
 - name: Configure surfraw browser
+  become: true
   ansible.builtin.lineinfile:
     dest: /etc/xdg/surfraw/conf
     regexp: "^def   SURFRAW_graphical_browser	"
@@ -105,6 +114,7 @@
     - chooser
 
 - name: Push surfraw-rofi script
+  become: true
   ansible.builtin.copy:
     src: surfraw-rofi
     dest: /usr/local/bin/surfraw-rofi

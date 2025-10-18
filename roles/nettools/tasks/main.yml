@@ -76,6 +76,7 @@
     state: present
 
 - name: Install pdsh
+  become: true
   kewlfft.aur.aur:
     name: pdsh
     use: auto

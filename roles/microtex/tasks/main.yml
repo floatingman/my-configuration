@@ -3,6 +3,7 @@
   ansible.builtin.package:
     name: "{{ microtex_dependencies }}"
     state: present
+  become: true
   when: ansible_os_family == "Archlinux"
 
 - name: Create build directory
@@ -10,7 +11,6 @@
     path: "{{ microtex_build_dir }}"
     state: directory
     mode: "0755"
-  become: false
 
 - name: Clone MicroTeX repository
   ansible.builtin.git:
@@ -18,7 +18,6 @@
     dest: "{{ microtex_build_dir }}/MicroTeX"
     version: "{{ microtex_git_version }}"
     force: true
-  become: false
 
 - name: Apply CMakeLists.txt patches
   ansible.builtin.replace:
@@ -30,27 +29,25 @@
       replace: 'gtksourceviewmm-4.0'
     - regexp: 'tinyxml2\.so\.10'
       replace: 'tinyxml2.so.11'
-  become: false
 
 - name: Configure build with CMake
   ansible.builtin.command:
     cmd: cmake -B build -S . -DCMAKE_BUILD_TYPE={{ microtex_cmake_build_type }}
     chdir: "{{ microtex_build_dir }}/MicroTeX"
     creates: "{{ microtex_build_dir }}/MicroTeX/build/CMakeCache.txt"
-  become: false
 
 - name: Build MicroTeX
   ansible.builtin.command:
     cmd: cmake --build build
     chdir: "{{ microtex_build_dir }}/MicroTeX"
     creates: "{{ microtex_build_dir }}/MicroTeX/build/LaTeX"
-  become: false
 
 - name: Create installation directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: "0755"
+  become: true
   loop:
     - "{{ microtex_install_path }}"
     - "{{ microtex_license_path }}"
@@ -61,6 +58,7 @@
     dest: "{{ microtex_install_path }}/LaTeX"
     mode: "0755"
     remote_src: true
+  become: true
 
 - name: Install MicroTeX resources
   ansible.builtin.copy:
@@ -68,6 +66,7 @@
     dest: "{{ microtex_install_path }}/res/"
     mode: "0644"
     remote_src: true
+  become: true
 
 - name: Install license file
   ansible.builtin.copy:
@@ -75,12 +74,14 @@
     dest: "{{ microtex_license_path }}/LICENSE"
     mode: "0644"
     remote_src: true
+  become: true
 
 - name: Create symbolic link for LaTeX binary
   ansible.builtin.file:
     src: "{{ microtex_install_path }}/LaTeX"
     dest: "/usr/local/bin/microtex"
     state: link
+  become: true
   when: microtex_create_symlink | bool
 
 - name: Clean up build directory
@@ -88,4 +89,3 @@
     path: "{{ microtex_build_dir }}"
     state: absent
   when: microtex_cleanup_build | bool
-  become: false

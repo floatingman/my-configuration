@@ -7,6 +7,5 @@
 
 - name: reload cursor theme
   command: xrdb -merge ~/.Xresources
-  become: false
   ignore_errors: true
   listen: "update cursor theme cache"

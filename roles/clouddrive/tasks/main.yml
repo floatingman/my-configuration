@@ -1,5 +1,6 @@
 ---
 - name: Install Synology Drive
+  become: true
   kewlfft.aur.aur:
     name: synology-drive
     use: auto

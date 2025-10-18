@@ -21,16 +21,39 @@ You should checkout each roles README to see configuration options and decide if
 
 ## Requirements
 
-The only requirement is a working pip installation and Python 3
+- Python 3
+- pip (Python package installer)
+- A non-superuser account with sudo privileges (the playbook will prompt for the sudo password when needed)
 
 ## Use
+
+The playbook is designed to be run by a non-superuser account. It will automatically escalate privileges (via sudo) for tasks that require root access, such as package installations and system configuration.
 
 ```sh
 > make
 help                          This help.
 bootstrap                     Install ansible (pip required)
 install                       Install roles via ansible-galaxy
-configure                     Run ansible-playbook
+configure                     Run ansible-playbook (will prompt for sudo password)
 aur                           Run AUR helper to install AUR packages
 all                           Run all goals (except AUR)
 ```
+
+### Running the playbook
+
+1. **Bootstrap**: Install Ansible as a regular user
+   ```sh
+   make bootstrap
+   ```
+
+2. **Install roles**: Install required Ansible roles and collections
+   ```sh
+   make install
+   ```
+
+3. **Configure**: Run the playbook (you will be prompted for your sudo password)
+   ```sh
+   make configure
+   ```
+
+The playbook uses `--ask-become-pass` to prompt for your sudo password when privilege escalation is needed. This ensures that the playbook can be run by any user with sudo privileges, not just root.

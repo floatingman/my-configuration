@@ -41,13 +41,13 @@ bootstrap: req-pip ## Install ansible (pip required)
 .PHONY: install
 install: req-galaxy ## Install roles via ansible-galaxy
 	@echo 'Installing roles via ansible-galaxy'
-	sudo ansible-galaxy install -r requirements.yml -f
-	sudo ansible-galaxy collection install -r requirements.yml
+	ansible-galaxy install -r requirements.yml -f
+	ansible-galaxy collection install -r requirements.yml
 
 .PHONY: configure
 configure: req-playbook ## Run ansible
 	@echo 'Run ansible-playbook'
-	sudo ansible-playbook -i localhost play.yml
+	ansible-playbook -i localhost play.yml --ask-become-pass
 
 .PHONY: all
 all: install configure ## Run all goals

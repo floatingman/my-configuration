@@ -1,5 +1,6 @@
 ---
 - name: Install GNOME
+  become: true
   package:
     name:
       - gnome-extra

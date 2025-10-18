@@ -78,6 +78,7 @@
   when: "display_manager is defined"
 
 - name: Make directory for user SSH key
+  become: true
   ansible.builtin.file:
     path: /home/{{ user.name }}/.ssh
     state: directory
@@ -85,6 +86,7 @@
     group: "{{ user.group }}"
 
 - name: Install user SSH key
+  become: true
   ansible.builtin.copy:
     src: "{{ ssh.user_key }}"
     dest: /home/{{ user.name }}/.ssh/id_rsa

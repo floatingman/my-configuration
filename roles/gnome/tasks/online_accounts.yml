@@ -1,3 +1,4 @@
 ---
 - name: Configuring GNOME Online Accounts integration
+  become: true
   package: name=gvfs-goa state={{ "present" if gnome.online_accounts_support else "absent" }}

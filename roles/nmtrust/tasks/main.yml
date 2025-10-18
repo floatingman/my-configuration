@@ -1,5 +1,6 @@
 ---
 - name: Install nmtrust
+  become: true
   kewlfft.aur.aur:
     name: nmtrust-git
     use: auto

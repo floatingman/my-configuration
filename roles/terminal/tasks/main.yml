@@ -1,5 +1,6 @@
 ---
 - name: Install alacritty
+  become: true
   package:
     name: alacritty
     state: present
@@ -7,6 +8,7 @@
     - terminal
 
 - name: Install kitty
+  become: true
   package:
     name: kitty
     state: present
@@ -14,6 +16,7 @@
     - terminal
 
 - name: Install Wezterm
+  become: true
   package:
     name: wezterm
     state: present

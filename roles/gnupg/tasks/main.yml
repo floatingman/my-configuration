@@ -3,6 +3,7 @@
   package:
     name: gnupg
     state: present
+  become: true
 
 - name: Enable gpg-agent.socket
   ansible.builtin.systemd:

@@ -1,15 +1,18 @@
 ---
 - name: Install brightnessctl
+  become: true
   package:
     name: brightnessctl
     state: present
 
 - name: Install illuminanced
+  become: true
   package:
     name: illuminanced
   when: illuminanced is defined
 
 - name: Set max backlight file
+  become: true
   ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^max_backlight_file
@@ -20,6 +23,7 @@
     - restart illuminanced
 
 - name: Set backlight file
+  become: true
   ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^backlight_file
@@ -30,6 +34,7 @@
     - restart illuminanced
 
 - name: Set illuminance file
+  become: true
   ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^illuminance_file
@@ -40,6 +45,7 @@
     - restart illuminanced
 
 - name: Set min backlight value
+  become: true
   ansible.builtin.lineinfile:
     dest: /etc/illuminanced.toml
     regexp: ^min_backlight
@@ -50,6 +56,7 @@
     - restart illuminanced
 
 - name: Enable and start illuminanced
+  become: true
   ansible.builtin.service:
     name: illuminanced.service
     enabled: true
@@ -57,11 +64,13 @@
   when: illuminanced is defined
 
 - name: Install ddcutil
+  become: true
   package:
     name: ddcutil
     state: present
 
 - name: Install geoclue
+  become: true
   package:
     name: geoclue
     state: present

@@ -25,6 +25,7 @@
     - widgets
 
 - name: Install Hyperland widgets (AUR)
+  become: true
   kewlfft.aur.aur:
     name:
       - quickshell-git
