@@ -122,7 +122,36 @@ Cleanup and reboot!
     $ umount -R /mnt
     $ reboot
 
-Run ansible!
+After rebooting into your new system, log in as a regular user and run the Ansible playbook!
+
+## Running the Ansible Playbook
+
+The playbook is designed to be run by a non-superuser account with sudo privileges.
+
+1. Clone this repository:
+   ```bash
+   $ git clone https://github.com/floatingman/my-configuration.git
+   $ cd my-configuration
+   ```
+
+2. Install Ansible:
+   ```bash
+   $ make bootstrap
+   ```
+
+3. Install required Ansible roles:
+   ```bash
+   $ make install
+   ```
+
+4. Configure your system variables in `group_vars/all.yml` (copy from template)
+
+5. Run the playbook (you will be prompted for your sudo password):
+   ```bash
+   $ make configure
+   ```
+
+The playbook will automatically escalate privileges for tasks that require root access (package installations, system configuration, etc.) while running user-level tasks with your regular account privileges.
 
 
 [1]: https://www.archlinux.org/
