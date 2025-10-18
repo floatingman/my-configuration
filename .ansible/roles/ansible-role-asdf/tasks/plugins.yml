@@ -30,9 +30,12 @@
   when: ansible_os_family == "Archlinux" and asdf_pacman_optional_dependencies|length > 0
 
 - name: "install plugins"
-  command: "bash -lc 'source /etc/profile.d/asdf.sh && asdf plugin-add {{ item.name }} {{ item.repository | default() }}'"
+  command: "asdf plugin-add {{ item.name }} {{ item.repository | default() }}"
   args:
     creates: "{{ asdf_dir }}/plugins/{{ item.name }}"
+  environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+    ASDF_DATA_DIR: "{{ asdf_dir }}"
   with_items: "{{ asdf_plugins }}"
   when: asdf_plugins | length > 0
   become: True
@@ -60,9 +63,12 @@
   with_items: "{{ asdf_plugins }}"
 
 - name: "install apps"
-  command: "bash -lc 'source /etc/profile.d/asdf.sh && asdf install {{ item.0.name }} {{ item.1 }}'"
+  command: "asdf install {{ item.0.name }} {{ item.1 }}"
   args:
     creates: "{{ asdf_dir }}/installs/{{ item.0.name }}/{{ item.1 }}"
+  environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+    ASDF_DATA_DIR: "{{ asdf_dir }}"
   with_subelements:
     - "{{ asdf_plugins }}"
     - versions
@@ -73,9 +79,12 @@
   become_user: "{{ asdf_user }}"
 
 - name: "uninstall apps"
-  command: "bash -lc 'source /etc/profile.d/asdf.sh && asdf uninstall {{ item.0.name }} {{ item.1 }}'"
+  command: "asdf uninstall {{ item.0.name }} {{ item.1 }}"
   args:
     removes: "{{ asdf_dir }}/installs/{{ item.0.name }}/{{ item.1 }}"
+  environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+    ASDF_DATA_DIR: "{{ asdf_dir }}"
   with_subelements:
     - "{{ asdf_plugins }}"
     - delete_versions
@@ -86,7 +95,10 @@
   become_user: "{{ asdf_user }}"
 
 - name: "set global app versions"
-  command: "bash -lc 'source /etc/profile.d/asdf.sh && asdf global {{ item.name }} {{ item.global | default(item.versions | difference(item.delete_versions|default([])) | sort | first) }}'"
+  command: "asdf set -u {{ item.name }} {{ item.global | default(item.versions | difference(item.delete_versions|default([])) | sort | first) }}"
+  environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
+    ASDF_DATA_DIR: "{{ asdf_dir }}"
   when: item.versions is defined
   with_items: "{{ asdf_plugins }}"
   become: True
