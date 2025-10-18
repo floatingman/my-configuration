@@ -12,7 +12,6 @@
 - name: Refresh desktop environment
   ansible.builtin.command:
     cmd: xdg-desktop-menu forceupdate
-  become: false
   failed_when: false
   changed_when: false
   listen: "update icon cache"

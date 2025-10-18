@@ -16,7 +16,6 @@
     path: "{{ oneui4_icons_build_dir }}"
     state: directory
     mode: "0755"
-  become: false
   when: oneui4_icons_enabled
 
 - name: Clone OneUI4-Icons repository
@@ -25,7 +24,6 @@
     dest: "{{ oneui4_icons_build_dir }}/OneUI4-Icons"
     version: "{{ oneui4_icons_git_version }}"
     force: true
-  become: false
   when: oneui4_icons_enabled
 
 - name: Create icons installation directory
@@ -62,7 +60,6 @@
     path: "{{ oneui4_icons_build_dir }}"
     state: absent
   when: oneui4_icons_enabled and oneui4_icons_cleanup_build | bool
-  become: false
 
 - name: Display installation completion message
   ansible.builtin.debug:
