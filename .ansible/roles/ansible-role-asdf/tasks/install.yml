@@ -69,13 +69,54 @@
     state: directory
   become: True
 
-- name: "install asdf"
+- name: "clone asdf repository"
   git:
     repo: "https://github.com/asdf-vm/asdf.git"
     dest: "{{ asdf_dir }}"
     version: "{{ asdf_version }}"
+    depth: 1
   become: True
   become_user: "{{ asdf_user }}"
+
+- name: "install Go for building asdf (Debian)"
+  apt:
+    name: "golang-go"
+    state: present
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+  become: True
+  when: ansible_os_family == "Debian"
+
+- name: "install Go for building asdf (Arch)"
+  pacman:
+    name: "go"
+    state: present
+  become: True
+  when: ansible_os_family == "Archlinux"
+
+- name: "build asdf from source"
+  command: "make build"
+  args:
+    chdir: "{{ asdf_dir }}"
+    creates: "{{ asdf_dir }}/asdf"
+  become: True
+  become_user: "{{ asdf_user }}"
+  environment:
+    PATH: "/usr/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+
+- name: "create asdf bin symlink directory"
+  file:
+    path: "/usr/local/bin"
+    state: directory
+    mode: 0755
+  become: True
+
+- name: "symlink asdf binary to /usr/local/bin"
+  file:
+    src: "{{ asdf_dir }}/asdf"
+    dest: "/usr/local/bin/asdf"
+    state: link
+    force: yes
+  become: True
 
 - name: "source asdf script"
   template:

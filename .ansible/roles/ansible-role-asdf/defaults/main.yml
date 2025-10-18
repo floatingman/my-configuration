@@ -1,6 +1,6 @@
 ---
 # defaults file for asdf
-asdf_version: "v0.16.4"
+asdf_version: "v0.18.0"
 asdf_user: "deploy"
 asdf_group: "deploy"
 # defaults to ~/.asdf for the specified user
