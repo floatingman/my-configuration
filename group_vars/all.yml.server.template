@@ -703,9 +703,11 @@ binaries:
     extract: true
 
 # Rust cargo packages to install
+# Note: Some tools like ripgrep, bat, exa are also available as binaries above.
+# Use cargo_packages for tools not available as pre-built binaries or for 
+# getting the latest versions directly from source.
 cargo_packages:
-  - ripgrep
-  - fd-find
-  - bat
-  - exa
-  - tokei
+  - cargo-update   # Update installed cargo packages
+  - cargo-edit     # Add/remove dependencies from command line
+  - cargo-watch    # Watch for changes and run cargo commands
+  - cargo-audit    # Audit dependencies for security vulnerabilities
