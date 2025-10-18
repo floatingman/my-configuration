@@ -6,6 +6,7 @@
     state: directory
 
 - name: Install keyd-git
+  become: true
   kewlfft.aur.aur:
     name: keyd-git
     use: auto

@@ -51,6 +51,7 @@
     state: present
 
 - name: Install AUR fonts
+  become: true
   kewlfft.aur.aur:
     name: "{{ aur_fonts }}"
     use: auto

@@ -1,10 +1,12 @@
 ---
 - name: Install Syncthing
+  become: true
   package:
     name: syncthing
     state: present
 
 - name: Install Syncthingtray
+  become: true
   kewlfft.aur.aur:
     name: syncthingtray
     use: auto

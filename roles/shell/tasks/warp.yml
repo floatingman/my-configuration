@@ -1,5 +1,6 @@
 ---
 - name: Install warp-terminal from AUR
+  become: true
   kewlfft.aur.aur:
     name: warp-terminal
     use: auto
@@ -12,6 +13,7 @@
     - terminal
 
 - name: Install warp-terminal via pacman (if available in official repos)
+  become: true
   package:
     name: warp-terminal
     state: present

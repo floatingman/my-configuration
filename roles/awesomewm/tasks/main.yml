@@ -1,5 +1,6 @@
 ---
 - name: Install AwesomeWM
+  become: true
   package:
     name: awesome
     state: present
@@ -22,6 +23,7 @@
   become: true
 
 - name: Install Applications for AwesomeWM from AUR
+  become: true
   kewlfft.aur.aur:
     name:
       - i3lock-fancy-git

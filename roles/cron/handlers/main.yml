@@ -3,3 +3,4 @@
   service:
     name: cronie.service
     state: restarted
+  become: true

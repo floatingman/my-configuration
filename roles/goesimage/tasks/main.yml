@@ -1,5 +1,6 @@
 ---
 - name: Install GOESImage
+  become: true
   kewlfft.aur.aur:
     name: goesimage
     use: auto

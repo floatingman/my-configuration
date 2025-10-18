@@ -15,6 +15,7 @@
     state: present
   become: true
 - name: Install adw-gtk-theme-git
+  become: true
   kewlfft.aur.aur:
     name: adw-gtk-theme-git
     use: auto
@@ -29,6 +30,7 @@
     state: present
   become: true
 - name: Install breeze-plus
+  become: true
   kewlfft.aur.aur:
     name: breeze-plus
     use: auto
@@ -38,6 +40,7 @@
   tags:
     - aur
 - name: Install darkly-bin
+  become: true
   kewlfft.aur.aur:
     name: darkly-bin
     use: auto
@@ -47,6 +50,7 @@
   tags:
     - aur
 - name: Install kde-material-you-colors
+  become: true
   kewlfft.aur.aur:
     name: kde-material-you-colors
     use: auto
@@ -56,6 +60,7 @@
   tags:
     - aur
 - name: Install matugen-bin
+  become: true
   kewlfft.aur.aur:
     name: matugen-bin
     use: auto

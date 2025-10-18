@@ -1,10 +1,12 @@
 ---
 - name: Install Thunar
+  become: true
   package:
     name: thunar
     state: present
 
 - name: Install Thunar plugins
+  become: true
   package:
     name:
       - thunar-volman
@@ -13,6 +15,7 @@
     state: present
 
 - name: Install GVFS for filesharing functionality
+  become: true
   package:
     name:
       - gvfs
@@ -24,6 +27,7 @@
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install GVFS for filesharing functionality
+  become: true
   package:
     name:
       - gvfs

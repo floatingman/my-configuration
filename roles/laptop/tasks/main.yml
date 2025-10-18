@@ -9,12 +9,14 @@
   when: power_management is defined and power_management == "tuned" and ansible_system_vendor == "Framework"
 
 - name: Install x86_energy_perf_policy
+  become: true
   package:
     name: x86_energy_perf_policy
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Copy touchpad configuration file
+  become: true
   ansible.builtin.copy:
     src: 30-touchpad.conf
     dest: /etc/X11/xorg.conf.d/30-touchpad.conf
@@ -22,6 +24,7 @@
     - libinput
 
 - name: Copy logind configuration file
+  become: true
   ansible.builtin.copy:
     src: logind.conf
     dest: /etc/systemd/logind.conf
@@ -52,6 +55,7 @@
     - aur
 
 - name: Install powertop
+  become: true
   package:
     name: powertop
     state: present

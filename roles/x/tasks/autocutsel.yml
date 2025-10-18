@@ -1,5 +1,6 @@
 ---
 - name: Install autocutsel
+  become: true
   kewlfft.aur.aur:
     name: autocutsel
     use: auto

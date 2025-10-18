@@ -12,6 +12,7 @@
     name: hashdeep
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   tags:
     - hashdeep
@@ -45,6 +46,7 @@
     name: ventoy-bin
     use: auto
     state: present
+  become: true
   become_user: aur_builder
   tags:
     - aur

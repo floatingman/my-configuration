@@ -1,4 +1,5 @@
 - name: Install Proton Bridge
+  become: true
   kewlfft.aur.aur:
     name:
       - protonmail-bridge-core
@@ -11,6 +12,7 @@
     - aur
 
 - name: Install Proton VPN
+  become: true
   kewlfft.aur.aur:
     name: protonvpn
     use: auto
@@ -21,6 +23,7 @@
     - aur
 
 - name: Install Proton Pass
+  become: true
   kewlfft.aur.aur:
     name: proton-pass-bin
     use: auto
@@ -31,6 +34,7 @@
     - aur
 
 - name: Install Proton mail
+  become: true
   kewlfft.aur.aur:
     name: proton-mail-bin
     use: auto

@@ -1,5 +1,6 @@
 ---
 - name: Install twitch streamlink
+  become: true
   kewlfft.aur.aur:
     name: streamlink-twitch-gui-bin
     use: auto

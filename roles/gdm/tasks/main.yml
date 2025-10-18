@@ -1,26 +1,31 @@
 ---
 - name: Install GNOME Display Manager (GDM)
+  become: true
   package:
     name: gdm-plymouth
     state: present
 
 - name: Enable GDM
+  become: true
   ansible.builtin.service:
     name: gdm.service
     enabled: true
 
 - name: Creating DConf configuration profile
+  become: true
   ansible.builtin.copy:
     src: profile/gdm
     dest: /etc/dconf/profile/gdm
 
 - name: Creating gdm.d directory for DConf
+  become: true
   ansible.builtin.file:
     path: /etc/dconf/db/gdm.d
     state: directory
     mode: 0755
 
 - name: Configuring GDM
+  become: true
   ansible.builtin.template:
     src: gdm.d/00-spark.j2
     dest: /etc/dconf/db/gdm.d/00-spark

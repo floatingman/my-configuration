@@ -51,6 +51,7 @@
 #     - aur
 
 - name: Install vapoursynth-plugin-vmaf-git
+  become: true
   kewlfft.aur.aur:
     name: vapoursynth-plugin-vmaf-git
     use: auto
@@ -61,6 +62,7 @@
     - aur
 
 - name: Install vapoursynth-miscfilters-obsolete-git
+  become: true
   kewlfft.aur.aur:
     name: vapoursynth-miscfilters-obsolete-git
     use: auto
@@ -71,6 +73,7 @@
     - aur
 
 - name: Install vapoursynth-plugin-mvtools-git
+  become: true
   kewlfft.aur.aur:
     name: vapoursynth-plugin-mvtools-git
     use: auto
@@ -81,6 +84,7 @@
     - aur
 
 - name: Install vapoursynth-plugin-svpflow
+  become: true
   kewlfft.aur.aur:
     name: vapoursynth-plugin-svpflow
     use: auto

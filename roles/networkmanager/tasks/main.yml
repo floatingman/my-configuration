@@ -9,8 +9,10 @@
       - gnome-keyring
       - nwg-displays
     state: present
+  become: true
 
 - name: Push connectivity check config
+  become: true
   ansible.builtin.template:
     src: connectivity.conf.j2
     dest: /etc/NetworkManager/conf.d/20-connectivity.conf
@@ -18,12 +20,14 @@
   when: network.conn_check is defined
 
 - name: Push MAC address randomization config
+  become: true
   ansible.builtin.template:
     src: random_mac.conf.j2
     dest: /etc/NetworkManager/conf.d/20-random_mac.conf
     mode: "0644"
 
 - name: Push WiFi/Wired Exclusive dispatcher
+  become: true
   ansible.builtin.copy:
     src: wifi-wired-exclusive.sh
     dest: /etc/NetworkManager/dispatcher.d/70-wifi-wired-exclusive
@@ -31,18 +35,21 @@
   when: network.wifi_wired_exclusive | default(false)
 
 - name: Enable and start NetworkManager
+  become: true
   ansible.builtin.service:
     name: NetworkManager.service
     enabled: true
     state: started
 
 - name: Enable and start NetworkManager dispatcher
+  become: true
   ansible.builtin.service:
     name: NetworkManager-dispatcher.service
     enabled: true
     state: started
 
 - name: Disable dhcpcd service
+  become: true
   ansible.builtin.service:
     name: dhcpcd.service
     enabled: false

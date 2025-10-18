@@ -1,5 +1,6 @@
 ---
 - name: Install rcm on Arch
+  become: true
   kewlfft.aur.aur:
     name: rcm
     use: auto
