@@ -69,13 +69,49 @@
     state: directory
   become: True
 
-- name: "install asdf"
-  git:
-    repo: "https://github.com/asdf-vm/asdf.git"
-    dest: "{{ asdf_dir }}"
-    version: "{{ asdf_version }}"
+- name: "detect system architecture"
+  set_fact:
+    asdf_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+
+- name: "detect system OS"
+  set_fact:
+    asdf_os: "{{ 'linux' if ansible_system == 'Linux' else 'darwin' if ansible_system == 'Darwin' else ansible_system | lower }}"
+
+- name: "download asdf binary"
+  get_url:
+    url: "https://github.com/asdf-vm/asdf/releases/download/{{ asdf_version }}/asdf_{{ asdf_version }}_{{ asdf_os }}_{{ asdf_arch }}.tar.gz"
+    dest: "/tmp/asdf_{{ asdf_version }}.tar.gz"
+    mode: 0644
   become: True
-  become_user: "{{ asdf_user }}"
+
+- name: "extract asdf binary"
+  unarchive:
+    src: "/tmp/asdf_{{ asdf_version }}.tar.gz"
+    dest: "{{ asdf_dir }}"
+    remote_src: yes
+    owner: "{{ asdf_user }}"
+    group: "{{ asdf_group }}"
+  become: True
+
+- name: "cleanup asdf download"
+  file:
+    path: "/tmp/asdf_{{ asdf_version }}.tar.gz"
+    state: absent
+  become: True
+
+- name: "create asdf bin symlink directory"
+  file:
+    path: "/usr/local/bin"
+    state: directory
+    mode: 0755
+  become: True
+
+- name: "symlink asdf binary to /usr/local/bin"
+  file:
+    src: "{{ asdf_dir }}/bin/asdf"
+    dest: "/usr/local/bin/asdf"
+    state: link
+  become: True
 
 - name: "source asdf script"
   template:

@@ -2,11 +2,13 @@
 
 [ -n "$BASH_VERSION" ] || return 0
 
-export ASDF_CONFIG_FILE="{{ asdf_config_file }}"
-export ASDF_DEFAULT_TOOL_VERSIONS_FILENAME="{{ asdf_default_tool_versions_file }}"
-export ASDF_DIR="{{ asdf_dir }}"
+# Set ASDF data directory
 export ASDF_DATA_DIR="{{ asdf_dir }}"
 
-if [ -f "$ASDF_DIR/asdf.sh" ]; then
-  source "$ASDF_DIR/asdf.sh"
+# Add asdf shims to PATH
+export PATH="{{ asdf_dir }}/shims:$PATH"
+
+# Set up shell completions (optional)
+if command -v asdf >/dev/null 2>&1; then
+  . <(asdf completion bash 2>/dev/null || true)
 fi
