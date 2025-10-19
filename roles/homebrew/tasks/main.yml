@@ -1,9 +1,5 @@
 ---
 # tasks file for homebrew
-- name: Include OS-specific variables
-  include_vars: "{{ ansible_os_family }}.yml"
-  ignore_errors: true
-
 - name: Check if Homebrew is already installed
   stat:
     path: /home/linuxbrew/.linuxbrew/bin/brew
@@ -42,6 +38,7 @@
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   args:
     creates: /home/linuxbrew/.linuxbrew/bin/brew
+  become: true
   when: not homebrew_check.stat.exists
 
 - name: Add Homebrew to PATH in shell profile
