@@ -9,180 +9,220 @@
     - { role: sysmon, tags: ["sysmon"] }
     - { role: cron, tags: ["cron"] }
     - {
-      role: microcode,
-      tags: ["microcode"],
-      when: ansible_os_family == "Archlinux",
-    }
+        role: microcode,
+        tags: ["microcode"],
+        when: ansible_os_family == "Archlinux",
+      }
     - { role: system, tags: ["system"] }
     - { role: shell, tags: ["shell"] }
     - { role: ssh, tags: ["ssh"] }
     - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: archive, tags: ["archive"] }
-    - { role: x, tags: ["x"], when: "desktop_environment is defined and desktop_environment == 'i3'" }
-    - { role: wayland, tags: ["wayland"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: hyprland, tags: ["hyprland"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: kde, tags: ["kde"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: microtex, tags: ["microtex"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: oneui4_icons, tags: ["oneui4_icons"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: screencapture, tags: ["screencapture"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: qt_gtk_toolkit, tags: ["qt_gtk_toolkit"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: widgets, tags: ["widgets"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
-    - { role: uv_python_packages, tags: ["uv_python_packages"], when: "desktop_environment is defined and desktop_environment == 'hyprland'" }
+    - {
+        role: x,
+        tags: ["x"],
+        when: "desktop_environment is defined and desktop_environment == 'i3'",
+      }
+    - {
+        role: wayland,
+        tags: ["wayland"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: hyprland,
+        tags: ["hyprland"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: kde,
+        tags: ["kde"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: microtex,
+        tags: ["microtex"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: oneui4_icons,
+        tags: ["oneui4_icons"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: screencapture,
+        tags: ["screencapture"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: qt_gtk_toolkit,
+        tags: ["qt_gtk_toolkit"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: widgets,
+        tags: ["widgets"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
+    - {
+        role: uv_python_packages,
+        tags: ["uv_python_packages"],
+        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
+      }
     - { role: ansible-role-packages, tags: ["packages"] }
     # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
-    # - { role: ansible-role-asdf, tags: ["asdf"] }
+    - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
     - { role: filesystem, tags: ["filesystem"] }
     - {
-      role: fonts,
-      tags: ["fonts"],
-      when: ansible_os_family == "Archlinux" and display_manager is defined,
-    }
+        role: fonts,
+        tags: ["fonts"],
+        when: ansible_os_family == "Archlinux" and display_manager is defined,
+      }
     - {
-      role: nerd-fonts,
-      tags: ["fonts"],
-      when: "desktop_environment is defined",
-    }
+        role: nerd-fonts,
+        tags: ["fonts"],
+        when: "desktop_environment is defined",
+      }
     - {
-      role: cursor-theme,
-      tags: ["cursor-theme"],
-      when: "desktop_environment is defined and cursor_theme.enabled",
-    }
+        role: cursor-theme,
+        tags: ["cursor-theme"],
+        when: "desktop_environment is defined and cursor_theme.enabled",
+      }
     - {
-      role: ansible-role-binaries,
-      tags: ["binaries"],
-      when: ansible_os_family != "Archlinux",
-    }
+        role: ansible-role-binaries,
+        tags: ["binaries"],
+        when: ansible_os_family != "Archlinux",
+      }
     - { role: laptop, tags: ["laptop"], when: (laptop) }
     - { role: notes, tags: ["notes"], when: "desktop_environment is defined" }
     - {
-      role: nmtrust,
-      tags: ["nmtrust"],
-      when: ansible_os_family ==  "Archlinux",
-    }
+        role: nmtrust,
+        tags: ["nmtrust"],
+        when: ansible_os_family ==  "Archlinux",
+      }
     - {
-      role: terminal,
-      tags: ["terminal"],
-      when: "desktop_environment is defined",
-    }
+        role: terminal,
+        tags: ["terminal"],
+        when: "desktop_environment is defined",
+      }
     - {
-      role: networkmanager,
-      tags: ["networkmanager"],
-      when: ansible_os_family ==  "Archlinux",
-    }
+        role: networkmanager,
+        tags: ["networkmanager"],
+        when: ansible_os_family ==  "Archlinux",
+      }
     - {
-      role: nettools,
-      tags: ["nettools"],
-      when: ansible_os_family ==  "Archlinux",
-    }
+        role: nettools,
+        tags: ["nettools"],
+        when: ansible_os_family ==  "Archlinux",
+      }
     # -  { role: avanov.pyenv, tags: ["python"] }
     - { role: python, tags: ["python"] }
     - {
-      role: lightdm,
-      tags: ["lightdm"],
-      when: display_manager is defined and display_manager == 'lightdm',
-    }
+        role: lightdm,
+        tags: ["lightdm"],
+        when: display_manager is defined and display_manager == 'lightdm',
+      }
     - {
-      role: gdm,
-      tags: ["gdm"],
-      when: not ("display_manager is defined") and "display_manager == 'gdm'",
-    }
+        role: gdm,
+        tags: ["gdm"],
+        when: not ("display_manager is defined") and "display_manager == 'gdm'",
+      }
     - {
-      role: i3,
-      tags: ["i3"],
-      when: (desktop_environment is defined) and desktop_environment == 'i3',
-    }
+        role: i3,
+        tags: ["i3"],
+        when: (desktop_environment is defined) and desktop_environment == 'i3',
+      }
     - {
-      role: gnome,
-      tags: ["gnome"],
-      when: not ("desktop_environment is defined") and "desktop_environment == 'gnome'",
-    }
+        role: gnome,
+        tags: ["gnome"],
+        when: not ("desktop_environment is defined") and "desktop_environment == 'gnome'",
+      }
     - {
-      role: awesomewm,
-      tags: ["awesomewm"],
-      when: not ("desktop_environment is defined") and "desktop_environment =='awesomewm'",
-    }
+        role: awesomewm,
+        tags: ["awesomewm"],
+        when: not ("desktop_environment is defined") and "desktop_environment =='awesomewm'",
+      }
     - { role: docker, tags: ["docker"], when: ansible_os_family == "Archlinux" }
     - {
-      role: screensaver,
-      tags: ["screensaver"],
-      when: desktop_environment is defined
-    }
+        role: screensaver,
+        tags: ["screensaver"],
+        when: desktop_environment is defined,
+      }
     - {
-      role: cups,
-      tags: ["cups"],
-      when: (ansible_os_family == "Archlinux") and (display_manager is defined),
-    }
+        role: cups,
+        tags: ["cups"],
+        when: (ansible_os_family == "Archlinux") and (display_manager is defined),
+      }
     - { role: proton, tags: ["proton"], when: desktop_environment is defined }
     - {
-      role: udisks,
-      tags: ["udisks"],
-      when: (ansible_os_family == "Archlinux") and (display_manager is defined),
-    }
+        role: udisks,
+        tags: ["udisks"],
+        when: (ansible_os_family == "Archlinux") and (display_manager is defined),
+      }
     - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
-      role: taskwarrior,
-      tags: ["taskwarrior"],
-      when: ansible_os_family ==  "Archlinux",
-    }
+        role: taskwarrior,
+        tags: ["taskwarrior"],
+        when: ansible_os_family ==  "Archlinux",
+      }
     - {
-      role: browsers,
-      tags: ["browsers"],
-      when: desktop_environment is defined,
-    }
+        role: browsers,
+        tags: ["browsers"],
+        when: desktop_environment is defined,
+      }
     - {
-      role: filemanager,
-      tags: ["filemanager"],
-      when: desktop_environment is defined,
-    }
+        role: filemanager,
+        tags: ["filemanager"],
+        when: desktop_environment is defined,
+      }
     - { role: android, tags: ["android"], when: desktop_environment is defined }
     - {
-      role: mirrorlist,
-      tags: ["mirrorlist"],
-      when: ansible_os_family == "Archlinux",
-    }
+        role: mirrorlist,
+        tags: ["mirrorlist"],
+        when: ansible_os_family == "Archlinux",
+      }
     - { role: mpv, tags: ["mpv"], when: desktop_environment is defined }
     - { role: media, tags: ["media"], when: desktop_environment is defined }
     - { role: nettools, tags: ["nettools"] }
     - { role: pass, tags: ["pass"], when: ansible_os_family ==  "Archlinux" }
     - { role: spell, tags: ["spell"] }
     - {
-      role: clipboard,
-      tags: ["clipboard"],
-      when: ansible_os_family == "Archlinux",
-    }
+        role: clipboard,
+        tags: ["clipboard"],
+        when: ansible_os_family == "Archlinux",
+      }
     - {
-      role: clouddrive,
-      tags: ["clouddrive"],
-      when: ansible_os_family == "Archlinux",
-    }
+        role: clouddrive,
+        tags: ["clouddrive"],
+        when: ansible_os_family == "Archlinux",
+      }
     - { role: syncthing, tags: ["syncthing"] }
     - { role: sound, tags: ["sound"], when: desktop_environment is defined }
     - { role: regdomain, tags: ["regdomain"], when: "regdomain is defined" }
     - {
-      role: bluetooth,
-      tags: ["bluetooth"],
-      when: (ansible_os_family ==  "Archlinux") and (bluetooth is defined),
-    }
+        role: bluetooth,
+        tags: ["bluetooth"],
+        when: (ansible_os_family ==  "Archlinux") and (bluetooth is defined),
+      }
     - {
-      role: backlight,
-      tags: ["backlight"],
-      when: desktop_environment is defined,
-    }
+        role: backlight,
+        tags: ["backlight"],
+        when: desktop_environment is defined,
+      }
     - { role: mpd, tags: ["mpd"], when: desktop_environment is defined }
     - {
-      role: filesharing,
-      tags: ["filesharing"],
-      when: ansible_os_family == "Archlinux",
-    }
+        role: filesharing,
+        tags: ["filesharing"],
+        when: ansible_os_family == "Archlinux",
+      }
     - { role: twitch, tags: ["twitch"], when: desktop_environment is defined }
     - {
-      role: devtools,
-      tags: ["devtools"],
-      when: desktop_environment is defined,
-    }
+        role: devtools,
+        tags: ["devtools"],
+        when: desktop_environment is defined,
+      }
     - { role: kubernetes, tags: ["kubernetes"] }
   vars_prompt:
     - name: user_password
