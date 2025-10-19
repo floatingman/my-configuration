@@ -45,9 +45,18 @@ install: req-galaxy ## Install roles via ansible-galaxy
 	ansible-galaxy collection install -r requirements.yml
 
 .PHONY: configure
-configure: req-playbook ## Run ansible
+configure: req-playbook ## Run ansible (optionally with TAGS="tag1,tag2")
 	@echo 'Run ansible-playbook'
+ifdef TAGS
+	ansible-playbook -i localhost play.yml --ask-become-pass --tags "$(TAGS)"
+else
 	ansible-playbook -i localhost play.yml --ask-become-pass
+endif
+
+.PHONY: list-tags
+list-tags: ## List all available tags in the playbook
+	@echo 'Available tags:'
+	@grep -oP 'tags: \["\K[^"]+' play.yml | sort -u | sed 's/^/  - /'
 
 .PHONY: all
 all: install configure ## Run all goals
