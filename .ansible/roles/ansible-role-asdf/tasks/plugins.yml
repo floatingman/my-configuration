@@ -30,7 +30,7 @@
   when: ansible_os_family == "Archlinux" and asdf_pacman_optional_dependencies|length > 0
 
 - name: "install plugins"
-  command: "asdf plugin-add {{ item.name }} {{ item.repository | default() }}"
+  command: "asdf plugin add {{ item.name }} {{ item.repository | default() }}"
   args:
     creates: "{{ asdf_dir }}/plugins/{{ item.name }}"
   environment:
