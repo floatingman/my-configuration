@@ -13,11 +13,22 @@ This is my [Ansible](https://www.ansible.com/) playbook to automatically configu
 - [packages](https://github.com/Allaman/ansible-role-packages) installs packages via package manager and an AUR helper
 - [system](https://github.com/Allaman/ansible-role-system) configure system related settings
 - [pip](https://github.com/Allaman/ansible-role-pip) install python packages via pip as current user
-- [binaries](https://github.com/Allaman/ansible-role-binaries) "installs" applications by downloading it's binary and placing them in PATH
+- **[homebrew](roles/homebrew)** installs and manages packages via Homebrew (for both Arch and Debian systems)
+- [binaries](https://github.com/Allaman/ansible-role-binaries) "installs" applications by downloading it's binary and placing them in PATH (for tools not available in Homebrew)
 - [dotfiles](https://github.com/floatingman/ansible-role-dotfiles) fork of [Allaman's](https://github.com/Allaman/ansible-role-dotfiles) Ansible role to clone and link dotfiles
 - [shell](https://github.com/floatingman/ansible-role-shell) fork of [Allaman's](https://github.com/Allaman/ansible-role-shell) Ansible role that installs shell tools
 
 You should checkout each roles README to see configuration options and decide if you need to fork a role for your own uses.
+
+### Package Management Strategy
+
+Starting from this version, the playbook uses **Homebrew** as the primary package manager for development tools and CLI utilities on both Arch and Debian-based systems. This provides:
+
+- **Consistency**: Same package versions across different Linux distributions
+- **Up-to-date packages**: Homebrew often has newer versions than distribution repositories
+- **Easy management**: Simple installation and updates with `brew install` and `brew upgrade`
+
+For packages not available in Homebrew, the `ansible-role-binaries` role is still used to download and install binaries directly.
 
 ## Requirements
 
