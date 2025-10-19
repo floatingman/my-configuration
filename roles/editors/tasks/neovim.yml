@@ -1,8 +1,10 @@
 ---
 - name: Remove old versions of neovim
+  become: true
   ansible.builtin.file:
     path: "/home/{{ user.name }}/git/neovim"
     state: absent
+
 
 - name: Clone neovim
   ansible.builtin.git:
