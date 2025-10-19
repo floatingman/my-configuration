@@ -57,3 +57,24 @@ all                           Run all goals (except AUR)
    ```
 
 The playbook uses `--ask-become-pass` to prompt for your sudo password when privilege escalation is needed. This ensures that the playbook can be run by any user with sudo privileges, not just root.
+
+### Running specific tags
+
+You can run specific roles by using tags. This allows you to only run certain parts of the playbook instead of the entire configuration.
+
+1. **List all available tags**:
+   ```sh
+   make list-tags
+   ```
+
+2. **Run a single tag**:
+   ```sh
+   make configure TAGS="docker"
+   ```
+
+3. **Run multiple tags** (comma-separated):
+   ```sh
+   make configure TAGS="docker,editors,shell"
+   ```
+
+This is useful when you only want to configure specific components without running the entire playbook.
