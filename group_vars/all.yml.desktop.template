@@ -591,29 +591,9 @@ binaries:
     url: "https://github.com/warrensbox/terraform-switcher/releases/download/{{tfswitch_version}}/terraform-switcher_{{tfswitch_version}}_linux_amd64.tar.gz"
     extract: true
 
-  - name: tokei
-    url: "https://github.com/XAMPPRocky/tokei/releases/download/v{{ tokei_version }}/tokei-x86_64-unknown-linux-gnu.tar.gz"
-    extract: true
-
-  - name: xsv
-    url: "https://github.com/BurntSushi/xsv/releases/download/{{ xsv_version }}/xsv-{{ xsv_version }}-x86_64-unknown-linux-musl.tar.gz"
-    extract: true
-
-  - name: yq
-    url: "https://github.com/mikefarah/yq/releases/download/v{{ yq_version }}/yq_linux_amd64"
-    bin_name: yq_linux_amd64
-
-  - name: yazi
-    url: "https://github.com/sxyazi/yazi/releases/download/v{{ yazi_version }}/yazi-aarch64-unknown-linux-gnu.zip"
-    extract: true
-
-  - name: viddy
-    url: "https://github.com/sachaos/viddy/releases/download/v{{ viddy_version }}/viddy_{{ viddy_version }}_Linux_x86_64.tar.gz"
-    extract: true
-
 # Rust cargo packages to install
 # Note: Some tools like ripgrep, bat, exa are also available as binaries above.
-# Use cargo_packages for tools not available as pre-built binaries or for 
+# Use cargo_packages for tools not available as pre-built binaries or for
 # getting the latest versions directly from source.
 cargo_packages:
   - cargo-update   # Update installed cargo packages
