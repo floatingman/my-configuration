@@ -119,6 +119,7 @@
       }
     # -  { role: avanov.pyenv, tags: ["python"] }
     - { role: python, tags: ["python"] }
+    - { role: rust, tags: ["rust"] }
     - {
         role: lightdm,
         tags: ["lightdm"],
