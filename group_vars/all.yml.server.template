@@ -61,6 +61,57 @@ lang:
     - python
     - python-pip
     - go
+asdf_user: "{{ user.name }}"
+asdf_group: "{{ user.group }}"
+asdf_plugins:
+  - name: "nodejs"
+    versions:
+      - 24.9.0
+    global: 24.9.0
+  - name: "ruby"
+    versions:
+      - 3.4.6
+    global: 3.4.6
+  - name: "kubectl"
+    versions:
+      - 1.29.3
+    global: 1.29.3
+  - name: "terraform"
+    versions:
+      - 1.13.3
+    global: 1.13.3
+  - name: "helm"
+    versions:
+      - 3.14.0
+    global: 3.14.0
+  - name: "concourse"
+    versions:
+      - 7.11.2
+    global: 7.11.2
+  - name: "packer"
+    versions:
+      - 1.10.2
+    global: 1.10.2
+  - name: "minikube"
+    versions:
+      - 1.32.0
+    global: 1.32.0
+  - name: "aws-vault"
+    versions:
+      - 7.2.0
+    global: 7.2.0
+  - name: "awscli"
+    versions:
+      - 2.24.12
+    global: 2.24.12
+  - name: "opentofu"
+    versions:
+      - 1.10.6
+    global: 1.10.6
+  - name: "gcloud"
+    versions:
+      - 542.0.0
+    global: 542.0.0
 base_packages:
   - abiword
   - arch-wiki-docs
