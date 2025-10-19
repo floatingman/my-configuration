@@ -1,0 +1,76 @@
+---
+# tasks file for homebrew
+- name: Include OS-specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+  ignore_errors: true
+
+- name: Check if Homebrew is already installed
+  stat:
+    path: /home/linuxbrew/.linuxbrew/bin/brew
+  register: homebrew_check
+
+- name: Install Homebrew dependencies (Debian/Ubuntu)
+  apt:
+    name:
+      - build-essential
+      - procps
+      - curl
+      - file
+      - git
+    state: present
+    update_cache: yes
+  become: true
+  when:
+    - ansible_os_family == "Debian"
+    - not homebrew_check.stat.exists
+
+- name: Install Homebrew dependencies (Arch)
+  pacman:
+    name:
+      - base-devel
+      - curl
+      - file
+      - git
+    state: present
+  become: true
+  when:
+    - ansible_os_family == "Archlinux"
+    - not homebrew_check.stat.exists
+
+- name: Download and install Homebrew
+  shell: |
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  args:
+    creates: /home/linuxbrew/.linuxbrew/bin/brew
+  when: not homebrew_check.stat.exists
+
+- name: Add Homebrew to PATH in shell profile
+  blockinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    block: |
+      # Homebrew
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Homebrew"
+    create: yes
+  when: not homebrew_check.stat.exists
+
+- name: Set fact for brew executable path
+  set_fact:
+    brew_bin: "/home/linuxbrew/.linuxbrew/bin/brew"
+
+- name: Update Homebrew
+  command: "{{ brew_bin }} update"
+  changed_when: false
+  environment:
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_env.PATH }}"
+  when: homebrew_update | default(true)
+
+- name: Install Homebrew packages
+  command: "{{ brew_bin }} install {{ item }}"
+  loop: "{{ homebrew_packages | default([]) }}"
+  register: brew_install
+  changed_when: "'already installed' not in brew_install.stdout"
+  failed_when: brew_install.rc != 0 and 'already installed' not in brew_install.stdout
+  environment:
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_env.PATH }}"
+  when: homebrew_packages is defined and homebrew_packages | length > 0
