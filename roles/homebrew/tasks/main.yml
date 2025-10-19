@@ -38,7 +38,6 @@
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   args:
     creates: /home/linuxbrew/.linuxbrew/bin/brew
-  become: true
   when: not homebrew_check.stat.exists
 
 - name: Add Homebrew to PATH in shell profile
@@ -51,23 +50,17 @@
     create: yes
   when: not homebrew_check.stat.exists
 
-- name: Set fact for brew executable path
-  set_fact:
-    brew_bin: "/home/linuxbrew/.linuxbrew/bin/brew"
-
 - name: Update Homebrew
-  command: "{{ brew_bin }} update"
-  changed_when: false
-  environment:
-    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_env.PATH }}"
-  when: homebrew_update | default(true)
+  community.general.homebrew:
+    update_homebrew: yes
+    upgrade_all: no
+    path: /home/linuxbrew/.linuxbrew/bin
+  when: homebrew_update | default(true) and homebrew_check.stat.exists
 
 - name: Install Homebrew packages
-  command: "{{ brew_bin }} install {{ item }}"
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+    path: /home/linuxbrew/.linuxbrew/bin
   loop: "{{ homebrew_packages | default([]) }}"
-  register: brew_install
-  changed_when: "'already installed' not in brew_install.stdout"
-  failed_when: brew_install.rc != 0 and 'already installed' not in brew_install.stdout
-  environment:
-    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_env.PATH }}"
   when: homebrew_packages is defined and homebrew_packages | length > 0
