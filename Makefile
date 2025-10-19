@@ -48,6 +48,22 @@ install: req-galaxy ## Install roles via ansible-galaxy
 configure: req-playbook ## Run ansible (optionally with TAGS="tag1,tag2")
 	@echo 'Run ansible-playbook'
 ifdef TAGS
+	@available_tags=$$(grep -oP 'tags: \["\K[^"]+' play.yml | sort -u); \
+	invalid_tags=""; \
+	for tag in $$(echo "$(TAGS)" | tr ',' ' '); do \
+		if ! echo "$$available_tags" | grep -qx "$$tag"; then \
+			invalid_tags="$$invalid_tags $$tag"; \
+		fi; \
+	done; \
+	if [ -n "$$invalid_tags" ]; then \
+		echo "Error: The following tag(s) do not exist:$$invalid_tags"; \
+		echo ""; \
+		echo "Available tags:"; \
+		echo "$$available_tags" | sed 's/^/  - /'; \
+		echo ""; \
+		echo "Run 'make list-tags' to see all available tags."; \
+		exit 1; \
+	fi
 	ansible-playbook -i localhost play.yml --ask-become-pass --tags "$(TAGS)"
 else
 	ansible-playbook -i localhost play.yml --ask-become-pass
