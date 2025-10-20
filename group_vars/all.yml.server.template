@@ -359,59 +359,6 @@ aur_fonts:
   - ttf-sarasa-gothic-nerd-fonts
   - ttf-signika
   - ttf-segoe-ui-variable
-asdf_user: "{{ user.name }}"
-asdf_plugins:
-  - name: "nodejs"
-    versions:
-      - 20.12.0
-    global: 20.12.0
-  - name: "ruby"
-    versions:
-      - 3.1.2
-    global: 3.1.2
-  - name: "kubectl"
-    versions:
-      - 1.29.3
-    global: 1.29.3
-  - name: "terraform"
-    versions:
-      - 1.7.5
-    global: 1.7.5
-  - name: "helm"
-    versions:
-      - 3.14.0
-    global: 3.14.0
-  - name: "concourse"
-    versions:
-      - 7.11.2
-    global: 7.11.2
-  - name: "packer"
-    versions:
-      - 1.10.2
-    global: 1.10.2
-  - name: "minikube"
-    versions:
-      - 1.32.0
-    global: 1.32.0
-  - name: "aws-vault"
-    versions:
-      - 7.2.0
-    global: 7.2.0
-pyenv_env: "user"
-pyenv_path: "{{ ansible_env.HOME }}/.pyenv"
-pyenv_owner: "{{ ansible_env.USER }}"
-pyenv_global: "3.10.3"
-pyenv_update: yes
-pyenv_update_git_install: yes
-pyenv_enable_autocompletion: no
-pyenv_python_versions:
-  - "3.10.3"
-  - "2.7.18"
-pyenv_virtualenvs:
-  - venv_name: "py3nvim"
-    py_version: "3.10.3"
-  - venv_name: "py2nvim"
-    py_version: "2.7.18"
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
@@ -482,16 +429,17 @@ homebrew_packages:
   - bottom
   - broot
   - git-delta
+  - derailed/popeye/popeye
   - direnv
   - dive
   - docker-compose
   - doctl
-  - dog
   - dua-cli
   - duf
   - dust
   - dyff
-  - eza  # replaces deprecated exa
+  - eza # replaces deprecated exa
+  - FairwindsOps/tap/polaris
   - fd
   - gh
   - gitui
@@ -501,12 +449,13 @@ homebrew_packages:
   - k6
   - k9s
   - kind
+  - knqyf263/pet/pet
   - kops
   - kube-linter
+  - kubeconform
   - kubectl
   - kubectx
   - kubeseal
-  - kubeval
   - kustomize
   - lazygit
   - lf
@@ -514,9 +463,6 @@ homebrew_packages:
   - mdbook
   - nnn
   - nova
-  - pet
-  - fairwindsops/tap/polaris
-  - derailed/popeye/popeye
   - ripgrep
   - scc
   - sd
@@ -530,15 +476,14 @@ homebrew_packages:
   - yazi
   - yq
 
-# Binaries to install via direct download (not available in Homebrew)
+homebrew_tap_packages:
+  - FairwindsOps/tap
 
+# Binaries to install via direct download (not available in Homebrew)
+binaries:
   - name: hey
     url: "https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64"
     bin_name: hey_linux_amd64
-
-  - name: argocd
-    url: "https://github.com/argoproj/argo-cd/releases/download/v{{ argocdcli_version }}/argocd-linux-amd64"
-    bin_name: argocd-linux-amd64
 
   - name: awless
     url: "https://github.com/wallix/awless/releases/download/v{{ awless_version }}/awless-linux-amd64.tar.gz"
@@ -547,15 +492,15 @@ homebrew_packages:
   - name: aws-iam-authenticator
     url: "https://amazon-eks.s3-us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/amd64/aws-iam-authenticator"
 
-  - name: bat
-    url: "https://github.com/sharkdp/bat/releases/download/v{{ bat_version }}/bat-v{{ bat_version }}-x86_64-unknown-linux-gnu.tar.gz"
-    bin_path: "bat-v{{ bat_version }}-x86_64-unknown-linux-gnu"
-    extract: true
-
   - name: bit
     url: "https://github.com/chriswalz/bit/releases/download/v{{ bit_version }}/bit_{{ bit_version }}_linux_amd64.tar.gz"
     extract: true
 
+  - name: dog
+    url: "https://github.com/ogham/dog/releases/download/{{ dog_version }}/dog-{{ dog_version }}-x86_64-unknown-linux-gnu.zip"
+    extract: true
+    bin_path: bin
+  
   - name: gh-md-toc
     url: "https://raw.githubusercontent.com/ekalinin/github-markdown-toc/master/gh-md-toc"
 
@@ -588,7 +533,8 @@ homebrew_packages:
 # Use cargo_packages for tools not available as pre-built binaries or for
 # getting the latest versions directly from source.
 cargo_packages:
-  - cargo-update   # Update installed cargo packages
-  - cargo-edit     # Add/remove dependencies from command line
-  - cargo-watch    # Watch for changes and run cargo commands
-  - cargo-audit    # Audit dependencies for security vulnerabilities
+  - cargo-update # Update installed cargo packages
+  - cargo-edit # Add/remove dependencies from command line
+  - cargo-watch # Watch for changes and run cargo commands
+  - cargo-audit # Audit dependencies for security vulnerabilities
+  - fd-find

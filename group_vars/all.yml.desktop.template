@@ -499,16 +499,17 @@ homebrew_packages:
   - bottom
   - broot
   - git-delta
+  - derailed/popeye/popeye
   - direnv
   - dive
   - docker-compose
   - doctl
-  - dog
   - dua-cli
   - duf
   - dust
   - dyff
-  - eza  # replaces deprecated exa
+  - eza # replaces deprecated exa
+  - FairwindsOps/tap/polaris
   - fd
   - gh
   - gitui
@@ -518,12 +519,13 @@ homebrew_packages:
   - k6
   - k9s
   - kind
+  - knqyf263/pet/pet
   - kops
   - kube-linter
+  - kubeconform
   - kubectl
   - kubectx
   - kubeseal
-  - kubeval
   - kustomize
   - lazygit
   - lf
@@ -531,9 +533,6 @@ homebrew_packages:
   - mdbook
   - nnn
   - nova
-  - pet
-  - fairwindsops/tap/polaris
-  - derailed/popeye/popeye
   - ripgrep
   - scc
   - sd
@@ -546,6 +545,9 @@ homebrew_packages:
   - xsv
   - yazi
   - yq
+
+homebrew_tap_packages:
+  - FairwindsOps/tap
 
 # Binaries to install via direct download (not available in Homebrew)
 binaries:
@@ -564,6 +566,11 @@ binaries:
     url: "https://github.com/chriswalz/bit/releases/download/v{{ bit_version }}/bit_{{ bit_version }}_linux_amd64.tar.gz"
     extract: true
 
+  - name: dog
+    url: "https://github.com/ogham/dog/releases/download/{{ dog_version }}/dog-{{ dog_version }}-x86_64-unknown-linux-gnu.zip"
+    extract: true
+    bin_path: bin
+  
   - name: gh-md-toc
     url: "https://raw.githubusercontent.com/ekalinin/github-markdown-toc/master/gh-md-toc"
 
@@ -596,7 +603,8 @@ binaries:
 # Use cargo_packages for tools not available as pre-built binaries or for
 # getting the latest versions directly from source.
 cargo_packages:
-  - cargo-update   # Update installed cargo packages
-  - cargo-edit     # Add/remove dependencies from command line
-  - cargo-watch    # Watch for changes and run cargo commands
-  - cargo-audit    # Audit dependencies for security vulnerabilities
+  - cargo-update # Update installed cargo packages
+  - cargo-edit # Add/remove dependencies from command line
+  - cargo-watch # Watch for changes and run cargo commands
+  - cargo-audit # Audit dependencies for security vulnerabilities
+  - fd-find
