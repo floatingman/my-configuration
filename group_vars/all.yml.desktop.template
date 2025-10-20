@@ -270,6 +270,7 @@ cli:
     - k9s
     - kube-linter
     - kubectx
+    - kubeconform
     - kubeseal
     - kustomize
     - lazygit
@@ -575,7 +576,7 @@ binaries:
     url: "https://github.com/ogham/dog/releases/download/{{ dog_version }}/dog-{{ dog_version }}-x86_64-unknown-linux-gnu.zip"
     extract: true
     bin_path: bin
-  
+
   - name: gh-md-toc
     url: "https://raw.githubusercontent.com/ekalinin/github-markdown-toc/master/gh-md-toc"
 
