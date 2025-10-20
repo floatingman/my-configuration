@@ -224,7 +224,11 @@
         tags: ["devtools"],
         when: desktop_environment is defined,
       }
-    - { role: kubernetes, tags: ["kubernetes"] }
+    - {
+        role: kubernetes,
+        tags: ["kubernetes"],
+        when: ansible_os_family == "Archlinux",
+      }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"
