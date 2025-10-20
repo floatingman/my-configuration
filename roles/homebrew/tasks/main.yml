@@ -1,12 +1,12 @@
 ---
 # tasks file for homebrew
 - name: Check if Homebrew is already installed
-  stat:
+  ansible.builtin.stat:
     path: /home/linuxbrew/.linuxbrew/bin/brew
   register: homebrew_check
 
 - name: Install Homebrew dependencies (Debian/Ubuntu)
-  apt:
+  ansible.builtin.apt:
     name:
       - build-essential
       - procps
@@ -14,14 +14,14 @@
       - file
       - git
     state: present
-    update_cache: yes
+    update_cache: true
   become: true
   when:
     - ansible_os_family == "Debian"
     - not homebrew_check.stat.exists
 
 - name: Install Homebrew dependencies (Arch)
-  pacman:
+  community.general.pacman:
     name:
       - base-devel
       - curl
@@ -33,29 +33,46 @@
     - ansible_os_family == "Archlinux"
     - not homebrew_check.stat.exists
 
-- name: Download and install Homebrew
-  shell: |
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  args:
-    creates: /home/linuxbrew/.linuxbrew/bin/brew
-  when: not homebrew_check.stat.exists
+- name: Create Homebrew directory
+  ansible.builtin.file:
+    path: "/home/linuxbrew/.linuxbrew"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0755'
+  become: true
+  when:
+    - not homebrew_check.stat.exists
 
-- name: Add Homebrew to PATH in shell profile
-  blockinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
-    block: |
-      # Homebrew
-      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Homebrew"
-    create: yes
-  when: not homebrew_check.stat.exists
+- name: Download Homebrew tarball
+  ansible.builtin.get_url:
+    url: https://github.com/Homebrew/brew/tarball/master
+    dest: /tmp/homebrew-brew.tar.gz
+    mode: '0644'
+  become: true
+  when:
+    - not homebrew_check.stat.exists
 
-- name: Update Homebrew
-  community.general.homebrew:
-    update_homebrew: yes
-    upgrade_all: no
-    path: /home/linuxbrew/.linuxbrew/bin
-  when: homebrew_update | default(true) and homebrew_check.stat.exists
+- name: Extract Homebrew
+  ansible.builtin.unarchive:
+    src: /tmp/homebrew-brew.tar.gz
+    dest: /home/linuxbrew/.linuxbrew
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+  become: true
+  when:
+    - not homebrew_check.stat.exists
+
+- name: Remove temporary Homebrew tarball
+  ansible.builtin.file:
+    path: /tmp/homebrew-brew.tar.gz
+    state: absent
+  become: true
+  when:
+    - not homebrew_check.stat.exists
 
 - name: Install Homebrew packages
   community.general.homebrew:
@@ -63,4 +80,16 @@
     state: present
     path: /home/linuxbrew/.linuxbrew/bin
   loop: "{{ homebrew_packages | default([]) }}"
-  when: homebrew_packages is defined and homebrew_packages | length > 0
+  when:
+    - homebrew_packages is defined and homebrew_packages | length > 0
+    - ansible_os_family == "Debian"
+
+- name: Install Homebrew cask packages
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    path: /home/linuxbrew/.linuxbrew/bin
+  loop: "{{ homebrew_cask_packages | default([]) }}"
+  when:
+    - homebrew_cask_packages is defined and homebrew_cask_packages | length > 0
+    - ansible_os_family == "Debian"
