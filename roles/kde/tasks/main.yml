@@ -29,3 +29,8 @@
     name: systemsettings
     state: present
   become: true
+- name: Install Kate
+  ansible.builtin.package:
+    name: kate
+    state: present
+  become: true
