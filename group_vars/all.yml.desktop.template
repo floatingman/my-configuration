@@ -12,7 +12,12 @@ user:
 udisks:
   auto_mount: true
   shared_mount: true
-desktop_environment: i3
+# Desktop Environment Configuration
+# Both i3 (Xorg) and Hyprland (Wayland) are installed by default when display_manager is defined
+# To disable one or both, set disable_i3: true or disable_hyprland: true
+# desktop_environment: i3  # Optional: For backward compatibility, set to 'i3' or 'hyprland' to install only one
+# disable_i3: true  # Optional: Set to true to prevent i3 installation
+# disable_hyprland: true  # Optional: Set to true to prevent Hyprland installation
 display_manager: lightdm
 hostname: <changthis>
 bootloader: grub

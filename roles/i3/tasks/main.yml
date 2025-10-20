@@ -61,3 +61,17 @@
     - aur
 
 - include_tasks: rofi.yml
+
+- name: Create xsessions directory for i3 session file
+  become: true
+  ansible.builtin.file:
+    path: /usr/share/xsessions
+    state: directory
+    mode: '0755'
+
+- name: Install i3 session file for LightDM
+  become: true
+  ansible.builtin.copy:
+    src: i3.desktop
+    dest: /usr/share/xsessions/i3.desktop
+    mode: '0644'

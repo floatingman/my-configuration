@@ -27,3 +27,17 @@
       - fcitx5
     state: present
   become: true
+
+- name: Create wayland-sessions directory for Hyprland session file
+  become: true
+  ansible.builtin.file:
+    path: /usr/share/wayland-sessions
+    state: directory
+    mode: '0755'
+
+- name: Install Hyprland session file for LightDM
+  become: true
+  ansible.builtin.copy:
+    src: hyprland.desktop
+    dest: /usr/share/wayland-sessions/hyprland.desktop
+    mode: '0644'

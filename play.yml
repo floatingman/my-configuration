@@ -18,56 +18,66 @@
     - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
     - { role: archive, tags: ["archive"] }
-    - {
-        role: x,
-        tags: ["x"],
-        when: "desktop_environment is defined and desktop_environment == 'i3'",
-      }
-    - {
-        role: wayland,
-        tags: ["wayland"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: hyprland,
-        tags: ["hyprland"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: kde,
-        tags: ["kde"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: microtex,
-        tags: ["microtex"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: oneui4_icons,
-        tags: ["oneui4_icons"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: screencapture,
-        tags: ["screencapture"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: qt_gtk_toolkit,
-        tags: ["qt_gtk_toolkit"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: widgets,
-        tags: ["widgets"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
-    - {
-        role: uv_python_packages,
-        tags: ["uv_python_packages"],
-        when: "desktop_environment is defined and desktop_environment == 'hyprland'",
-      }
+    - role: x
+      tags: ["x"]
+      when: >
+        (display_manager is defined) and
+        (disable_i3 is not defined or not disable_i3) and
+        (desktop_environment is not defined or desktop_environment == 'i3')
+    - role: wayland
+      tags: ["wayland"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: hyprland
+      tags: ["hyprland"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: kde
+      tags: ["kde"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: microtex
+      tags: ["microtex"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: oneui4_icons
+      tags: ["oneui4_icons"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: screencapture
+      tags: ["screencapture"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: qt_gtk_toolkit
+      tags: ["qt_gtk_toolkit"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: widgets
+      tags: ["widgets"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
+    - role: uv_python_packages
+      tags: ["uv_python_packages"]
+      when: >
+        (display_manager is defined) and
+        (disable_hyprland is not defined or not disable_hyprland) and
+        (desktop_environment is not defined or desktop_environment == 'hyprland')
     - { role: ansible-role-packages, tags: ["packages"] }
     - { role: flatpak, tags: ["flatpak"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
@@ -81,12 +91,12 @@
     - {
         role: nerd-fonts,
         tags: ["fonts"],
-        when: "desktop_environment is defined",
+        when: "display_manager is defined",
       }
     - {
         role: cursor-theme,
         tags: ["cursor-theme"],
-        when: "desktop_environment is defined and cursor_theme.enabled",
+        when: "display_manager is defined and cursor_theme.enabled",
       }
     - {
         role: homebrew,
@@ -99,7 +109,7 @@
         when: ansible_os_family != "Archlinux",
       }
     - { role: laptop, tags: ["laptop"], when: (laptop) }
-    - { role: notes, tags: ["notes"], when: "desktop_environment is defined" }
+    - { role: notes, tags: ["notes"], when: "display_manager is defined" }
     - {
         role: nmtrust,
         tags: ["nmtrust"],
@@ -108,7 +118,7 @@
     - {
         role: terminal,
         tags: ["terminal"],
-        when: "desktop_environment is defined",
+        when: "display_manager is defined",
       }
     - {
         role: networkmanager,
@@ -132,11 +142,12 @@
         tags: ["gdm"],
         when: not ("display_manager is defined") and "display_manager == 'gdm'",
       }
-    - {
-        role: i3,
-        tags: ["i3"],
-        when: (desktop_environment is defined) and desktop_environment == 'i3',
-      }
+    - role: i3
+      tags: ["i3"]
+      when: >
+        (display_manager is defined) and
+        (disable_i3 is not defined or not disable_i3) and
+        (desktop_environment is not defined or desktop_environment == 'i3')
     - {
         role: gnome,
         tags: ["gnome"],
@@ -151,14 +162,14 @@
     - {
         role: screensaver,
         tags: ["screensaver"],
-        when: desktop_environment is defined,
+        when: display_manager is defined,
       }
     - {
         role: cups,
         tags: ["cups"],
         when: (ansible_os_family == "Archlinux") and (display_manager is defined),
       }
-    - { role: proton, tags: ["proton"], when: desktop_environment is defined }
+    - { role: proton, tags: ["proton"], when: display_manager is defined }
     - {
         role: udisks,
         tags: ["udisks"],
@@ -173,21 +184,21 @@
     - {
         role: browsers,
         tags: ["browsers"],
-        when: desktop_environment is defined,
+        when: display_manager is defined,
       }
     - {
         role: filemanager,
         tags: ["filemanager"],
-        when: desktop_environment is defined,
+        when: display_manager is defined,
       }
-    - { role: android, tags: ["android"], when: desktop_environment is defined }
+    - { role: android, tags: ["android"], when: display_manager is defined }
     - {
         role: mirrorlist,
         tags: ["mirrorlist"],
         when: ansible_os_family == "Archlinux",
       }
-    - { role: mpv, tags: ["mpv"], when: desktop_environment is defined }
-    - { role: media, tags: ["media"], when: desktop_environment is defined }
+    - { role: mpv, tags: ["mpv"], when: display_manager is defined }
+    - { role: media, tags: ["media"], when: display_manager is defined }
     - { role: nettools, tags: ["nettools"] }
     - { role: pass, tags: ["pass"], when: ansible_os_family ==  "Archlinux" }
     - { role: spell, tags: ["spell"] }
@@ -202,7 +213,7 @@
         when: ansible_os_family == "Archlinux",
       }
     - { role: syncthing, tags: ["syncthing"] }
-    - { role: sound, tags: ["sound"], when: desktop_environment is defined }
+    - { role: sound, tags: ["sound"], when: display_manager is defined }
     - { role: regdomain, tags: ["regdomain"], when: "regdomain is defined" }
     - {
         role: bluetooth,
@@ -212,19 +223,19 @@
     - {
         role: backlight,
         tags: ["backlight"],
-        when: desktop_environment is defined,
+        when: display_manager is defined,
       }
-    - { role: mpd, tags: ["mpd"], when: desktop_environment is defined }
+    - { role: mpd, tags: ["mpd"], when: display_manager is defined }
     - {
         role: filesharing,
         tags: ["filesharing"],
         when: ansible_os_family == "Archlinux",
       }
-    - { role: twitch, tags: ["twitch"], when: desktop_environment is defined }
+    - { role: twitch, tags: ["twitch"], when: display_manager is defined }
     - {
         role: devtools,
         tags: ["devtools"],
-        when: desktop_environment is defined,
+        when: display_manager is defined,
       }
     - {
         role: kubernetes,

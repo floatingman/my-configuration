@@ -30,6 +30,39 @@ Starting from this version, the playbook uses **Homebrew** as the primary packag
 
 For packages not available in Homebrew, the `ansible-role-binaries` role is still used to download and install binaries directly.
 
+### Desktop Environment Support
+
+This playbook supports both **i3 (Xorg)** and **Hyprland (Wayland)** desktop environments simultaneously. When a `display_manager` is configured (e.g., LightDM), both desktop environments are installed by default and available as session options at login.
+
+**Key Features:**
+- **Dual Installation**: Both i3 and Hyprland are installed together, allowing you to switch between them at the login screen
+- **Session Files**: The playbook automatically creates session files in `/usr/share/xsessions/` (for i3) and `/usr/share/wayland-sessions/` (for Hyprland)
+- **LightDM Integration**: Both desktop environments appear as selectable sessions in the LightDM greeter
+
+**Customization Options:**
+
+If you want to install only one desktop environment, you can use opt-out variables in your `group_vars/all.yml`:
+
+```yaml
+# Disable i3 installation (only install Hyprland)
+disable_i3: true
+
+# Disable Hyprland installation (only install i3)
+disable_hyprland: true
+```
+
+For backward compatibility, you can also use the `desktop_environment` variable to install only one environment:
+
+```yaml
+# Install only i3
+desktop_environment: i3
+
+# Install only Hyprland
+desktop_environment: hyprland
+```
+
+When neither opt-out variables nor `desktop_environment` are set, both environments are installed automatically.
+
 ## Requirements
 
 - Python 3
