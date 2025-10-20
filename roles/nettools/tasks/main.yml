@@ -141,7 +141,9 @@
       - wireguard-tools
       - openresolv
     state: present
-# - name: Install mullvad vpn
+  when: ansible_facts["os_family"] == "Archlinux"
+
+  # - name: Install mullvad vpn
 #   kewlfft.aur.aur:
 #     name: mullvad-vpn-bin
 #     use: auto
@@ -150,6 +152,7 @@
 #   when: ansible_facts["os_family"] == "Archlinux"
 #   tags:
 #     - aur
+
 - name: Install axel
   become: true
   package:

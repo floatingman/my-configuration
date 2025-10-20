@@ -1,12 +1,12 @@
 ---
 - name: Install helm
   become: true
-  package:
+  community.general.pacman:
     name: helm
     state: present
 
 - name: Install kubectl
   become: true
-  package:
+  community.general.pacman:
     name: kubectl
     state: present

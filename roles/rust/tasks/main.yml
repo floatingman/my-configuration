@@ -1,0 +1,68 @@
+---
+- name: Check if rustup is installed
+  ansible.builtin.stat:
+    path: "{{ user_home }}/.cargo/bin/rustup"
+  register: rustup_installed
+  check_mode: false
+  vars:
+    user_home: "{{ ansible_env.HOME }}"
+
+- name: Download rustup installer
+  ansible.builtin.get_url:
+    url: https://sh.rustup.rs
+    dest: /tmp/rustup-init.sh
+    mode: '0755'
+  when: not rustup_installed.stat.exists
+
+- name: Install Rust via rustup
+  ansible.builtin.command:
+    cmd: /tmp/rustup-init.sh -y --default-toolchain stable
+  when: not rustup_installed.stat.exists
+  changed_when: true
+
+- name: Add cargo to PATH in bashrc
+  ansible.builtin.lineinfile:
+    path: "{{ user_home }}/.bashrc"
+    line: 'source "$HOME/.cargo/env"'
+    create: true
+    mode: '0644'
+  vars:
+    user_home: "{{ ansible_env.HOME }}"
+
+- name: Check if fish shell config directory exists
+  ansible.builtin.stat:
+    path: "{{ user_home }}/.config/fish"
+  register: fish_config
+  check_mode: false
+  vars:
+    user_home: "{{ ansible_env.HOME }}"
+
+- name: Add cargo to PATH in fish config
+  ansible.builtin.lineinfile:
+    path: "{{ user_home }}/.config/fish/config.fish"
+    line: 'set -gx PATH $HOME/.cargo/bin $PATH'
+    create: true
+    mode: '0644'
+  when: fish_config.stat.exists
+  vars:
+    user_home: "{{ ansible_env.HOME }}"
+
+- name: Check which cargo packages are already installed
+  ansible.builtin.command:
+    cmd: "{{ user_home }}/.cargo/bin/cargo install --list"
+  register: installed_cargo_packages
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  vars:
+    user_home: "{{ ansible_env.HOME }}"
+
+- name: Install cargo packages
+  ansible.builtin.command:
+    cmd: "{{ user_home }}/.cargo/bin/cargo install {{ item }}"
+  loop: "{{ cargo_packages | default([]) }}"
+  when: item not in installed_cargo_packages.stdout
+  register: cargo_install
+  changed_when: cargo_install.rc == 0
+  vars:
+    user_home: "{{ ansible_env.HOME }}"

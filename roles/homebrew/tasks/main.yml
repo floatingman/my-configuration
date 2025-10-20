@@ -1,0 +1,94 @@
+---
+# tasks file for homebrew
+- name: Check if Homebrew is already installed
+  ansible.builtin.stat:
+    path: /home/linuxbrew/.linuxbrew/bin/brew
+  register: homebrew_check
+
+- name: Install Homebrew dependencies (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - build-essential
+      - procps
+      - curl
+      - file
+      - git
+    state: present
+    update_cache: true
+  become: true
+  when:
+    - ansible_os_family == "Debian"
+    - not homebrew_check.stat.exists
+
+- name: Install Homebrew dependencies (Arch)
+  community.general.pacman:
+    name:
+      - base-devel
+      - curl
+      - file
+      - git
+    state: present
+  become: true
+  when:
+    - ansible_os_family == "Archlinux"
+    - not homebrew_check.stat.exists
+
+- name: Create Homebrew directory
+  ansible.builtin.file:
+    path: "/home/linuxbrew/.linuxbrew"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0755'
+  become: true
+  when:
+    - not homebrew_check.stat.exists
+
+- name: Download Homebrew tarball
+  ansible.builtin.get_url:
+    url: https://github.com/Homebrew/brew/tarball/master
+    dest: /tmp/homebrew-brew.tar.gz
+    mode: '0644'
+  become: true
+  when:
+    - not homebrew_check.stat.exists
+
+- name: Extract Homebrew
+  ansible.builtin.unarchive:
+    src: /tmp/homebrew-brew.tar.gz
+    dest: /home/linuxbrew/.linuxbrew
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+  become: true
+  when:
+    - not homebrew_check.stat.exists
+
+- name: Remove temporary Homebrew tarball
+  ansible.builtin.file:
+    path: /tmp/homebrew-brew.tar.gz
+    state: absent
+  become: true
+  when:
+    - not homebrew_check.stat.exists
+
+- name: Install Homebrew tap packages
+  community.general.homebrew_tap:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ homebrew_tap_packages | default([]) }}"
+  when:
+    - homebrew_tap_packages is defined and homebrew_tap_packages | length > 0
+    - ansible_os_family == "Debian"
+
+- name: Install Homebrew packages
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+    path: /home/linuxbrew/.linuxbrew/bin
+  loop: "{{ homebrew_packages | default([]) }}"
+  when:
+    - homebrew_packages is defined and homebrew_packages | length > 0
+    - ansible_os_family == "Debian"

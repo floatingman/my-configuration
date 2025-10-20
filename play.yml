@@ -89,6 +89,11 @@
         when: "desktop_environment is defined and cursor_theme.enabled",
       }
     - {
+        role: homebrew,
+        tags: ["homebrew"],
+        when: ansible_os_family == "Debian",
+      }
+    - {
         role: ansible-role-binaries,
         tags: ["binaries"],
         when: ansible_os_family != "Archlinux",
@@ -116,6 +121,7 @@
         when: ansible_os_family ==  "Archlinux",
       }
     - { role: python, tags: ["python"] }
+    - { role: rust, tags: ["rust"] }
     - {
         role: lightdm,
         tags: ["lightdm"],
@@ -220,7 +226,11 @@
         tags: ["devtools"],
         when: desktop_environment is defined,
       }
-    - { role: kubernetes, tags: ["kubernetes"] }
+    - {
+        role: kubernetes,
+        tags: ["kubernetes"],
+        when: ansible_os_family == "Archlinux",
+      }
   vars_prompt:
     - name: user_password
       prompt: "Enter desired user password"
