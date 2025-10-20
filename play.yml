@@ -2,7 +2,6 @@
 - name: Configure localhost
   hosts: localhost
   roles:
-    # - { role: ansible-role-basic, tags: ["basic"] }
     - { role: base, tags: ["base"], when: ansible_os_family == "Archlinux" }
     - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
     - { role: gnupg, tags: ["gnupg"] }
@@ -70,7 +69,6 @@
         when: "desktop_environment is defined and desktop_environment == 'hyprland'",
       }
     - { role: ansible-role-packages, tags: ["packages"] }
-    # - { role: ansible-role-pip, tags: ["pip"] }
     - { role: flatpak, tags: ["flatpak"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
     - { role: editors, tags: ["editors"] }
@@ -122,7 +120,6 @@
         tags: ["nettools"],
         when: ansible_os_family ==  "Archlinux",
       }
-    # -  { role: avanov.pyenv, tags: ["python"] }
     - { role: python, tags: ["python"] }
     - { role: rust, tags: ["rust"] }
     - {

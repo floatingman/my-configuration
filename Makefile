@@ -26,7 +26,6 @@ ANSIBLE_BIN    = $(shell ansible --version 2>&1 | head -1 | grep -q 'ansible 2' 
 BREW_BIN       = $(shell command -v brew 2>/dev/null)
 GO_BIN         = $(shell command -v go 2>/dev/null)
 LYNIS_BIN      = $(shell command -v lynis 2>/dev/null)
-PYENV_BIN      = $(shell command -v pyenv 2>/dev/null)
 PRE_COMMIT_BIN = $(shell pre-commit --version 2>&1 | head -1 | grep -q 'pre-commit [12]\.' && command -v pre-commit)
 PYLINT_BIN     = $(shell pylint --version 2>&1 | head -1 | grep -q 'pylint 2' && command -v pylint)
 SHELLCHECK_BIN = $(shell command -v shellcheck 2>/dev/null)

@@ -9,14 +9,14 @@ This is my attempt at fully automating the setup of my linux machines with it.
 
 This is my [Ansible](https://www.ansible.com/) playbook to automatically configure a new Linux installation on an Arch or Debian system. The following roles are being used:
 
-- [basic](https://github.com/Allaman/ansible-role-basic) installs common/basic packages via package manager
 - [packages](https://github.com/Allaman/ansible-role-packages) installs packages via package manager and an AUR helper
 - [system](https://github.com/Allaman/ansible-role-system) configure system related settings
-- [pip](https://github.com/Allaman/ansible-role-pip) install python packages via pip as current user
 - **[homebrew](roles/homebrew)** installs and manages packages via Homebrew (for both Arch and Debian systems)
 - [binaries](https://github.com/Allaman/ansible-role-binaries) "installs" applications by downloading it's binary and placing them in PATH (for tools not available in Homebrew)
 - [dotfiles](https://github.com/floatingman/ansible-role-dotfiles) fork of [Allaman's](https://github.com/Allaman/ansible-role-dotfiles) Ansible role to clone and link dotfiles
 - [shell](https://github.com/floatingman/ansible-role-shell) fork of [Allaman's](https://github.com/Allaman/ansible-role-shell) Ansible role that installs shell tools
+- [asdf](https://github.com/floatingman/ansible-role-asdf) manages programming language versions (replaces pyenv)
+- uv_python_packages manages Python package installation using the modern uv package manager
 
 You should checkout each roles README to see configuration options and decide if you need to fork a role for your own uses.
 

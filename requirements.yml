@@ -15,18 +15,8 @@ roles:
     scm: git
     version: master
 
-  - name: ansible-role-pip
-    src: https://github.com/Allaman/ansible-role-pip.git
-    scm: git
-    version: main
-
   - name: ansible-role-asdf
     src: https://github.com/floatingman/ansible-role-asdf.git
-    scm: git
-    version: master
-
-  - name: avanov.pyenv
-    src: https://github.com/avanov/ansible-galaxy-pyenv
     scm: git
     version: master
 
