@@ -10,7 +10,7 @@
   when: cursor_theme.enabled and cursor_theme.variants is defined and cursor_theme.variant not in cursor_theme.variants
 
 - name: Remove conflicting cursor theme packages (Arch Linux)
-  package:
+  ansible.builtin.package:
     name: "{{ cursor_theme.conflicts | default(['bibata-cursor-theme', 'bibata-cursor-theme-bin']) }}"
     state: absent
   become: true

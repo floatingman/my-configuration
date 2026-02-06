@@ -1,7 +1,7 @@
 ---
 - name: Install misc media codecs and helpers Debian
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - flac
       - lame
@@ -12,7 +12,7 @@
 
 - name: Install zbar
   become: true
-  package:
+  ansible.builtin.package:
     name: zbar-tools
     state: present
 

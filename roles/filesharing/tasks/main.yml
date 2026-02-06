@@ -1,7 +1,7 @@
 ---
 - name: Install Samba Client Utilities
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - smbclient
       - cifs-utils
@@ -26,6 +26,6 @@
 
 - name: Install nfs
   become: true
-  package:
+  ansible.builtin.package:
     name: nfs-utils
     state: present

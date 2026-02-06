@@ -1,24 +1,24 @@
 ---
 - name: Install ranger
-  package:
+  ansible.builtin.package:
     name: ranger
     state: present
   become: true
 
 - name: Install ranger devicons
-  git:
+  ansible.builtin.git:
     clone: true
     repo: https://github.com/alexanderjeurissen/ranger_devicons.git
     dest: ~/.config/ranger/plugins/ranger_devicons
 
 - name: Install ranger archives viewer
-  git:
+  ansible.builtin.git:
     clone: true
     repo: https://github.com/maximtrp/ranger-archives.git
     dest: ~/.config/ranger/plugins/ranger-archives
 
 - name: Install ranger zoxide plugin
-  git:
+  ansible.builtin.git:
     clone: true
     repo: https://github.com/jchook/ranger-zoxide.git
     dest: ~/.config/ranger/plugins/zoxide

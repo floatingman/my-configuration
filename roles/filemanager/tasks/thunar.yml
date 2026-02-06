@@ -1,13 +1,13 @@
 ---
 - name: Install Thunar
   become: true
-  package:
+  ansible.builtin.package:
     name: thunar
     state: present
 
 - name: Install Thunar plugins
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - thunar-volman
       - thunar-archive-plugin
@@ -16,7 +16,7 @@
 
 - name: Install GVFS for filesharing functionality
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - gvfs
       - gvfs-afc
@@ -28,7 +28,7 @@
 
 - name: Install GVFS for filesharing functionality
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - gvfs
     state: present

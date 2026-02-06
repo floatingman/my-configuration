@@ -1,13 +1,13 @@
 ---
-- include_tasks: ranger.yml
-- include_tasks: thunar.yml
+- ansible.builtin.include_tasks: ranger.yml
+- ansible.builtin.include_tasks: thunar.yml
 - name: Install yazi on Archlinux
-  include_tasks: yazi.yml
+  ansible.builtin.include_tasks: yazi.yml
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install helper apps for yazi
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - ffmpeg
       - 7zip

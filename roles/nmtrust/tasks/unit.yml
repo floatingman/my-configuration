@@ -56,7 +56,7 @@
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
-    line: "{{ unit }},ansible.builtin.user:{{ user.name }}"
+    line: "{{ unit }},user:{{ user.name }}"
   when: run_on == "trusted" and user_unit is defined and user_unit == true
   become: true
 
@@ -64,6 +64,6 @@
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: absent
-    line: "{{ unit }},ansible.builtin.user:{{ user.name }}"
+    line: "{{ unit }},user:{{ user.name }}"
   when: run_on != "trusted" and user_unit is defined and user_unit == true
   become: true

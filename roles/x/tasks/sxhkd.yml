@@ -1,6 +1,6 @@
 ---
 - name: Install sxhkd
-  package:
+  ansible.builtin.package:
     name: sxhkd
     state: present
   become: true

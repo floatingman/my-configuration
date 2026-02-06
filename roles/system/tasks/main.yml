@@ -1,7 +1,7 @@
 ---
 - name: Install hdparm
   become: true
-  package:
+  ansible.builtin.package:
     name: hdparm
     state: present
   when: ansible_facts["distribution"] == "Archlinux"

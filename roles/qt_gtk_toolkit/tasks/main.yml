@@ -1,7 +1,7 @@
 ---
 - name: Install Qt and GTK Toolkits
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - kdialog
       - qt6-5compat

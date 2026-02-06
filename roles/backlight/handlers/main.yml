@@ -1,6 +1,6 @@
 ---
 - name: restart illuminanced
   become: true
-  service:
+  ansible.builtin.service:
     name: illuminanced.service
     state: restarted

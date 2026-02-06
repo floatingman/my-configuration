@@ -1,7 +1,7 @@
 ---
 - name: Install Screen Capture Utilities
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - hyprshot
       - slurp

@@ -1,48 +1,48 @@
 ---
 - name: Install sysstat
   become: true
-  package:
+  ansible.builtin.package:
     name: sysstat
     state: present
 
 - name: Install glances
   become: true
-  package:
+  ansible.builtin.package:
     name: glances
     state: present
 
 - name: Install btop
   become: true
-  package:
+  ansible.builtin.package:
     name: btop
     state: present
 
 - name: Install htop
   become: true
-  package:
+  ansible.builtin.package:
     name: htop
     state: present
 
 - name: Install lsof
   become: true
-  package:
+  ansible.builtin.package:
     name: lsof
     state: present
 
 - name: Install strace
   become: true
-  package:
+  ansible.builtin.package:
     name: strace
     state: present
 
 - name: Install smartmontools
   become: true
-  package:
+  ansible.builtin.package:
     name: smartmontools
     state: present
 
 - name: Install progress
   become: true
-  package:
+  ansible.builtin.package:
     name: progress
     state: present

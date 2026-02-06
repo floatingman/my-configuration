@@ -1,7 +1,7 @@
 ---
 - name: Install GNOME Display Manager (GDM)
   become: true
-  package:
+  ansible.builtin.package:
     name: gdm-plymouth
     state: present
 

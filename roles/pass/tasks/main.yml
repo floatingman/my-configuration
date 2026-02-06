@@ -1,18 +1,18 @@
 ---
 - name: Install pass
-  package:
+  ansible.builtin.package:
     name: pass
     state: present
   become: true
 
 - name: Install pass-otp
-  package:
+  ansible.builtin.package:
     name: pass-otp
     state: present
   become: true
 
 - name: Install rofi-pass
-  package:
+  ansible.builtin.package:
     name: rofi-pass
     state: present
   become: true

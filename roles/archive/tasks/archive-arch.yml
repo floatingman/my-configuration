@@ -1,7 +1,7 @@
 ---
 - name: Install unrar on Arch
   become: true
-  package:
+  ansible.builtin.package:
     name: unrar
     state: present
   tags:
@@ -19,7 +19,7 @@
 
 - name: Install par2cmdline
   become: true
-  package:
+  ansible.builtin.package:
     name: par2cmdline
     state: present
   tags:
@@ -27,7 +27,7 @@
 
 - name: Install ddrescue
   become: true
-  package:
+  ansible.builtin.package:
     name: ddrescue
     state: present
   tags:
@@ -35,7 +35,7 @@
 
 - name: Install lesspipe
   become: true
-  package:
+  ansible.builtin.package:
     name: lesspipe
     state: present
   tags:

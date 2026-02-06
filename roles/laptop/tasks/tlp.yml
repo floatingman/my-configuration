@@ -1,7 +1,7 @@
 ---
 - name: Install TLP
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - ethtool
       - tlp

@@ -1,7 +1,7 @@
 ---
 - name: Install qrencode
   become: true
-  package:
+  ansible.builtin.package:
     name: qrencode
     state: present
   tags:

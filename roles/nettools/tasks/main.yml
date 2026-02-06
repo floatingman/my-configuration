@@ -1,77 +1,77 @@
 ---
 - name: Install OpenVPN
   become: true
-  package:
+  ansible.builtin.package:
     name: openvpn
     state: present
 
 - name: Install MTR
   become: true
-  package:
+  ansible.builtin.package:
     name: mtr
     state: present
 
 - name: Install net-tools
   become: true
-  package:
+  ansible.builtin.package:
     name: net-tools
     state: present
 
 - name: Install bind-tools
   become: true
-  package:
+  ansible.builtin.package:
     name: bind-tools
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install bind-tools
   become: true
-  package:
+  ansible.builtin.package:
     name: bind9
     state: present
   when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install whois
   become: true
-  package:
+  ansible.builtin.package:
     name: whois
     state: present
 
 - name: Install netcat
   become: true
-  package:
+  ansible.builtin.package:
     name: gnu-netcat
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install netcat
   become: true
-  package:
+  ansible.builtin.package:
     name: netcat-traditional
     state: present
   when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install lftp
   become: true
-  package:
+  ansible.builtin.package:
     name: lftp
     state: present
 
 - name: Install nmap
   become: true
-  package:
+  ansible.builtin.package:
     name: nmap
     state: present
 
 - name: Install tcpdump
   become: true
-  package:
+  ansible.builtin.package:
     name: tcpdump
     state: present
 
 - name: Install sshuttle
   become: true
-  package:
+  ansible.builtin.package:
     name: sshuttle
     state: present
 
@@ -88,14 +88,14 @@
 
 - name: Install wireshark
   become: true
-  package:
+  ansible.builtin.package:
     name: wireshark-qt
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install wireshark
   become: true
-  package:
+  ansible.builtin.package:
     name: wireshark
     state: present
   when: ansible_facts["os_family"] != "Archlinux"
@@ -112,31 +112,31 @@
 
 - name: Install socat
   become: true
-  package:
+  ansible.builtin.package:
     name: socat
     state: present
 
 - name: Install nethogs
   become: true
-  package:
+  ansible.builtin.package:
     name: nethogs
     state: present
 
 - name: Install bmon
   become: true
-  package:
+  ansible.builtin.package:
     name: bmon
     state: present
 
 - name: Install speedtest-cli
   become: true
-  package:
+  ansible.builtin.package:
     name: speedtest-cli
     state: present
 
 - name: Install wireguard and kernel modules
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - wireguard-tools
       - openresolv
@@ -155,6 +155,6 @@
 
 - name: Install axel
   become: true
-  package:
+  ansible.builtin.package:
     name: axel
     state: present

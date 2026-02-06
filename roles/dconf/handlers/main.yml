@@ -1,4 +1,4 @@
 ---
 - name: update DConf database
   become: true
-  command: dconf update
+  ansible.builtin.command: dconf update

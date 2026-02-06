@@ -1,13 +1,13 @@
 ---
 - name: Install brightnessctl
   become: true
-  package:
+  ansible.builtin.package:
     name: brightnessctl
     state: present
 
 - name: Install illuminanced
   become: true
-  package:
+  ansible.builtin.package:
     name: illuminanced
   when: illuminanced is defined
 
@@ -65,12 +65,12 @@
 
 - name: Install ddcutil
   become: true
-  package:
+  ansible.builtin.package:
     name: ddcutil
     state: present
 
 - name: Install geoclue
   become: true
-  package:
+  ansible.builtin.package:
     name: geoclue
     state: present

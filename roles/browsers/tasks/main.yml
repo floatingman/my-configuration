@@ -1,18 +1,18 @@
 ---
 - name: Install w3m
-  package:
+  ansible.builtin.package:
     name: w3m
     state: present
   become: true
 
 - name: Install lynx
-  package:
+  ansible.builtin.package:
     name: lynx
     state: present
   become: true
 
 - name: Install qutebrowser
-  package:
+  ansible.builtin.package:
     name:
       - qutebrowser
     state: present
@@ -21,7 +21,7 @@
     - qutebrowser
 
 - name: Install surfraw
-  package:
+  ansible.builtin.package:
     name: surfraw
     state: present
   become: true
@@ -29,9 +29,9 @@
     - surfraw
 
 - name: Install browsers on Arch
-  include_tasks: browsers-arch.yml
+  ansible.builtin.include_tasks: browsers-arch.yml
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install browsers on Debian
-  include_tasks: browsers-debian.yml
+  ansible.builtin.include_tasks: browsers-debian.yml
   when: ansible_facts["os_family"] != "Archlinux"

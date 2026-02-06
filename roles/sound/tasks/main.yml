@@ -1,12 +1,12 @@
 ---
 - name: Install alsa-utils
-  package:
+  ansible.builtin.package:
     name: alsa-utils
     state: present
   become: true
 
 - name: Install Pipewire
-  package:
+  ansible.builtin.package:
     name:
       - pipewire
       - pipewire-pulse
@@ -24,7 +24,7 @@
   become: true
 
 - name: Install pasystray
-  package:
+  ansible.builtin.package:
     name: pasystray
     state: present
   become: true

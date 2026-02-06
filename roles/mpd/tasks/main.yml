@@ -1,7 +1,7 @@
 ---
 - name: Install mpd
   become: true
-  package:
+  ansible.builtin.package:
     name: mpd
     state: present
 
@@ -15,26 +15,26 @@
 
 - name: Install mpc
   become: true
-  package:
+  ansible.builtin.package:
     name: mpc
     state: present
 
 - name: Install ncmpcpp
   become: true
-  package:
+  ansible.builtin.package:
     name: ncmpcpp
     state: present
 
 - name: Install Python MPD client
   become: true
-  package:
+  ansible.builtin.package:
     name: python-mpd2
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install Python MPD client
   become: true
-  package:
+  ansible.builtin.package:
     name: python3-mpd
     state: present
   when: ansible_facts["os_family"] != "Archlinux"

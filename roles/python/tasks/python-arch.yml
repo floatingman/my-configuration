@@ -1,31 +1,31 @@
 ---
 - name: Install pipenv
   become: true
-  package:
+  ansible.builtin.package:
     name: python-pipenv
     state: present
 
 - name: Install pipx
   become: true
-  package:
+  ansible.builtin.package:
     name: python-pipx
     state: present
 
 - name: Install black
   become: true
-  package:
+  ansible.builtin.package:
     name: python-black
     state: present
 
 - name: Install documentation
   become: true
-  package:
+  ansible.builtin.package:
     name: python-docs
     state: present
 
 - name: Install python utils
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - clang
       - uv

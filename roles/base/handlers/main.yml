@@ -1,12 +1,12 @@
 ---
 - name: restart paccache
-  service:
+  ansible.builtin.service:
     name: paccache.timer
     state: restarted
   become: true
 
 - name: stop systemd per-user instance
-  service:
+  ansible.builtin.service:
     name: "user@{{ user.uid }}"
     state: stopped
   become: true

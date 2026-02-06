@@ -1,6 +1,6 @@
 ---
 - name: Install xdg-user-dirs
-  package:
+  ansible.builtin.package:
     name: xdg-user-dirs
     state: present
   become: true
@@ -15,7 +15,7 @@
     - xdg
 
 - name: Install perl-file-mimeinfo
-  package:
+  ansible.builtin.package:
     name: perl-file-mimeinfo
     state: present
   become: true
@@ -24,7 +24,7 @@
     - xdg
 
 - name: Install perl-file-mimeinfo
-  package:
+  ansible.builtin.package:
     name: libfile-mimeinfo-perl
     state: present
   become: true

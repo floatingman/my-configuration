@@ -1,7 +1,7 @@
 ---
 - name: Install bluetooth libraries and tools
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - bluez
       - bluez-libs

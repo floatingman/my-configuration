@@ -1,16 +1,16 @@
 ---
 - name: Install wayland
-  package:
+  ansible.builtin.package:
     name: wayland
     state: present
   become: true
 - name: Install cliphist
-  package:
+  ansible.builtin.package:
     name: cliphist
     state: present
   become: true
 - name: Install xdg-user-dirs
-  package:
+  ansible.builtin.package:
     name: xdg-user-dirs
     state: present
   become: true
@@ -25,7 +25,7 @@
   tags:
     - aur
 - name: Install breeze
-  package:
+  ansible.builtin.package:
     name: breeze
     state: present
   become: true

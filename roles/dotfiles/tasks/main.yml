@@ -11,14 +11,14 @@
     - aur
 
 - name: Install rcm on Ubuntu or Debian
-  package:
+  ansible.builtin.package:
     name: rcm
     state: present
   when: ansible_facts["os_family"] != "Archlinux"
   become: true
 
 - name: Clone user dotfiles
-  git:
+  ansible.builtin.git:
     repo: "{{ dotfiles.repo_url }}"
     dest: "/home/{{ dotfiles.path }}"
     accept_hostkey: true
