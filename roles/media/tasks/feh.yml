@@ -1,7 +1,7 @@
 ---
 - name: Install feh
   become: true
-  package:
+  ansible.builtin.package:
     name: feh
     state: present
   tags:

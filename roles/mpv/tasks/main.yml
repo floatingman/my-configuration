@@ -11,7 +11,7 @@
 
 - name: Install mpv
   become: true
-  package:
+  ansible.builtin.package:
     name: mpv
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
@@ -35,7 +35,7 @@
 
 - name: Install Vapoursynth
   become: true
-  package:
+  ansible.builtin.package:
     name: vapoursynth
     state: present
   when: ansible_facts["os_family"] == "Archlinux"

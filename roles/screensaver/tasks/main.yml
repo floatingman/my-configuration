@@ -1,6 +1,6 @@
 ---
 - name: Install xautolock
-  package:
+  ansible.builtin.package:
     name: xautolock
     state: present
   become: true

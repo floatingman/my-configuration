@@ -1,7 +1,7 @@
 ---
 - name: Install Syncthing
   become: true
-  package:
+  ansible.builtin.package:
     name: syncthing
     state: present
 

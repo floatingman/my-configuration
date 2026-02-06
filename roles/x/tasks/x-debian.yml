@@ -1,36 +1,36 @@
 ---
 - name: Install Xorg
-  package:
+  ansible.builtin.package:
     name: xorg
     state: present
   become: true
 
 - name: Install Xinit
-  package:
+  ansible.builtin.package:
     name: xinit
     state: present
   become: true
 
 - name: Install x11-xserver-utils
-  package:
+  ansible.builtin.package:
     name: x11-xserver-utils
     state: present
   become: true
 
 - name: Install x11-utils
-  package:
+  ansible.builtin.package:
     name: x11-utils
     state: present
   become: true
 
 - name: Install xautomation
-  package:
+  ansible.builtin.package:
     name: xautomation
     state: present
   become: true
 
 - name: Install xinput
-  package:
+  ansible.builtin.package:
     name: xinput
     state: present
   become: true
@@ -43,7 +43,7 @@
 
 - name: Install video tools
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - radeontop
       - vainfo

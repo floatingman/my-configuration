@@ -1,13 +1,13 @@
 ---
 - name: Install GNOME
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - gnome-extra
       - gnome-tweaks
       - xorg-server-xwayland
     state: present
 
-- include_tasks: dconf.yml
-- include_tasks: gtk.yml
-- include_tasks: online_accounts.yml
+- ansible.builtin.include_tasks: dconf.yml
+- ansible.builtin.include_tasks: gtk.yml
+- ansible.builtin.include_tasks: online_accounts.yml

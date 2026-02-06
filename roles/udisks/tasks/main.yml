@@ -1,7 +1,7 @@
 ---
 - name: Install udisks2
   become: true
-  package:
+  ansible.builtin.package:
     name: udisks2
     state: present
 
@@ -25,6 +25,6 @@
 
 - name: Install udiskie
   become: true
-  package:
+  ansible.builtin.package:
     name: udiskie
     state: present

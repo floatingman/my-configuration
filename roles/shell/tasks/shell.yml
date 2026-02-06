@@ -1,6 +1,6 @@
 ---
 - name: Install Bash
-  package:
+  ansible.builtin.package:
     name:
       - bash
       - bash-completion
@@ -10,7 +10,7 @@
     - shell
 
 - name: Install Zsh
-  package:
+  ansible.builtin.package:
     name:
       - zsh
     state: present
@@ -19,7 +19,7 @@
     - shell
 
 - name: Install Zsh Completions
-  package:
+  ansible.builtin.package:
     name:
       - zsh-completions
     state: present
@@ -29,7 +29,7 @@
   when: ansible_os_family == "Archlinux"
 
 - name: Install Starship
-  package:
+  ansible.builtin.package:
     name:
       - starship
     state: present

@@ -1,12 +1,12 @@
 ---
 - name: Install hyprland
-  package:
+  ansible.builtin.package:
     name: hyprland
     state: present
   become: true
 
 - name: Install hyprland utils
-  package:
+  ansible.builtin.package:
     name:
       - hypridle
       - hyprcursor

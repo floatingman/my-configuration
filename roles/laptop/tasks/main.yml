@@ -1,16 +1,16 @@
 ---
-- include_tasks: tlp.yml
+- ansible.builtin.include_tasks: tlp.yml
   when: power_management is defined and power_management == "tlp"
 
-- include_tasks: tuned.yml
+- ansible.builtin.include_tasks: tuned.yml
   when: power_management is defined and power_management == "tuned"
 
-- include_tasks: framework.yml
+- ansible.builtin.include_tasks: framework.yml
   when: power_management is defined and power_management == "tuned" and ansible_system_vendor == "Framework"
 
 - name: Install x86_energy_perf_policy
   become: true
-  package:
+  ansible.builtin.package:
     name: x86_energy_perf_policy
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
@@ -56,7 +56,7 @@
 
 - name: Install powertop
   become: true
-  package:
+  ansible.builtin.package:
     name: powertop
     state: present
 
@@ -73,7 +73,7 @@
 
 - name: Install cmake for battery-stats
   become: true
-  package:
+  ansible.builtin.package:
     name: cmake
     state: present
 

@@ -1,6 +1,6 @@
 ---
 - name: Clone FZF
-  git:
+  ansible.builtin.git:
     clone: true
     repo: https://github.com/junegunn/fzf.git
     depth: 1

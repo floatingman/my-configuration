@@ -1,6 +1,6 @@
 ---
 - name: Install gnupg
-  package:
+  ansible.builtin.package:
     name: gnupg
     state: present
   become: true

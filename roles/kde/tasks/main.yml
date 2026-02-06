@@ -1,31 +1,31 @@
 ---
 - name: Install plasma-nm
-  package:
+  ansible.builtin.package:
     name: plasma-nm
     state: present
   become: true
 - name: Install bluedevil
-  package:
+  ansible.builtin.package:
     name: bluedevil
     state: present
   become: true
 - name: Install gnome-keyring
-  package:
+  ansible.builtin.package:
     name: gnome-keyring
     state: present
   become: true
 - name: Install polkit-kde-agent
-  package:
+  ansible.builtin.package:
     name: polkit-kde-agent
     state: present
   become: true
 - name: Install dolphin
-  package:
+  ansible.builtin.package:
     name: dolphin
     state: present
   become: true
 - name: Install systemsettings
-  package:
+  ansible.builtin.package:
     name: systemsettings
     state: present
   become: true

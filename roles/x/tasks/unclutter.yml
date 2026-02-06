@@ -1,6 +1,6 @@
 ---
 - name: Install unclutter
-  package:
+  ansible.builtin.package:
     name: unclutter
     state: present
   become: true

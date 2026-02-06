@@ -1,14 +1,14 @@
 ---
 - name: Install OpenSSH on Arch
   become: true
-  package:
+  ansible.builtin.package:
     name: openssh
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install OpenSSH on Debian
   become: true
-  package:
+  ansible.builtin.package:
     name: ssh
     state: present
   when: ansible_facts["os_family"] == "Debian"
@@ -40,13 +40,13 @@
 
 - name: Install sshfs
   become: true
-  package:
+  ansible.builtin.package:
     name: sshfs
     state: present
 
 - name: Install autossh
   become: true
-  package:
+  ansible.builtin.package:
     name: autossh
     state: present
 
@@ -58,13 +58,13 @@
 
 - name: Install keychain
   become: true
-  package:
+  ansible.builtin.package:
     name: keychain
     state: present
 
 - name: Install x11-ask-pass
   become: true
-  package:
+  ansible.builtin.package:
     name: x11-ssh-askpass
     state: present
   when: "display_manager is defined and ansible_facts['os_family'] == 'Archlinux'"
@@ -97,6 +97,6 @@
 
 - name: Install Mosh
   become: true
-  package:
+  ansible.builtin.package:
     name: mosh
     state: present

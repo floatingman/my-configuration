@@ -1,12 +1,12 @@
 ---
 - name: Install AwesomeWM
   become: true
-  package:
+  ansible.builtin.package:
     name: awesome
     state: present
 
 - name: Install Applications for AwesomeWM
-  package:
+  ansible.builtin.package:
     name:
       - rofi
       - rofi-emoji

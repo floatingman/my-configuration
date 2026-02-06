@@ -1,7 +1,7 @@
 ---
 - name: Install rofi
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - rofi
     state: present
@@ -10,7 +10,7 @@
 
 - name: Install i3-wm for rofi window switching
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - i3-wm
     state: present

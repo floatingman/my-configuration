@@ -1,7 +1,7 @@
 ---
 - name: Install LightDM
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - lightdm
       - lightdm-gtk-greeter

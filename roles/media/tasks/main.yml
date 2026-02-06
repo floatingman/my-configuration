@@ -1,19 +1,19 @@
 ---
-- include_tasks: qcode.yml
-- include_tasks: feh.yml
-- include_tasks: gthumb.yml
+- ansible.builtin.include_tasks: qcode.yml
+- ansible.builtin.include_tasks: feh.yml
+- ansible.builtin.include_tasks: gthumb.yml
 
 - name: Install media tools for Arch
-  include_tasks: media-tasks-arch.yml
+  ansible.builtin.include_tasks: media-tasks-arch.yml
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install media tools for Debian
-  include_tasks: media-tasks-debian.yml
+  ansible.builtin.include_tasks: media-tasks-debian.yml
   when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install Metadata Anonymisation Toolkit
   become: true
-  package:
+  ansible.builtin.package:
     name: mat2
     state: present
   tags:
@@ -21,18 +21,18 @@
 
 - name: Install sxiv
   become: true
-  package:
+  ansible.builtin.package:
     name: sxiv
     state: present
 
 - name: Install flameshot
   become: true
-  package:
+  ansible.builtin.package:
     name: flameshot
     state: present
 
 - name: Install digikam
   become: true
-  package:
+  ansible.builtin.package:
     name: digikam
     state: present

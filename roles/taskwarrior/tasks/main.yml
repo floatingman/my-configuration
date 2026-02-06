@@ -1,12 +1,12 @@
 ---
 - name: Install taskwarrior
-  package:
+  ansible.builtin.package:
     name: task
     state: present
   become: true
 
 - name: Install timewarrior
-  package:
+  ansible.builtin.package:
     name: timew
     state: present
   notify:

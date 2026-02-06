@@ -6,12 +6,12 @@
   become: true
 
 - name: Refresh pacman mirrors
-  package:
+  ansible.builtin.package:
     update_cache: true
   become: true
 
 - name: Install inetutils for hostname
-  package:
+  ansible.builtin.package:
     name: inetutils
     state: present
   become: true
@@ -23,10 +23,10 @@
   become: true
 
 - name: User tasks
-  include_tasks: user.yml
+  ansible.builtin.include_tasks: user.yml
 - name: Sudo tasks
-  include_tasks: sudo.yml
+  ansible.builtin.include_tasks: sudo.yml
 - name: packages tasks
-  include_tasks: packages.yml
+  ansible.builtin.include_tasks: packages.yml
 - name: journal tasks
-  include_tasks: journal.yml
+  ansible.builtin.include_tasks: journal.yml

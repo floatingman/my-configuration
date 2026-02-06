@@ -1,7 +1,7 @@
 ---
 - name: Install gThumb
   become: true
-  package:
+  ansible.builtin.package:
     name: gthumb
     state: present
   tags:

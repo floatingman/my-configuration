@@ -1,7 +1,7 @@
 ---
 - name: Install TuneD
   become: true
-  package:
+  ansible.builtin.package:
     name: tuned-ppd
     state: present
   tags:

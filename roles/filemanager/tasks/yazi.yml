@@ -1,12 +1,12 @@
 ---
 - name: Install yazi
-  package:
+  ansible.builtin.package:
     name: yazi
     state: present
   become: true
 
 - name: Install ffmpegthumbnailer
-  package:
+  ansible.builtin.package:
     name: ffmpegthumbnailer
     state: present
   become: true

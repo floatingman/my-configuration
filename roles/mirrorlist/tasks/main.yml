@@ -1,7 +1,7 @@
 ---
 - name: Install reflector
   become: true
-  package:
+  ansible.builtin.package:
     name: reflector
     state: present
 

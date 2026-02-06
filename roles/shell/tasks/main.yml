@@ -1,4 +1,4 @@
 ---
-- include_tasks: shell.yml
-- include_tasks: fzf.yml
-- include_tasks: warp.yml
+- ansible.builtin.include_tasks: shell.yml
+- ansible.builtin.include_tasks: fzf.yml
+- ansible.builtin.include_tasks: warp.yml

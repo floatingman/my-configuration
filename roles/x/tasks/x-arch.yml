@@ -1,55 +1,55 @@
 ---
 - name: Install Xorg
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-server
     state: present
 
 - name: Install Xinit
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-xinit
     state: present
 
 - name: Install xmodmap
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-xmodmap
     state: present
 
 - name: Install xdpyinfo
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-xdpyinfo
     state: present
 
 - name: Install xev
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-xev
     state: present
 
 - name: Install xorg-sessreg
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-sessreg
     state: present
 
 - name: Install xorg-xwininfo
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-xwininfo
     state: present
 
 - name: Install xautomation
   become: true
-  package:
+  ansible.builtin.package:
     name: xautomation
     state: present
 
 - name: Install xinput
   become: true
-  package:
+  ansible.builtin.package:
     name: xorg-xinput
     state: present
 
@@ -64,7 +64,7 @@
 
 - name: Install video driver(s)
   become: true
-  package:
+  ansible.builtin.package:
     name: "{{ video_drivers }}"
     state: present
 
@@ -78,7 +78,7 @@
 
 - name: Install video tools
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - radeontop
       - libva-utils
@@ -88,19 +88,19 @@
 
 - name: Install picom for compositor
   become: true
-  package:
+  ansible.builtin.package:
     name: picom
     state: present
 
 - name: Install xiccd
   become: true
-  package:
+  ansible.builtin.package:
     name: xiccd
     state: present
 
 - name: Install xsel
   become: true
-  package:
+  ansible.builtin.package:
     name: xsel
     state: present
 

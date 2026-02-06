@@ -14,7 +14,7 @@
 
 - name: Install warp-terminal via pacman (if available in official repos)
   become: true
-  package:
+  ansible.builtin.package:
     name: warp-terminal
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
@@ -24,7 +24,7 @@
     - terminal
 
 - name: Check if warp-terminal is installed
-  command: which warp-terminal
+  ansible.builtin.command: which warp-terminal
   register: warp_installed
   ignore_errors: yes
   changed_when: false
@@ -33,7 +33,7 @@
     - terminal
 
 - name: Display warp-terminal installation status
-  debug:
+  ansible.builtin.debug:
     msg: "Warp terminal {{ 'is installed' if warp_installed.rc == 0 else 'installation failed or not available' }}"
   tags:
     - warp

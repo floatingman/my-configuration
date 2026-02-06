@@ -1,6 +1,6 @@
 ---
 - name: Install hunspell
-  package:
+  ansible.builtin.package:
     name:
       - hunspell
       - hunspell-en_us
@@ -11,7 +11,7 @@
   when: ansible_os_family ==  "Archlinux"
 
 - name: Install aspell
-  package:
+  ansible.builtin.package:
     name:
       - aspell
       - aspell-en

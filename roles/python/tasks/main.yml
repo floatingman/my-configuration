@@ -1,5 +1,4 @@
 ---
 - name: Install python tools for Arch
-  include_tasks:
-    file: python-arch.yml
+  ansible.builtin.include_tasks: python-arch.yml
   when: ansible_facts["os_family"] == "Archlinux"

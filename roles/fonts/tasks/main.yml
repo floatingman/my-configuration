@@ -1,19 +1,19 @@
 ---
 - name: Install freetype2
   become: true
-  package:
+  ansible.builtin.package:
     name: freetype2
     state: present
 
 - name: Install cairo
   become: true
-  package:
+  ansible.builtin.package:
     name: cairo
     state: present
 
 - name: Install fontconfig
   become: true
-  package:
+  ansible.builtin.package:
     name: fontconfig
     state: present
 
@@ -46,7 +46,7 @@
 
 - name: Install base fonts
   become: true
-  package:
+  ansible.builtin.package:
     name: "{{ base_fonts }}"
     state: present
 

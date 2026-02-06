@@ -1,21 +1,21 @@
 ---
 - name: Install android-tools
   become: true
-  package:
+  ansible.builtin.package:
     name: android-tools
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install android-tools
   become: true
-  package:
+  ansible.builtin.package:
     name: android-platform-tools-base
     state: present
   when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install android-udev
   become: true
-  package:
+  ansible.builtin.package:
     name: android-udev
     state: present
   when: ansible_facts["os_family"] == "Archlinux"

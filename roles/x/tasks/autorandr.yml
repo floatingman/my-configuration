@@ -1,6 +1,6 @@
 ---
 - name: Install arandr
-  package:
+  ansible.builtin.package:
     name: arandr
     state: present
   become: true
@@ -8,7 +8,7 @@
     - autorandr
 
 - name: Install autorandr
-  package:
+  ansible.builtin.package:
     name: autorandr
     state: present
   become: true

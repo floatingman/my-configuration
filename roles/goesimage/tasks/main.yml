@@ -27,7 +27,7 @@
     - reload systemd config
     - restart GOESImage
 
-- include_tasks: roles/nmtrust/tasks/unit.yml
+- ansible.builtin.include_tasks: roles/nmtrust/tasks/unit.yml
   vars:
     unit: goesimage.timer
     run_on: "{{ goesimage.run_on }}"

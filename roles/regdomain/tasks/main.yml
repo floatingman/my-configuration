@@ -1,7 +1,7 @@
 ---
 - name: Install wireless-regdb
   become: true
-  package:
+  ansible.builtin.package:
     name: wireless-regdb
     state: present
 

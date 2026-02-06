@@ -1,7 +1,7 @@
 ---
 - name: Install alacritty
   become: true
-  package:
+  ansible.builtin.package:
     name: alacritty
     state: present
   tags:
@@ -9,7 +9,7 @@
 
 - name: Install kitty
   become: true
-  package:
+  ansible.builtin.package:
     name: kitty
     state: present
   tags:
@@ -17,7 +17,7 @@
 
 - name: Install Wezterm
   become: true
-  package:
+  ansible.builtin.package:
     name: wezterm
     state: present
   when: ansible_facts["os_family"] == "Archlinux"

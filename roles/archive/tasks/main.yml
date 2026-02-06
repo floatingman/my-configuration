@@ -1,7 +1,7 @@
 ---
 - name: Install zip archive utilities
   become: true
-  package:
+  ansible.builtin.package:
     name:
       - zip
       - unzip
@@ -12,7 +12,7 @@
 
 - name: Install atool
   become: true
-  package:
+  ansible.builtin.package:
     name: atool
     state: present
   tags:
@@ -20,7 +20,7 @@
 
 - name: Install pigz
   become: true
-  package:
+  ansible.builtin.package:
     name: pigz
     state: present
   tags:
@@ -28,7 +28,7 @@
 
 - name: Install xarchiver
   become: true
-  package:
+  ansible.builtin.package:
     name: xarchiver
     state: present
   when: "desktop_environment is defined"
@@ -36,9 +36,9 @@
     - xarchive
 
 - name: Install archivers on Arch
-  include_tasks: archive-arch.yml
+  ansible.builtin.include_tasks: archive-arch.yml
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install archivers on Debian
-  include_tasks: archive-debian.yml
+  ansible.builtin.include_tasks: archive-debian.yml
   when: ansible_facts["os_family"] != "Archlinux"

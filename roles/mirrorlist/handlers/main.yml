@@ -1,6 +1,6 @@
 ---
 - name: restart reflector update
   become: true
-  service:
+  ansible.builtin.service:
     name: mirrorlist.timer
     state: restarted
