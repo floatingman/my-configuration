@@ -83,8 +83,6 @@ video_drivers:
   - lib32-mesa
   - libva-mesa-driver
   - lib32-libva-mesa-driver
-  - mesa-vdpau
-  - lib32-mesa-vdpau
   - vulkan-icd-loader
   - vulkan-intel
   - vulkan-mesa-layers

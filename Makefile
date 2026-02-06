@@ -33,9 +33,9 @@ SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
 
 .PHONY: bootstrap
-bootstrap: req-pip ## Install ansible (pip required)
+bootstrap: req-pipx ## Install ansible (pipx required)
 	@echo 'Bootstraping your system for ansible'
-	pip install ansible --user
+	pipx install --include-deps ansible
 
 .PHONY: install
 install: req-galaxy ## Install roles via ansible-galaxy
@@ -77,8 +77,8 @@ list-tags: ## List all available tags in the playbook
 all: install configure ## Run all goals
 	@echo 'Applying R1c3'
 
-req-pip:
-	@command -v pip >/dev/null 2>&1 || { echo >&2 "require pip"; exit 1; }
+req-pipx:
+	@command -v pipx >/dev/null 2>&1 || { echo >&2 "require pipx"; exit 1; }
 
 req-galaxy:
 	@command -v ansible-galaxy >/dev/null 2>&1 || { echo >&2 "require ansible-galaxy"; exit 1; }
