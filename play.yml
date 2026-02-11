@@ -2,21 +2,21 @@
 - name: Configure localhost
   hosts: localhost
   roles:
-    - { role: base, tags: ["base"], when: ansible_os_family == "Archlinux" }
-    - { role: grub, tags: ["grub"], when: ansible_os_family == "Archlinux" }
+    - { role: base, tags: ["base"], when: "ansible_facts['os_family'] == 'Archlinux'" }
+    - { role: grub, tags: ["grub"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: gnupg, tags: ["gnupg"] }
     - { role: sysmon, tags: ["sysmon"] }
     - { role: cron, tags: ["cron"] }
     - {
         role: microcode,
         tags: ["microcode"],
-        when: ansible_os_family == "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - { role: system, tags: ["system"] }
     - { role: shell, tags: ["shell"] }
     - { role: ssh, tags: ["ssh"] }
     - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
-    - { role: aur, tags: ["aur"], when: ansible_os_family == "Archlinux" }
+    - { role: aur, tags: ["aur"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: archive, tags: ["archive"] }
     - role: x
       tags: ["x"]
@@ -86,7 +86,7 @@
     - {
         role: fonts,
         tags: ["fonts"],
-        when: ansible_os_family == "Archlinux" and display_manager is defined,
+        when: "ansible_facts['os_family'] == 'Archlinux' and display_manager is defined",
       }
     - {
         role: nerd-fonts,
@@ -101,19 +101,19 @@
     - {
         role: homebrew,
         tags: ["homebrew"],
-        when: ansible_os_family == "Debian",
+        when: "ansible_facts['os_family'] == 'Debian'",
       }
     - {
         role: ansible-role-binaries,
         tags: ["binaries"],
-        when: ansible_os_family != "Archlinux",
+        when: "ansible_facts['os_family'] != 'Archlinux'",
       }
     - { role: laptop, tags: ["laptop"], when: (laptop) }
     - { role: notes, tags: ["notes"], when: "display_manager is defined" }
     - {
         role: nmtrust,
         tags: ["nmtrust"],
-        when: ansible_os_family ==  "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - {
         role: terminal,
@@ -123,12 +123,12 @@
     - {
         role: networkmanager,
         tags: ["networkmanager"],
-        when: ansible_os_family ==  "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - {
         role: nettools,
         tags: ["nettools"],
-        when: ansible_os_family ==  "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - { role: python, tags: ["python"] }
     - { role: rust, tags: ["rust"] }
@@ -158,7 +158,7 @@
         tags: ["awesomewm"],
         when: not ("desktop_environment is defined") and "desktop_environment =='awesomewm'",
       }
-    - { role: docker, tags: ["docker"], when: ansible_os_family == "Archlinux" }
+    - { role: docker, tags: ["docker"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - {
         role: screensaver,
         tags: ["screensaver"],
@@ -167,19 +167,19 @@
     - {
         role: cups,
         tags: ["cups"],
-        when: (ansible_os_family == "Archlinux") and (display_manager is defined),
+        when: "ansible_facts['os_family'] == 'Archlinux' and display_manager is defined",
       }
     - { role: proton, tags: ["proton"], when: display_manager is defined }
     - {
         role: udisks,
         tags: ["udisks"],
-        when: (ansible_os_family == "Archlinux") and (display_manager is defined),
+        when: "ansible_facts['os_family'] == 'Archlinux' and display_manager is defined",
       }
     - { role: goesimage, tags: ["goesimage"], when: "goesimage is defined" }
     - {
         role: taskwarrior,
         tags: ["taskwarrior"],
-        when: ansible_os_family ==  "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - {
         role: browsers,
@@ -195,22 +195,22 @@
     - {
         role: mirrorlist,
         tags: ["mirrorlist"],
-        when: ansible_os_family == "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - { role: mpv, tags: ["mpv"], when: display_manager is defined }
     - { role: media, tags: ["media"], when: display_manager is defined }
     - { role: nettools, tags: ["nettools"] }
-    - { role: pass, tags: ["pass"], when: ansible_os_family ==  "Archlinux" }
+    - { role: pass, tags: ["pass"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: spell, tags: ["spell"] }
     - {
         role: clipboard,
         tags: ["clipboard"],
-        when: ansible_os_family == "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - {
         role: clouddrive,
         tags: ["clouddrive"],
-        when: ansible_os_family == "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - { role: syncthing, tags: ["syncthing"] }
     - { role: sound, tags: ["sound"], when: display_manager is defined }
@@ -218,7 +218,7 @@
     - {
         role: bluetooth,
         tags: ["bluetooth"],
-        when: (ansible_os_family ==  "Archlinux") and (bluetooth is defined),
+        when: "ansible_facts['os_family'] == 'Archlinux' and bluetooth is defined",
       }
     - {
         role: backlight,
@@ -229,7 +229,7 @@
     - {
         role: filesharing,
         tags: ["filesharing"],
-        when: ansible_os_family == "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
     - { role: twitch, tags: ["twitch"], when: display_manager is defined }
     - {
@@ -240,7 +240,7 @@
     - {
         role: kubernetes,
         tags: ["kubernetes"],
-        when: ansible_os_family == "Archlinux",
+        when: "ansible_facts['os_family'] == 'Archlinux'",
       }
   vars_prompt:
     - name: user_password

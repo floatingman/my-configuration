@@ -4,7 +4,7 @@
     name: "{{ microtex_dependencies }}"
     state: present
   become: true
-  when: ansible_os_family == "Archlinux"
+  when: ansible_facts['os_family'] == "Archlinux"
 
 - name: Create build directory
   ansible.builtin.file:

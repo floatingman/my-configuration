@@ -17,7 +17,7 @@
     update_cache: true
   become: true
   when:
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
     - not homebrew_check.stat.exists
 
 - name: Install Homebrew dependencies (Arch)
@@ -30,7 +30,7 @@
     state: present
   become: true
   when:
-    - ansible_os_family == "Archlinux"
+    - ansible_facts['os_family'] == "Archlinux"
     - not homebrew_check.stat.exists
 
 - name: Create Homebrew directory
@@ -81,7 +81,7 @@
   loop: "{{ homebrew_tap_packages | default([]) }}"
   when:
     - homebrew_tap_packages is defined and homebrew_tap_packages | length > 0
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
 
 - name: Install Homebrew packages
   community.general.homebrew:
@@ -91,4 +91,4 @@
   loop: "{{ homebrew_packages | default([]) }}"
   when:
     - homebrew_packages is defined and homebrew_packages | length > 0
-    - ansible_os_family == "Debian"
+    - ansible_facts['os_family'] == "Debian"
