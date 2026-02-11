@@ -23,7 +23,7 @@
 
 - name: Get current user
   ansible.builtin.set_fact:
-    uv_python_packages_current_user: "{{ ansible_user_id }}"
+    uv_python_packages_current_user: "{{ ansible_facts['user_id'] }}"
 
 # Tool mode tasks
 - name: Build uv tool install command

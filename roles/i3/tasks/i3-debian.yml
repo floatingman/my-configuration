@@ -11,7 +11,7 @@
 
 - name: Add sur5r's i3 repository into sources list
   ansible.builtin.apt_repository:
-    repo: deb [signed-by=/usr/share/keyrings/sur5r-keyring.gpg] http://debian.sur5r.net/i3/ {{ ansible_distribution_release }} universe
+    repo: deb [signed-by=/usr/share/keyrings/sur5r-keyring.gpg] http://debian.sur5r.net/i3/ {{ ansible_facts['distribution_release'] }} universe
     state: present
     filename: sur5r-i3
 

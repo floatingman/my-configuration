@@ -8,7 +8,7 @@
   become: true
   tags:
     - hunspell
-  when: ansible_os_family ==  "Archlinux"
+  when: ansible_facts['os_family'] ==  "Archlinux"
 
 - name: Install aspell
   ansible.builtin.package:

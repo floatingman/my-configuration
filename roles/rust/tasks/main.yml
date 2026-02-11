@@ -5,7 +5,7 @@
   register: rustup_installed
   check_mode: false
   vars:
-    user_home: "{{ ansible_env.HOME }}"
+    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Download rustup installer
   ansible.builtin.get_url:
@@ -27,7 +27,7 @@
     create: true
     mode: '0644'
   vars:
-    user_home: "{{ ansible_env.HOME }}"
+    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Check if fish shell config directory exists
   ansible.builtin.stat:
@@ -35,7 +35,7 @@
   register: fish_config
   check_mode: false
   vars:
-    user_home: "{{ ansible_env.HOME }}"
+    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Add cargo to PATH in fish config
   ansible.builtin.lineinfile:
@@ -45,7 +45,7 @@
     mode: '0644'
   when: fish_config.stat.exists
   vars:
-    user_home: "{{ ansible_env.HOME }}"
+    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Check which cargo packages are already installed
   ansible.builtin.command:
@@ -55,7 +55,7 @@
   failed_when: false
   check_mode: false
   vars:
-    user_home: "{{ ansible_env.HOME }}"
+    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Install cargo packages
   ansible.builtin.command:
@@ -65,4 +65,4 @@
   register: cargo_install
   changed_when: cargo_install.rc == 0
   vars:
-    user_home: "{{ ansible_env.HOME }}"
+    user_home: "{{ ansible_facts['env'].HOME }}"

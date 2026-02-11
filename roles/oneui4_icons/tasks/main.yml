@@ -9,7 +9,7 @@
     name: "{{ oneui4_icons_dependencies }}"
     state: present
   become: true
-  when: oneui4_icons_enabled and ansible_os_family == "Archlinux"
+  when: oneui4_icons_enabled and ansible_facts['os_family'] == "Archlinux"
 
 - name: Create build directory
   ansible.builtin.file:

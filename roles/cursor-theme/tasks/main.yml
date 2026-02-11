@@ -14,7 +14,7 @@
     name: "{{ cursor_theme.conflicts | default(['bibata-cursor-theme', 'bibata-cursor-theme-bin']) }}"
     state: absent
   become: true
-  when: cursor_theme.enabled and ansible_os_family == "Archlinux"
+  when: cursor_theme.enabled and ansible_facts['os_family'] == "Archlinux"
   ignore_errors: true
 
 - name: Create temporary download directory
