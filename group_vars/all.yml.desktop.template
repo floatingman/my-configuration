@@ -57,10 +57,10 @@ network:
     interval: 5
     response: 204
   wifi_wired_exclusive: true
-  trusted_uuid:
-    - 8c60f8cd-b8a8-48df-b58b-10886f73a9c3
-    - 54caeabc-0a90-41b2-b641-b4c3565e3c8b
-    - b70a7980-1b70-4819-8bbe-380d028f6a0b
+trusted_uuid:
+  - 8c60f8cd-b8a8-48df-b58b-10886f73a9c3
+  - 54caeabc-0a90-41b2-b641-b4c3565e3c8b
+  - b70a7980-1b70-4819-8bbe-380d028f6a0b
 ssh:
   port: 22
   enable_sshd: true
@@ -76,8 +76,8 @@ gitconfig:
 dotfiles:
   repo_url: https://github.com/{{ github_user }}/dotfiles.git
   path: "{{ user.name }}/.dotfiles"
-  rcup_flags: -fx README.md
-  linuxgui: true
+rcup_flags: -fx README.md
+linuxgui: true
 kernel_parameters: "quiet consoleblank=60"
 video_drivers:
   - lib32-mesa
@@ -275,8 +275,8 @@ cli:
     - jq
     - k9s
     - kube-linter
-    - kubectx
     - kubeconform
+    - kubectx
     - kubeseal
     - kustomize
     - lazygit
