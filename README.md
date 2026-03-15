@@ -75,7 +75,7 @@ The `gpu_detect` role uses `lspci` to identify your GPU hardware and sets the ap
 - **AMD**: Mesa drivers, Vulkan support, amdgpu_top
 - **NVIDIA**: Open-source (nouveau) or proprietary drivers
 - **Intel**: Mesa drivers, Intel Vulkan support
-- **Hybrid systems**: Multiple GPUs handled with `gpu_hybrid_install_all`
+- **Hybrid systems**: Multiple GPUs handled with `gpu_drivers_hybrid_install_all`
 
 ### Configuration
 
@@ -83,16 +83,16 @@ Configure GPU behavior in `group_vars/all.yml`:
 
 ```yaml
 # Detection mode: auto (default), amd, nvidia, intel
-gpu_detection_mode: auto
+gpu_drivers_detection_mode: auto
 
 # Force a specific GPU type (overrides detection)
-# gpu_type: nvidia
+# gpu_drivers_type: nvidia
 
 # Use proprietary NVIDIA drivers
-# gpu_nvidia_proprietary: true
+# gpu_drivers_nvidia_proprietary: true
 
 # Install drivers for all GPUs in a hybrid system
-# gpu_hybrid_install_all: true
+# gpu_drivers_hybrid_install_all: true
 ```
 
 ### Testing GPU Changes

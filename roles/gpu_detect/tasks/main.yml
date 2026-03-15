@@ -1,7 +1,7 @@
 ---
 - name: Run lspci to detect GPUs
   command: lspci
-  register: lspci_output
+  register: gpu_detect_lspci_output
   changed_when: false
   tags:
     - gpu_detect
@@ -9,29 +9,29 @@
 
 - name: Filter GPU information
   set_fact:
-    gpu_filtered_lines: "{{ (lspci_output.stdout_lines | default([])) | list | select('search', 'VGA|3D|Display|Display controller|VGA compatible') | list }}"
+    gpu_detect_filtered_lines: "{{ (gpu_detect_lspci_output.stdout_lines | default([])) | list | select('search', 'VGA|3D|Display|Display controller|VGA compatible') | list }}"
   tags:
     - gpu_detect
 
 - name: Initialize GPU detection facts
   set_fact:
-    gpu_detected_list: []
-    gpu_amd: false
-    gpu_nvidia: false
-    gpu_intel: false
+    gpu_detect_detected_list: []
+    gpu_detect_amd: false
+    gpu_detect_nvidia: false
+    gpu_detect_intel: false
   tags:
     - gpu_detect
 
 - name: Detect AMD GPUs
   set_fact:
-    gpu_amd: true
-    gpu_detected_list: "{{ gpu_detected_list | union(['AMD']) }}"
+    gpu_detect_amd: true
+    gpu_detect_detected_list: "{{ gpu_detect_detected_list | union(['AMD']) }}"
   when: >
     item is search("AMD") or
     item is search("Radeon") or
     item is search("ATI") or
     item is search("amdgpu")
-  loop: "{{ gpu_filtered_lines }}"
+  loop: "{{ gpu_detect_filtered_lines }}"
   loop_control:
     loop_var: item
   tags:
@@ -39,14 +39,14 @@
 
 - name: Detect NVIDIA GPUs
   set_fact:
-    gpu_nvidia: true
-    gpu_detected_list: "{{ gpu_detected_list | union(['NVIDIA']) }}"
+    gpu_detect_nvidia: true
+    gpu_detect_detected_list: "{{ gpu_detect_detected_list | union(['NVIDIA']) }}"
   when: >
     item is search("NVIDIA") or
     item is search("GeForce") or
     item is search("Quadro") or
     item is search("nvidia")
-  loop: "{{ gpu_filtered_lines }}"
+  loop: "{{ gpu_detect_filtered_lines }}"
   loop_control:
     loop_var: item
   tags:
@@ -54,13 +54,13 @@
 
 - name: Detect Intel GPUs
   set_fact:
-    gpu_intel: true
-    gpu_detected_list: "{{ gpu_detected_list | union(['Intel']) }}"
+    gpu_detect_intel: true
+    gpu_detect_detected_list: "{{ gpu_detect_detected_list | union(['Intel']) }}"
   when: >
     item is search("Intel") or
     item is search("i915") or
     item is search("Intel Corporation")
-  loop: "{{ gpu_filtered_lines }}"
+  loop: "{{ gpu_detect_filtered_lines }}"
   loop_control:
     loop_var: item
   tags:
@@ -68,21 +68,21 @@
 
 - name: Set final GPU facts
   set_fact:
-    gpu_detected: "{{ gpu_detected_list | unique }}"
-    gpu_primary: "{{ (gpu_detected_list | first) if (gpu_detected_list | length > 0) else 'none' }}"
-    gpu_hybrid: "{{ (gpu_detected_list | unique | length > 1) | bool }}"
+    gpu_detect_detected: "{{ gpu_detect_detected_list | unique }}"
+    gpu_detect_primary: "{{ (gpu_detect_detected_list | first) if (gpu_detect_detected_list | length > 0) else 'none' }}"
+    gpu_detect_hybrid: "{{ (gpu_detect_detected_list | unique | length > 1) | bool }}"
   tags:
     - gpu_detect
 
 - name: Display detected GPUs
   debug:
     msg: |
-      Detected GPUs: {{ gpu_detected }}
-      Primary GPU: {{ gpu_primary }}
-      AMD: {{ gpu_amd }}
-      NVIDIA: {{ gpu_nvidia }}
-      Intel: {{ gpu_intel }}
-      Hybrid: {{ gpu_hybrid }}
+      Detected GPUs: {{ gpu_detect_detected }}
+      Primary GPU: {{ gpu_detect_primary }}
+      AMD: {{ gpu_detect_amd }}
+      NVIDIA: {{ gpu_detect_nvidia }}
+      Intel: {{ gpu_detect_intel }}
+      Hybrid: {{ gpu_detect_hybrid }}
   changed_when: false
   tags:
     - gpu_detect
@@ -92,12 +92,12 @@
   copy:
     content: |
       GPU Detection Facts:
-      - Detected: {{ gpu_detected }}
-      - Primary: {{ gpu_primary }}
-      - AMD: {{ gpu_amd }}
-      - NVIDIA: {{ gpu_nvidia }}
-      - Intel: {{ gpu_intel }}
-      - Hybrid: {{ gpu_hybrid }}
+      - Detected: {{ gpu_detect_detected }}
+      - Primary: {{ gpu_detect_primary }}
+      - AMD: {{ gpu_detect_amd }}
+      - NVIDIA: {{ gpu_detect_nvidia }}
+      - Intel: {{ gpu_detect_intel }}
+      - Hybrid: {{ gpu_detect_hybrid }}
     dest: /tmp/gpu_facts.txt
   tags:
     - gpu_detect

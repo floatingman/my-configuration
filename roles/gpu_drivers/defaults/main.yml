@@ -1,21 +1,21 @@
 ---
 # GPU driver configuration defaults
-gpu_detection_mode: auto
-gpu_type: null
-gpu_nvidia_proprietary: true
-gpu_hybrid_install_all: true
+gpu_drivers_detection_mode: auto
+gpu_drivers_type: null
+gpu_drivers_nvidia_proprietary: true
+gpu_drivers_hybrid_install_all: true
 
-# Video tools to install based on GPU type
-gpu_video_tools_amd:
+# Video tools to install based on GPU type (fallback defaults)
+gpu_drivers_video_tools_amd:
   - radeontop
   - libva-utils
 
-gpu_video_tools_nvidia:
+gpu_drivers_video_tools_nvidia:
   - nvidia-settings
 
-gpu_video_tools_intel:
+gpu_drivers_video_tools_intel:
   - intel-gpu-top
 
 # Default video tools (installed when no GPU detected)
-gpu_video_tools_default:
+gpu_drivers_video_tools_default:
   - libva-utils

@@ -1,6 +1,6 @@
 ---
 # AMD GPU drivers
-gpu_drivers_amd:
+gpu_detect_drivers_amd:
   - mesa
   - vulkan-radeon
   - lib32-mesa
@@ -13,7 +13,7 @@ gpu_drivers_amd:
   - amdgpu_top
 
 # NVIDIA GPU drivers (open source)
-gpu_drivers_nvidia_open:
+gpu_detect_drivers_nvidia_open:
   - mesa
   - vulkan-nouveau
   - lib32-mesa
@@ -24,7 +24,7 @@ gpu_drivers_nvidia_open:
   - xf86-video-nouveau
 
 # NVIDIA GPU drivers (proprietary)
-gpu_drivers_nvidia_prop:
+gpu_detect_drivers_nvidia_prop:
   - nvidia
   - nvidia-utils
   - lib32-nvidia-utils
@@ -32,7 +32,7 @@ gpu_drivers_nvidia_prop:
   - nvidia-prime
 
 # Intel GPU drivers
-gpu_drivers_intel:
+gpu_detect_drivers_intel:
   - mesa
   - vulkan-intel
   - lib32-mesa
@@ -44,7 +44,7 @@ gpu_drivers_intel:
   - xf86-video-intel
 
 # Default drivers (fallback)
-gpu_drivers_default:
+gpu_detect_drivers_default:
   - mesa
   - vulkan-intel  # Use vulkan-intel as it's more commonly available
   - lib32-mesa
@@ -52,15 +52,15 @@ gpu_drivers_default:
   - vulkan-tools
 
 # Video tools for GPU types
-gpu_video_tools_amd:
+gpu_detect_video_tools_amd:
   - radeontop
   - libva-utils
 
-gpu_video_tools_nvidia:
+gpu_detect_video_tools_nvidia:
   - nvidia-settings
 
-gpu_video_tools_intel:
+gpu_detect_video_tools_intel:
   - intel-gpu-top
 
-gpu_video_tools_default:
+gpu_detect_video_tools_default:
   - libva-utils

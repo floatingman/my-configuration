@@ -2,7 +2,7 @@
 - name: Check if rustup is installed
   ansible.builtin.stat:
     path: "{{ user_home }}/.cargo/bin/rustup"
-  register: rustup_installed
+  register: rust_rustup_installed
   check_mode: false
   vars:
     user_home: "{{ ansible_facts['env'].HOME }}"
@@ -12,12 +12,12 @@
     url: https://sh.rustup.rs
     dest: /tmp/rustup-init.sh
     mode: '0755'
-  when: not rustup_installed.stat.exists
+  when: not rust_rustup_installed.stat.exists
 
 - name: Install Rust via rustup
   ansible.builtin.command:
     cmd: /tmp/rustup-init.sh -y --default-toolchain stable
-  when: not rustup_installed.stat.exists
+  when: not rust_rustup_installed.stat.exists
   changed_when: true
 
 - name: Add cargo to PATH in bashrc
@@ -32,7 +32,7 @@
 - name: Check if fish shell config directory exists
   ansible.builtin.stat:
     path: "{{ user_home }}/.config/fish"
-  register: fish_config
+  register: rust_fish_config
   check_mode: false
   vars:
     user_home: "{{ ansible_facts['env'].HOME }}"
@@ -43,14 +43,14 @@
     line: 'set -gx PATH $HOME/.cargo/bin $PATH'
     create: true
     mode: '0644'
-  when: fish_config.stat.exists
+  when: rust_fish_config.stat.exists
   vars:
     user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Check which cargo packages are already installed
   ansible.builtin.command:
     cmd: "{{ user_home }}/.cargo/bin/cargo install --list"
-  register: installed_cargo_packages
+  register: rust_installed_rust_cargo_packages
   changed_when: false
   failed_when: false
   check_mode: false
@@ -60,9 +60,9 @@
 - name: Install cargo packages
   ansible.builtin.command:
     cmd: "{{ user_home }}/.cargo/bin/cargo install {{ item }}"
-  loop: "{{ cargo_packages | default([]) }}"
-  when: item not in installed_cargo_packages.stdout
-  register: cargo_install
-  changed_when: cargo_install.rc == 0
+  loop: "{{ rust_cargo_packages | default([]) }}"
+  when: item not in rust_installed_rust_cargo_packages.stdout
+  register: rust_cargo_install
+  changed_when: rust_cargo_install.rc == 0
   vars:
     user_home: "{{ ansible_facts['env'].HOME }}"
