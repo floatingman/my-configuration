@@ -26,7 +26,7 @@
   ansible.builtin.include_tasks: user.yml
 - name: Sudo tasks
   ansible.builtin.include_tasks: sudo.yml
-- name: packages tasks
+- name: Packages tasks
   ansible.builtin.include_tasks: packages.yml
-- name: journal tasks
+- name: Journal tasks
   ansible.builtin.include_tasks: journal.yml

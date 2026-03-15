@@ -1,5 +1,5 @@
 ---
-- name: install greenclip from AUR
+- name: Install greenclip from AUR
   become: true
   kewlfft.aur.aur:
     name: rofi-greenclip
@@ -10,7 +10,7 @@
   tags:
     - aur
 
-- name: copy greenclip.service
+- name: Copy greenclip.service
   ansible.builtin.copy:
     src: greenclip.service
     dest: /etc/systemd/user/greenclip.service

@@ -1,5 +1,5 @@
 ---
-- name: ensure fonts directory
+- name: Ensure fonts directory
   ansible.builtin.file:
     path: "/home/{{ user.name }}/.fonts"
     state: directory

@@ -1,5 +1,5 @@
 ---
-- name: restart illuminanced
+- name: Restart illuminanced
   become: true
   ansible.builtin.service:
     name: illuminanced.service

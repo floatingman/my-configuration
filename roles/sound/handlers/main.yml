@@ -1,5 +1,5 @@
 ---
-- name: restart pulse as user
+- name: Restart pulse as user
   ansible.builtin.systemd:
     name: pipewire-pulse.service
     scope: user

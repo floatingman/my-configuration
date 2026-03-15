@@ -1,10 +1,10 @@
 ---
-- name: check if Intel processor
+- name: Check if Intel processor
   ansible.builtin.command: grep -q Intel /proc/cpuinfo
   register: is_intel
   failed_when: is_intel.rc > 1
 
-- name: check if AMD processor
+- name: Check if AMD processor
   ansible.builtin.command: grep -q AMD /proc/cpuinfo
   register: is_amd
   failed_when: is_amd.rc > 1
