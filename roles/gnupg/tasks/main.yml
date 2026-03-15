@@ -15,7 +15,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: gnupg.enable_agent == True
+  when: gnupg.enable_agent
 
 - name: Enable dirmngr.socket
   ansible.builtin.systemd:
@@ -27,7 +27,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: gnupg.enable_agent == True
+  when: gnupg.enable_agent
 
 - name: Enable gpg-agent-ssh.socket
   ansible.builtin.systemd:
@@ -39,4 +39,4 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: gnupg.enable_agent == True and gnupg.emulate_ssh == True
+  when: gnupg.enable_agent and gnupg.emulate_ssh

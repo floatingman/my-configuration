@@ -22,7 +22,7 @@
     name: rfkill-block@bluetooth.service
     enabled: false
     state: stopped
-  when: bluetooth.disable == False
+  when: not bluetooth.disable
 
 - name: Enable and start the bluetooth service
   become: true
@@ -30,7 +30,7 @@
     name: bluetooth.service
     enabled: true
     state: started
-  when: bluetooth.disable == False
+  when: not bluetooth.disable
 
 - name: Disable and stop the bluetooth service
   become: true
@@ -38,7 +38,7 @@
     name: bluetooth.service
     enabled: false
     state: stopped
-  when: bluetooth.disable == True
+  when: bluetooth.disable
 
 - name: Block the bluetooth service
   become: true
@@ -46,4 +46,4 @@
     name: rfkill-block@bluetooth.service
     enabled: true
     state: started
-  when: bluetooth.disable == True
+  when: bluetooth.disable

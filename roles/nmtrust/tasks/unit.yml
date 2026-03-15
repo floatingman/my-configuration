@@ -39,7 +39,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: run_on == "all" and user_unit is defined and user_unit == true
+  when: run_on == "all" and user_unit is defined and user_unit
 
 - name: Disable for user - {{ unit }}
   ansible.builtin.systemd:
@@ -50,14 +50,14 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: run_on != "all" and user_unit is defined and user_unit == true
+  when: run_on != "all" and user_unit is defined and user_unit
 
 - name: Add for user to trusted unit list - {{ unit }}
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
     line: "{{ unit }},user:{{ user.name }}"
-  when: run_on == "trusted" and user_unit is defined and user_unit == true
+  when: run_on == "trusted" and user_unit is defined and user_unit
   become: true
 
 - name: Remove for user from trusted unit list - {{ unit }}
@@ -65,5 +65,5 @@
     dest: /etc/nmtrust/trusted_units
     state: absent
     line: "{{ unit }},user:{{ user.name }}"
-  when: run_on != "trusted" and user_unit is defined and user_unit == true
+  when: run_on != "trusted" and user_unit is defined and user_unit
   become: true
