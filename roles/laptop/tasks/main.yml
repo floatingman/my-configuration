@@ -1,11 +1,14 @@
 ---
-- ansible.builtin.include_tasks: tlp.yml
+- name: Include TLP power management tasks
+  ansible.builtin.include_tasks: tlp.yml
   when: power_management is defined and power_management == "tlp"
 
-- ansible.builtin.include_tasks: tuned.yml
+- name: Include tuned power management tasks
+  ansible.builtin.include_tasks: tuned.yml
   when: power_management is defined and power_management == "tuned"
 
-- ansible.builtin.include_tasks: framework.yml
+- name: Include Framework laptop tasks
+  ansible.builtin.include_tasks: framework.yml
   when: power_management is defined and power_management == "tuned" and ansible_facts['system_vendor'] == "Framework"
 
 - name: Install x86_energy_perf_policy

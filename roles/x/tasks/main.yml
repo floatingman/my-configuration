@@ -7,9 +7,15 @@
   ansible.builtin.include_tasks: x-debian.yml
   when: ansible_facts["os_family"] != "Archlinux"
 
-- ansible.builtin.include_tasks: sxhkd.yml
-- ansible.builtin.include_tasks: unclutter.yml
-- ansible.builtin.include_tasks: autorandr.yml
-- ansible.builtin.include_tasks: autocutsel.yml
-- ansible.builtin.include_tasks: xdg.yml
-- ansible.builtin.include_tasks: keyd.yml
+- name: Include sxhkd tasks
+  ansible.builtin.include_tasks: sxhkd.yml
+- name: Include unclutter tasks
+  ansible.builtin.include_tasks: unclutter.yml
+- name: Include autorandr tasks
+  ansible.builtin.include_tasks: autorandr.yml
+- name: Include autocutsel tasks
+  ansible.builtin.include_tasks: autocutsel.yml
+- name: Include xdg tasks
+  ansible.builtin.include_tasks: xdg.yml
+- name: Include keyd tasks
+  ansible.builtin.include_tasks: keyd.yml

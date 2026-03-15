@@ -1,7 +1,10 @@
 ---
-- ansible.builtin.include_tasks: qcode.yml
-- ansible.builtin.include_tasks: feh.yml
-- ansible.builtin.include_tasks: gthumb.yml
+- name: Include qcode tasks
+  ansible.builtin.include_tasks: qcode.yml
+- name: Include feh tasks
+  ansible.builtin.include_tasks: feh.yml
+- name: Include gthumb tasks
+  ansible.builtin.include_tasks: gthumb.yml
 
 - name: Install media tools for Arch
   ansible.builtin.include_tasks: media-tasks-arch.yml

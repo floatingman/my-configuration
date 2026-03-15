@@ -1,6 +1,8 @@
 ---
-- ansible.builtin.include_tasks: ranger.yml
-- ansible.builtin.include_tasks: thunar.yml
+- name: Include ranger tasks
+  ansible.builtin.include_tasks: ranger.yml
+- name: Include thunar tasks
+  ansible.builtin.include_tasks: thunar.yml
 - name: Install yazi on Archlinux
   ansible.builtin.include_tasks: yazi.yml
   when: ansible_facts["os_family"] == "Archlinux"

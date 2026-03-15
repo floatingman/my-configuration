@@ -21,3 +21,4 @@ warn_list:
   # command-instead-of-module: FIXED ✓
   # partial-become: FIXED ✓
   # name[casing]: FIXED ✓
+  # name[missing]: FIXED ✓

@@ -8,6 +8,9 @@
       - xorg-server-xwayland
     state: present
 
-- ansible.builtin.include_tasks: dconf.yml
-- ansible.builtin.include_tasks: gtk.yml
-- ansible.builtin.include_tasks: online_accounts.yml
+- name: Include dconf tasks
+  ansible.builtin.include_tasks: dconf.yml
+- name: Include gtk tasks
+  ansible.builtin.include_tasks: gtk.yml
+- name: Include online accounts tasks
+  ansible.builtin.include_tasks: online_accounts.yml
