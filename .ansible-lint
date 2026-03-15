@@ -1,17 +1,25 @@
 ---
 # ansible-lint configuration
-# Profile: min catches only the most critical issues (invalid syntax, etc.)
-# Raise to 'basic' or 'moderate' incrementally as violations are fixed.
-profile: basic
+profile: moderate
 
 exclude_paths:
   - .cache/
   - .ansible/
 
-# Promote these from error → warning so the baseline passes today.
-# Work through them over time and remove entries as they're fixed.
+# Rules to promote from error → warning (work through incrementally).
+# Items marked FIXED ✓ have been fully resolved.
 warn_list:
-  - schema                # invalid module arguments — fix these carefully
+  # Production-profile (safety) rules — to be fixed one by one:
+  - latest               # 6 violations — avoid 'latest' package state
+  - risky-file-permissions  # 52 violations — add mode: to file/copy/template tasks
+  - risky-octal          # 2 violations — octal permission values
+  - ignore-errors        # 7 violations — avoid ignore_errors where possible
+  - meta-no-tags         # 1 violation — add tags to meta/main.yml
+  - no-changed-when      # 15 violations — add changed_when to command tasks
+  - fqcn                 # 36 violations — use fully-qualified collection names
+
+  # Previously fixed (kept for reference):
+  # schema: FIXED ✓
   # key-order: FIXED ✓
   # jinja: FIXED ✓
   # command-instead-of-module: FIXED ✓

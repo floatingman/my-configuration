@@ -4,11 +4,17 @@ galaxy_info:
   author: floatingman
   description: Install and configure Homebrew on Linux (Arch and Debian-based)
   license: MIT
-  min_ansible_version: 2.9
+  min_ansible_version: "2.9"
   platforms:
-    - name: Archlinux
+    - name: ArchLinux
+      versions:
+        - all
     - name: Debian
+      versions:
+        - all
     - name: Ubuntu
+      versions:
+        - all
   galaxy_tags:
     - homebrew
     - linuxbrew
