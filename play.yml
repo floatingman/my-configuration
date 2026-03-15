@@ -201,7 +201,6 @@
       }
     - { role: mpv, tags: ["mpv"], when: display_manager is defined }
     - { role: media, tags: ["media"], when: display_manager is defined }
-    - { role: nettools, tags: ["nettools"] }
     - { role: pass, tags: ["pass"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: spell, tags: ["spell"] }
     - {

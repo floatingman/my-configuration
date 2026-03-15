@@ -1,3 +1,5 @@
 venv
 group_vars/all.yml
 .vscode
+.ansible/
+.cache/

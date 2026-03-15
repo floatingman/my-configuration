@@ -1,0 +1,35 @@
+---
+extends: default
+
+# Ignore third-party roles installed via ansible-galaxy
+ignore: |
+  .ansible/
+  .cache/
+
+rules:
+  # Ansible inline dicts use spaces: { role: foo, tags: [...] }
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Ansible tasks commonly exceed 80 chars; warn rather than error
+  line-length:
+    max: 160
+    level: warning
+
+  # Indentation inside multi-line flow mappings varies — warn for now
+  indentation:
+    spaces: 2
+    indent-sequences: whatever
+    check-multi-line-strings: false
+    level: warning
+
+  # Allow both true/false and yes/no
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+    level: warning
+
+  # Playbooks legitimately start with ---
+  document-start:
+    present: true
+    level: warning

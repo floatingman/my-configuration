@@ -22,7 +22,9 @@ endif
 
 UNAME_S  := $(shell uname -s)
 
-ANSIBLE_BIN    = $(shell ansible --version 2>&1 | head -1 | grep -q 'ansible 2' && command -v ansible)
+ANSIBLE_BIN      = $(shell ansible --version 2>&1 | head -1 | grep -q 'ansible 2' && command -v ansible)
+ANSIBLE_LINT_BIN = $(shell command -v ansible-lint 2>/dev/null)
+YAMLLINT_BIN     = $(shell command -v yamllint 2>/dev/null)
 BREW_BIN       = $(shell command -v brew 2>/dev/null)
 GO_BIN         = $(shell command -v go 2>/dev/null)
 LYNIS_BIN      = $(shell command -v lynis 2>/dev/null)
@@ -31,6 +33,29 @@ PYLINT_BIN     = $(shell pylint --version 2>&1 | head -1 | grep -q 'pylint 2' &&
 SHELLCHECK_BIN = $(shell command -v shellcheck 2>/dev/null)
 SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
+
+.PHONY: test
+test: lint syntax-check ## Run all tests (lint + syntax check)
+
+.PHONY: lint
+lint: ## Run yamllint and ansible-lint
+ifdef YAMLLINT_BIN
+	@echo 'Running yamllint...'
+	yamllint .
+else
+	@echo 'Warning: yamllint not found, skipping'
+endif
+ifdef ANSIBLE_LINT_BIN
+	@echo 'Running ansible-lint...'
+	ansible-lint play.yml
+else
+	@echo 'Warning: ansible-lint not found, skipping'
+endif
+
+.PHONY: syntax-check
+syntax-check: req-playbook ## Check playbook syntax
+	@echo 'Checking playbook syntax...'
+	ansible-playbook --syntax-check play.yml
 
 .PHONY: bootstrap
 bootstrap: req-pipx ## Install ansible (pipx required)

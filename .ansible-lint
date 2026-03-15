@@ -1,0 +1,18 @@
+---
+# ansible-lint configuration
+# Profile: min catches only the most critical issues (invalid syntax, etc.)
+# Raise to 'basic' or 'moderate' incrementally as violations are fixed.
+profile: min
+
+exclude_paths:
+  - .cache/
+  - .ansible/
+
+# Promote these from error → warning so the baseline passes today.
+# Work through them over time and remove entries as they're fixed.
+warn_list:
+  - literal-compare       # when: foo == True  →  when: foo
+  - no-free-form          # prefer module args over free-form shell strings
+  - partial-become        # become without become_user (or vice-versa)
+  - command-instead-of-module
+  - schema                # invalid module arguments — fix these carefully
