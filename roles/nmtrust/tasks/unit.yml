@@ -13,7 +13,7 @@
   when: run_on != "all" and user_unit is not defined
   become: true
 
-- name: Add {{ unit }} to trusted unit list
+- name: Add to trusted unit list - {{ unit }}
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
@@ -21,7 +21,7 @@
   when: run_on == "trusted" and user_unit is not defined
   become: true
 
-- name: Remove {{ unit }} from trusted unit list
+- name: Remove from trusted unit list - {{ unit }}
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: absent
@@ -29,7 +29,7 @@
   when: run_on != "trusted" and user_unit is not defined
   become: true
 
-- name: Enable and start {{ unit }} for user
+- name: Enable and start for user - {{ unit }}
   ansible.builtin.systemd:
     name: "{{ unit }}"
     enabled: true
@@ -41,7 +41,7 @@
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: run_on == "all" and user_unit is defined and user_unit == true
 
-- name: Disable user {{ unit }} for user
+- name: Disable for user - {{ unit }}
   ansible.builtin.systemd:
     name: "{{ unit }}"
     enabled: false
@@ -52,7 +52,7 @@
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: run_on != "all" and user_unit is defined and user_unit == true
 
-- name: Add {{ unit }} for user to trusted unit list
+- name: Add for user to trusted unit list - {{ unit }}
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: present
@@ -60,7 +60,7 @@
   when: run_on == "trusted" and user_unit is defined and user_unit == true
   become: true
 
-- name: Remove {{ unit }} for user from trusted unit list
+- name: Remove for user from trusted unit list - {{ unit }}
   ansible.builtin.lineinfile:
     dest: /etc/nmtrust/trusted_units
     state: absent

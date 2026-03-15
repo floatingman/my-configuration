@@ -20,7 +20,7 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Add {{ user.name }} to adbusers group
+- name: Add user to adbusers group - {{ user.name }}
   become: true
   ansible.builtin.user:
     name: "{{ user.name }}"

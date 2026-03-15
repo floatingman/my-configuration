@@ -22,3 +22,4 @@ warn_list:
   # partial-become: FIXED ✓
   # name[casing]: FIXED ✓
   # name[missing]: FIXED ✓
+  # name[template]: FIXED ✓
