@@ -23,7 +23,7 @@
     mode: 0755
   become: true
 
-#- name: Install Subliminal for sub download
+# - name: Install Subliminal for sub download
 #  kewlfft.aur.aur:
 #    name: subliminal
 #    use: auto

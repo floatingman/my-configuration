@@ -1,3 +1,4 @@
+---
 - name: Install Proton Bridge
   become: true
   kewlfft.aur.aur:

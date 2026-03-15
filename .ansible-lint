@@ -2,7 +2,7 @@
 # ansible-lint configuration
 # Profile: min catches only the most critical issues (invalid syntax, etc.)
 # Raise to 'basic' or 'moderate' incrementally as violations are fixed.
-profile: min
+profile: basic
 
 exclude_paths:
   - .cache/
@@ -22,3 +22,7 @@ warn_list:
   # literal-compare: FIXED ✓
   # no-free-form: FIXED ✓
   # var-naming: FIXED ✓
+  # yaml[indentation]: FIXED ✓
+  # yaml[document-start]: FIXED ✓
+  # yaml[comments]: FIXED ✓
+  # yaml[comments-indentation]: FIXED ✓

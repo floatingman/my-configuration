@@ -78,5 +78,7 @@
 
 - name: Display installation completion message
   ansible.builtin.debug:
-    msg: "Cursor theme {{ cursor_theme.variant }} v{{ cursor_theme.version }} installed successfully to {{ cursor_theme.install_path | default('/usr/share/icons') }}"
+    msg: >-
+      Cursor theme {{ cursor_theme.variant }} v{{ cursor_theme.version }}
+      installed successfully to {{ cursor_theme.install_path | default('/usr/share/icons') }}
   when: cursor_theme.enabled

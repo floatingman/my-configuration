@@ -3,4 +3,4 @@
   become: true
   ansible.builtin.command: /usr/share/doc/timew/doc/holidays/refresh
   args:
-      chdir: /usr/share/doc/timew/doc/holidays
+    chdir: /usr/share/doc/timew/doc/holidays

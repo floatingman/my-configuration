@@ -1,3 +1,4 @@
+---
 - name: Install i3
   become: true
   ansible.builtin.package:

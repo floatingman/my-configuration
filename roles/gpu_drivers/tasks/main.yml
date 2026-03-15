@@ -21,8 +21,17 @@
   block:
     - name: Auto-detection mode
       set_fact:
-        gpu_drivers_to_install: "{{ gpu_detect_drivers_amd if gpu_detect_amd else (gpu_detect_drivers_nvidia_prop if gpu_detect_nvidia and gpu_drivers_nvidia_proprietary else (gpu_detect_drivers_nvidia_open if gpu_detect_nvidia else (gpu_detect_drivers_intel if gpu_detect_intel else gpu_detect_drivers_default))) }}"
-        gpu_drivers_video_tools_to_install: "{{ gpu_detect_video_tools_amd if gpu_detect_amd else (gpu_detect_video_tools_nvidia if gpu_detect_nvidia else (gpu_detect_video_tools_intel if gpu_detect_intel else gpu_detect_video_tools_default)) }}"
+        gpu_drivers_to_install: >-
+          {{ gpu_detect_drivers_amd if gpu_detect_amd
+          else (gpu_detect_drivers_nvidia_prop if gpu_detect_nvidia and gpu_drivers_nvidia_proprietary
+          else (gpu_detect_drivers_nvidia_open if gpu_detect_nvidia
+          else (gpu_detect_drivers_intel if gpu_detect_intel
+          else gpu_detect_drivers_default))) }}
+        gpu_drivers_video_tools_to_install: >-
+          {{ gpu_detect_video_tools_amd if gpu_detect_amd
+          else (gpu_detect_video_tools_nvidia if gpu_detect_nvidia
+          else (gpu_detect_video_tools_intel if gpu_detect_intel
+          else gpu_detect_video_tools_default)) }}
       when: gpu_drivers_detection_mode == "auto"
 
     - name: Install drivers for manual AMD

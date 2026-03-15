@@ -9,7 +9,9 @@
 
 - name: Filter GPU information
   set_fact:
-    gpu_detect_filtered_lines: "{{ (gpu_detect_lspci_output.stdout_lines | default([])) | list | select('search', 'VGA|3D|Display|Display controller|VGA compatible') | list }}"
+    gpu_detect_filtered_lines: >-
+      {{ (gpu_detect_lspci_output.stdout_lines | default([]))
+      | list | select('search', 'VGA|3D|Display|Display controller|VGA compatible') | list }}
   tags:
     - gpu_detect
 
