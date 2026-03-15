@@ -11,10 +11,6 @@ exclude_paths:
 # Promote these from error → warning so the baseline passes today.
 # Work through them over time and remove entries as they're fixed.
 warn_list:
-  # literal-compare: FIXED ✓
-  - no-free-form          # prefer module args over free-form shell strings
-  - partial-become        # become without become_user (or vice-versa)
-  - command-instead-of-module
   - schema                # invalid module arguments — fix these carefully
   # key-order: FIXED ✓
   # jinja: FIXED ✓
@@ -23,3 +19,5 @@ warn_list:
   # name[casing]: FIXED ✓
   # name[missing]: FIXED ✓
   # name[template]: FIXED ✓
+  # literal-compare: FIXED ✓
+  # no-free-form: FIXED ✓

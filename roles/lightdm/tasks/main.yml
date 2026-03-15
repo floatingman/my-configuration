@@ -9,33 +9,42 @@
 
 - name: Enable LightDM
   become: true
-  ansible.builtin.service: name=lightdm.service enabled=yes
+  ansible.builtin.service:
+    name: lightdm.service
+    enabled: true
 
 - name: Create background dir
-  ansible.builtin.file: path=/usr/share/backgrounds state=directory
   become: true
+  ansible.builtin.file:
+    path: /usr/share/backgrounds
+    state: directory
 
 - name: Push LightDM greeter background
-  ansible.builtin.copy: src=M31_Galex_960.jpg dest=/usr/share/backgrounds/M31_Galex_960.jpg
   become: true
+  ansible.builtin.copy:
+    src: M31_Galex_960.jpg
+    dest: /usr/share/backgrounds/M31_Galex_960.jpg
 
 - name: Specify LightDM greeter background
-  ansible.builtin.lineinfile: dest=/etc/lightdm/lightdm-gtk-greeter.conf
-    regexp="^background="
-    state=present
-    line="background=/usr/share/backgrounds/M31_Galex_960.jpg"
   become: true
+  ansible.builtin.lineinfile:
+    dest: /etc/lightdm/lightdm-gtk-greeter.conf
+    regexp: "^background="
+    state: present
+    line: "background=/usr/share/backgrounds/M31_Galex_960.jpg"
 
 - name: Hide user images
-  ansible.builtin.lineinfile: dest=/etc/lightdm/lightdm-gtk-greeter.conf
-    regexp="^hide-user-image="
-    state=present
-    line="hide-user-image=true"
   become: true
+  ansible.builtin.lineinfile:
+    dest: /etc/lightdm/lightdm-gtk-greeter.conf
+    regexp: "^hide-user-image="
+    state: present
+    line: "hide-user-image=true"
 
 - name: Force LightDM greeter theme
-  ansible.builtin.lineinfile: dest=/usr/share/xgreeters/lightdm-gtk-greeter.desktop
-    regexp="^Exec="
-    state=present
-    line="Exec=env GTK_THEME=Adwaita:dark lightdm-gtk-greeter"
   become: true
+  ansible.builtin.lineinfile:
+    dest: /usr/share/xgreeters/lightdm-gtk-greeter.desktop
+    regexp: "^Exec="
+    state: present
+    line: "Exec=env GTK_THEME=Adwaita:dark lightdm-gtk-greeter"

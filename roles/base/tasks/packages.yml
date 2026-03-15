@@ -8,8 +8,9 @@
     - packages
 
 - name: Create pacman hook directory
-  ansible.builtin.file: path=/etc/pacman.d/hooks
-    state=directory
+  ansible.builtin.file:
+    path: /etc/pacman.d/hooks
+    state: directory
   become: true
   tags:
     - packages
@@ -22,7 +23,9 @@
   become: true
 
 - name: Push pacman cache cleanup service
-  ansible.builtin.copy: src=paccache.service dest=/etc/systemd/system/paccache.service
+  ansible.builtin.copy:
+    src: paccache.service
+    dest: /etc/systemd/system/paccache.service
   become: true
   notify:
     - reload systemd config
@@ -30,16 +33,21 @@
     - packages
 
 - name: Push pacman cache cleanup timer
-  ansible.builtin.copy: src=paccache.timer dest=/etc/systemd/system/paccache.timer
+  ansible.builtin.copy:
+    src: paccache.timer
+    dest: /etc/systemd/system/paccache.timer
   become: true
   notify:
     - reload systemd config
-    - restart paccache
+    - Restart paccache
   tags:
     - packages
 
 - name: Enable and start pacman cache cleanup timer
-  ansible.builtin.service: name=paccache.timer enabled=yes state=started
+  ansible.builtin.service:
+    name: paccache.timer
+    enabled: true
+    state: started
   become: true
   tags:
     - packages

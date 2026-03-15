@@ -36,7 +36,10 @@
   become: true
 
 - name: Add user to video group
-  ansible.builtin.user: name={{ user.name }} groups=video append=yes
+  ansible.builtin.user:
+    name: "{{ user.name }}"
+    groups: video
+    append: true
   become: true
   tags:
     - user
