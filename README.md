@@ -17,6 +17,8 @@ This is my [Ansible](https://www.ansible.com/) playbook to automatically configu
 - [shell](https://github.com/floatingman/ansible-role-shell) fork of [Allaman's](https://github.com/Allaman/ansible-role-shell) Ansible role that installs shell tools
 - [asdf](https://github.com/floatingman/ansible-role-asdf) manages programming language versions (replaces pyenv)
 - uv_python_packages manages Python package installation using the modern uv package manager
+- **gpu_detect** auto-detects GPU hardware (AMD, NVIDIA, Intel) using lspci (Arch Linux only)
+- **gpu_drivers** installs appropriate GPU drivers based on detected or configured GPU type (Arch Linux only)
 
 You should checkout each roles README to see configuration options and decide if you need to fork a role for your own uses.
 
@@ -63,10 +65,53 @@ desktop_environment: hyprland
 
 When neither opt-out variables nor `desktop_environment` are set, both environments are installed automatically.
 
+## GPU Driver Management
+
+The playbook automatically detects and installs GPU drivers on Arch Linux systems.
+
+### Automatic Detection
+
+The `gpu_detect` role uses `lspci` to identify your GPU hardware and sets the appropriate driver variables for:
+- **AMD**: Mesa drivers, Vulkan support, amdgpu_top
+- **NVIDIA**: Open-source (nouveau) or proprietary drivers
+- **Intel**: Mesa drivers, Intel Vulkan support
+- **Hybrid systems**: Multiple GPUs handled with `gpu_hybrid_install_all`
+
+### Configuration
+
+Configure GPU behavior in `group_vars/all.yml`:
+
+```yaml
+# Detection mode: auto (default), amd, nvidia, intel
+gpu_detection_mode: auto
+
+# Force a specific GPU type (overrides detection)
+# gpu_type: nvidia
+
+# Use proprietary NVIDIA drivers
+# gpu_nvidia_proprietary: true
+
+# Install drivers for all GPUs in a hybrid system
+# gpu_hybrid_install_all: true
+```
+
+### Testing GPU Changes
+
+```sh
+# Test GPU detection only
+make configure TAGS="gpu_detect"
+
+# Test GPU driver installation
+make configure TAGS="gpu_drivers"
+
+# Show detected GPU hardware
+make gpu-info
+```
+
 ## Requirements
 
 - Python 3
-- pip (Python package installer)
+- pipx (for bootstrapping Ansible)
 - A non-superuser account with sudo privileges (the playbook will prompt for the sudo password when needed)
 
 ## Use
@@ -75,12 +120,13 @@ The playbook is designed to be run by a non-superuser account. It will automatic
 
 ```sh
 > make
-help                          This help.
-bootstrap                     Install ansible (pip required)
+all                           Run all goals
+bootstrap                     Install ansible (pipx required)
+configure                     Run ansible (optionally with TAGS="tag1,tag2")
+gpu-info                      Display detected GPU information
+help                          print this help
 install                       Install roles via ansible-galaxy
-configure                     Run ansible-playbook (will prompt for sudo password)
-aur                           Run AUR helper to install AUR packages
-all                           Run all goals (except AUR)
+list-tags                     List all available tags in the playbook
 ```
 
 ### Running the playbook

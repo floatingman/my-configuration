@@ -2,6 +2,7 @@
 - name: Configure localhost
   hosts: localhost
   roles:
+    - { role: gpu_detect, tags: ["gpu_detect"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: base, tags: ["base"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: grub, tags: ["grub"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: gnupg, tags: ["gnupg"] }
@@ -17,6 +18,7 @@
     - { role: ssh, tags: ["ssh"] }
     - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
     - { role: aur, tags: ["aur"], when: "ansible_facts['os_family'] == 'Archlinux'" }
+    - { role: gpu_drivers, tags: ["gpu_drivers"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - { role: archive, tags: ["archive"] }
     - role: x
       tags: ["x"]

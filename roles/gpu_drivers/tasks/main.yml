@@ -1,0 +1,128 @@
+---
+- name: Validate GPU configuration
+  assert:
+    that:
+      - gpu_detection_mode in ["auto", "amd", "nvidia", "intel"]
+    fail_msg: "Invalid gpu_detection_mode. Must be one of: auto, amd, nvidia, intel"
+    success_msg: "GPU configuration is valid"
+  tags:
+    - gpu_drivers
+
+- name: Check if we're on Arch Linux with pacman
+  stat:
+    path: /usr/bin/pacman
+  register: pacman_binary
+  tags:
+    - gpu_drivers
+
+- name: Set drivers to install based on configuration
+  block:
+    - name: Auto-detection mode
+      set_fact:
+        _drivers_to_install: "{{ gpu_drivers_amd if gpu_amd else (gpu_drivers_nvidia_prop if gpu_nvidia and gpu_nvidia_proprietary else (gpu_drivers_nvidia_open if gpu_nvidia else (gpu_drivers_intel if gpu_intel else gpu_drivers_default))) }}"
+        _video_tools_to_install: "{{ gpu_video_tools_amd if gpu_amd else (gpu_video_tools_nvidia if gpu_nvidia else (gpu_video_tools_intel if gpu_intel else gpu_video_tools_default)) }}"
+      when: gpu_detection_mode == "auto"
+
+    - name: Install drivers for manual AMD
+      set_fact:
+        _drivers_to_install: "{{ gpu_drivers_amd }}"
+        _video_tools_to_install: "{{ gpu_video_tools_amd }}"
+      when: "gpu_detection_mode == 'amd'"
+
+    - name: Install drivers for manual NVIDIA
+      block:
+        - name: Choose driver type
+          set_fact:
+            _nvidia_drivers: "{{ gpu_drivers_nvidia_prop if gpu_nvidia_proprietary else gpu_drivers_nvidia_open }}"
+            _nvidia_tools: "{{ gpu_video_tools_nvidia }}"
+
+        - name: Set final installation lists
+          set_fact:
+            _drivers_to_install: "{{ _nvidia_drivers }}"
+            _video_tools_to_install: "{{ _nvidia_tools }}"
+      when: "gpu_detection_mode == 'nvidia'"
+
+    - name: Install drivers for manual Intel
+      set_fact:
+        _drivers_to_install: "{{ gpu_drivers_intel }}"
+        _video_tools_to_install: "{{ gpu_video_tools_intel }}"
+      when: "gpu_detection_mode == 'intel'"
+
+    - name: Hybrid GPU handling
+      block:
+        - name: Create list of all drivers needed
+          set_fact:
+            _all_drivers: []
+            _all_tools: []
+
+        - name: Add AMD drivers if detected
+          set_fact:
+            _all_drivers: "{{ _all_drivers | union(gpu_drivers_amd) }}"
+            _all_tools: "{{ _all_tools | union(gpu_video_tools_amd) }}"
+          when: "gpu_amd"
+
+        - name: Add NVIDIA drivers if detected
+          block:
+            - name: Choose driver type
+              set_fact:
+                _nvidia_drivers: "{{ gpu_drivers_nvidia_prop if gpu_nvidia_proprietary else gpu_drivers_nvidia_open }}"
+                _nvidia_tools: "{{ gpu_video_tools_nvidia }}"
+
+            - name: Add to combined lists
+              set_fact:
+                _all_drivers: "{{ _all_drivers | union(_nvidia_drivers) }}"
+                _all_tools: "{{ _all_tools | union(_nvidia_tools) }}"
+          when: "gpu_nvidia"
+
+        - name: Add Intel drivers if detected
+          set_fact:
+            _all_drivers: "{{ _all_drivers | union(gpu_drivers_intel) }}"
+            _all_tools: "{{ _all_tools | union(gpu_video_tools_intel) }}"
+          when: "gpu_intel"
+
+        - name: Set final installation lists
+          set_fact:
+            _drivers_to_install: "{{ _all_drivers | unique }}"
+            _video_tools_to_install: "{{ _all_tools | unique }}"
+      when: "gpu_detection_mode == 'auto' and gpu_hybrid"
+
+    - name: Display driver installation plan
+      debug:
+        msg: |
+          Installing GPU drivers:
+          {{ _drivers_to_install }}
+          Installing video tools:
+          {{ _video_tools_to_install }}
+          Platform: {{ 'Arch Linux' if pacman_binary.stat.exists else 'Non-Arch system' }}
+      changed_when: false
+
+  rescue:
+    - name: Fallback to basic drivers
+      debug:
+        msg: "GPU driver installation failed, falling back to basic drivers"
+      changed_when: false
+
+    - name: Set fallback driver lists
+      set_fact:
+        _drivers_to_install: "{{ gpu_drivers_default }}"
+        _video_tools_to_install: "{{ gpu_video_tools_default }}"
+
+  always:
+    - name: Install GPU drivers (Arch Linux only)
+      package:
+        name: "{{ _drivers_to_install }}"
+        state: present
+      when: pacman_binary.stat.exists
+      notify: Reconfigure NVIDIA if needed
+      ignore_errors: true
+
+    - name: Install video tools (Arch Linux only)
+      package:
+        name: "{{ _video_tools_to_install }}"
+        state: present
+      when: pacman_binary.stat.exists
+      notify: Reconfigure NVIDIA if needed
+      ignore_errors: true
+
+  tags:
+    - gpu_drivers

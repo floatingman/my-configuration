@@ -86,6 +86,14 @@ req-galaxy:
 req-playbook:
 	@command -v ansible-playbook >/dev/null 2>&1 || { echo >&2 "require ansible-playbook"; exit 1; }
 
-.PHONY: help
+req-lspci:
+	@command -v lspci >/dev/null 2>&1 || { echo >&2 "require lspci (pciutils package)"; exit 1; }
+
+.PHONY: gpu-info
+gpu-info: req-lspci ## Display detected GPU information
+	@echo 'Detected GPUs:'
+	@lspci | grep -E "(VGA|3D|Display)" | sed 's/^[0-9a-f]*:[0-9a-f]*.[0-9a-f]* /  - /'
+
+PHONY: help
 help:  ## print this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort -d | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

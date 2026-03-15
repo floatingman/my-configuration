@@ -62,11 +62,8 @@
   tags:
     - user
 
-- name: Install video driver(s)
-  become: true
-  ansible.builtin.package:
-    name: "{{ video_drivers }}"
-    state: present
+# Video drivers are now handled by the gpu_drivers role
+# - name: Install video driver(s) (removed)
 
 - name: Add user to video group
   ansible.builtin.user:

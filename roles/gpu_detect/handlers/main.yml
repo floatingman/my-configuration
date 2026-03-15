@@ -1,0 +1,6 @@
+---
+- name: Display fallback message
+  debug:
+    msg: "GPU detection failed, assuming no GPU detected"
+  tags:
+    - gpu_detect

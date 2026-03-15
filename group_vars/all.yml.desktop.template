@@ -79,16 +79,24 @@ dotfiles:
   rcup_flags: -fx README.md
   linuxgui: true
 kernel_parameters: "quiet consoleblank=60"
-video_drivers:
-  - lib32-mesa
-  - libva-mesa-driver
-  - lib32-libva-mesa-driver
-  - vulkan-icd-loader
-  - vulkan-intel
-  - vulkan-mesa-layers
-  - vulkan-tools
-  - intel-media-driver
-  - libva-intel-driver
+# video_drivers:  # Deprecated - now handled by gpu_drivers role
+
+# GPU configuration (Arch Linux only)
+# Options: auto, amd, nvidia, intel
+# If not set, defaults to "auto"
+gpu_detection_mode: auto
+
+# Force a specific GPU type (overrides detection)
+# Only used when gpu_detection_mode is not "auto"
+# gpu_type: amd
+
+# Use proprietary drivers for NVIDIA
+# Only applicable when gpu_type is "nvidia" or auto-detects NVIDIA
+# gpu_nvidia_proprietary: true
+
+# Install drivers for all GPUs in a hybrid system
+# gpu_hybrid_install_all: true
+
 lang:
   enabled: true
   arch:
