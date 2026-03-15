@@ -16,6 +16,8 @@
     - gpu_drivers
 
 - name: Set drivers to install based on configuration
+  tags:
+    - gpu_drivers
   block:
     - name: Auto-detection mode
       set_fact:
@@ -30,6 +32,7 @@
       when: "gpu_detection_mode == 'amd'"
 
     - name: Install drivers for manual NVIDIA
+      when: "gpu_detection_mode == 'nvidia'"
       block:
         - name: Choose driver type
           set_fact:
@@ -40,7 +43,6 @@
           set_fact:
             _drivers_to_install: "{{ _nvidia_drivers }}"
             _video_tools_to_install: "{{ _nvidia_tools }}"
-      when: "gpu_detection_mode == 'nvidia'"
 
     - name: Install drivers for manual Intel
       set_fact:
@@ -49,6 +51,7 @@
       when: "gpu_detection_mode == 'intel'"
 
     - name: Hybrid GPU handling
+      when: "gpu_detection_mode == 'auto' and gpu_hybrid"
       block:
         - name: Create list of all drivers needed
           set_fact:
@@ -62,6 +65,7 @@
           when: "gpu_amd"
 
         - name: Add NVIDIA drivers if detected
+          when: "gpu_nvidia"
           block:
             - name: Choose driver type
               set_fact:
@@ -72,7 +76,6 @@
               set_fact:
                 _all_drivers: "{{ _all_drivers | union(_nvidia_drivers) }}"
                 _all_tools: "{{ _all_tools | union(_nvidia_tools) }}"
-          when: "gpu_nvidia"
 
         - name: Add Intel drivers if detected
           set_fact:
@@ -84,7 +87,6 @@
           set_fact:
             _drivers_to_install: "{{ _all_drivers | unique }}"
             _video_tools_to_install: "{{ _all_tools | unique }}"
-      when: "gpu_detection_mode == 'auto' and gpu_hybrid"
 
     - name: Display driver installation plan
       debug:
@@ -123,6 +125,3 @@
       when: pacman_binary.stat.exists
       notify: Reconfigure NVIDIA if needed
       ignore_errors: true
-
-  tags:
-    - gpu_drivers

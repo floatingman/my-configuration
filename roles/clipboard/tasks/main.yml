@@ -17,6 +17,7 @@
   become: true
 
 - name: Enable greenclip.service
+  become: true
   ansible.builtin.systemd:
     name: greenclip.service
     scope: user

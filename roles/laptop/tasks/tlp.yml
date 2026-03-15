@@ -42,13 +42,17 @@
 
 - name: Mask systemd radio service
   become: true
-  ansible.builtin.command: systemctl mask systemd-rfkill.service
+  ansible.builtin.systemd:
+    name: systemd-rfkill.service
+    masked: true
   tags:
     - tlp
 
 - name: Mask systemd radio socket
   become: true
-  ansible.builtin.command: systemctl mask systemd-rfkill.socket
+  ansible.builtin.systemd:
+    name: systemd-rfkill.socket
+    masked: true
   tags:
     - tlp
 

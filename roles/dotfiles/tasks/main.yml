@@ -18,6 +18,7 @@
   become: true
 
 - name: Clone user dotfiles
+  become: true
   ansible.builtin.git:
     repo: "{{ dotfiles.repo_url }}"
     dest: "/home/{{ dotfiles.path }}"
@@ -34,11 +35,13 @@
     state: link
 
 - name: Install user dotfiles
-  ansible.builtin.command: rcup -d /home/{{ dotfiles.path}} {{ dotfiles.rcup_flags }}
+  become: true
+  ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} {{ dotfiles.rcup_flags }}
   when: dotfiles is defined
   become_user: "{{ user.name }}"
 
 - name: Install linux gui tagged dotfiles
+  become: true
   ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
   become_user: "{{ user.name }}"
   when: dotfiles.linuxgui | bool

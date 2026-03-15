@@ -16,3 +16,7 @@ warn_list:
   - partial-become        # become without become_user (or vice-versa)
   - command-instead-of-module
   - schema                # invalid module arguments — fix these carefully
+  # key-order: FIXED ✓
+  # jinja: FIXED ✓
+  # command-instead-of-module: FIXED ✓
+  # partial-become: FIXED ✓
