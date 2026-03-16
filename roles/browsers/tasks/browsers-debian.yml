@@ -1,7 +1,7 @@
 ---
 - name: Install Firefox
   become: true
-  flatpak:
+  community.general.flatpak:
     name: org.mozilla.firefox
     state: present
   tags:

@@ -13,7 +13,7 @@
 
 - name: Install Intel microcode
   become: true
-  pacman:
+  community.general.pacman:
     name: intel-ucode
     state: present
   when: microcode_is_intel.rc == 0
@@ -22,7 +22,7 @@
 
 - name: Install AMD microcode
   become: true
-  pacman:
+  community.general.pacman:
     name: amd-ucode
     state: present
   when: microcode_is_amd.rc == 0

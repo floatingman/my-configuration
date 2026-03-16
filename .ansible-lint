@@ -12,7 +12,7 @@ warn_list:
   # Production-profile (safety) rules — to be fixed one by one:
   - risky-file-permissions  # 52 violations — add mode: to file/copy/template tasks
   # ignore-errors: FIXED ✓
-  - fqcn                 # 36 violations — use fully-qualified collection names
+  # fqcn: FIXED ✓
   # latest: FIXED ✓
   # risky-octal: FIXED ✓
   # meta-no-tags: FIXED ✓

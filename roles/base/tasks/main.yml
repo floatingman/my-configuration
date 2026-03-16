@@ -17,7 +17,7 @@
   become: true
 
 - name: Set the hostname
-  hostname:
+  ansible.builtin.hostname:
     name: "{{ hostname }}"
   when: hostname is defined
   become: true

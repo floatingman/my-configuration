@@ -1,6 +1,6 @@
 ---
 - name: Validate GPU configuration
-  assert:
+  ansible.builtin.assert:
     that:
       - gpu_drivers_detection_mode in ["auto", "amd", "nvidia", "intel"]
     fail_msg: "Invalid gpu_drivers_detection_mode. Must be one of: auto, amd, nvidia, intel"
@@ -9,7 +9,7 @@
     - gpu_drivers
 
 - name: Check if we're on Arch Linux with pacman
-  stat:
+  ansible.builtin.stat:
     path: /usr/bin/pacman
   register: gpu_drivers_pacman_binary
   tags:
@@ -20,7 +20,7 @@
     - gpu_drivers
   block:
     - name: Auto-detection mode
-      set_fact:
+      ansible.builtin.set_fact:
         gpu_drivers_to_install: >-
           {{ gpu_detect_drivers_amd if gpu_detect_amd
           else (gpu_detect_drivers_nvidia_prop if gpu_detect_nvidia and gpu_drivers_nvidia_proprietary
@@ -35,7 +35,7 @@
       when: gpu_drivers_detection_mode == "auto"
 
     - name: Install drivers for manual AMD
-      set_fact:
+      ansible.builtin.set_fact:
         gpu_drivers_to_install: "{{ gpu_detect_drivers_amd }}"
         gpu_drivers_video_tools_to_install: "{{ gpu_detect_video_tools_amd }}"
       when: "gpu_drivers_detection_mode == 'amd'"
@@ -44,17 +44,17 @@
       when: "gpu_drivers_detection_mode == 'nvidia'"
       block:
         - name: Choose driver type
-          set_fact:
+          ansible.builtin.set_fact:
             gpu_drivers_nvidia_tmp: "{{ gpu_detect_drivers_nvidia_prop if gpu_drivers_nvidia_proprietary else gpu_detect_drivers_nvidia_open }}"
             gpu_drivers_nvidia_tools_tmp: "{{ gpu_detect_video_tools_nvidia }}"
 
         - name: Set final installation lists
-          set_fact:
+          ansible.builtin.set_fact:
             gpu_drivers_to_install: "{{ gpu_drivers_nvidia_tmp }}"
             gpu_drivers_video_tools_to_install: "{{ gpu_drivers_nvidia_tools_tmp }}"
 
     - name: Install drivers for manual Intel
-      set_fact:
+      ansible.builtin.set_fact:
         gpu_drivers_to_install: "{{ gpu_detect_drivers_intel }}"
         gpu_drivers_video_tools_to_install: "{{ gpu_detect_video_tools_intel }}"
       when: "gpu_drivers_detection_mode == 'intel'"
@@ -63,12 +63,12 @@
       when: "gpu_drivers_detection_mode == 'auto' and gpu_detect_hybrid"
       block:
         - name: Create list of all drivers needed
-          set_fact:
+          ansible.builtin.set_fact:
             gpu_drivers_all_drivers: []
             gpu_drivers_all_tools: []
 
         - name: Add AMD drivers if detected
-          set_fact:
+          ansible.builtin.set_fact:
             gpu_drivers_all_drivers: "{{ gpu_drivers_all_drivers | union(gpu_detect_drivers_amd) }}"
             gpu_drivers_all_tools: "{{ gpu_drivers_all_tools | union(gpu_detect_video_tools_amd) }}"
           when: "gpu_detect_amd"
@@ -77,28 +77,28 @@
           when: "gpu_detect_nvidia"
           block:
             - name: Choose driver type
-              set_fact:
+              ansible.builtin.set_fact:
                 gpu_drivers_nvidia_tmp: "{{ gpu_detect_drivers_nvidia_prop if gpu_drivers_nvidia_proprietary else gpu_detect_drivers_nvidia_open }}"
                 gpu_drivers_nvidia_tools_tmp: "{{ gpu_detect_video_tools_nvidia }}"
 
             - name: Add to combined lists
-              set_fact:
+              ansible.builtin.set_fact:
                 gpu_drivers_all_drivers: "{{ gpu_drivers_all_drivers | union(gpu_drivers_nvidia_tmp) }}"
                 gpu_drivers_all_tools: "{{ gpu_drivers_all_tools | union(gpu_drivers_nvidia_tools_tmp) }}"
 
         - name: Add Intel drivers if detected
-          set_fact:
+          ansible.builtin.set_fact:
             gpu_drivers_all_drivers: "{{ gpu_drivers_all_drivers | union(gpu_detect_drivers_intel) }}"
             gpu_drivers_all_tools: "{{ gpu_drivers_all_tools | union(gpu_detect_video_tools_intel) }}"
           when: "gpu_detect_intel"
 
         - name: Set final installation lists
-          set_fact:
+          ansible.builtin.set_fact:
             gpu_drivers_to_install: "{{ gpu_drivers_all_drivers | unique }}"
             gpu_drivers_video_tools_to_install: "{{ gpu_drivers_all_tools | unique }}"
 
     - name: Display driver installation plan
-      debug:
+      ansible.builtin.debug:
         msg: |
           Installing GPU drivers:
           {{ gpu_drivers_to_install }}
@@ -109,18 +109,18 @@
 
   rescue:
     - name: Fallback to basic drivers
-      debug:
+      ansible.builtin.debug:
         msg: "GPU driver installation failed, falling back to basic drivers"
       changed_when: false
 
     - name: Set fallback driver lists
-      set_fact:
+      ansible.builtin.set_fact:
         gpu_drivers_to_install: "{{ gpu_detect_drivers_default }}"
         gpu_drivers_video_tools_to_install: "{{ gpu_detect_video_tools_default }}"
 
   always:
     - name: Install GPU drivers (Arch Linux only)
-      package:
+      ansible.builtin.package:
         name: "{{ gpu_drivers_to_install }}"
         state: present
       when: gpu_drivers_pacman_binary.stat.exists
@@ -128,7 +128,7 @@
       failed_when: false
 
     - name: Install video tools (Arch Linux only)
-      package:
+      ansible.builtin.package:
         name: "{{ gpu_drivers_video_tools_to_install }}"
         state: present
       when: gpu_drivers_pacman_binary.stat.exists

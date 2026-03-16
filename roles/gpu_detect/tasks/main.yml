@@ -1,6 +1,6 @@
 ---
 - name: Run lspci to detect GPUs
-  command: lspci
+  ansible.builtin.command: lspci
   register: gpu_detect_lspci_output
   changed_when: false
   failed_when: false
@@ -8,7 +8,7 @@
     - gpu_detect
 
 - name: Filter GPU information
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_detect_filtered_lines: >-
       {{ (gpu_detect_lspci_output.stdout_lines | default([]))
       | list | select('search', 'VGA|3D|Display|Display controller|VGA compatible') | list }}
@@ -16,7 +16,7 @@
     - gpu_detect
 
 - name: Initialize GPU detection facts
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_detect_detected_list: []
     gpu_detect_amd: false
     gpu_detect_nvidia: false
@@ -25,7 +25,7 @@
     - gpu_detect
 
 - name: Detect AMD GPUs
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_detect_amd: true
     gpu_detect_detected_list: "{{ gpu_detect_detected_list | union(['AMD']) }}"
   when: >
@@ -40,7 +40,7 @@
     - gpu_detect
 
 - name: Detect NVIDIA GPUs
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_detect_nvidia: true
     gpu_detect_detected_list: "{{ gpu_detect_detected_list | union(['NVIDIA']) }}"
   when: >
@@ -55,7 +55,7 @@
     - gpu_detect
 
 - name: Detect Intel GPUs
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_detect_intel: true
     gpu_detect_detected_list: "{{ gpu_detect_detected_list | union(['Intel']) }}"
   when: >
@@ -69,7 +69,7 @@
     - gpu_detect
 
 - name: Set final GPU facts
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_detect_detected: "{{ gpu_detect_detected_list | unique }}"
     gpu_detect_primary: "{{ (gpu_detect_detected_list | first) if (gpu_detect_detected_list | length > 0) else 'none' }}"
     gpu_detect_hybrid: "{{ (gpu_detect_detected_list | unique | length > 1) | bool }}"
@@ -77,7 +77,7 @@
     - gpu_detect
 
 - name: Display detected GPUs
-  debug:
+  ansible.builtin.debug:
     msg: |
       Detected GPUs: {{ gpu_detect_detected }}
       Primary GPU: {{ gpu_detect_primary }}
@@ -91,7 +91,7 @@
     - always
 
 - name: Save GPU facts to file for debugging
-  copy:
+  ansible.builtin.copy:
     content: |
       GPU Detection Facts:
       - Detected: {{ gpu_detect_detected }}

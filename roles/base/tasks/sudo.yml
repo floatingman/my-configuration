@@ -1,6 +1,6 @@
 ---
 - name: Install sudo
-  pacman:
+  community.general.pacman:
     name: sudo
     state: present
   become: true

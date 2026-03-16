@@ -3,12 +3,12 @@
   when: "'nvidia' in _drivers_to_install"
   block:
     - name: Update NVIDIA initramfs
-      command: mkinitcpio -P
+      ansible.builtin.command: mkinitcpio -P
       become: true
       changed_when: true
 
     - name: Restart display manager
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ display_manager }}"
         state: restarted
       become: true
