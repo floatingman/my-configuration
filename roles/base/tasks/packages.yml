@@ -11,6 +11,7 @@
   ansible.builtin.file:
     path: /etc/pacman.d/hooks
     state: directory
+    mode: '0755'
   become: true
   tags:
     - packages
@@ -26,6 +27,7 @@
   ansible.builtin.copy:
     src: paccache.service
     dest: /etc/systemd/system/paccache.service
+    mode: '0644'
   become: true
   notify:
     - reload systemd config
@@ -36,6 +38,7 @@
   ansible.builtin.copy:
     src: paccache.timer
     dest: /etc/systemd/system/paccache.timer
+    mode: '0644'
   become: true
   notify:
     - reload systemd config

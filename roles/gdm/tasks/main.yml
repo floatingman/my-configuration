@@ -16,17 +16,19 @@
   ansible.builtin.copy:
     src: profile/gdm
     dest: /etc/dconf/profile/gdm
+    mode: '0644'
 
 - name: Creating gdm.d directory for DConf
   become: true
   ansible.builtin.file:
     path: /etc/dconf/db/gdm.d
     state: directory
-    mode: 0755
+    mode: '0755'
 
 - name: Configuring GDM
   become: true
   ansible.builtin.template:
     src: gdm.d/00-spark.j2
     dest: /etc/dconf/db/gdm.d/00-spark
+    mode: '0644'
   notify: update DConf database

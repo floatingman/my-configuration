@@ -14,6 +14,7 @@
   ansible.builtin.copy:
     src: greenclip.service
     dest: /etc/systemd/user/greenclip.service
+    mode: '0644'
   become: true
 
 - name: Enable greenclip.service

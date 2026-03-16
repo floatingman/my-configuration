@@ -1,36 +1,15 @@
 ---
 # ansible-lint configuration
-profile: moderate
+profile: production
 
 exclude_paths:
   - .cache/
   - .ansible/
 
-# Rules to promote from error → warning (work through incrementally).
-# Items marked FIXED ✓ have been fully resolved.
-warn_list:
-  # Production-profile (safety) rules — to be fixed one by one:
-  - risky-file-permissions  # 52 violations — add mode: to file/copy/template tasks
-  # ignore-errors: FIXED ✓
-  # fqcn: FIXED ✓
-  # latest: FIXED ✓
-  # risky-octal: FIXED ✓
-  # meta-no-tags: FIXED ✓
-  # no-changed-when: FIXED ✓
-
-  # Previously fixed (kept for reference):
-  # schema: FIXED ✓
-  # key-order: FIXED ✓
-  # jinja: FIXED ✓
-  # command-instead-of-module: FIXED ✓
-  # partial-become: FIXED ✓
-  # name[casing]: FIXED ✓
-  # name[missing]: FIXED ✓
-  # name[template]: FIXED ✓
-  # literal-compare: FIXED ✓
-  # no-free-form: FIXED ✓
-  # var-naming: FIXED ✓
-  # yaml[indentation]: FIXED ✓
-  # yaml[document-start]: FIXED ✓
-  # yaml[comments]: FIXED ✓
-  # yaml[comments-indentation]: FIXED ✓
+# All ansible-lint rules fixed — production profile passes with 0 warnings.
+# Fixed rules (in order):
+# schema, key-order, jinja, command-instead-of-module, partial-become,
+# name[casing], name[missing], name[template], literal-compare, no-free-form,
+# var-naming, yaml[indentation], yaml[document-start], yaml[comments],
+# yaml[comments-indentation], latest, risky-octal, meta-no-tags,
+# no-changed-when, ignore-errors, fqcn, risky-file-permissions

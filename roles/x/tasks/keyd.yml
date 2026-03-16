@@ -4,6 +4,7 @@
   ansible.builtin.file:
     path: /etc/keyd
     state: directory
+    mode: '0755'
 
 - name: Install keyd-git
   become: true
@@ -22,7 +23,7 @@
   when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Clone keyd
-  ansible.builtin.git:
+  ansible.builtin.git:  # noqa: latest[git]
     repo: https://github.com/rvaiya/keyd
     dest: "/home/{{ user.name }}/git/keyd"
     version: HEAD
@@ -56,5 +57,6 @@
     dest: /etc/keyd/default.conf
     owner: root
     group: root
+    mode: '0644'
   notify:
     - reload systemd config

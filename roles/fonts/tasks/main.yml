@@ -43,6 +43,7 @@
   ansible.builtin.copy:
     src: local.conf
     dest: /etc/fonts/local.conf
+    mode: '0644'
 
 - name: Install base fonts
   become: true

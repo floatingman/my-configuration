@@ -15,6 +15,7 @@
   ansible.builtin.copy:
     src: tlp/20-battery.conf
     dest: /etc/tlp.d/
+    mode: '0644'
   notify:
     - restart tlp
   tags:
@@ -25,6 +26,7 @@
   ansible.builtin.copy:
     src: tlp/20-rdw.conf
     dest: /etc/tlp.d/
+    mode: '0644'
   notify:
     - restart tlp
   tags:
@@ -35,6 +37,7 @@
   ansible.builtin.copy:
     src: tlp/20-pcie.conf
     dest: /etc/tlp.d/
+    mode: '0644'
   notify:
     - restart tlp
   tags:

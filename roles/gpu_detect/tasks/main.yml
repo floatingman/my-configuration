@@ -101,6 +101,7 @@
       - Intel: {{ gpu_detect_intel }}
       - Hybrid: {{ gpu_detect_hybrid }}
     dest: /tmp/gpu_facts.txt
+    mode: '0644'
   tags:
     - gpu_detect
     - always

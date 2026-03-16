@@ -14,6 +14,7 @@
     owner: root
     group: root
     state: directory
+    mode: '0755'
 
 - name: Create empty smb config
   become: true

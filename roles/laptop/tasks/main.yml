@@ -23,6 +23,7 @@
   ansible.builtin.copy:
     src: 30-touchpad.conf
     dest: /etc/X11/xorg.conf.d/30-touchpad.conf
+    mode: '0644'
   tags:
     - libinput
 
@@ -31,6 +32,7 @@
   ansible.builtin.copy:
     src: logind.conf
     dest: /etc/systemd/logind.conf
+    mode: '0644'
 
 - name: Install poweralertd
   kewlfft.aur.aur:

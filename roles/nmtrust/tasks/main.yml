@@ -14,12 +14,14 @@
   ansible.builtin.file:
     path: /etc/nmtrust
     state: directory
+    mode: '0755'
   become: true
 
 - name: Push trusted network list
   ansible.builtin.template:
     src: trusted_networks.j2
     dest: /etc/nmtrust/trusted_networks
+    mode: '0644'
   become: true
 
 - name: Verify trusted unit list exists
@@ -27,4 +29,5 @@
     content: ""
     dest: /etc/nmtrust/trusted_units
     force: false
+    mode: '0644'
   become: true

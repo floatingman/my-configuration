@@ -32,6 +32,7 @@
   ansible.builtin.copy:
     src: power_monitor.service
     dest: /etc/systemd/system/
+    mode: '0644'
   notify:
     - reload systemd config
     - restart power monitor

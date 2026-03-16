@@ -18,12 +18,14 @@
   ansible.builtin.file:
     path: /usr/share/backgrounds
     state: directory
+    mode: '0755'
 
 - name: Push LightDM greeter background
   become: true
   ansible.builtin.copy:
     src: M31_Galex_960.jpg
     dest: /usr/share/backgrounds/M31_Galex_960.jpg
+    mode: '0644'
 
 - name: Specify LightDM greeter background
   become: true

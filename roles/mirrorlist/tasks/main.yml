@@ -17,12 +17,14 @@
   ansible.builtin.copy:
     src: mirrorlist.hook
     dest: /etc/pacman.d/hooks/mirrorlist.hook
+    mode: '0644'
 
 - name: Push reflector update service file
   become: true
   ansible.builtin.copy:
     src: reflector-update.service
     dest: /etc/systemd/system/
+    mode: '0644'
   notify:
     - reload systemd config
 
@@ -31,6 +33,7 @@
   ansible.builtin.copy:
     src: reflector-update.timer
     dest: /etc/systemd/system/
+    mode: '0644'
   notify:
     - reload systemd config
     - restart reflector update

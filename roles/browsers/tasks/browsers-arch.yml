@@ -53,6 +53,7 @@
   ansible.builtin.file:
     path: /usr/local/share/applications
     state: directory
+    mode: '0755'
   tags:
     - rofi
     - chooser
@@ -62,6 +63,7 @@
   ansible.builtin.copy:
     src: browser.desktop
     dest: /usr/local/share/applications/browser.desktop
+    mode: '0644'
   tags:
     - rofi
     - chooser
@@ -72,6 +74,7 @@
     content: ""
     dest: /etc/xdg/mimeapps.list
     force: false
+    mode: '0644'
   tags:
     - rofi
     - chooser

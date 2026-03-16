@@ -10,18 +10,21 @@
   ansible.builtin.template:
     src: 10-udisks.rules.j2
     dest: /etc/udev/rules.d/10-udisks.rules
+    mode: '0644'
 
 - name: Verify /media exists
   become: true
   ansible.builtin.file:
     path: /media
     state: directory
+    mode: '0755'
 
 - name: Configure mount location
   become: true
   ansible.builtin.template:
     src: 99-udisks2.rules.j2
     dest: /etc/udev/rules.d/99-udisks2.rules
+    mode: '0644'
 
 - name: Install udiskie
   become: true

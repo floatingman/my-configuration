@@ -16,6 +16,7 @@
   ansible.builtin.copy:
     src: chargecontrol.service
     dest: /etc/systemd/system/
+    mode: '0644'
   notify:
     - reload systemd config
     - restart charge control
@@ -36,5 +37,6 @@
   ansible.builtin.copy:
     src: 50-framework.quirks
     dest: /usr/share/libinput/
+    mode: '0644'
   tags:
     - framework
