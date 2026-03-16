@@ -20,7 +20,7 @@
   ansible.builtin.copy:
     src: play.sh
     dest: /usr/local/bin/play
-    mode: 0755
+    mode: '0755'
   become: true
 
 # - name: Install Subliminal for sub download

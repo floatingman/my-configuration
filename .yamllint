@@ -33,3 +33,13 @@ rules:
   document-start:
     present: true
     level: warning
+
+  # ansible-lint requires min-spaces-from-content: 1 and comments-indentation: false
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+
+  # ansible-lint requires octal values to be forbidden
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true

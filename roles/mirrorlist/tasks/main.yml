@@ -10,7 +10,7 @@
   ansible.builtin.copy:
     src: reflector-update.sh
     dest: /usr/local/bin/reflector-update
-    mode: 0755
+    mode: '0755'
 
 - name: Push pacman mirror list update hook
   become: true

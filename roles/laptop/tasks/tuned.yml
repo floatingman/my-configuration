@@ -21,7 +21,7 @@
   ansible.builtin.copy:
     src: power_monitor.sh
     dest: /usr/local/bin/
-    mode: 0755
+    mode: '0755'
   notify:
     - restart power monitor
   tags:
