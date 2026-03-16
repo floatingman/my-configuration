@@ -20,7 +20,7 @@
     dest: /etc/ssh/sshd_config
     mode: '0600'
   notify:
-    - restart sshd
+    - Restart sshd
 
 - name: Enable and start OpenSSH
   become: true
