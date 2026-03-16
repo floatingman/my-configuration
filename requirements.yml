@@ -6,7 +6,7 @@ roles:
     version: master
 
   - name: ansible-role-binaries
-    src: https://github.com/Allaman/ansible-role-binaries.git
+    src: https://github.com/floatingman/ansible-role-binaries.git
     scm: git
     version: master
 
