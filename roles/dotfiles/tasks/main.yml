@@ -23,6 +23,7 @@
     repo: "{{ dotfiles.repo_url }}"
     dest: "/home/{{ dotfiles.path }}"
     accept_hostkey: true
+    version: HEAD
     update: false
     recursive: true
   when: dotfiles is defined
@@ -37,12 +38,14 @@
 - name: Install user dotfiles
   become: true
   ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} {{ dotfiles.rcup_flags }}
+  changed_when: true
   when: dotfiles is defined
   become_user: "{{ user.name }}"
 
 - name: Install linux gui tagged dotfiles
   become: true
   ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
+  changed_when: true
   become_user: "{{ user.name }}"
   when: dotfiles.linuxgui | bool
 

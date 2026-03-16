@@ -10,15 +10,18 @@
     clone: true
     repo: https://github.com/alexanderjeurissen/ranger_devicons.git
     dest: ~/.config/ranger/plugins/ranger_devicons
+    version: HEAD
 
 - name: Install ranger archives viewer
   ansible.builtin.git:
     clone: true
     repo: https://github.com/maximtrp/ranger-archives.git
     dest: ~/.config/ranger/plugins/ranger-archives
+    version: HEAD
 
 - name: Install ranger zoxide plugin
   ansible.builtin.git:
     clone: true
     repo: https://github.com/jchook/ranger-zoxide.git
     dest: ~/.config/ranger/plugins/zoxide
+    version: HEAD

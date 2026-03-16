@@ -9,6 +9,7 @@
 - name: Hack exists
   ansible.builtin.shell: "ls /home/{{ user.name }}/.fonts/Hack*Nerd*Font*"
   register: hack_exists
+  changed_when: false
   ignore_errors: true
   become: true
   become_user: "{{ user.name }}"
@@ -25,6 +26,7 @@
 - name: JetBrains exists
   ansible.builtin.shell: "ls /home/{{ user.name }}/.fonts/JetBrains*Nerd*Font*"
   register: jetbrains_exists
+  changed_when: false
   ignore_errors: true
   become: true
   become_user: "{{ user.name }}"

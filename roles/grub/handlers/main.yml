@@ -1,5 +1,6 @@
 ---
 - name: Rebuild grub
   ansible.builtin.command: grub-mkconfig -o /boot/grub/grub.cfg
+  changed_when: true
   become: true
   when: bootloader == "grub"

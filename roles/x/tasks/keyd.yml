@@ -25,18 +25,21 @@
   ansible.builtin.git:
     repo: https://github.com/rvaiya/keyd
     dest: "/home/{{ user.name }}/git/keyd"
+    version: HEAD
   when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Make keyd from source
   ansible.builtin.command: make
   args:
     chdir: "/home/{{ user.name }}/git/keyd"
+  changed_when: true
   when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Install keyd from source
   ansible.builtin.command: sudo make install
   args:
     chdir: "/home/{{ user.name }}/git/keyd"
+  changed_when: true
   when: ansible_facts["distribution"] != "Archlinux"
 
 - name: Enable and start keyd service

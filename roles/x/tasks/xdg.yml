@@ -9,6 +9,7 @@
 
 - name: Create user directories
   ansible.builtin.command: /usr/bin/xdg-user-dirs-update
+  changed_when: true
   become: true
   become_user: "{{ user.name }}"
   tags:

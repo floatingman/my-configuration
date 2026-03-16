@@ -10,13 +10,13 @@ exclude_paths:
 # Items marked FIXED ✓ have been fully resolved.
 warn_list:
   # Production-profile (safety) rules — to be fixed one by one:
-  - latest               # 6 violations — avoid 'latest' package state
   - risky-file-permissions  # 52 violations — add mode: to file/copy/template tasks
-  - risky-octal          # 2 violations — octal permission values
   - ignore-errors        # 7 violations — avoid ignore_errors where possible
-  - meta-no-tags         # 1 violation — add tags to meta/main.yml
-  - no-changed-when      # 15 violations — add changed_when to command tasks
   - fqcn                 # 36 violations — use fully-qualified collection names
+  # latest: FIXED ✓
+  # risky-octal: FIXED ✓
+  # meta-no-tags: FIXED ✓
+  # no-changed-when: FIXED ✓
 
   # Previously fixed (kept for reference):
   # schema: FIXED ✓

@@ -21,7 +21,7 @@
   ansible.builtin.template:
     src: sudo_wheel.j2
     dest: /etc/sudoers.d/01_wheel
-    mode: 440
+    mode: '0440'
     validate: "visudo -cf %s"
   become: true
   tags:
