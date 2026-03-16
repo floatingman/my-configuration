@@ -125,7 +125,7 @@
         state: present
       when: gpu_drivers_pacman_binary.stat.exists
       notify: Reconfigure NVIDIA if needed
-      ignore_errors: true
+      failed_when: false
 
     - name: Install video tools (Arch Linux only)
       package:
@@ -133,4 +133,4 @@
         state: present
       when: gpu_drivers_pacman_binary.stat.exists
       notify: Reconfigure NVIDIA if needed
-      ignore_errors: true
+      failed_when: false

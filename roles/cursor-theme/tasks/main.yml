@@ -15,7 +15,7 @@
     state: absent
   become: true
   when: cursor_theme.enabled and ansible_facts['os_family'] == "Archlinux"
-  ignore_errors: true
+  failed_when: false
 
 - name: Create temporary download directory
   ansible.builtin.file:
@@ -74,7 +74,7 @@
     path: "{{ cursor_theme.temp_dir | default('/tmp/cursor-theme') }}"
     state: absent
   when: cursor_theme.enabled
-  ignore_errors: true
+  failed_when: false
 
 - name: Display installation completion message
   ansible.builtin.debug:

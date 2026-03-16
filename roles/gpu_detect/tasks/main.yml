@@ -3,9 +3,9 @@
   command: lspci
   register: gpu_detect_lspci_output
   changed_when: false
+  failed_when: false
   tags:
     - gpu_detect
-  ignore_errors: true
 
 - name: Filter GPU information
   set_fact:

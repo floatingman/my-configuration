@@ -3,11 +3,11 @@
   ansible.builtin.command: gtk-update-icon-cache {{ cursor_theme.install_path | default('/usr/share/icons') }}/{{ cursor_theme.variant }}
   become: true
   changed_when: true
-  ignore_errors: true
+  failed_when: false
   listen: "update cursor theme cache"
 
 - name: Reload cursor theme
   ansible.builtin.command: xrdb -merge ~/.Xresources
   changed_when: true
-  ignore_errors: true
+  failed_when: false
   listen: "update cursor theme cache"

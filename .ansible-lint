@@ -11,7 +11,7 @@ exclude_paths:
 warn_list:
   # Production-profile (safety) rules — to be fixed one by one:
   - risky-file-permissions  # 52 violations — add mode: to file/copy/template tasks
-  - ignore-errors        # 7 violations — avoid ignore_errors where possible
+  # ignore-errors: FIXED ✓
   - fqcn                 # 36 violations — use fully-qualified collection names
   # latest: FIXED ✓
   # risky-octal: FIXED ✓

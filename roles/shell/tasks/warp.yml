@@ -18,7 +18,7 @@
     name: warp-terminal
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
-  ignore_errors: yes
+  failed_when: false
   tags:
     - warp
     - terminal
@@ -26,7 +26,7 @@
 - name: Check if warp-terminal is installed
   ansible.builtin.command: which warp-terminal
   register: shell_warp_installed
-  ignore_errors: yes
+  failed_when: false
   changed_when: false
   tags:
     - warp
