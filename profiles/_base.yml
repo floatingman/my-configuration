@@ -1,0 +1,66 @@
+---
+name: Base System
+description: |
+  Core roles that run on all configurations regardless of desktop environment.
+  Includes system utilities, development tools, package managers, networking.
+
+roles:
+  # GPU Detection & Drivers
+  - { role: gpu_detect,    tags: [gpu_detect],    os: archlinux }
+  - { role: gpu_drivers,   tags: [gpu_drivers],   os: archlinux }
+
+  # Base System (Arch-only)
+  - { role: base,          tags: [base],          os: archlinux }
+  - { role: grub,          tags: [grub],          os: archlinux }
+  - { role: microcode,     tags: [microcode],     os: archlinux }
+
+  # Universal System Configuration
+  - { role: gnupg,         tags: [gnupg] }
+  - { role: sysmon,        tags: [sysmon] }
+  - { role: cron,          tags: [cron] }
+  - { role: system,        tags: [system] }
+  - { role: shell,         tags: [shell] }
+  - { role: ssh,           tags: [ssh] }
+  - { role: archive,       tags: [archive] }
+
+  # Package Management
+  - { role: ansible-role-packages, tags: [packages] }
+  - { role: ansible-role-asdf,     tags: [asdf] }
+  - { role: flatpak,               tags: [flatpak] }
+  - { role: golang,                tags: [golang],    os: debian }
+  - { role: homebrew,              tags: [homebrew],  os: debian }
+  - { role: ansible-role-binaries, tags: [binaries],  os: debian }
+
+  # AUR (Arch-only)
+  - { role: aur,           tags: [aur],           os: archlinux }
+
+  # Development Tools
+  - { role: editors,       tags: [editors] }
+  - { role: filesystem,    tags: [filesystem] }
+  - { role: python,        tags: [python] }
+  - { role: rust,          tags: [rust] }
+  - { role: docker,        tags: [docker],        os: archlinux }
+  - { role: kubernetes,    tags: [kubernetes],    os: archlinux }
+
+  # Display-gated Development (filtered out for headless)
+  - { role: devtools,      tags: [devtools],      requires_display: true }
+
+  # Networking (Arch-only)
+  - { role: nmtrust,       tags: [nmtrust],       os: archlinux }
+  - { role: networkmanager, tags: [networkmanager], os: archlinux }
+  - { role: nettools,      tags: [nettools],      os: archlinux }
+  - { role: mirrorlist,    tags: [mirrorlist],    os: archlinux }
+  - { role: filesharing,   tags: [filesharing],   os: archlinux }
+
+  # Productivity & Utilities
+  - { role: taskwarrior,   tags: [taskwarrior],   os: archlinux }
+  - { role: pass,          tags: [pass],          os: archlinux }
+  - { role: spell,         tags: [spell] }
+  - { role: clipboard,     tags: [clipboard],     os: archlinux }
+  - { role: clouddrive,    tags: [clouddrive],    os: archlinux }
+  - { role: syncthing,     tags: [syncthing] }
+
+  # Optional / Feature-gated
+  - { role: dotfiles,  tags: [dotfiles],  config_check: "dotfiles is defined" }
+  - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined" }
+  - { role: regdomain, tags: [regdomain], config_check: "regdomain is defined" }

@@ -1,0 +1,15 @@
+---
+name: Headless Server
+description: |
+  CLI-only configuration without any display manager or desktop environment.
+  Only base system roles run — no GUI applications, no display server.
+  Use for servers, containers, or machines without a monitor.
+
+extends: _base.yml
+
+requires:
+  display_manager: false
+
+# No desktop-specific roles — base profile roles only.
+# All requires_display: true roles in _base.yml will be filtered out by the dispatcher.
+roles: []

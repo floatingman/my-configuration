@@ -1,0 +1,11 @@
+---
+name: Bluetooth Support Overlay
+description: |
+  Adds Bluetooth stack when bluetooth is enabled.
+  Activate by setting: active_overlays: [bluetooth]
+  Only applies on Arch Linux.
+
+applies_when: "bluetooth is defined and not (bluetooth.disable | default(false))"
+
+roles:
+  - { role: bluetooth, tags: [bluetooth], os: archlinux }
