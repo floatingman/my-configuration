@@ -98,6 +98,55 @@ list-tags: ## List all available tags in the playbook
 	@echo 'Available tags:'
 	@grep -oP 'tags: \["\K[^"]+' play.yml | sort -u | sed 's/^/  - /'
 
+.PHONY: list-profiles
+list-profiles: ## List all available configuration profiles
+	@echo 'Available profiles:'
+	@echo '  headless   - CLI-only, no display manager or desktop environment'
+	@echo '  i3         - i3 window manager with lightdm display manager'
+	@echo '  hyprland   - Hyprland Wayland compositor with sddm display manager'
+	@echo '  gnome      - GNOME desktop environment with gdm display manager'
+	@echo '  awesomewm  - AwesomeWM tiling window manager with lightdm display manager'
+	@echo '  kde        - KDE Plasma desktop with sddm display manager'
+	@echo ''
+	@echo 'Usage: make profile-<name>  (e.g. make profile-i3)'
+	@echo 'Add TAGS="tag1,tag2" to run specific roles within a profile'
+
+.PHONY: profile-headless
+profile-headless: req-playbook ## Run headless profile (CLI-only, no display)
+	@echo 'Configuring headless profile (no display manager)'
+	ansible-playbook -i localhost play.yml --ask-become-pass \
+		-e "profile=headless"
+
+.PHONY: profile-i3
+profile-i3: req-playbook ## Run i3 window manager profile
+	@echo 'Configuring i3 window manager profile'
+	ansible-playbook -i localhost play.yml --ask-become-pass \
+		-e "desktop_environment=i3 display_manager=lightdm profile=i3"
+
+.PHONY: profile-hyprland
+profile-hyprland: req-playbook ## Run Hyprland Wayland compositor profile
+	@echo 'Configuring Hyprland Wayland compositor profile'
+	ansible-playbook -i localhost play.yml --ask-become-pass \
+		-e "desktop_environment=hyprland display_manager=sddm profile=hyprland"
+
+.PHONY: profile-gnome
+profile-gnome: req-playbook ## Run GNOME desktop environment profile
+	@echo 'Configuring GNOME desktop environment profile'
+	ansible-playbook -i localhost play.yml --ask-become-pass \
+		-e "desktop_environment=gnome display_manager=gdm profile=gnome"
+
+.PHONY: profile-awesomewm
+profile-awesomewm: req-playbook ## Run AwesomeWM tiling window manager profile
+	@echo 'Configuring AwesomeWM tiling window manager profile'
+	ansible-playbook -i localhost play.yml --ask-become-pass \
+		-e "desktop_environment=awesomewm display_manager=lightdm profile=awesomewm"
+
+.PHONY: profile-kde
+profile-kde: req-playbook ## Run KDE Plasma desktop profile
+	@echo 'Configuring KDE Plasma desktop profile'
+	ansible-playbook -i localhost play.yml --ask-become-pass \
+		-e "desktop_environment=kde display_manager=sddm profile=kde"
+
 .PHONY: all
 all: install configure ## Run all goals
 	@echo 'Applying R1c3'

@@ -40,8 +40,7 @@
       tags: ["kde"]
       when: >
         (display_manager is defined) and
-        (disable_hyprland is not defined or not disable_hyprland) and
-        (desktop_environment is not defined or desktop_environment == 'hyprland')
+        (desktop_environment is defined and desktop_environment == 'kde')
     - role: microtex
       tags: ["microtex"]
       when: >
@@ -122,7 +121,7 @@
       when: display_manager is defined and display_manager == 'lightdm'
     - role: gdm
       tags: ["gdm"]
-      when: not ("display_manager is defined") and "display_manager == 'gdm'"
+      when: display_manager is defined and display_manager == 'gdm'
     - role: i3
       tags: ["i3"]
       when: >
@@ -131,10 +130,10 @@
         (desktop_environment is not defined or desktop_environment == 'i3')
     - role: gnome
       tags: ["gnome"]
-      when: not ("desktop_environment is defined") and "desktop_environment == 'gnome'"
+      when: desktop_environment is defined and desktop_environment == 'gnome'
     - role: awesomewm
       tags: ["awesomewm"]
-      when: not ("desktop_environment is defined") and "desktop_environment =='awesomewm'"
+      when: desktop_environment is defined and desktop_environment == 'awesomewm'
     - { role: docker, tags: ["docker"], when: "ansible_facts['os_family'] == 'Archlinux'" }
     - role: screensaver
       tags: ["screensaver"]
