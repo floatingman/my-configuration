@@ -32,38 +32,78 @@ Starting from this version, the playbook uses **Homebrew** as the primary packag
 
 For packages not available in Homebrew, the `ansible-role-binaries` role is still used to download and install binaries directly.
 
-### Desktop Environment Support
+### Configuration Profiles
 
-This playbook supports both **i3 (Xorg)** and **Hyprland (Wayland)** desktop environments simultaneously. When a `display_manager` is configured (e.g., LightDM), both desktop environments are installed by default and available as session options at login.
+The playbook ships with **profiles** — pre-configured bundles that set up a complete desktop stack in one command. Each profile selects the right roles, display manager, and environment variables automatically.
 
-**Key Features:**
-- **Dual Installation**: Both i3 and Hyprland are installed together, allowing you to switch between them at the login screen
-- **Session Files**: The playbook automatically creates session files in `/usr/share/xsessions/` (for i3) and `/usr/share/wayland-sessions/` (for Hyprland)
-- **LightDM Integration**: Both desktop environments appear as selectable sessions in the LightDM greeter
+| Profile     | Desktop Environment        | Display Manager |
+|-------------|----------------------------|-----------------|
+| `headless`  | CLI-only (no display)      | none            |
+| `i3`        | i3 window manager (X11)    | LightDM         |
+| `hyprland`  | Hyprland compositor (Wayland) | SDDM         |
+| `gnome`     | GNOME desktop              | GDM             |
+| `awesomewm` | AwesomeWM tiling WM        | LightDM         |
+| `kde`       | KDE Plasma                 | SDDM            |
 
-**Customization Options:**
+**Quick start with a profile:**
 
-If you want to install only one desktop environment, you can use opt-out variables in your `group_vars/all.yml`:
+```sh
+# List all available profiles
+make list-profiles
 
-```yaml
-# Disable i3 installation (only install Hyprland)
-disable_i3: true
-
-# Disable Hyprland installation (only install i3)
-disable_hyprland: true
+# Configure with a specific profile
+make profile-i3
+make profile-hyprland
+make profile-gnome
+make profile-awesomewm
+make profile-kde
+make profile-headless
 ```
 
-For backward compatibility, you can also use the `desktop_environment` variable to install only one environment:
+You can still apply specific tags within a profile run by appending `TAGS=`:
+
+```sh
+make profile-i3 TAGS="editors,shell"
+```
+
+Profile definitions live in the `profiles/` directory as YAML files:
+
+```
+profiles/
+├── _base.yml       # Core roles shared by all profiles
+├── headless.yml    # CLI-only (extends _base)
+├── i3.yml          # i3 + X11 (extends _base)
+├── hyprland.yml    # Hyprland + Wayland (extends _base)
+├── gnome.yml       # GNOME (extends _base)
+├── awesomewm.yml   # AwesomeWM (extends _base)
+└── kde.yml         # KDE Plasma (extends _base)
+```
+
+### Desktop Environment Support (Legacy / Manual)
+
+If you prefer to configure desktop environments manually instead of using profiles, you can set variables in `group_vars/all.yml`:
 
 ```yaml
 # Install only i3
 desktop_environment: i3
+display_manager: lightdm
 
 # Install only Hyprland
 desktop_environment: hyprland
+display_manager: sddm
 ```
 
-When neither opt-out variables nor `desktop_environment` are set, both environments are installed automatically.
+Opt-out variables are also supported:
+
+```yaml
+# Disable i3 (only install Hyprland)
+disable_i3: true
+
+# Disable Hyprland (only install i3)
+disable_hyprland: true
+```
+
+When neither opt-out variables nor `desktop_environment` are set, both i3 and Hyprland are installed automatically.
 
 ## GPU Driver Management
 
@@ -126,7 +166,14 @@ configure                     Run ansible (optionally with TAGS="tag1,tag2")
 gpu-info                      Display detected GPU information
 help                          print this help
 install                       Install roles via ansible-galaxy
+list-profiles                 List all available configuration profiles
 list-tags                     List all available tags in the playbook
+profile-awesomewm             Run AwesomeWM tiling window manager profile
+profile-gnome                 Run GNOME desktop environment profile
+profile-headless              Run headless profile (CLI-only, no display)
+profile-hyprland              Run Hyprland Wayland compositor profile
+profile-i3                    Run i3 window manager profile
+profile-kde                   Run KDE Plasma desktop profile
 ```
 
 ### Running the playbook
