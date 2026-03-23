@@ -1,0 +1,73 @@
+---
+- name: Check if Go binary exists
+  ansible.builtin.stat:
+    path: "{{ golang_install_dir }}/bin/go"
+  register: golang_binary_stat
+
+- name: Check installed Go version
+  ansible.builtin.command:
+    cmd: "{{ golang_install_dir }}/bin/go version"
+  register: golang_current_version
+  when: golang_binary_stat.stat.exists
+  changed_when: false
+
+- name: Install Go from upstream tarball
+  when: >
+    not golang_binary_stat.stat.exists or
+    ('go' + golang_version) not in golang_current_version.stdout
+  become: true
+  block:
+    - name: Download Go tarball
+      ansible.builtin.get_url:
+        url: "https://go.dev/dl/go{{ golang_version }}.linux-{{ golang_arch }}.tar.gz"
+        dest: "/tmp/go{{ golang_version }}.linux-{{ golang_arch }}.tar.gz"
+        mode: "0644"
+
+    - name: Remove existing Go installation
+      ansible.builtin.file:
+        path: "{{ golang_install_dir }}"
+        state: absent
+
+    - name: Extract Go tarball
+      ansible.builtin.unarchive:
+        src: "/tmp/go{{ golang_version }}.linux-{{ golang_arch }}.tar.gz"
+        dest: /usr/local
+        remote_src: true
+
+    - name: Clean up tarball
+      ansible.builtin.file:
+        path: "/tmp/go{{ golang_version }}.linux-{{ golang_arch }}.tar.gz"
+        state: absent
+
+- name: Remove apt-managed Go packages to avoid PATH conflict
+  ansible.builtin.apt:
+    name:
+      - golang
+      - golang-go
+      - golang-1.19
+      - golang-1.19-go
+      - golang-1.19-src
+      - golang-1.21
+      - golang-1.21-go
+      - golang-1.21-src
+      - golang-1.22
+      - golang-1.22-go
+      - golang-1.22-src
+    state: absent
+    purge: true
+  become: true
+  when: "ansible_facts['os_family'] == 'Debian'"
+
+- name: Symlink go binary to /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ golang_install_dir }}/bin/go"
+    dest: /usr/local/bin/go
+    state: link
+    force: true
+  become: true
+
+- name: Override /usr/bin/go with symlink to upstream Go
+  ansible.builtin.command:
+    cmd: "ln -sf {{ golang_install_dir }}/bin/go /usr/bin/go"
+  become: true
+  changed_when: true

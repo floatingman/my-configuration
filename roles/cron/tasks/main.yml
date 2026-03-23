@@ -1,13 +1,18 @@
 ---
-- name: Install cronie
+- name: Set cron package and service name
+  ansible.builtin.set_fact:
+    cron_package: "{{ {'RedHat': 'cronie', 'Archlinux': 'cronie'} | combine({'Debian': 'cron'}) }}"
+    cron_service: "{{ {'RedHat': 'cronie', 'Archlinux': 'crond'} | combine({'Debian': 'cron'}) }}"
+
+- name: Install cron
   become: true
   ansible.builtin.package:
-    name: cronie
+    name: "{{ cron_package[ansible_facts['os_family']] }}"
     state: present
 
-- name: Enable cronie
+- name: Enable cron
   become: true
   ansible.builtin.service:
-    name: cronie.service
+    name: "{{ cron_service[ansible_facts['os_family']] }}"
     enabled: true
     state: started
