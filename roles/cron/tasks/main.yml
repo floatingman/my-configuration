@@ -2,7 +2,7 @@
 - name: Set cron package and service name
   ansible.builtin.set_fact:
     cron_package: "{{ {'RedHat': 'cronie', 'Archlinux': 'cronie'} | combine({'Debian': 'cron'}) }}"
-    cron_service: "{{ {'RedHat': 'cronie', 'Archlinux': 'crond'} | combine({'Debian': 'cron'}) }}"
+    cron_service: "{{ {'RedHat': 'cronie', 'Archlinux': 'cronie'} | combine({'Debian': 'cron'}) }}"
 
 - name: Install cron
   become: true
