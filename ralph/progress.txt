@@ -47,3 +47,9 @@
   - Ansible meta dependencies cause the dep role's tasks to run even when only the dependent tag is specified
   - `--list-tasks` with a tag shows tasks from dep roles tagged under the dependent tag automatically
 ---
+
+## 2026-03-23 - US-005
+- Set `dependencies: [{role: gpu_detect}]` in roles/gpu_drivers/meta/main.yml
+- Files changed: roles/gpu_drivers/meta/main.yml
+- Verified: `ansible-playbook play.yml --tags gpu_drivers --list-tasks` shows gpu_detect tasks before gpu_drivers tasks
+---
