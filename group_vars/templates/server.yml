@@ -1,0 +1,38 @@
+---
+# Headless server template for group_vars/all/local.yml.
+# Usage: cp group_vars/templates/server.yml group_vars/all/local.yml
+# Then edit at minimum: hostname, user.name, user.email
+
+# Identity  (REQUIRED)
+hostname: myserver          # Short hostname for this machine
+user:
+  name: yourusername        # Your Linux username (must match existing user)
+  uid: 1000
+  gid: 1000
+  group: yourusername
+  shell: /usr/bin/zsh
+  email: you@example.com
+  log:
+    dir: log
+    rotate: 8
+
+# Hardware
+laptop: false               # No power mgmt or trackpad config on servers
+
+# Display — omitted; no desktop environment on servers
+dotfiles:
+  linuxgui: false           # Skip GUI dotfiles on headless servers
+
+# SSH
+ssh:
+  port: 22                  # SSH daemon listen port
+  enable_sshd: true
+
+# Network
+# Run: nmcli connection show   to find connection UUIDs
+network:
+  wifi_wired_exclusive: false  # Typically false on servers (wired only)
+
+# Bluetooth
+bluetooth:
+  disable: true             # Disable bluetooth on servers

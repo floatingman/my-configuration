@@ -24,3 +24,4 @@ Claude: read this at the start of each iteration, update it at the end.
 - `make validate-deps && make syntax-check` both pass
 - [x] #48: refactor: create group_vars/all/base.yml with all shared content
 - [x] #49: refactor: extract machine-specific scalars to group_vars/all/local.yml
+- [x] #50: docs: write desktop and server templates for local.yml (no changes needed)

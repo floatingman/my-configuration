@@ -60,7 +60,7 @@ ensure_clean_main() {
   log "Checking working tree is clean..."
   git checkout "$BASE_BRANCH" --quiet
   git pull --quiet
-  if ! git diff --quiet || ! git diff --cached --quiet; then
+  if [[ -n "$(git status --porcelain)" ]]; then
     die "Working tree is dirty. Commit or stash changes before running."
   fi
 }
@@ -246,7 +246,7 @@ PROMPT
     rm -f "$PROMPT_FILE"
 
     # Commit and push if there are changes
-    if git diff --quiet && git diff --cached --quiet; then
+    if [[ -z "$(git status --porcelain)" ]]; then
       log "No changes made — review feedback may already be resolved."
     else
       git add -A
@@ -388,7 +388,7 @@ PROMPT
   log "Step 4/4: Commit and create PR..."
 
   # Only proceed if there are actual changes
-  if git diff --quiet && git diff --cached --quiet; then
+  if [[ -z "$(git status --porcelain)" ]]; then
     log "No changes made for issue #${ISSUE_NUM} — closing issue as no-op and continuing."
     git checkout "$BASE_BRANCH" --quiet
     git branch -D "$BRANCH" --quiet
