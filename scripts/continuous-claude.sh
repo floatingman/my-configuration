@@ -122,6 +122,57 @@ update_notes_completed() {
   echo "- [x] #${issue_num}: ${issue_title}" >> "$NOTES_FILE"
 }
 
+get_pr_needing_changes() {
+  # Returns the PR number of the first open ralph PR with CHANGES_REQUESTED,
+  # or empty string if none found.
+  gh pr list \
+    --repo "$REPO" \
+    --state open \
+    --json number,headRefName,reviewDecision \
+    --limit 50 \
+    | python3 -c "
+import json, sys
+prs = json.load(sys.stdin)
+for p in sorted(prs, key=lambda x: x['number']):
+    if (p['headRefName'].startswith('ralph/issue')
+            and p.get('reviewDecision') == 'CHANGES_REQUESTED'):
+        print(p['number'])
+        break
+"
+}
+
+get_pr_review_feedback() {
+  # Collects all review bodies and inline comments for a PR.
+  local pr_num="$1"
+
+  gh pr view "$pr_num" --repo "$REPO" --json reviews,comments \
+    | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+lines = []
+for r in data.get('reviews', []):
+    if r.get('body') and r['state'] in ('CHANGES_REQUESTED', 'COMMENTED'):
+        lines.append(f'Review ({r[\"state\"]}):\n{r[\"body\"]}')
+for c in data.get('comments', []):
+    if c.get('body'):
+        lines.append(f'PR comment:\n{c[\"body\"]}')
+print('\n\n'.join(lines))
+"
+
+  # Inline review comments (file-level)
+  gh api "repos/$REPO/pulls/$pr_num/comments" \
+    | python3 -c "
+import json, sys
+comments = json.load(sys.stdin)
+for c in comments:
+    path = c.get('path', '')
+    line = c.get('line') or c.get('original_line', '?')
+    body = c.get('body', '').strip()
+    if body:
+        print(f'Inline comment on {path} line {line}:\n{body}\n')
+" 2>/dev/null || true
+}
+
 ###############################################################################
 # Main loop
 ###############################################################################
@@ -133,6 +184,85 @@ while [[ $RUNS -lt $MAX_RUNS ]]; do
 
   ensure_clean_main
   init_notes_file
+
+  # -------------------------------------------------------------------------
+  # Priority: fix PRs with requested changes before picking up new issues.
+  # Skip this check when a specific --issue was requested.
+  # -------------------------------------------------------------------------
+  FIX_PR=""
+  if [[ -z "$ISSUE_NUMBER" ]]; then
+    log "Checking for open PRs with requested changes..."
+    FIX_PR="$(get_pr_needing_changes)"
+  fi
+
+  if [[ -n "$FIX_PR" ]]; then
+    ###########################################################################
+    # Fix mode: address review feedback on an existing ralph PR
+    ###########################################################################
+    PR_JSON="$(gh pr view "$FIX_PR" --repo "$REPO" --json number,title,headRefName)"
+    PR_TITLE="$(echo "$PR_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['title'])")"
+    BRANCH="$(echo "$PR_JSON"   | python3 -c "import json,sys; print(json.load(sys.stdin)['headRefName'])")"
+    FEEDBACK="$(get_pr_review_feedback "$FIX_PR")"
+
+    log "PR #${FIX_PR} needs changes: ${PR_TITLE}"
+    log "Checking out existing branch: $BRANCH"
+
+    if $DRY_RUN; then
+      log "[DRY RUN] Would fix PR #${FIX_PR} on branch: $BRANCH"
+      log "[DRY RUN] Feedback preview: ${FEEDBACK:0:200}..."
+      RUNS=$((RUNS + 1))
+      continue
+    fi
+
+    git checkout "$BRANCH" --quiet
+    git pull --quiet
+
+    log "Fix: addressing review feedback..."
+    PROMPT_FILE="$(mktemp)"
+    cat > "$PROMPT_FILE" <<PROMPT
+You are addressing review feedback on a pull request for the my-configuration Ansible repo.
+
+## Context (read first)
+$(cat "$NOTES_FILE")
+
+## PR #${FIX_PR}: ${PR_TITLE}
+
+## Review feedback to address
+
+${FEEDBACK}
+
+## Instructions
+1. Read the files mentioned in the review comments before making changes.
+2. Address every point of feedback. Do not skip or defer any item.
+3. Keep changes minimal — only fix what the reviewer asked for.
+4. Run \`make validate-deps\` and \`make syntax-check\` after changes.
+5. Do NOT add unrequested changes or improvements.
+
+When done, output a brief summary of what you changed.
+PROMPT
+    claude -p --model "$MODEL_IMPLEMENT" \
+      --allowedTools "Read,Write,Edit,Bash,Grep,Glob" \
+      < "$PROMPT_FILE"
+    rm -f "$PROMPT_FILE"
+
+    # Commit and push if there are changes
+    if git diff --quiet && git diff --cached --quiet; then
+      log "No changes made — review feedback may already be resolved."
+    else
+      git add -A
+      git commit -m "fix: address review feedback on PR #${FIX_PR}"
+      git push --quiet
+      log "Pushed fix to PR #${FIX_PR}"
+    fi
+
+    git checkout "$BASE_BRANCH" --quiet
+    RUNS=$((RUNS + 1))
+    continue
+  fi
+
+  # -------------------------------------------------------------------------
+  # Normal mode: pick up the next open issue
+  # -------------------------------------------------------------------------
 
   # Determine which issue to work
   if [[ -n "$ISSUE_NUMBER" && $RUNS -eq 0 ]]; then
