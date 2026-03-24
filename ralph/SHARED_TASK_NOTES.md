@@ -23,3 +23,4 @@ Claude: read this at the start of each iteration, update it at the end.
 - all.yml remains unchanged; both files loaded by Ansible with identical effective values
 - `make validate-deps && make syntax-check` both pass
 - [x] #48: refactor: create group_vars/all/base.yml with all shared content
+- [x] #49: refactor: extract machine-specific scalars to group_vars/all/local.yml
