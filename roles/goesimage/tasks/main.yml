@@ -27,7 +27,7 @@
   become: true
   notify:
     - reload systemd config
-    - restart GOESImage
+    - Restart GOESImage
 
 - name: Enable and start goesimage.timer for user
   ansible.builtin.systemd:
