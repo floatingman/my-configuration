@@ -92,3 +92,13 @@
 - Added explanatory comments to gdm and bluetooth deps
 - Files changed: roles/gdm/meta/main.yml, roles/bluetooth/meta/main.yml
 ---
+
+## 2026-03-23 - US-010
+- Reviewed DE/app roles: i3, hyprland, gnome, kde, awesomewm, terminal, browsers, filemanager, screensaver, screencapture, media, mpv, mpd, twitch, proton, android
+- i3→x, hyprland→{wayland,qt_gtk_toolkit,widgets} already correct from US-004/US-006
+- gnome pre-existing deps confirmed: dconf (uses handlers), x (installs xwayland), gdm (needs display manager), networkmanager (UI integration)
+- screensaver→systemd confirmed (copies systemd service file, notifies 'reload systemd config')
+- Added explanatory comments to gnome and screensaver deps
+- kde, awesomewm, and 9 app roles confirmed standalone (empty deps)
+- Files changed: roles/gnome/meta/main.yml, roles/screensaver/meta/main.yml
+---

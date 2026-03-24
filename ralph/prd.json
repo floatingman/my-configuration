@@ -148,7 +148,7 @@
         "ansible-playbook play.yml --syntax-check passes"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "Blocked by US-001 and US-002. HITL. Can run in parallel with US-007, US-008, US-009, US-011."
     },
     {
