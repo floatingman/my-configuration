@@ -73,3 +73,14 @@
   - The `systemd` role is handlers-only; roles that use systemd handlers should depend on it
   - Pre-existing dict-style deps `{ role: name }` were migrated to `role: name  # comment` format
 ---
+
+## 2026-03-23 - US-008
+- Reviewed dev/tooling roles: shell, ssh, editors, devtools, golang, python, rust, docker, kubernetes, aur, homebrew, flatpak
+- Removed incorrect ssh→systemd dep: ssh defines its own 'Restart sshd' handler, never uses systemd role handlers
+- All other 11 roles confirmed standalone (empty deps correct)
+- Files changed: roles/ssh/meta/main.yml
+- **Learnings for future iterations:**
+  - Pre-existing deps may be stale/incorrect; always verify by checking if the dep's handlers/tasks are actually used
+  - A role using `ansible.builtin.service` to start/stop a service does NOT require the `systemd` role
+  - The `systemd` role is only needed if a role calls `reload systemd config` or similar handler from that role
+---
