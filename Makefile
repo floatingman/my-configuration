@@ -93,6 +93,11 @@ else
 	ansible-playbook -i localhost play.yml --ask-become-pass
 endif
 
+.PHONY: validate-deps
+validate-deps: ## Validate role dependency graph (no cycles, no missing roles)
+	@echo 'Validating role dependency graph...'
+	python3 scripts/validate_deps.py
+
 .PHONY: list-tags
 list-tags: ## List all available tags in the playbook
 	@echo 'Available tags:'
