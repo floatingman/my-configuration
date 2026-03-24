@@ -30,7 +30,7 @@
         "ansible-playbook play.yml --syntax-check passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Blocked by US-001. See PRD for reference 50-line implementation."
     },
     {

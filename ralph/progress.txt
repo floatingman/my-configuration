@@ -17,3 +17,15 @@
   - grep -L can verify which files are missing a key across all 74 files at once
   - No inventory file is needed for --syntax-check; the "no inventory" warnings are harmless
 ---
+
+## 2026-03-23 - US-002
+- Created scripts/validate_deps.py (executable, ~80 lines) with PyYAML-based dependency graph validation
+- Added `make validate-deps` target to Makefile with `## ...` comment (appears in make help)
+- Validator detects: MISSING (dep refs nonexistent role) and CYCLE (DFS cycle detection)
+- Files changed: scripts/validate_deps.py (created), Makefile (added validate-deps target)
+- **Learnings for future iterations:**
+  - Ansible meta/main.yml deps can be strings OR dicts with `role:` key; handle both forms
+  - The DFS cycle detection must skip nodes already reported as MISSING (no entry in graph)
+  - `make help` is auto-generated from `## comment` on targets — just add the comment
+  - PyYAML is available on the system (no extra install needed)
+---
