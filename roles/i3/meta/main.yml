@@ -1,3 +1,4 @@
 ---
-dependencies: []
+dependencies:
+  - role: x  # i3 is an X11 window manager; X must be installed first
 allow_duplicates: false
