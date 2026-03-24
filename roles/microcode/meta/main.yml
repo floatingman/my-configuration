@@ -1,3 +1,4 @@
 ---
 dependencies:
   - { role: grub }
+allow_duplicates: false

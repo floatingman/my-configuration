@@ -4,3 +4,4 @@ dependencies:
   - { role: x }
   - { role: gdm }
   - { role: networkmanager }
+allow_duplicates: false

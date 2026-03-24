@@ -19,3 +19,4 @@ galaxy_info:
     - homebrew
     - linuxbrew
     - packagemanager
+allow_duplicates: false

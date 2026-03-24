@@ -1,3 +1,4 @@
 ---
 dependencies:
   - { role: networkmanager }
+allow_duplicates: false

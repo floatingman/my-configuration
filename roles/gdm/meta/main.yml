@@ -1,3 +1,4 @@
 ---
 dependencies:
   - { role: dconf }
+allow_duplicates: false

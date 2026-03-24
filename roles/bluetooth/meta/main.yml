@@ -1,3 +1,4 @@
 ---
 dependencies:
   - { role: sound }
+allow_duplicates: false
