@@ -27,7 +27,7 @@ BRANCH_PREFIX="ralph/issue"
 NOTES_FILE="ralph/SHARED_TASK_NOTES.md"
 MAX_RUNS=1          # Default: work one issue at a time (safe default)
 ISSUE_NUMBER=""
-LABEL_FILTER=""
+LABEL_FILTER="afk"
 DRY_RUN=false
 COMPLETION_SIGNAL="CONTINUOUS_CLAUDE_COMPLETE"
 
@@ -171,9 +171,8 @@ while [[ $RUNS -lt $MAX_RUNS ]]; do
   # Step 1: Implement
   ###########################################################################
   log "Step 1/4: Implement..."
-  claude -p --model "$MODEL_IMPLEMENT" \
-    --allowedTools "Read,Write,Edit,Bash,Grep,Glob" \
-    "$(cat <<PROMPT
+  PROMPT_FILE="$(mktemp)"
+  cat > "$PROMPT_FILE" <<PROMPT
 You are implementing a GitHub issue for the my-configuration Ansible repo.
 
 ## Context (read first)
@@ -193,22 +192,24 @@ ${ISSUE_BODY}
 
 When done, output a brief summary of what you changed (for the shared notes file).
 PROMPT
-)"
+  claude -p --model "$MODEL_IMPLEMENT" \
+    --allowedTools "Read,Write,Edit,Bash,Grep,Glob" \
+    < "$PROMPT_FILE"
+  rm -f "$PROMPT_FILE"
 
   ###########################################################################
   # Step 2: De-sloppify
   ###########################################################################
   log "Step 2/4: De-sloppify..."
-  claude -p --model "$MODEL_REVIEW" \
-    --allowedTools "Read,Write,Edit,Bash,Grep,Glob" \
-    "$(cat <<PROMPT
+  PROMPT_FILE="$(mktemp)"
+  cat > "$PROMPT_FILE" <<'PROMPT'
 Review the changes made to this Ansible repository since the last commit.
 
 Run: git diff HEAD
 
 Look for and remove:
 - Debug tasks (ansible.builtin.debug with msg=) that aren't needed in production
-- Redundant \`when\` conditions that are already guaranteed by context
+- Redundant `when` conditions that are already guaranteed by context
 - Commented-out YAML blocks
 - Trailing whitespace in YAML files
 - Duplicate dependencies in meta/main.yml (same role listed twice)
@@ -218,17 +219,19 @@ Do NOT remove:
 - Meaningful comments explaining why a dependency exists
 - ansible.builtin.debug tasks that are part of the feature spec
 
-Run \`make validate-deps\` after any changes to confirm the graph is still valid.
+Run `make validate-deps` after any changes to confirm the graph is still valid.
 PROMPT
-)"
+  claude -p --model "$MODEL_REVIEW" \
+    --allowedTools "Read,Write,Edit,Bash,Grep,Glob" \
+    < "$PROMPT_FILE"
+  rm -f "$PROMPT_FILE"
 
   ###########################################################################
   # Step 3: Verify
   ###########################################################################
   log "Step 3/4: Verify..."
-  claude -p --model "$MODEL_REVIEW" \
-    --allowedTools "Read,Bash,Grep,Glob" \
-    "$(cat <<PROMPT
+  PROMPT_FILE="$(mktemp)"
+  cat > "$PROMPT_FILE" <<'PROMPT'
 Run the full quality gate for this Ansible repo and fix any failures.
 
 Quality gate commands (run in order):
@@ -241,10 +244,13 @@ If either fails:
 - Re-run to confirm it passes
 
 Do NOT modify the quality gate commands themselves.
-Do NOT add \`when: false\` or similar hacks to skip failing tasks.
+Do NOT add `when: false` or similar hacks to skip failing tasks.
 Report: PASS or FAIL with details.
 PROMPT
-)"
+  claude -p --model "$MODEL_REVIEW" \
+    --allowedTools "Read,Bash,Grep,Glob" \
+    < "$PROMPT_FILE"
+  rm -f "$PROMPT_FILE"
 
   ###########################################################################
   # Step 4: Commit and PR
