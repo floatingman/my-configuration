@@ -1,0 +1,170 @@
+{
+  "project": "my-configuration",
+  "branchName": "ralph/role-dependency-declarations",
+  "description": "Explicit role dependency declarations via meta/main.yml to replace implicit play.yml ordering",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Bootstrap empty meta/main.yml for all 74 roles",
+      "description": "As a contributor, I need every role to have a meta/main.yml with dependencies: [] and allow_duplicates: false so the dependency declaration infrastructure exists for all subsequent work.",
+      "acceptanceCriteria": [
+        "All 74 roles under roles/ have a meta/main.yml file",
+        "Every meta/main.yml contains 'dependencies:' key (empty list is fine) and 'allow_duplicates: false'",
+        "The 16 roles that already have meta/main.yml are updated to include allow_duplicates: false",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Bootstrap with: for dir in roles/*/; do [ ! -f \"${dir}meta/main.yml\" ] && printf -- \"---\\ndependencies: []\\nallow_duplicates: false\\n\" > \"${dir}meta/main.yml\"; done"
+    },
+    {
+      "id": "US-002",
+      "title": "Add scripts/validate_deps.py and make validate-deps target",
+      "description": "As a contributor, I want a validator that walks the role dependency graph and fails on cycles or references to nonexistent roles, so mistakes are caught before ansible-playbook runs.",
+      "acceptanceCriteria": [
+        "scripts/validate_deps.py exists and is executable",
+        "make validate-deps target exists and is documented in make help output",
+        "make validate-deps passes on the current codebase (all deps empty)",
+        "Introducing a cycle in any meta/main.yml causes make validate-deps to exit non-zero with a CYCLE: error message",
+        "Referencing a nonexistent role in dependencies: causes make validate-deps to exit non-zero with a clear error",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Blocked by US-001. See PRD for reference 50-line implementation."
+    },
+    {
+      "id": "US-003",
+      "title": "Wire validate-deps as prerequisite of make configure",
+      "description": "As a contributor, I want make configure to automatically validate the dependency graph before invoking ansible-playbook, so a broken graph aborts before Ansible starts.",
+      "acceptanceCriteria": [
+        "make configure Makefile target lists validate-deps as a prerequisite",
+        "make configure TAGS='...' is also gated by validate-deps",
+        "A broken dependency graph causes make configure to abort before ansible-playbook is invoked",
+        "make configure with a valid graph proceeds normally with no behavior change",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Blocked by US-002. Change is a one-line Makefile edit: configure: req-playbook validate-deps"
+    },
+    {
+      "id": "US-004",
+      "title": "Declare x and lightdm dependency chain",
+      "description": "As a user running make configure TAGS=i3, I want the x role to run automatically before i3 so I get a working environment without having to know the dependency.",
+      "acceptanceCriteria": [
+        "roles/i3/meta/main.yml declares '- role: x' in dependencies",
+        "roles/lightdm/meta/main.yml declares '- role: x' in dependencies",
+        "ansible-playbook play.yml --tags i3 --list-tasks shows x tasks before i3 tasks",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Blocked by US-001. Can run in parallel with US-005 and US-006."
+    },
+    {
+      "id": "US-005",
+      "title": "Declare gpu_detect and gpu_drivers dependency chain",
+      "description": "As a user running make configure TAGS=gpu_drivers, I want gpu_detect to run first automatically so driver selection has detection results to read.",
+      "acceptanceCriteria": [
+        "roles/gpu_drivers/meta/main.yml declares '- role: gpu_detect' in dependencies",
+        "ansible-playbook play.yml --tags gpu_drivers --list-tasks shows gpu_detect tasks before gpu_drivers tasks",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Blocked by US-001. Can run in parallel with US-004 and US-006."
+    },
+    {
+      "id": "US-006",
+      "title": "Declare Hyprland 7-role dependency chain",
+      "description": "As a user running make configure TAGS=hyprland, I want all prerequisite roles (wayland, qt_gtk_toolkit, widgets, and their transitive deps) to run automatically in the correct order.",
+      "acceptanceCriteria": [
+        "roles/hyprland/meta/main.yml declares dependencies on wayland, qt_gtk_toolkit, widgets",
+        "roles/qt_gtk_toolkit/meta/main.yml declares dependency on wayland",
+        "roles/widgets/meta/main.yml declares dependency on qt_gtk_toolkit",
+        "uv_python_packages, microtex, oneui4_icons, screencapture are reviewed and wayland dependency added where appropriate",
+        "ansible-playbook play.yml --tags hyprland --list-tasks shows wayland before qt_gtk_toolkit before widgets before hyprland",
+        "No duplicate execution of wayland when multiple dependents are included",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Blocked by US-001. Can run in parallel with US-004 and US-005."
+    },
+    {
+      "id": "US-007",
+      "title": "Audit dependencies: base system roles",
+      "description": "As a contributor, I want the base system roles to have reviewed and confirmed dependency declarations so their meta/main.yml accurately reflects their real runtime prerequisites.",
+      "acceptanceCriteria": [
+        "Each of the following roles has a reviewed dependencies list: base, microcode, grub, systemd, system, filesystem, sysmon, cron, gnupg, regdomain, mirrorlist",
+        "Any newly-declared dependency includes a comment in meta/main.yml explaining why",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Blocked by US-001 and US-002. HITL: requires human judgment per role. Can run in parallel with US-008 through US-011."
+    },
+    {
+      "id": "US-008",
+      "title": "Audit dependencies: development and tooling roles",
+      "description": "As a contributor, I want the development and tooling roles to have reviewed and confirmed dependency declarations so their meta/main.yml accurately reflects their real runtime prerequisites.",
+      "acceptanceCriteria": [
+        "Each of the following roles has a reviewed dependencies list: shell, ssh, editors, devtools, golang, python, rust, docker, kubernetes, aur, homebrew, flatpak",
+        "Any newly-declared dependency includes a comment in meta/main.yml explaining why",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Blocked by US-001 and US-002. HITL. Can run in parallel with US-007, US-009, US-010, US-011."
+    },
+    {
+      "id": "US-009",
+      "title": "Audit dependencies: desktop infrastructure roles",
+      "description": "As a contributor, I want the desktop infrastructure roles to have reviewed and confirmed dependency declarations, confirming or extending the declarations already added in US-004 and US-006.",
+      "acceptanceCriteria": [
+        "Each of the following roles has a reviewed dependencies list: x, wayland, lightdm, gdm, dconf, fonts, nerd-fonts, cursor-theme, qt_gtk_toolkit, backlight, sound, bluetooth",
+        "Any newly-declared dependency includes a comment in meta/main.yml explaining why",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Blocked by US-001 and US-002. HITL. Can run in parallel with US-007, US-008, US-010, US-011."
+    },
+    {
+      "id": "US-010",
+      "title": "Audit dependencies: desktop environment and application roles",
+      "description": "As a contributor, I want the DE and application roles to have reviewed and confirmed dependency declarations, confirming or extending the declarations already added in US-004 and US-006.",
+      "acceptanceCriteria": [
+        "Each of the following roles has a reviewed dependencies list: i3, hyprland, gnome, kde, awesomewm, terminal, browsers, filemanager, screensaver, screencapture, media, mpv, mpd, twitch, proton, android",
+        "Any newly-declared dependency includes a comment in meta/main.yml explaining why",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "Blocked by US-001 and US-002. HITL. Can run in parallel with US-007, US-008, US-009, US-011."
+    },
+    {
+      "id": "US-011",
+      "title": "Audit dependencies: utility and service roles",
+      "description": "As a contributor, I want the utility and service roles to have reviewed and confirmed dependency declarations, including converting goesimage's hardcoded cross-role include_tasks to a proper dependencies declaration.",
+      "acceptanceCriteria": [
+        "Each of the following roles has a reviewed dependencies list: pass, taskwarrior, spell, clipboard, clouddrive, syncthing, filesharing, cups, udisks, nmtrust, networkmanager, nettools, laptop, goesimage, notes, widgets, microtex, oneui4_icons, uv_python_packages, archive, dotfiles",
+        "goesimage no longer uses hardcoded include_tasks: roles/nmtrust/tasks/unit.yml — replaced with dependencies: [{role: nmtrust}]",
+        "Any newly-declared dependency includes a comment in meta/main.yml explaining why",
+        "make validate-deps passes",
+        "ansible-playbook play.yml --syntax-check passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Blocked by US-001 and US-002. HITL. Can run in parallel with US-007, US-008, US-009, US-010."
+    }
+  ]
+}

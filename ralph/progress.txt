@@ -1,0 +1,19 @@
+## Codebase Patterns
+- All 74 roles are under roles/; use `find roles -path "*/meta/main.yml"` to enumerate meta files
+- ansible-playbook play.yml --syntax-check is the quality gate (no inventory needed, warnings about empty inventory are normal)
+- Existing meta/main.yml files may have galaxy_info blocks; append allow_duplicates: false rather than rewriting
+- The 16 roles that already had meta/main.yml before US-001: cursor-theme, oneui4_icons, laptop, microcode, bluetooth, nmtrust, mirrorlist, goesimage, homebrew, gnome, uv_python_packages, microtex, gdm, ssh, screensaver, base
+
+---
+
+## 2026-03-23 - US-001
+- Created meta/main.yml with `dependencies: []` and `allow_duplicates: false` for 58 roles that lacked one
+- Added `allow_duplicates: false` to 16 roles that already had meta/main.yml (some had galaxy_info blocks, appended the key)
+- All 74 roles now have meta/main.yml with both required keys
+- ansible-playbook play.yml --syntax-check passes
+- Files changed: 74 roles/*/meta/main.yml (58 created, 16 modified)
+- **Learnings for future iterations:**
+  - The for-loop from PRD notes only creates files that don't exist; existing files needed separate grep+append treatment
+  - grep -L can verify which files are missing a key across all 74 files at once
+  - No inventory file is needed for --syntax-check; the "no inventory" warnings are harmless
+---
