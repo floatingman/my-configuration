@@ -173,6 +173,17 @@ gpu-info: req-lspci ## Display detected GPU information
 	@echo 'Detected GPUs:'
 	@lspci | grep -E "(VGA|3D|Display)" | sed 's/^[0-9a-f]*:[0-9a-f]*.[0-9a-f]* /  - /'
 
+.PHONY: ralph
+ralph: ## Run continuous-claude loop (works next open issue; use ISSUE=42 or RUNS=3 to override)
+	@./scripts/continuous-claude.sh \
+		$(if $(ISSUE),--issue $(ISSUE),) \
+		$(if $(RUNS),--max-runs $(RUNS),) \
+		$(if $(LABEL),--label $(LABEL),)
+
+.PHONY: ralph-dry
+ralph-dry: ## Dry-run: show which issue would be worked next without making changes
+	@./scripts/continuous-claude.sh --dry-run $(if $(RUNS),--max-runs $(RUNS),)
+
 PHONY: help
 help:  ## print this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort -d | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
