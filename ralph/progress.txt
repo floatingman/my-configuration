@@ -102,3 +102,15 @@
 - kde, awesomewm, and 9 app roles confirmed standalone (empty deps)
 - Files changed: roles/gnome/meta/main.yml, roles/screensaver/meta/main.yml
 ---
+
+## 2026-03-23 - US-011
+- Reviewed utility/service roles: pass, taskwarrior, spell, clipboard, clouddrive, syncthing, filesharing, cups, udisks, nmtrust, networkmanager, nettools, laptop, goesimage, notes, widgets, microtex, oneui4_icons, uv_python_packages, archive, dotfiles
+- Fixed goesimage: removed hardcoded `include_tasks: roles/nmtrust/tasks/unit.yml`, inlined equivalent tasks, added nmtrust as dep
+- nmtrust→networkmanager confirmed (nmtrust is NM plugin); laptop→systemd confirmed (uses 'reload systemd config' handler)
+- Added explanatory comments to nmtrust, laptop, goesimage meta files
+- widgets, microtex, oneui4_icons, uv_python_packages already covered by US-006 review
+- Files changed: roles/goesimage/tasks/main.yml, roles/goesimage/meta/main.yml, roles/nmtrust/meta/main.yml, roles/laptop/meta/main.yml
+- **Learnings for future iterations:**
+  - Hardcoded `include_tasks: roles/<other_role>/tasks/file.yml` is an Ansible anti-pattern; inline the tasks instead and add proper dependency
+  - When inlining cross-role include_tasks, use specific variable names from the caller's context (not generic unit/run_on vars)
+---
