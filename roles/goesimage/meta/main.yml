@@ -1,4 +1,5 @@
 ---
 dependencies:
-  - { role: systemd }
+  - role: systemd  # goesimage deploys systemd user service/timer and notifies 'reload systemd config'
+  - role: nmtrust  # goesimage manages its timer in nmtrust trusted_units; nmtrust must be set up first
 allow_duplicates: false

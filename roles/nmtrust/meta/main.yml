@@ -1,4 +1,4 @@
 ---
 dependencies:
-  - { role: networkmanager }
+  - role: networkmanager  # nmtrust is a NetworkManager plugin; NM must be installed and configured first
 allow_duplicates: false

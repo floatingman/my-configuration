@@ -29,9 +29,41 @@
     - reload systemd config
     - restart GOESImage
 
-- name: Include nmtrust unit tasks
-  ansible.builtin.include_tasks: roles/nmtrust/tasks/unit.yml
-  vars:
-    unit: goesimage.timer
-    run_on: "{{ goesimage.run_on }}"
-    user_unit: true
+- name: Enable and start goesimage.timer for user
+  ansible.builtin.systemd:
+    name: goesimage.timer
+    enabled: true
+    state: started
+    scope: user
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: goesimage.run_on == "all"
+
+- name: Disable goesimage.timer for user
+  ansible.builtin.systemd:
+    name: goesimage.timer
+    enabled: false
+    scope: user
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: goesimage.run_on != "all"
+
+- name: Add goesimage.timer to nmtrust trusted unit list
+  ansible.builtin.lineinfile:
+    dest: /etc/nmtrust/trusted_units
+    state: present
+    line: "goesimage.timer,user:{{ user.name }}"
+  when: goesimage.run_on == "trusted"
+  become: true
+
+- name: Remove goesimage.timer from nmtrust trusted unit list
+  ansible.builtin.lineinfile:
+    dest: /etc/nmtrust/trusted_units
+    state: absent
+    line: "goesimage.timer,user:{{ user.name }}"
+  when: goesimage.run_on != "trusted"
+  become: true
