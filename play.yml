@@ -175,8 +175,8 @@
     # -------------------------------------------------------------------------
     - { role: terminal,              tags: ["terminal"],           when: _has_display }
     - { role: notes,                 tags: ["notes"],              when: _has_display }
-    - { role: browsers,              tags: ["browsers"],           when: _has_display }
-    - { role: filemanager,           tags: ["filemanager"],        when: _has_display }
+    - { role: browsers,              tags: ["browsers"] }
+    - { role: filemanager,           tags: ["filemanager"] }
     - { role: screensaver,           tags: ["screensaver"],        when: _has_display }
     - { role: mpv,                   tags: ["mpv"],                when: _has_display }
     - { role: media,                 tags: ["media"],              when: _has_display }

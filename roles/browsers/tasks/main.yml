@@ -17,6 +17,7 @@
       - qutebrowser
     state: present
   become: true
+  when: _has_display | default(false)
   tags:
     - qutebrowser
 
@@ -25,13 +26,14 @@
     name: surfraw
     state: present
   become: true
+  when: _has_display | default(false)
   tags:
     - surfraw
 
 - name: Install browsers on Arch
   ansible.builtin.include_tasks: browsers-arch.yml
-  when: ansible_facts["os_family"] == "Archlinux"
+  when: ansible_facts["os_family"] == "Archlinux" and (_has_display | default(false))
 
 - name: Install browsers on Debian
   ansible.builtin.include_tasks: browsers-debian.yml
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] != "Archlinux" and (_has_display | default(false))

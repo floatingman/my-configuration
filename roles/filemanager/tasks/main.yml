@@ -1,8 +1,11 @@
 ---
 - name: Include ranger tasks
   ansible.builtin.include_tasks: ranger.yml
+
 - name: Include thunar tasks
   ansible.builtin.include_tasks: thunar.yml
+  when: _has_display | default(false)
+
 - name: Install yazi on Archlinux
   ansible.builtin.include_tasks: yazi.yml
   when: ansible_facts["os_family"] == "Archlinux"
@@ -26,7 +29,7 @@
     use: auto
     state: present
   become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
+  when: ansible_facts["os_family"] == "Archlinux" and (_has_display | default(false))
   tags:
     - filemanager
     - aur
@@ -38,7 +41,7 @@
     use: auto
     state: present
   become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
+  when: ansible_facts["os_family"] == "Archlinux" and (_has_display | default(false))
   tags:
     - filemanager
     - aur
