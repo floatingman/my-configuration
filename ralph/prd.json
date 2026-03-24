@@ -92,7 +92,7 @@
         "ansible-playbook play.yml --syntax-check passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Blocked by US-001. Can run in parallel with US-004 and US-005."
     },
     {

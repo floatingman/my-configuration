@@ -53,3 +53,13 @@
 - Files changed: roles/gpu_drivers/meta/main.yml
 - Verified: `ansible-playbook play.yml --tags gpu_drivers --list-tasks` shows gpu_detect tasks before gpu_drivers tasks
 ---
+
+## 2026-03-23 - US-006
+- Set hyprland deps to [wayland, qt_gtk_toolkit, widgets], qt_gtk_toolkit dep to [wayland], widgets dep to [qt_gtk_toolkit]
+- uv_python_packages, microtex, oneui4_icons, screencapture reviewed - no wayland tasks found, no deps added
+- Files changed: roles/hyprland/meta/main.yml, roles/qt_gtk_toolkit/meta/main.yml, roles/widgets/meta/main.yml
+- **Learnings for future iterations:**
+  - Diamond dependencies (hyprland→wayland, hyprland→qt_gtk_toolkit→wayland) cause `--list-tasks` to display wayland tasks multiple times
+  - `allow_duplicates: false` handles actual runtime deduplication; `--list-tasks` display duplicates are cosmetic/known Ansible behavior
+  - The correct order (wayland→qt_gtk_toolkit→widgets→hyprland) IS visible in --list-tasks despite apparent duplicates
+---
