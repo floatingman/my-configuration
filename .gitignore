@@ -5,3 +5,5 @@ group_vars/all.yml
 .cache/
 .ralph
 .ralphrc
+docs/
+scripts/ralph/
