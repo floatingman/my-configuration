@@ -22,3 +22,4 @@ Claude: read this at the start of each iteration, update it at the end.
 - Machine-specific vars excluded from base.yml: `laptop`, `hostname`, `display_manager`, `desktop_environment`
 - all.yml remains unchanged; both files loaded by Ansible with identical effective values
 - `make validate-deps && make syntax-check` both pass
+- [x] #48: refactor: create group_vars/all/base.yml with all shared content
