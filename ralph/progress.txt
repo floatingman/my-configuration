@@ -29,3 +29,12 @@
   - `make help` is auto-generated from `## comment` on targets — just add the comment
   - PyYAML is available on the system (no extra install needed)
 ---
+
+## 2026-03-23 - US-003
+- Added `validate-deps` as prerequisite to `configure` target in Makefile (one-line change)
+- Files changed: Makefile
+- **Learnings for future iterations:**
+  - configure target had `req-playbook` as only prereq; added `validate-deps` after it
+  - Verified: broken dep graph aborts validate-deps with exit 1 before ansible-playbook runs
+  - Roles with dict-style deps `{ role: name }` already worked; only needed to check string-style deps in test
+---

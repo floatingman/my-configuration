@@ -45,7 +45,7 @@
         "ansible-playbook play.yml --syntax-check passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Blocked by US-002. Change is a one-line Makefile edit: configure: req-playbook validate-deps"
     },
     {
