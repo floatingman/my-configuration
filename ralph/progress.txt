@@ -84,3 +84,11 @@
   - A role using `ansible.builtin.service` to start/stop a service does NOT require the `systemd` role
   - The `systemd` role is only needed if a role calls `reload systemd config` or similar handler from that role
 ---
+
+## 2026-03-23 - US-009
+- Reviewed desktop infra roles: x, wayland, lightdm, gdm, dconf, fonts, nerd-fonts, cursor-theme, qt_gtk_toolkit, backlight, sound, bluetooth
+- lightdm→x, qt_gtk_toolkit→wayland already correct from US-004/US-006
+- gdm→dconf confirmed (gdm uses dconf handlers); bluetooth→sound confirmed (bluetooth uses 'restart pulse as user' from sound handlers)
+- Added explanatory comments to gdm and bluetooth deps
+- Files changed: roles/gdm/meta/main.yml, roles/bluetooth/meta/main.yml
+---
