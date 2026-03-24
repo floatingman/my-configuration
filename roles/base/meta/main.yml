@@ -1,4 +1,4 @@
 ---
 dependencies:
-  - { role: systemd }
+  - role: systemd  # base notifies 'reload systemd config' handler provided by the systemd role
 allow_duplicates: false
