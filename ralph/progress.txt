@@ -63,3 +63,13 @@
   - `allow_duplicates: false` handles actual runtime deduplication; `--list-tasks` display duplicates are cosmetic/known Ansible behavior
   - The correct order (wayland→qt_gtk_toolkit→widgets→hyprland) IS visible in --list-tasks despite apparent duplicates
 ---
+
+## 2026-03-23 - US-007
+- Reviewed base system roles: base, microcode, grub, systemd, system, filesystem, sysmon, cron, gnupg, regdomain, mirrorlist
+- base→systemd, microcode→grub, mirrorlist→systemd all confirmed correct (pre-existing); added explanatory comments
+- systemd role has handlers only (no tasks); other 7 roles (grub, system, filesystem, sysmon, cron, gnupg, regdomain) confirmed standalone
+- Files changed: roles/base/meta/main.yml, roles/microcode/meta/main.yml, roles/mirrorlist/meta/main.yml
+- **Learnings for future iterations:**
+  - The `systemd` role is handlers-only; roles that use systemd handlers should depend on it
+  - Pre-existing dict-style deps `{ role: name }` were migrated to `role: name  # comment` format
+---
