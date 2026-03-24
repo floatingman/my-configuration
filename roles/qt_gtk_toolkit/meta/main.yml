@@ -1,3 +1,4 @@
 ---
-dependencies: []
+dependencies:
+  - role: wayland  # Qt/GTK Wayland backends require wayland libraries to be present
 allow_duplicates: false
