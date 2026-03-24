@@ -13,3 +13,13 @@ Claude: read this at the start of each iteration, update it at the end.
 - `allow_duplicates: false` handles runtime dedup of diamond deps
 
 ## Completed Issues
+
+## Issue #48: refactor: create group_vars/all/base.yml with all shared content
+- Created `group_vars/all/` directory
+- Created `group_vars/all/base.yml` with all shared content from both templates
+- base.yml uses all.yml's current values (not template defaults) to avoid Ansible precedence conflicts
+  (Ansible loads group_vars/all/*.yml AFTER group_vars/all.yml, so directory files take precedence)
+- Machine-specific vars excluded from base.yml: `laptop`, `hostname`, `display_manager`, `desktop_environment`
+- all.yml remains unchanged; both files loaded by Ansible with identical effective values
+- `make validate-deps && make syntax-check` both pass
+- [x] #48: refactor: create group_vars/all/base.yml with all shared content
