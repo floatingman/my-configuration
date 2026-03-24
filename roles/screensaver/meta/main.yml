@@ -1,3 +1,4 @@
 ---
 dependencies:
-  - { role: systemd }
+  - role: systemd  # screensaver copies a systemd service file and notifies 'reload systemd config'
+allow_duplicates: false

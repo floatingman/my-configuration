@@ -1,0 +1,6 @@
+---
+dependencies:
+  - role: wayland        # hyprland is a Wayland compositor; wayland base must be installed first
+  - role: qt_gtk_toolkit # hyprland needs Qt/GTK toolkit configuration for app theming
+  - role: widgets        # hyprland relies on widgets (eww/waybar) for its UI shell
+allow_duplicates: false

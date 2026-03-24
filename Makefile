@@ -69,7 +69,7 @@ install: req-galaxy ## Install roles via ansible-galaxy
 	ansible-galaxy collection install -r requirements.yml
 
 .PHONY: configure
-configure: req-playbook ## Run ansible (optionally with TAGS="tag1,tag2")
+configure: req-playbook validate-deps ## Run ansible (optionally with TAGS="tag1,tag2")
 	@echo 'Run ansible-playbook'
 ifdef TAGS
 	@available_tags=$$(grep -oP 'tags: \["\K[^"]+' play.yml | sort -u); \
@@ -92,6 +92,11 @@ ifdef TAGS
 else
 	ansible-playbook -i localhost play.yml --ask-become-pass
 endif
+
+.PHONY: validate-deps
+validate-deps: ## Validate role dependency graph (no cycles, no missing roles)
+	@echo 'Validating role dependency graph...'
+	python3 scripts/validate_deps.py
 
 .PHONY: list-tags
 list-tags: ## List all available tags in the playbook

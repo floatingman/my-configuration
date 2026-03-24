@@ -1,6 +1,7 @@
 ---
 dependencies:
-  - { role: dconf }
-  - { role: x }
-  - { role: gdm }
-  - { role: networkmanager }
+  - role: dconf        # gnome uses dconf for settings and notifies 'update DConf database'
+  - role: x            # gnome installs xwayland and needs X11 infrastructure configured
+  - role: gdm          # GNOME requires GDM as its display manager
+  - role: networkmanager  # GNOME desktop integrates with NetworkManager for network management UI
+allow_duplicates: false

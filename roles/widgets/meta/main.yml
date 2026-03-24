@@ -1,0 +1,4 @@
+---
+dependencies:
+  - role: qt_gtk_toolkit  # widgets (eww/waybar) require Qt/GTK toolkit to be configured
+allow_duplicates: false

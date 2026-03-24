@@ -1,0 +1,4 @@
+---
+dependencies:
+  - role: gpu_detect  # gpu_drivers reads detection facts written by gpu_detect
+allow_duplicates: false

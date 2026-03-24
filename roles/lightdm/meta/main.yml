@@ -1,0 +1,4 @@
+---
+dependencies:
+  - role: x  # lightdm is an X11 display manager; X must be installed first
+allow_duplicates: false

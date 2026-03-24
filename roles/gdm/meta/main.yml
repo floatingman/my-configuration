@@ -1,3 +1,4 @@
 ---
 dependencies:
-  - { role: dconf }
+  - role: dconf  # gdm writes to /etc/dconf/db/gdm.d/ and notifies 'update DConf database' from the dconf role
+allow_duplicates: false

@@ -1,3 +1,4 @@
 ---
 dependencies:
-  - { role: systemd }
+  - role: systemd  # laptop copies systemd service files (framework, tlp, tuned) and notifies 'reload systemd config'
+allow_duplicates: false

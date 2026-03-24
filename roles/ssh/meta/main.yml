@@ -1,3 +1,4 @@
 ---
-dependencies:
-  - { role: systemd }
+dependencies: []
+# Reviewed: ssh defines its own 'Restart sshd' handler and does not use systemd role handlers
+allow_duplicates: false

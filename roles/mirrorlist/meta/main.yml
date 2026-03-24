@@ -1,3 +1,4 @@
 ---
 dependencies:
-  - { role: systemd }
+  - role: systemd  # mirrorlist copies systemd service/timer files and notifies 'reload systemd config'
+allow_duplicates: false

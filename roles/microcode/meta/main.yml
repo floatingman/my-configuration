@@ -1,3 +1,4 @@
 ---
 dependencies:
-  - { role: grub }
+  - role: grub  # microcode notifies 'rebuild grub' handler; grub must be configured first
+allow_duplicates: false
