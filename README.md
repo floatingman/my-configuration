@@ -81,7 +81,7 @@ profiles/
 
 ### Desktop Environment Support (Legacy / Manual)
 
-If you prefer to configure desktop environments manually instead of using profiles, you can set variables in `group_vars/all.yml`:
+If you prefer to configure desktop environments manually instead of using profiles, you can set variables in `group_vars/all/local.yml`:
 
 ```yaml
 # Install only i3
@@ -119,7 +119,7 @@ The `gpu_detect` role uses `lspci` to identify your GPU hardware and sets the ap
 
 ### Configuration
 
-Configure GPU behavior in `group_vars/all.yml`:
+Configure GPU behavior in `group_vars/all/local.yml`:
 
 ```yaml
 # Detection mode: auto (default), amd, nvidia, intel

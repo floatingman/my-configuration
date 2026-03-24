@@ -1,7 +1,7 @@
 ---
 # Shared base variables for all machines.
 # These are the defaults shared between desktop and server configurations.
-# Machine-specific overrides (laptop, hostname, display_manager, etc.) live in group_vars/all.yml.
+# Machine-specific overrides (laptop, hostname, display_manager, etc.) live in group_vars/all/local.yml.
 
 user:
   name: dnewman
@@ -263,7 +263,6 @@ cli:
     - fd-find
     - libx11-dev
     - libxext-dev
-    - libxfixes-dev
     - libxfixes-dev
     - libxi-dev
     - libxt-dev
