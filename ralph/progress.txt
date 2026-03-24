@@ -38,3 +38,12 @@
   - Verified: broken dep graph aborts validate-deps with exit 1 before ansible-playbook runs
   - Roles with dict-style deps `{ role: name }` already worked; only needed to check string-style deps in test
 ---
+
+## 2026-03-23 - US-004
+- Set `dependencies: [{role: x}]` in roles/i3/meta/main.yml and roles/lightdm/meta/main.yml
+- Files changed: roles/i3/meta/main.yml, roles/lightdm/meta/main.yml
+- Verified: `ansible-playbook play.yml --tags i3 --list-tasks` shows x tasks before i3 tasks
+- **Learnings for future iterations:**
+  - Ansible meta dependencies cause the dep role's tasks to run even when only the dependent tag is specified
+  - `--list-tasks` with a tag shows tasks from dep roles tagged under the dependent tag automatically
+---
