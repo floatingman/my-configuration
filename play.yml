@@ -102,8 +102,8 @@
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: nmtrust,               tags: ["nmtrust"],            when: _is_arch }
-    - { role: networkmanager,        tags: ["networkmanager"],     when: _is_arch }
+    - { role: nmtrust,               tags: ["nmtrust"],            when: _is_arch and _has_display | bool }
+    - { role: networkmanager,        tags: ["networkmanager"],     when: _is_arch and _has_display | bool }
     - { role: nettools,              tags: ["nettools"],           when: _is_arch }
     - { role: mirrorlist,            tags: ["mirrorlist"],         when: _is_arch }
     - { role: filesharing,           tags: ["filesharing"],        when: _is_arch }

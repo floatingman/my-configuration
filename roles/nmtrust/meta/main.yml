@@ -1,4 +1,6 @@
 ---
-dependencies:
-  - role: networkmanager  # nmtrust is a NetworkManager plugin; NM must be installed and configured first
+dependencies: []
+# networkmanager is a prerequisite, but it's already listed before nmtrust in play.yml
+# with the same _has_display condition. Keeping it as a meta dependency bypasses that
+# condition (Ansible meta deps don't inherit the parent role's when:).
 allow_duplicates: false

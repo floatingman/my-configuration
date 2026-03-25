@@ -18,7 +18,7 @@ user:
 
 # Hardware
 laptop: false               # No power mgmt or trackpad config on servers
-regdomain: "US"             # WiFi regulatory domain — ISO 3166-1 alpha-2 country code
+# regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Boot
 # kernel_parameters:        # Kernel cmdline params used for GRUB_CMDLINE_LINUX_DEFAULT (replaces default, e.g. "quiet")

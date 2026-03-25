@@ -212,7 +212,6 @@ cli:
     - moreutils
     - msmtp
     - neomutt
-    - newsboat
     - notmuch
     - notmuch-mutt
     - npm
@@ -285,6 +284,7 @@ cli:
     - logcli
     - mdbook
     - meson
+    - newsboat
     - nnn
     - popeye
     - poppler
@@ -438,8 +438,6 @@ uv_python_packages_venv_path: "/home/dnewman/.local/state/quickshell/.venv"
 uv_python_packages_enabled: true
 
 power_management: "tuned"
-
-regdomain: "US"
 
 # You have to look up these values https://github.com/mikhail-m1/illuminanced
 illuminanced:

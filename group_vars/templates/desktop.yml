@@ -19,7 +19,7 @@ user:
 # Hardware
 laptop: true                # true for laptops (enables power mgmt, trackpad config)
 power_management: tuned     # tuned | tlp  (only used when laptop: true)
-regdomain: "US"             # WiFi regulatory domain — ISO 3166-1 alpha-2 country code
+# regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Display
 desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
