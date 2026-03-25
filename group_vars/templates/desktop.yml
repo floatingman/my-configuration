@@ -28,7 +28,7 @@ display_manager: lightdm    # lightdm | gdm | sddm
 # disable_hyprland: false   # Set true to skip Hyprland install (manual dual-desktop mode only)
 
 # Boot
-# kernel_parameters: "quiet consoleblank=60"   # Extra kernel cmdline params appended to GRUB
+# kernel_parameters: "quiet consoleblank=60"   # Kernel cmdline for GRUB (overrides default GRUB_CMDLINE_LINUX_DEFAULT)
 
 dotfiles:
   repo_url: https://github.com/GITHUB_USER/dotfiles.git
