@@ -18,10 +18,17 @@ user:
 
 # Hardware
 laptop: true                # true for laptops (enables power mgmt, trackpad config)
+power_management: tuned     # tuned | tlp  (only used when laptop: true)
+regdomain: "US"             # WiFi regulatory domain — ISO 3166-1 alpha-2 country code
 
 # Display
 desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
 display_manager: lightdm    # lightdm | gdm | sddm
+# disable_i3: false         # Set true to skip i3 install (manual dual-desktop mode only)
+# disable_hyprland: false   # Set true to skip Hyprland install (manual dual-desktop mode only)
+
+# Boot
+# kernel_parameters: "quiet consoleblank=60"   # Kernel cmdline for GRUB (overrides default GRUB_CMDLINE_LINUX_DEFAULT)
 
 dotfiles:
   repo_url: https://github.com/GITHUB_USER/dotfiles.git
@@ -42,6 +49,7 @@ illuminanced:
 ssh:
   port: 22                  # SSH daemon listen port
   enable_sshd: true
+  # user_key: files/id_rsa  # Optional: local SSH private key to install for the user
 
 # Network
 # Run: nmcli connection show   to find your trusted connection UUIDs

@@ -18,6 +18,10 @@ user:
 
 # Hardware
 laptop: false               # No power mgmt or trackpad config on servers
+regdomain: "US"             # WiFi regulatory domain — ISO 3166-1 alpha-2 country code
+
+# Boot
+# kernel_parameters:        # Kernel cmdline params used for GRUB_CMDLINE_LINUX_DEFAULT (replaces default, e.g. "quiet")
 
 # Display — omitted; no desktop environment on servers
 dotfiles:
@@ -30,6 +34,7 @@ dotfiles:
 ssh:
   port: 22                  # SSH daemon listen port
   enable_sshd: true
+  # user_key: files/id_rsa  # Optional: local SSH private key to install for the user
 
 # Network
 # Run: nmcli connection show   to find your trusted connection UUIDs
