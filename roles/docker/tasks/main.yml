@@ -1,5 +1,5 @@
 ---
-- name: Install Docker
+- name: Install Docker packages (Arch)
   become: true
   ansible.builtin.package:
     name:
@@ -9,6 +9,19 @@
       - docker-compose
       - docker-machine
     state: present
+  when: ansible_facts['os_family'] == "Archlinux"
+  tags:
+    - docker
+
+- name: Install Docker packages (Debian)
+  become: true
+  ansible.builtin.package:
+    update_cache: true
+    name:
+      - docker.io
+      - docker-compose
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
   tags:
     - docker
 

@@ -95,7 +95,7 @@
     - { role: filesystem,            tags: ["filesystem"] }
     - { role: python,                tags: ["python"] }
     - { role: rust,                  tags: ["rust"] }
-    - { role: docker,                tags: ["docker"],             when: _is_arch }
+    - { role: docker,                tags: ["docker"] }
     - { role: kubernetes,            tags: ["kubernetes"],         when: _is_arch }
     - { role: devtools,              tags: ["devtools"],           when: _has_display }
 

@@ -1,0 +1,3 @@
+---
+# No configurable defaults for the docker role.
+# Package names are determined by os_family in tasks/main.yml.

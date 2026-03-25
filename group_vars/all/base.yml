@@ -196,7 +196,6 @@ cli:
     - curl
     - dateutils
     - dnsutils
-    - docker
     - fdupes
     - figlet
     - flake8
@@ -262,7 +261,6 @@ cli:
     - broot
     - ctags
     - direnv
-    - docker-compose
     - doctl
     - dog
     - dua-cli
