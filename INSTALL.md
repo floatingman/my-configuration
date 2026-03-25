@@ -144,7 +144,11 @@ The playbook is designed to be run by a non-superuser account with sudo privileg
    $ make install
    ```
 
-4. Configure your system variables in `group_vars/all.yml` (copy from template)
+4. Configure your machine-specific variables:
+   ```bash
+   cp group_vars/templates/desktop.yml group_vars/all/local.yml
+   # Edit hostname and any hardware-specific paths
+   ```
 
 5. Run the playbook (you will be prompted for your sudo password):
    ```bash

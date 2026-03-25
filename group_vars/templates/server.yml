@@ -21,6 +21,9 @@ laptop: false               # No power mgmt or trackpad config on servers
 
 # Display — omitted; no desktop environment on servers
 dotfiles:
+  repo_url: https://github.com/GITHUB_USER/dotfiles.git
+  path: "USERNAME/.dotfiles"
+  rcup_flags: -fx README.md
   linuxgui: false           # Skip GUI dotfiles on headless servers
 
 # SSH
@@ -29,9 +32,16 @@ ssh:
   enable_sshd: true
 
 # Network
-# Run: nmcli connection show   to find connection UUIDs
+# Run: nmcli connection show   to find your trusted connection UUIDs
 network:
+  spoof_mac: true
+  conn_check:
+    url: http://connectivitycheck.gstatic.com/generate_204
+    interval: 5
+    response: 204
   wifi_wired_exclusive: false  # Typically false on servers (wired only)
+  trusted_uuid:
+    - REPLACE-WITH-YOUR-UUID   # Run: nmcli connection show | grep UUID
 
 # Bluetooth
 bluetooth:
