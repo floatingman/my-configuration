@@ -18,10 +18,17 @@ user:
 
 # Hardware
 laptop: true                # true for laptops (enables power mgmt, trackpad config)
+power_management: tuned     # tuned | tlp  (only used when laptop: true)
+regdomain: "US"             # WiFi regulatory domain — ISO 3166-1 alpha-2 country code
 
 # Display
 desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
 display_manager: lightdm    # lightdm | gdm | sddm
+# disable_i3: false         # Set true to skip i3 install (manual dual-desktop mode only)
+# disable_hyprland: false   # Set true to skip Hyprland install (manual dual-desktop mode only)
+
+# Boot
+# kernel_parameters: "quiet consoleblank=60"   # Extra kernel cmdline params appended to GRUB
 
 dotfiles:
   repo_url: https://github.com/GITHUB_USER/dotfiles.git
