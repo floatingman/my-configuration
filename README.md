@@ -188,7 +188,20 @@ profile-kde                   Run KDE Plasma desktop profile
    make install
    ```
 
-3. **Configure**: Run the playbook (you will be prompted for your sudo password)
+3. **Create your local config**: Copy the template for your machine type and edit at minimum `hostname`
+   ```sh
+   # Desktop or laptop:
+   cp group_vars/templates/desktop.yml group_vars/all/local.yml
+
+   # Headless server:
+   cp group_vars/templates/server.yml group_vars/all/local.yml
+   ```
+   Then open `group_vars/all/local.yml` and set:
+   - `hostname` — short hostname for this machine
+   - `network.trusted_uuid` — run `nmcli connection show` to find your UUIDs
+   - `illuminanced` paths (desktop/laptop only) — run `ls /sys/class/backlight/` to find your device
+
+4. **Configure**: Run the playbook (you will be prompted for your sudo password)
    ```sh
    make configure
    ```
