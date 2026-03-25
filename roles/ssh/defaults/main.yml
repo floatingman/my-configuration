@@ -1,0 +1,13 @@
+---
+# SSH daemon and client configuration.
+ssh:
+  # Port the SSH daemon listens on.
+  port: 22
+
+  # Whether to enable and start sshd (Arch Linux only).
+  # Set to false to disable and stop the daemon.
+  enable_sshd: true
+
+  # Optional: path to a local SSH private key file to install for the user.
+  # Leave undefined to skip key installation.
+  # user_key: files/id_rsa

@@ -26,3 +26,4 @@ Claude: read this at the start of each iteration, update it at the end.
 - [x] #49: refactor: extract machine-specific scalars to group_vars/all/local.yml
 - [x] #50: docs: write desktop and server templates for local.yml (no changes needed)
 - [x] #51: chore: remove legacy group_vars files and update setup docs
+- [x] #56: refactor: add defaults/main.yml to laptop, backlight, ssh, grub, networkmanager roles

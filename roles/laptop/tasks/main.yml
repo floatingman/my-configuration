@@ -1,15 +1,15 @@
 ---
 - name: Include TLP power management tasks
   ansible.builtin.include_tasks: tlp.yml
-  when: power_management is defined and power_management == "tlp"
+  when: power_management == "tlp"
 
 - name: Include tuned power management tasks
   ansible.builtin.include_tasks: tuned.yml
-  when: power_management is defined and power_management == "tuned"
+  when: power_management == "tuned"
 
 - name: Include Framework laptop tasks
   ansible.builtin.include_tasks: framework.yml
-  when: power_management is defined and power_management == "tuned" and ansible_facts['system_vendor'] == "Framework"
+  when: power_management == "tuned" and ansible_facts['system_vendor'] == "Framework"
 
 - name: Install x86_energy_perf_policy
   become: true
@@ -75,22 +75,6 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
-
-- name: Install cmake for battery-stats
-  become: true
-  ansible.builtin.package:
-    name: cmake
-    state: present
-
-# - name: Install battery-stats
-#   kewlfft.aur.aur:
-#     name: battery-stats-git
-#     use: auto
-#     state: present
-#   become_user: aur_builder
-#   when: ansible_facts["os_family"] == "Archlinux"
-#   tags:
-#     - aur
 
 - name: Install battop
   kewlfft.aur.aur:

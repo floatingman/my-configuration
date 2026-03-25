@@ -1,0 +1,5 @@
+---
+# Kernel parameters to set in GRUB_CMDLINE_LINUX_DEFAULT.
+# Set to null (default) to leave GRUB configuration unchanged.
+# Example: "quiet splash loglevel=3"
+kernel_parameters: null

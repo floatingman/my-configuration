@@ -1,0 +1,5 @@
+---
+# Power management backend to install and configure.
+# Valid values: "tlp" | "tuned"
+# Override in group_vars/all/local.yml for machine-specific selection.
+power_management: tuned

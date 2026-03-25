@@ -1,0 +1,21 @@
+---
+# NetworkManager configuration.
+network:
+  # Randomize MAC address on WiFi scan and per-connection.
+  # true enables random_mac.conf; false skips it.
+  spoof_mac: false
+
+  # Install and enable the WiFi/wired exclusive dispatcher script.
+  # When true, wired connections automatically disable WiFi and vice versa.
+  wifi_wired_exclusive: false
+
+  # Optional: HTTP-based connectivity check configuration.
+  # Leave undefined to skip connectivity.conf deployment.
+  # conn_check:
+  #   uri: https://connectivity-check.ubuntu.com
+  #   interval: 300
+  #   response: ""
+
+  # Optional: UUID of a trusted connection to exempt from MAC randomization.
+  # Leave undefined if not needed.
+  # trusted_uuid: ""
