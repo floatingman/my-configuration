@@ -123,19 +123,23 @@ update_notes_completed() {
 }
 
 get_pr_needing_changes() {
-  # Returns the PR number of the first open ralph PR with CHANGES_REQUESTED,
-  # or empty string if none found.
+  # Returns the PR number of the first open ralph PR with either:
+  #   - CHANGES_REQUESTED review decision, OR
+  #   - the 'needs-changes' label (for use when you are the PR author
+  #     and GitHub won't let you request changes on your own PRs)
   gh pr list \
     --repo "$REPO" \
     --state open \
-    --json number,headRefName,reviewDecision \
+    --json number,headRefName,reviewDecision,labels \
     --limit 50 \
     | python3 -c "
 import json, sys
 prs = json.load(sys.stdin)
 for p in sorted(prs, key=lambda x: x['number']):
+    label_names = [l['name'] for l in p.get('labels', [])]
     if (p['headRefName'].startswith('ralph/issue')
-            and p.get('reviewDecision') == 'CHANGES_REQUESTED'):
+            and (p.get('reviewDecision') == 'CHANGES_REQUESTED'
+                 or 'needs-changes' in label_names)):
         print(p['number'])
         break
 "
@@ -254,6 +258,9 @@ PROMPT
       git push --quiet
       log "Pushed fix to PR #${FIX_PR}"
     fi
+
+    # Remove needs-changes label (if present) now that feedback is addressed
+    gh pr edit "$FIX_PR" --repo "$REPO" --remove-label "needs-changes" 2>/dev/null || true
 
     git checkout "$BASE_BRANCH" --quiet
     RUNS=$((RUNS + 1))
