@@ -28,3 +28,4 @@ Claude: read this at the start of each iteration, update it at the end.
 - [x] #51: chore: remove legacy group_vars files and update setup docs
 - [x] #56: refactor: add defaults/main.yml to laptop, backlight, ssh, grub, networkmanager roles
 - [x] #57: docs: document role defaults convention in CLAUDE.md (no changes needed)
+- [x] #58: docs: complete desktop and server templates with missing configurable variables
