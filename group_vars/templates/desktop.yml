@@ -24,6 +24,9 @@ desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
 display_manager: lightdm    # lightdm | gdm | sddm
 
 dotfiles:
+  repo_url: https://github.com/GITHUB_USER/dotfiles.git
+  path: "USERNAME/.dotfiles"
+  rcup_flags: -fx README.md
   linuxgui: true            # Install GUI dotfiles (i3, waybar, rofi, etc.)
 
 # Backlight / ambient light sensor
@@ -41,9 +44,16 @@ ssh:
   enable_sshd: true
 
 # Network
-# Run: nmcli connection show   to find connection UUIDs
+# Run: nmcli connection show   to find your trusted connection UUIDs
 network:
-  wifi_wired_exclusive: false  # Disable WiFi when wired link is up
+  spoof_mac: true
+  conn_check:
+    url: http://connectivitycheck.gstatic.com/generate_204
+    interval: 5
+    response: 204
+  wifi_wired_exclusive: true   # Disable WiFi when wired link is up
+  trusted_uuid:
+    - REPLACE-WITH-YOUR-UUID   # Run: nmcli connection show | grep UUID
 
 # Bluetooth
 bluetooth:

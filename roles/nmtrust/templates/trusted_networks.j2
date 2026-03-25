@@ -1,4 +1,4 @@
 # {{ ansible_managed }}
-{% for network in network.trusted_uuid %}
-{{ network }}
+{% for uuid in network.trusted_uuid %}
+{{ uuid }}
 {% endfor %}
