@@ -648,13 +648,17 @@ class TestListProfiles:
         assert names == sorted(names)
 
     def test_custom_dir_with_mock_profiles(self):
-        """list_profiles discovers profiles in a custom directory."""
+        """list_profiles discovers only valid profiles in a custom directory."""
+        valid_content = 'display_manager_default: lightdm\ndesktop_environment: i3\n'
+        invalid_content = 'name: missing-required-fields\n'
         with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, 'alpha.yml').write_text('name: alpha\n')
-            Path(tmpdir, 'beta.yml').write_text('name: beta\n')
+            Path(tmpdir, 'alpha.yml').write_text(valid_content)
+            Path(tmpdir, 'beta.yml').write_text(valid_content)
+            Path(tmpdir, 'broken.yml').write_text(invalid_content)
             Path(tmpdir, '_base.yml').write_text('name: base\n')
             names = list_profiles(tmpdir)
             assert set(names) == {'alpha', 'beta'}
+            assert 'broken' not in names
 
 
 if __name__ == '__main__':

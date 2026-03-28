@@ -64,10 +64,38 @@ def load_profile(profiles_dir: str, name: str) -> dict:
         Merged profile data as a dict
 
     Raises:
-        ValueError: If the profile file does not exist
+        ValueError: If the profile file does not exist, a cycle is detected,
+                    or the name contains path separators
     """
+    return _load_profile_inner(profiles_dir, name, visited=frozenset())
+
+
+def _load_profile_inner(profiles_dir: str, name: str, visited: frozenset) -> dict:
+    """Internal recursive loader that tracks the visited chain to detect cycles."""
     name = name.removesuffix(".yml")
-    profile_path = Path(profiles_dir) / f"{name}.yml"
+
+    # Guard against path traversal: reject names with separators or parent references
+    if "/" in name or "\\" in name or ".." in name:
+        raise ValueError(
+            f"Profile name '{name}' contains invalid path characters. "
+            "Profile names must not include path separators or '..'."
+        )
+
+    if name in visited:
+        cycle_path = " -> ".join([*sorted(visited), name])
+        raise ValueError(f"Circular extends detected: {cycle_path}")
+
+    profiles_root = Path(profiles_dir).resolve()
+    profile_path = profiles_root / f"{name}.yml"
+
+    # Enforce the path stays inside profiles_dir even after resolution
+    try:
+        profile_path.resolve().relative_to(profiles_root)
+    except ValueError:
+        raise ValueError(
+            f"Profile '{name}' resolves outside the profiles directory."
+        )
+
     if not profile_path.exists():
         raise ValueError(f"Profile '{name}' not found at {profile_path}")
 
@@ -79,7 +107,7 @@ def load_profile(profiles_dir: str, name: str) -> dict:
         return data
 
     parent_name = str(extends).removesuffix(".yml")
-    parent_data = load_profile(profiles_dir, parent_name)
+    parent_data = _load_profile_inner(profiles_dir, parent_name, visited | {name})
     return _merge_profile_data(parent_data, data)
 
 
@@ -112,8 +140,8 @@ def validate_profile(profiles_dir: str, name: str) -> list:
     """
     try:
         profile = load_profile(profiles_dir, name)
-    except ValueError as exc:
-        return [str(exc)]
+    except (ValueError, yaml.YAMLError, RecursionError) as exc:
+        return [f"Failed to load profile '{name}': {exc}"]
 
     errors = []
 
@@ -144,22 +172,27 @@ def list_profiles(profiles_dir: str) -> list:
     """
     Discover all valid profile names in profiles_dir, excluding _base.
 
-    Scans for *.yml files directly in profiles_dir (not subdirectories)
-    and excludes files starting with '_'.
+    Scans for *.yml files directly in profiles_dir (not subdirectories),
+    excludes files starting with '_', and filters to only profiles that
+    pass validation (parseable, required fields present, allowed values).
 
     Args:
         profiles_dir: Directory containing profile YAML files
 
     Returns:
-        Sorted list of profile names (without .yml extension)
+        Sorted list of valid profile names (without .yml extension)
     """
     profiles_path = Path(profiles_dir)
-    names = [
+    candidates = [
         p.stem
         for p in profiles_path.glob("*.yml")
         if not p.stem.startswith("_")
     ]
-    return sorted(names)
+    valid = [
+        name for name in candidates
+        if validate_profile(profiles_dir, name) == []
+    ]
+    return sorted(valid)
 
 
 def resolve(
@@ -229,13 +262,19 @@ def _resolve_profile_mode(profile: str, profiles_dir: str) -> ResolvedProfile:
     """
     Resolve in profile mode - settings come from YAML profile file.
     """
+    errors = validate_profile(profiles_dir, profile)
+    if errors:
+        raise ValueError(
+            f"Profile '{profile}' is invalid:\n" + "\n".join(f"  - {e}" for e in errors)
+        )
+
     profile_data = load_profile(profiles_dir, profile)
 
     # Map display_manager_default → display_manager (empty string becomes None)
-    dm_raw = profile_data.get("display_manager_default", "")
+    dm_raw = profile_data["display_manager_default"]
     dm = dm_raw if dm_raw else None
 
-    de_raw = profile_data.get("desktop_environment", "")
+    de_raw = profile_data["desktop_environment"]
     de = de_raw if de_raw else None
 
     has_display = dm is not None
