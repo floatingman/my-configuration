@@ -47,10 +47,10 @@ class TestProfileMode:
         assert result.is_kde is False
 
     def test_hyprland_profile(self):
-        """Hyprland profile should use lightdm and set only is_hyprland to True."""
+        """Hyprland profile should use sddm and set only is_hyprland to True."""
         result = resolve(profile='hyprland')
         assert result.profile == 'hyprland'
-        assert result.display_manager == 'lightdm'
+        assert result.display_manager == 'sddm'
         assert result.has_display is True
         assert result.desktop_environment == 'hyprland'
         assert result.is_i3 is False
@@ -86,10 +86,10 @@ class TestProfileMode:
         assert result.is_kde is False
 
     def test_kde_profile(self):
-        """KDE profile should use lightdm and set only is_kde to True."""
+        """KDE profile should use sddm and set only is_kde to True."""
         result = resolve(profile='kde')
         assert result.profile == 'kde'
-        assert result.display_manager == 'lightdm'
+        assert result.display_manager == 'sddm'
         assert result.has_display is True
         assert result.desktop_environment == 'kde'
         assert result.is_i3 is False

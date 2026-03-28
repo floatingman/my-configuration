@@ -57,7 +57,7 @@ def resolve(
     Args:
         profile: Profile name ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde')
                 or None for manual mode
-        display_manager: Display manager name ('gdm', 'lightdm') or None
+        display_manager: Display manager name ('gdm', 'lightdm', 'sddm') or None
         desktop_environment: Desktop environment name or None
         disable_i3: Suppress i3 in manual mode
         disable_hyprland: Suppress Hyprland in manual mode
@@ -137,11 +137,11 @@ def _resolve_profile_mode(profile: str) -> ResolvedProfile:
             is_kde=False
         )
 
-    # KDE profile - uses lightdm (can also use sddm)
+    # KDE profile - uses sddm
     if profile == 'kde':
         return ResolvedProfile(
             profile='kde',
-            display_manager='lightdm',
+            display_manager='sddm',
             has_display=True,
             desktop_environment='kde',
             is_i3=False,
@@ -179,11 +179,11 @@ def _resolve_profile_mode(profile: str) -> ResolvedProfile:
             is_kde=False
         )
 
-    # Hyprland profile - uses lightdm
+    # Hyprland profile - uses sddm
     if profile == 'hyprland':
         return ResolvedProfile(
             profile='hyprland',
-            display_manager='lightdm',
+            display_manager='sddm',
             has_display=True,
             desktop_environment='hyprland',
             is_i3=False,
