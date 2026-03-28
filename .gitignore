@@ -5,9 +5,6 @@ group_vars/all/local.yml
 .vscode
 .ansible/
 .cache/
-.ralph
-.ralphrc
 docs/
-scripts/ralph/
 __pycache__/
 *.pyc
