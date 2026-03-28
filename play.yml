@@ -18,12 +18,13 @@
       tags: always
 
     - name: Resolve profile via dispatcher
-      script: >-
-        scripts/profile_dispatcher.py resolve
+      command: >-
+        {{ ansible_python_interpreter | default('/usr/bin/python3') }}
+        {{ playbook_dir }}/scripts/profile_dispatcher.py resolve
         --profiles-dir "{{ playbook_dir }}/profiles"
         --profile "{{ profile | default('manual') }}"
-        {{ (display_manager is defined) | ternary('--display-manager "' ~ display_manager ~ '"', '') }}
-        {{ (desktop_environment is defined) | ternary('--desktop-environment "' ~ desktop_environment ~ '"', '') }}
+        {{ (display_manager is defined) | ternary('--display-manager "' ~ (display_manager | default('')) ~ '"', '') }}
+        {{ (desktop_environment is defined) | ternary('--desktop-environment "' ~ (desktop_environment | default('')) ~ '"', '') }}
         {{ (disable_i3 is defined and disable_i3) | ternary('--disable-i3', '') }}
         {{ (disable_hyprland is defined and disable_hyprland) | ternary('--disable-hyprland', '') }}
         {{ (disable_gnome is defined and disable_gnome) | ternary('--disable-gnome', '') }}

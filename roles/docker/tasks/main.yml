@@ -13,6 +13,18 @@
   tags:
     - docker
 
+- name: Remove conflicting Docker CE packages (Debian)
+  become: true
+  ansible.builtin.package:
+    name:
+      - containerd.io
+      - docker-ce
+      - docker-ce-cli
+    state: absent
+  when: ansible_facts['os_family'] == "Debian"
+  tags:
+    - docker
+
 - name: Install Docker packages (Debian)
   become: true
   ansible.builtin.package:

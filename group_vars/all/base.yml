@@ -563,7 +563,9 @@ homebrew_packages:
   - yq
 
 homebrew_tap_packages:
+  - derailed/popeye
   - FairwindsOps/tap
+  - knqyf263/pet
 
 # Binaries to install via direct download (not available in Homebrew)
 binaries:
