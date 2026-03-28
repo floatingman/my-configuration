@@ -5,6 +5,17 @@
     state: present
   become: true
 
+- name: Check if user systemd session bus is available
+  ansible.builtin.command: systemctl --user is-system-running
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  register: user_session_check
+  failed_when: false
+  changed_when: false
+  when: gnupg.enable_agent
+
 - name: Enable gpg-agent.socket
   ansible.builtin.systemd:
     name: gpg-agent.socket
@@ -15,7 +26,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: gnupg.enable_agent
+  when: gnupg.enable_agent and user_session_check.rc == 0
 
 - name: Enable dirmngr.socket
   ansible.builtin.systemd:
@@ -27,7 +38,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: gnupg.enable_agent
+  when: gnupg.enable_agent and user_session_check.rc == 0
 
 - name: Enable gpg-agent-ssh.socket
   ansible.builtin.systemd:
@@ -39,4 +50,4 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: gnupg.enable_agent and gnupg.emulate_ssh
+  when: gnupg.enable_agent and gnupg.emulate_ssh and user_session_check.rc == 0

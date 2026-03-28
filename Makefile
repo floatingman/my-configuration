@@ -22,6 +22,10 @@ endif
 
 UNAME_S  := $(shell uname -s)
 
+# Use pipx-managed ansible python if available; fall back to system python3
+PIPX_VENVS    := $(shell pipx environment 2>/dev/null | grep -o 'PIPX_LOCAL_VENVS=[^[:space:]]*' | cut -d= -f2)
+SCRIPT_PYTHON := $(or $(wildcard $(PIPX_VENVS)/ansible/bin/python3),python3)
+
 ANSIBLE_BIN      = $(shell ansible --version 2>&1 | head -1 | grep -q 'ansible 2' && command -v ansible)
 ANSIBLE_LINT_BIN = $(shell command -v ansible-lint 2>/dev/null)
 YAMLLINT_BIN     = $(shell command -v yamllint 2>/dev/null)
@@ -93,10 +97,14 @@ else
 	ansible-playbook -i localhost play.yml --ask-become-pass
 endif
 
+.PHONY: pip-deps
+pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
+	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
+
 .PHONY: validate-deps
-validate-deps: ## Validate role dependency graph (no cycles, no missing roles)
+validate-deps: pip-deps ## Validate role dependency graph (no cycles, no missing roles)
 	@echo 'Validating role dependency graph...'
-	python3 scripts/validate_deps.py
+	$(SCRIPT_PYTHON) scripts/validate_deps.py
 
 .PHONY: list-tags
 list-tags: ## List all available tags in the playbook
