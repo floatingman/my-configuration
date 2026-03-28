@@ -19,7 +19,7 @@
 
     - name: Resolve profile via dispatcher
       command: >-
-        {{ ansible_python_interpreter | default('/usr/bin/python3') }}
+        {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
         {{ playbook_dir }}/scripts/profile_dispatcher.py resolve
         --profiles-dir "{{ playbook_dir }}/profiles"
         --profile "{{ profile | default('manual') }}"
@@ -31,18 +31,22 @@
         {{ (disable_awesomewm is defined and disable_awesomewm) | ternary('--disable-awesomewm', '') }}
         {{ (disable_kde is defined and disable_kde) | ternary('--disable-kde', '') }}
       register: _profile_result
+      changed_when: false
+      check_mode: false
       tags: always
 
     - name: Set profile facts from resolved JSON
+      vars:
+        _resolved: "{{ _profile_result.stdout | from_json }}"
       set_fact:
-        _profile: "{{ (_profile_result.stdout | from_json).profile }}"
-        _dm: "{{ (_profile_result.stdout | from_json).display_manager | default('', true) }}"
-        _has_display: "{{ (_profile_result.stdout | from_json).has_display }}"
-        _is_i3: "{{ (_profile_result.stdout | from_json).is_i3 }}"
-        _is_hyprland: "{{ (_profile_result.stdout | from_json).is_hyprland }}"
-        _is_gnome: "{{ (_profile_result.stdout | from_json).is_gnome }}"
-        _is_awesomewm: "{{ (_profile_result.stdout | from_json).is_awesomewm }}"
-        _is_kde: "{{ (_profile_result.stdout | from_json).is_kde }}"
+        _profile: "{{ _resolved.profile }}"
+        _dm: "{{ _resolved.display_manager | default('', true) }}"
+        _has_display: "{{ _resolved.has_display }}"
+        _is_i3: "{{ _resolved.is_i3 }}"
+        _is_hyprland: "{{ _resolved.is_hyprland }}"
+        _is_gnome: "{{ _resolved.is_gnome }}"
+        _is_awesomewm: "{{ _resolved.is_awesomewm }}"
+        _is_kde: "{{ _resolved.is_kde }}"
       tags: always
 
   roles:

@@ -23,12 +23,13 @@ laptop: false               # No power mgmt or trackpad config on servers
 # Boot
 # kernel_parameters:        # Kernel cmdline params used for GRUB_CMDLINE_LINUX_DEFAULT (replaces default, e.g. "quiet")
 
-# Display — omitted; no desktop environment on servers
-# disable_i3: false         # Set true to skip i3 install
-# disable_hyprland: false   # Set true to skip Hyprland install
-# disable_gnome: false         # Set true to skip GNOME install
-# disable_awesomewm: false   # Set true to skip AwesomeWM install
-# disable_kde: false          # Set true to skip KDE install
+# Manual mode display toggles — dispatcher applies these only in manual mode.
+# Typically irrelevant for headless/server configs; kept here for reference.
+# disable_i3: false         # Manual mode: set true to skip i3 install
+# disable_hyprland: false   # Manual mode: set true to skip Hyprland install
+# disable_gnome: false      # Manual mode: set true to skip GNOME install
+# disable_awesomewm: false  # Manual mode: set true to skip AwesomeWM install
+# disable_kde: false        # Manual mode: set true to skip KDE install
 dotfiles:
   repo_url: https://github.com/GITHUB_USER/dotfiles.git
   path: "USERNAME/.dotfiles"
