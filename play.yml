@@ -17,39 +17,31 @@
         _is_arch: "{{ ansible_facts['os_family'] == 'Archlinux' }}"
       tags: always
 
-    - name: Resolve profile and display manager
-      set_fact:
-        _profile: "{{ profile | default('manual') }}"
-        _dm: "{{ display_manager | default('') }}"
+    - name: Resolve profile via dispatcher
+      script: >-
+        scripts/profile_dispatcher.py resolve
+        --profiles-dir "{{ playbook_dir }}/profiles"
+        --profile "{{ profile | default('manual') }}"
+        {{ (display_manager is defined) | ternary('--display-manager "' ~ display_manager ~ '"', '') }}
+        {{ (desktop_environment is defined) | ternary('--desktop-environment "' ~ desktop_environment ~ '"', '') }}
+        {{ (disable_i3 is defined and disable_i3) | ternary('--disable-i3', '') }}
+        {{ (disable_hyprland is defined and disable_hyprland) | ternary('--disable-hyprland', '') }}
+        {{ (disable_gnome is defined and disable_gnome) | ternary('--disable-gnome', '') }}
+        {{ (disable_awesomewm is defined and disable_awesomewm) | ternary('--disable-awesomewm', '') }}
+        {{ (disable_kde is defined and disable_kde) | ternary('--disable-kde', '') }}
+      register: _profile_result
       tags: always
 
-    - name: Derive desktop profile flags
+    - name: Set profile facts from resolved JSON
       set_fact:
-        _has_display: >-
-          {{ (_profile in ['i3', 'hyprland', 'gnome', 'awesomewm', 'kde']) or
-             (_profile == 'manual' and _dm != '') }}
-        _is_i3: >-
-          {{ (_profile == 'i3') or
-             (_profile == 'manual' and _dm != '' and
-              (disable_i3 is not defined or not disable_i3) and
-              (desktop_environment is not defined or desktop_environment == 'i3')) }}
-        _is_hyprland: >-
-          {{ (_profile == 'hyprland') or
-             (_profile == 'manual' and _dm != '' and
-              (disable_hyprland is not defined or not disable_hyprland) and
-              (desktop_environment is not defined or desktop_environment == 'hyprland')) }}
-        _is_gnome: >-
-          {{ (_profile == 'gnome') or
-             (_profile == 'manual' and
-              desktop_environment | default('') == 'gnome') }}
-        _is_awesomewm: >-
-          {{ (_profile == 'awesomewm') or
-             (_profile == 'manual' and
-              desktop_environment | default('') == 'awesomewm') }}
-        _is_kde: >-
-          {{ (_profile == 'kde') or
-             (_profile == 'manual' and
-              desktop_environment | default('') == 'kde') }}
+        _profile: "{{ (_profile_result.stdout | from_json).profile }}"
+        _dm: "{{ (_profile_result.stdout | from_json).display_manager | default('', true) }}"
+        _has_display: "{{ (_profile_result.stdout | from_json).has_display }}"
+        _is_i3: "{{ (_profile_result.stdout | from_json).is_i3 }}"
+        _is_hyprland: "{{ (_profile_result.stdout | from_json).is_hyprland }}"
+        _is_gnome: "{{ (_profile_result.stdout | from_json).is_gnome }}"
+        _is_awesomewm: "{{ (_profile_result.stdout | from_json).is_awesomewm }}"
+        _is_kde: "{{ (_profile_result.stdout | from_json).is_kde }}"
       tags: always
 
   roles:
