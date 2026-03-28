@@ -733,7 +733,7 @@ class TestCLIValidate:
     def test_validate_real_profiles_exits_0(self, capsys):
         """validate against the real profiles directory should exit 0."""
         rc = main(["validate"])
-        out, err = capsys.readouterr().out, capsys.readouterr().err
+        out = capsys.readouterr().out
         assert rc == 0
         assert out == "" or out.strip() == ""
 
@@ -758,7 +758,7 @@ class TestCLIValidate:
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "bad.yml").write_text("name: broken\n")
             main(["validate", "--profiles-dir", tmpdir])
-        out, err = capsys.readouterr().out, capsys.readouterr().err
+        out = capsys.readouterr().out
         # stdout should be empty; error belongs in stderr
         assert out == ""
 
