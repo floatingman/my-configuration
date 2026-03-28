@@ -6,7 +6,9 @@
     use: auto
     state: present
   become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
+  when:
+    - network.trusted_uuid
+    - ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
 
@@ -16,6 +18,7 @@
     state: directory
     mode: '0755'
   become: true
+  when: network.trusted_uuid
 
 - name: Push trusted network list
   ansible.builtin.template:
@@ -23,6 +26,7 @@
     dest: /etc/nmtrust/trusted_networks
     mode: '0644'
   become: true
+  when: network.trusted_uuid
 
 - name: Verify trusted unit list exists
   ansible.builtin.copy:
@@ -31,3 +35,4 @@
     force: false
     mode: '0644'
   become: true
+  when: network.trusted_uuid

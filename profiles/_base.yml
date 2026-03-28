@@ -65,5 +65,5 @@ roles:
 
   # Optional / Feature-gated
   - { role: dotfiles,  tags: [dotfiles],  config_check: "dotfiles is defined" }
-  - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined" }
+  - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined", requires_display: true }
   - { role: regdomain, tags: [regdomain], config_check: "regdomain is defined" }

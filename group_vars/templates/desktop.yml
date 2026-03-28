@@ -26,6 +26,9 @@ desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
 display_manager: lightdm    # lightdm | gdm | sddm
 # disable_i3: false         # Set true to skip i3 install (manual dual-desktop mode only)
 # disable_hyprland: false   # Set true to skip Hyprland install (manual dual-desktop mode only)
+# disable_gnome: false      # Set true to skip GNOME install (manual dual-desktop mode only)
+# disable_awesomewm: false  # Set true to skip AwesomeWM install (manual dual-desktop mode only)
+# disable_kde: false        # Set true to skip KDE install (manual dual-desktop mode only)
 
 # Boot
 # kernel_parameters: "quiet consoleblank=60"   # Kernel cmdline for GRUB (overrides default GRUB_CMDLINE_LINUX_DEFAULT)
