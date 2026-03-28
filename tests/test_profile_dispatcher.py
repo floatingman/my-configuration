@@ -489,6 +489,14 @@ class TestJinja2Equivalence:
         assert result.is_gnome is False
         assert result.is_awesomewm is False
 
+    def test_profiles_dir_accepted_without_error(self):
+        """profiles_dir parameter should be accepted even without profile YAML loading."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = resolve(profile='i3', profiles_dir=tmpdir)
+            assert result.profile == 'i3'
+            assert result.is_i3 is True
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

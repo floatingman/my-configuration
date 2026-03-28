@@ -49,6 +49,7 @@ def resolve(
     disable_gnome: bool = False,
     disable_awesomewm: bool = False,
     disable_kde: bool = False,
+    profiles_dir: str = "profiles",
 ) -> ResolvedProfile:
     """
     Resolve profile configuration into boolean flags.
@@ -63,6 +64,8 @@ def resolve(
         disable_gnome: Suppress GNOME in manual mode
         disable_awesomewm: Suppress AwesomeWM in manual mode
         disable_kde: Suppress KDE in manual mode
+        profiles_dir: Directory containing profile YAML files (default: "profiles").
+            Reserved for future profile YAML-based profile discovery; not yet implemented.
 
     Returns:
         ResolvedProfile with all flags computed
