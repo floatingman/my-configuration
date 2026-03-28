@@ -8,6 +8,9 @@ description: |
 
 extends: _base.yml
 
+display_manager_default: lightdm
+desktop_environment: awesomewm
+
 requires:
   display_manager: true
 

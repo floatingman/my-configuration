@@ -4,6 +4,9 @@ description: |
   Core roles that run on all configurations regardless of desktop environment.
   Includes system utilities, development tools, package managers, networking.
 
+display_manager_default: ""
+desktop_environment: ""
+
 roles:
   # GPU Detection & Drivers
   - { role: gpu_detect,    tags: [gpu_detect],    os: archlinux }

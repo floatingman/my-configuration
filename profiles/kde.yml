@@ -7,6 +7,9 @@ description: |
 
 extends: _base.yml
 
+display_manager_default: sddm
+desktop_environment: kde
+
 requires:
   display_manager: true
 
