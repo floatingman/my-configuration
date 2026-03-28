@@ -49,7 +49,6 @@ def resolve(
     disable_gnome: bool = False,
     disable_awesomewm: bool = False,
     disable_kde: bool = False,
-    profiles_dir: str = "profiles",
 ) -> ResolvedProfile:
     """
     Resolve profile configuration into boolean flags.
@@ -64,7 +63,6 @@ def resolve(
         disable_gnome: Suppress GNOME in manual mode
         disable_awesomewm: Suppress AwesomeWM in manual mode
         disable_kde: Suppress KDE in manual mode
-        profiles_dir: Directory containing profile YAML files (default: "profiles")
 
     Returns:
         ResolvedProfile with all flags computed
@@ -72,8 +70,10 @@ def resolve(
     Raises:
         ValueError: If profile name is unknown
     """
-    # Normalize profile: strip whitespace, treat empty/whitespace as manual mode
+    # Normalize profile: strip whitespace, treat empty/whitespace/'manual' as manual mode
     normalized = profile.strip() if profile else ''
+    if normalized == 'manual':
+        normalized = ''
     effective_profile = normalized or 'manual'
 
     # Validate profile exists (only in profile mode)

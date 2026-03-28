@@ -145,6 +145,20 @@ class TestManualMode:
         assert result.display_manager is None
         assert result.has_display is False
 
+    def test_manual_mode_with_empty_desktop_environment(self):
+        """desktop_environment='' with lightdm should behave like dual-desktop default."""
+        result = resolve(display_manager='lightdm', desktop_environment='')
+        assert result.profile == 'manual'
+        assert result.display_manager == 'lightdm'
+        assert result.has_display is True
+        # Explicit empty string should still mean "no specific DE" -> dual-desktop mode
+        assert result.desktop_environment is None
+        assert result.is_i3 is True
+        assert result.is_hyprland is True
+        assert result.is_gnome is False
+        assert result.is_awesomewm is False
+        assert result.is_kde is False
+
     def test_manual_mode_with_lightdm(self):
         """Manual mode with lightdm should enable display but no DE by default."""
         result = resolve(display_manager='lightdm')
@@ -356,6 +370,12 @@ class TestEdgeCases:
         result_ws = resolve(profile='   ')
         result_manual = resolve()
         assert result_ws == result_manual
+
+    def test_literal_manual_profile_equals_manual_mode(self):
+        """Profile='manual' should behave exactly like manual mode."""
+        result_manual_profile = resolve(profile='manual')
+        result_manual = resolve()
+        assert result_manual_profile == result_manual
 
     def test_resolved_profile_is_frozen(self):
         """ResolvedProfile should be immutable (frozen dataclass)."""
