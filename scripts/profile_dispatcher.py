@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """
-Profile Dispatcher - Core Resolver
+Profile Dispatcher - Core Resolver and CLI
 
 Pure function for resolving Ansible profile configuration into boolean flags.
 Supports both profile mode (profile name) and manual mode (explicit variables).
 
 This is a standalone Python module with no Ansible dependency,
 making the dispatch logic unit-testable.
+
+CLI subcommands:
+  resolve       Resolve a profile to JSON (for Ansible script module)
+  validate      Validate all profiles in a directory (for CI)
+  list-profiles List available profile names or a human-readable table
+  make-args     Output -e flag string for Makefile consumption
 """
 
+import argparse
+import json
+import sys
 import yaml
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from dataclasses import dataclass
 from typing import Optional
 
 # Default profiles directory relative to this script's location
@@ -151,7 +160,11 @@ def validate_profile(profiles_dir: str, name: str) -> list:
 
     if "display_manager_default" in profile:
         dm = profile["display_manager_default"]
-        if dm not in ALLOWED_DISPLAY_MANAGERS:
+        if not isinstance(dm, str):
+            errors.append(
+                f"Field 'display_manager_default' must be a string, got {type(dm).__name__}"
+            )
+        elif dm not in ALLOWED_DISPLAY_MANAGERS:
             errors.append(
                 f"display_manager_default '{dm}' not in allowed set: "
                 f"{sorted(ALLOWED_DISPLAY_MANAGERS)}"
@@ -159,7 +172,11 @@ def validate_profile(profiles_dir: str, name: str) -> list:
 
     if "desktop_environment" in profile:
         de = profile["desktop_environment"]
-        if de not in ALLOWED_DESKTOP_ENVIRONMENTS:
+        if not isinstance(de, str):
+            errors.append(
+                f"Field 'desktop_environment' must be a string, got {type(de).__name__}"
+            )
+        elif de not in ALLOWED_DESKTOP_ENVIRONMENTS:
             errors.append(
                 f"desktop_environment '{de}' not in known set: "
                 f"{sorted(ALLOWED_DESKTOP_ENVIRONMENTS)}"
@@ -235,12 +252,15 @@ def resolve(
 
     # Validate profile exists (only in profile mode)
     if normalized:
-        valid_profiles = set(list_profiles(profiles_dir))
-        if normalized not in valid_profiles:
+        profile_file = Path(profiles_dir) / f"{normalized}.yml"
+        if not profile_file.exists():
+            # File not found → unknown profile; list valid ones for a helpful message
+            valid_profiles = list_profiles(profiles_dir)
             raise ValueError(
                 f"Unknown profile '{normalized}'. "
                 f"Available profiles: {', '.join(sorted(valid_profiles))}"
             )
+        # File exists → proceed; _resolve_profile_mode will validate and surface errors
 
     # Profile mode: load settings from YAML
     if effective_profile != 'manual':
@@ -354,3 +374,194 @@ def _resolve_manual_mode(
         is_awesomewm=is_awesomewm,
         is_kde=is_kde
     )
+
+
+# ---------------------------------------------------------------------------
+# CLI subcommands
+# ---------------------------------------------------------------------------
+
+def _cmd_resolve(args: argparse.Namespace) -> int:
+    """Output ResolvedProfile as JSON to stdout; exit 1 on error."""
+    try:
+        result = resolve(
+            profile=args.profile,
+            display_manager=args.display_manager,
+            desktop_environment=args.desktop_environment,
+            disable_i3=args.disable_i3,
+            disable_hyprland=args.disable_hyprland,
+            disable_gnome=args.disable_gnome,
+            disable_awesomewm=args.disable_awesomewm,
+            disable_kde=args.disable_kde,
+            profiles_dir=args.profiles_dir,
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    print(json.dumps(asdict(result)))
+    return 0
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    """Validate all profiles; write errors to stderr; exit 1 on any failure."""
+    profiles_path = Path(args.profiles_dir)
+    all_names = [
+        p.stem
+        for p in profiles_path.glob("*.yml")
+        if not p.stem.startswith("_")
+    ]
+
+    any_invalid = False
+    for name in sorted(all_names):
+        errors = validate_profile(args.profiles_dir, name)
+        if errors:
+            any_invalid = True
+            for error in errors:
+                print(f"{name}: {error}", file=sys.stderr)
+
+    return 1 if any_invalid else 0
+
+
+def _cmd_list_profiles(args: argparse.Namespace) -> int:
+    """List profiles as space-separated names or a human-readable table."""
+    names = list_profiles(args.profiles_dir)
+
+    if args.format == "names":
+        print(" ".join(names))
+        return 0
+
+    # pretty format: table with name, description, display_manager, desktop_environment
+    col_widths = {"name": 14, "description": 40, "display_manager": 16, "desktop_environment": 20}
+    header = (
+        f"{'NAME':<{col_widths['name']}}"
+        f"{'DESCRIPTION':<{col_widths['description']}}"
+        f"{'DISPLAY_MANAGER':<{col_widths['display_manager']}}"
+        f"DESKTOP_ENVIRONMENT"
+    )
+    print(header)
+    print("-" * len(header))
+
+    for name in names:
+        try:
+            data = load_profile(args.profiles_dir, name)
+        except (ValueError, yaml.YAMLError):
+            continue
+        description = str(data.get("description", "")).splitlines()[0] if data.get("description") else ""
+        dm = str(data.get("display_manager_default", "") or "")
+        de = str(data.get("desktop_environment", "") or "")
+        print(
+            f"{name:<{col_widths['name']}}"
+            f"{description:<{col_widths['description']}}"
+            f"{dm:<{col_widths['display_manager']}}"
+            f"{de}"
+        )
+
+    return 0
+
+
+def _cmd_make_args(args: argparse.Namespace) -> int:
+    """Output an Ansible -e flag string suitable for Makefile consumption; exit 1 on error."""
+    try:
+        result = resolve(profile=args.profile, profiles_dir=args.profiles_dir)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    parts = [f"profile={result.profile}"]
+    if result.desktop_environment:
+        parts.append(f"desktop_environment={result.desktop_environment}")
+    if result.display_manager:
+        parts.append(f"display_manager={result.display_manager}")
+
+    print(f'-e "{" ".join(parts)}"')
+    return 0
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="profile_dispatcher.py",
+        description="Profile Dispatcher: resolve and inspect Ansible profiles.",
+    )
+    subparsers = parser.add_subparsers(dest="subcommand")
+
+    # --- resolve ---
+    p_resolve = subparsers.add_parser(
+        "resolve",
+        help="Resolve a profile to JSON (suitable for Ansible script module).",
+    )
+    p_resolve.add_argument("--profile", default=None, help="Profile name (e.g. i3, headless)")
+    p_resolve.add_argument("--display-manager", dest="display_manager", default=None)
+    p_resolve.add_argument("--desktop-environment", dest="desktop_environment", default=None)
+    p_resolve.add_argument("--disable-i3", dest="disable_i3", action="store_true")
+    p_resolve.add_argument("--disable-hyprland", dest="disable_hyprland", action="store_true")
+    p_resolve.add_argument("--disable-gnome", dest="disable_gnome", action="store_true")
+    p_resolve.add_argument("--disable-awesomewm", dest="disable_awesomewm", action="store_true")
+    p_resolve.add_argument("--disable-kde", dest="disable_kde", action="store_true")
+    p_resolve.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
+    # --- validate ---
+    p_validate = subparsers.add_parser(
+        "validate",
+        help="Validate all profiles; exit 1 if any are invalid.",
+    )
+    p_validate.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
+    # --- list-profiles ---
+    p_list = subparsers.add_parser(
+        "list-profiles",
+        help="List available profile names.",
+    )
+    p_list.add_argument(
+        "--format",
+        choices=["names", "pretty"],
+        default="names",
+        help="Output format: 'names' (space-separated) or 'pretty' (table).",
+    )
+    p_list.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
+    # --- make-args ---
+    p_make_args = subparsers.add_parser(
+        "make-args",
+        help='Output -e "profile=X ..." string for Makefile consumption.',
+    )
+    p_make_args.add_argument("--profile", required=True, help="Profile name")
+    p_make_args.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
+    return parser
+
+
+def main(argv: Optional[list] = None) -> int:
+    parser = _build_parser()
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        # argparse calls sys.exit(0) for --help and sys.exit(2) for parse errors.
+        # Re-raise for --help (exit code 0); convert parse errors to return 1.
+        if exc.code == 0:
+            return 0
+        parser.print_usage(sys.stderr)
+        return 1
+
+    if args.subcommand is None:
+        parser.print_usage(sys.stderr)
+        return 1
+
+    dispatch = {
+        "resolve": _cmd_resolve,
+        "validate": _cmd_validate,
+        "list-profiles": _cmd_list_profiles,
+        "make-args": _cmd_make_args,
+    }
+    return dispatch[args.subcommand](args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
