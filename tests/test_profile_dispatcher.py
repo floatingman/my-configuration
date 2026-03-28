@@ -866,6 +866,56 @@ class TestCLIUnknownSubcommand:
         err = capsys.readouterr().err
         assert "usage" in err.lower()
 
+    def test_unknown_subcommand_exits_1(self, capsys):
+        """An unrecognised subcommand returns 1 rather than raising SystemExit(2)."""
+        rc = main(["not-a-real-subcommand"])
+        assert rc == 1
+
+    def test_unknown_subcommand_prints_usage(self, capsys):
+        """An unrecognised subcommand prints usage to stderr."""
+        main(["not-a-real-subcommand"])
+        err = capsys.readouterr().err
+        assert "usage" in err.lower()
+
+
+class TestValidateProfileTypeChecking:
+    """Tests for type validation of YAML fields in validate_profile()."""
+
+    def test_list_value_for_display_manager_returns_error(self):
+        """A list value for display_manager_default is caught as a type error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default:\n  - lightdm\ndesktop_environment: i3\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('display_manager_default' in e and 'string' in e for e in errors)
+
+    def test_list_value_for_desktop_environment_returns_error(self):
+        """A list value for desktop_environment is caught as a type error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment:\n  - i3\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('desktop_environment' in e and 'string' in e for e in errors)
+
+
+class TestResolveInvalidProfileError:
+    """Tests that resolve() surfaces validation errors for existing-but-invalid profiles."""
+
+    def test_existing_invalid_profile_raises_with_details(self):
+        """An existing profile that fails validation raises ValueError with details,
+        not a generic 'Unknown profile' message."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Profile file exists but is missing required fields
+            Path(tmpdir, 'bad.yml').write_text('name: bad\n')
+            with pytest.raises(ValueError) as exc_info:
+                resolve(profile='bad', profiles_dir=tmpdir)
+            msg = str(exc_info.value)
+            # Should mention 'invalid', not 'Unknown profile'
+            assert 'invalid' in msg.lower() or 'missing' in msg.lower()
+            assert 'Unknown profile' not in msg
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

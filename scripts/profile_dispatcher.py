@@ -160,7 +160,11 @@ def validate_profile(profiles_dir: str, name: str) -> list:
 
     if "display_manager_default" in profile:
         dm = profile["display_manager_default"]
-        if dm not in ALLOWED_DISPLAY_MANAGERS:
+        if not isinstance(dm, str):
+            errors.append(
+                f"Field 'display_manager_default' must be a string, got {type(dm).__name__}"
+            )
+        elif dm not in ALLOWED_DISPLAY_MANAGERS:
             errors.append(
                 f"display_manager_default '{dm}' not in allowed set: "
                 f"{sorted(ALLOWED_DISPLAY_MANAGERS)}"
@@ -168,7 +172,11 @@ def validate_profile(profiles_dir: str, name: str) -> list:
 
     if "desktop_environment" in profile:
         de = profile["desktop_environment"]
-        if de not in ALLOWED_DESKTOP_ENVIRONMENTS:
+        if not isinstance(de, str):
+            errors.append(
+                f"Field 'desktop_environment' must be a string, got {type(de).__name__}"
+            )
+        elif de not in ALLOWED_DESKTOP_ENVIRONMENTS:
             errors.append(
                 f"desktop_environment '{de}' not in known set: "
                 f"{sorted(ALLOWED_DESKTOP_ENVIRONMENTS)}"
@@ -244,12 +252,15 @@ def resolve(
 
     # Validate profile exists (only in profile mode)
     if normalized:
-        valid_profiles = set(list_profiles(profiles_dir))
-        if normalized not in valid_profiles:
+        profile_file = Path(profiles_dir) / f"{normalized}.yml"
+        if not profile_file.exists():
+            # File not found → unknown profile; list valid ones for a helpful message
+            valid_profiles = list_profiles(profiles_dir)
             raise ValueError(
                 f"Unknown profile '{normalized}'. "
                 f"Available profiles: {', '.join(sorted(valid_profiles))}"
             )
+        # File exists → proceed; _resolve_profile_mode will validate and surface errors
 
     # Profile mode: load settings from YAML
     if effective_profile != 'manual':
@@ -435,7 +446,7 @@ def _cmd_list_profiles(args: argparse.Namespace) -> int:
             data = load_profile(args.profiles_dir, name)
         except (ValueError, yaml.YAMLError):
             continue
-        description = str(data.get("name", name))
+        description = str(data.get("description", "")).splitlines()[0] if data.get("description") else ""
         dm = str(data.get("display_manager_default", "") or "")
         de = str(data.get("desktop_environment", "") or "")
         print(
@@ -529,7 +540,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[list] = None) -> int:
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        # argparse calls sys.exit(0) for --help and sys.exit(2) for parse errors.
+        # Re-raise for --help (exit code 0); convert parse errors to return 1.
+        if exc.code == 0:
+            return 0
+        parser.print_usage(sys.stderr)
+        return 1
 
     if args.subcommand is None:
         parser.print_usage(sys.stderr)
