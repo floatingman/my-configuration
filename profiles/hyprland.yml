@@ -8,6 +8,9 @@ description: |
 
 extends: _base.yml
 
+display_manager_default: sddm
+desktop_environment: hyprland
+
 requires:
   display_manager: true
 
