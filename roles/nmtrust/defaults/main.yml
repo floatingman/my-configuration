@@ -1,0 +1,5 @@
+---
+# List of NetworkManager connection UUIDs to mark as trusted.
+# Leave null (or omit from group_vars) to skip the nmtrust role entirely.
+network:
+  trusted_uuid: null
