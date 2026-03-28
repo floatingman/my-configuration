@@ -9,3 +9,5 @@ group_vars/all/local.yml
 .ralphrc
 docs/
 scripts/ralph/
+__pycache__/
+*.pyc

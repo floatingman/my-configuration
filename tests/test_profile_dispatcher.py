@@ -6,7 +6,14 @@ Comprehensive unit tests covering all input combinations and edge cases.
 No Ansible dependency - pure Python tests.
 """
 
+import sys
+from pathlib import Path
+
 import pytest
+
+# Add scripts directory to path so profile_dispatcher can be imported
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
 from profile_dispatcher import resolve, ResolvedProfile
 
 
@@ -344,6 +351,12 @@ class TestEdgeCases:
         result_manual = resolve()
         assert result_empty == result_manual
 
+    def test_whitespace_profile_equals_manual_mode(self):
+        """Profile='   ' should behave like manual mode (normalized to empty)."""
+        result_ws = resolve(profile='   ')
+        result_manual = resolve()
+        assert result_ws == result_manual
+
     def test_resolved_profile_is_frozen(self):
         """ResolvedProfile should be immutable (frozen dataclass)."""
         result = resolve(profile='i3')
@@ -360,7 +373,7 @@ class TestEdgeCases:
         profile_set = {result1, result2, result3}
         assert len(profile_set) == 2  # i3 and hyprland are different
 
-    def test_all_false_flags_return_none_display_manager(self):
+    def test_all_de_flags_false_preserves_display_manager(self):
         """When all DE flags are False, display_manager should still be preserved."""
         result = resolve(
             display_manager='lightdm',
@@ -434,6 +447,27 @@ class TestJinja2Equivalence:
         # Profile wins - should use gdm, not lightdm
         assert result.profile == 'gnome'
         assert result.display_manager == 'gdm'
+
+    def test_manual_mode_gnome_without_display_manager(self):
+        """play.yml: desktop_environment='gnome', no display_manager → _is_gnome=true."""
+        result = resolve(desktop_environment='gnome')
+        assert result.is_gnome is True
+        assert result.is_awesomewm is False
+        assert result.is_kde is False
+
+    def test_manual_mode_awesomewm_without_display_manager(self):
+        """play.yml: desktop_environment='awesomewm', no display_manager → _is_awesomewm=true."""
+        result = resolve(desktop_environment='awesomewm')
+        assert result.is_awesomewm is True
+        assert result.is_gnome is False
+        assert result.is_kde is False
+
+    def test_manual_mode_kde_without_display_manager(self):
+        """play.yml: desktop_environment='kde', no display_manager → _is_kde=true."""
+        result = resolve(desktop_environment='kde')
+        assert result.is_kde is True
+        assert result.is_gnome is False
+        assert result.is_awesomewm is False
 
 
 if __name__ == '__main__':
