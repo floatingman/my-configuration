@@ -7,6 +7,7 @@ No Ansible dependency - pure Python tests.
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,16 @@ import pytest
 # Add scripts directory to path so profile_dispatcher can be imported
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from profile_dispatcher import resolve, ResolvedProfile
+from profile_dispatcher import (
+    resolve,
+    load_profile,
+    validate_profile,
+    list_profiles,
+    ResolvedProfile,
+)
+
+# Path to the real profiles directory used in integration-style tests
+_PROFILES_DIR = str(Path(__file__).resolve().parent.parent / "profiles")
 
 
 class TestProfileMode:
@@ -489,13 +499,162 @@ class TestJinja2Equivalence:
         assert result.is_gnome is False
         assert result.is_awesomewm is False
 
-    def test_profiles_dir_accepted_without_error(self):
-        """profiles_dir parameter should be accepted even without profile YAML loading."""
-        import tempfile
+    def test_profiles_dir_used_for_profile_mode(self):
+        """profiles_dir is used to load profile YAML in profile mode."""
+        result = resolve(profile='i3', profiles_dir=_PROFILES_DIR)
+        assert result.profile == 'i3'
+        assert result.is_i3 is True
+
+
+class TestLoadProfile:
+    """Test load_profile() function."""
+
+    def test_base_profile_loads(self):
+        """_base profile loads without extends chain."""
+        data = load_profile(_PROFILES_DIR, '_base')
+        assert 'display_manager_default' in data
+        assert 'desktop_environment' in data
+
+    def test_load_with_yml_extension(self):
+        """load_profile accepts name with .yml extension."""
+        data = load_profile(_PROFILES_DIR, 'i3.yml')
+        assert data['display_manager_default'] == 'lightdm'
+
+    def test_extends_chain_merges_child_overrides_parent(self):
+        """Child values override parent scalars in extends chain."""
+        # i3 extends _base; i3's display_manager_default overrides _base's ""
+        data = load_profile(_PROFILES_DIR, 'i3')
+        assert data['display_manager_default'] == 'lightdm'
+        assert data['desktop_environment'] == 'i3'
+
+    def test_extends_chain_inherits_parent_fields(self):
+        """Child profile inherits fields from parent that it does not override."""
+        # i3 extends _base; roles from _base appear in merged result
+        data = load_profile(_PROFILES_DIR, 'i3')
+        assert 'roles' in data
+        # i3's own roles are appended after _base roles
+        role_names = [r['role'] if isinstance(r, dict) else r for r in data['roles']]
+        assert 'base' in role_names      # from _base
+        assert 'i3' in role_names        # from i3.yml
+
+    def test_missing_profile_raises_value_error(self):
+        """Missing profile file raises ValueError."""
+        with pytest.raises(ValueError, match="not found"):
+            load_profile(_PROFILES_DIR, 'nonexistent_profile')
+
+    def test_missing_extends_target_raises_value_error(self):
+        """Broken extends chain raises ValueError."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = resolve(profile='i3', profiles_dir=tmpdir)
-            assert result.profile == 'i3'
-            assert result.is_i3 is True
+            # Write a profile that extends a non-existent parent
+            Path(tmpdir, 'orphan.yml').write_text(
+                'name: orphan\nextends: missing_parent.yml\n'
+            )
+            with pytest.raises(ValueError, match="not found"):
+                load_profile(tmpdir, 'orphan')
+
+    def test_all_named_profiles_load_successfully(self):
+        """All 6 named profiles load without error."""
+        for name in ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde'):
+            data = load_profile(_PROFILES_DIR, name)
+            assert isinstance(data, dict), f"load_profile('{name}') should return dict"
+
+
+class TestValidateProfile:
+    """Test validate_profile() function."""
+
+    def test_valid_profile_returns_empty_list(self):
+        """A correctly defined profile has no errors."""
+        for name in ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde'):
+            errors = validate_profile(_PROFILES_DIR, name)
+            assert errors == [], f"Profile '{name}' should be valid, got: {errors}"
+
+    def test_missing_display_manager_default_returns_error(self):
+        """Missing display_manager_default field is reported."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'name: bad\ndesktop_environment: i3\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('display_manager_default' in e for e in errors)
+
+    def test_missing_desktop_environment_returns_error(self):
+        """Missing desktop_environment field is reported."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'name: bad\ndisplay_manager_default: lightdm\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('desktop_environment' in e for e in errors)
+
+    def test_invalid_display_manager_value_caught(self):
+        """An unrecognized display_manager_default value is an error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'name: bad\ndisplay_manager_default: xdm\ndesktop_environment: i3\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('display_manager_default' in e for e in errors)
+            assert any('xdm' in e for e in errors)
+
+    def test_invalid_desktop_environment_value_caught(self):
+        """An unrecognized desktop_environment value is an error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'name: bad\ndisplay_manager_default: lightdm\ndesktop_environment: xfce\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('desktop_environment' in e for e in errors)
+            assert any('xfce' in e for e in errors)
+
+    def test_broken_extends_chain_returns_error(self):
+        """Unresolvable extends chain is reported as an error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'broken.yml').write_text(
+                'name: broken\nextends: ghost.yml\n'
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+            )
+            errors = validate_profile(tmpdir, 'broken')
+            assert len(errors) > 0
+            assert any('not found' in e for e in errors)
+
+    def test_nonexistent_profile_returns_error(self):
+        """Validating a profile that does not exist returns an error."""
+        errors = validate_profile(_PROFILES_DIR, 'does_not_exist')
+        assert len(errors) > 0
+
+
+class TestListProfiles:
+    """Test list_profiles() function."""
+
+    def test_returns_expected_six_profiles(self):
+        """list_profiles returns the 6 named profiles."""
+        names = list_profiles(_PROFILES_DIR)
+        assert set(names) == {'headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde'}
+
+    def test_excludes_base(self):
+        """_base is excluded from the list."""
+        names = list_profiles(_PROFILES_DIR)
+        assert '_base' not in names
+
+    def test_excludes_overlay_subdirectory(self):
+        """Profiles in subdirectories (overlays/) are not returned."""
+        names = list_profiles(_PROFILES_DIR)
+        assert 'laptop' not in names
+        assert 'bluetooth' not in names
+
+    def test_returns_sorted_list(self):
+        """list_profiles returns names in sorted order."""
+        names = list_profiles(_PROFILES_DIR)
+        assert names == sorted(names)
+
+    def test_custom_dir_with_mock_profiles(self):
+        """list_profiles discovers profiles in a custom directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'alpha.yml').write_text('name: alpha\n')
+            Path(tmpdir, 'beta.yml').write_text('name: beta\n')
+            Path(tmpdir, '_base.yml').write_text('name: base\n')
+            names = list_profiles(tmpdir)
+            assert set(names) == {'alpha', 'beta'}
 
 
 if __name__ == '__main__':

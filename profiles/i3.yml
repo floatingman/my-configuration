@@ -6,6 +6,9 @@ description: |
 
 extends: _base.yml
 
+display_manager_default: lightdm
+desktop_environment: i3
+
 requires:
   display_manager: true
 
