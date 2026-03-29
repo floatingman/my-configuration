@@ -113,11 +113,10 @@ list-tags: ## List all available tags in the playbook
 
 .PHONY: list-profiles
 list-profiles: pip-deps ## List all available configuration profiles
-	@echo 'Available profiles:'
-	@for profile in $$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format names 2>/dev/null); do \
-		desc=$$($(SCRIPT_PYTHON) -c "import yaml; p=yaml.safe_load(open('profiles/$$profile.yml')); print(p.get('description', '').strip().split('\n')[0] if p.get('description') else '')" 2>/dev/null); \
-		printf "  %-10s - %s\n" "$$profile" "$$desc"; \
-	done || { echo '  (Run make configure to set up profile dispatcher)' && exit 1; }
+	@if ! $(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format pretty; then \
+		echo '  (Run make configure to set up profile dispatcher)'; \
+		exit 1; \
+	fi
 	@echo ''
 	@echo 'Usage: make profile-<name>  (e.g. make profile-i3)'
 	@echo 'Add TAGS="tag1,tag2" to run specific roles within a profile'
@@ -126,25 +125,36 @@ list-profiles: pip-deps ## List all available configuration profiles
 # Dynamic profile targets
 # ---------------------------------------------------------------------------
 
-# Get list of valid profile names from dispatcher
-PROFILES := $(shell $(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format names 2>/dev/null)
+# Get list of valid profile names from available profile files (no Python dependency)
+PROFILES := $(basename $(notdir $(wildcard profiles/*.yml)))
 
 # Template for generating profile targets
 # Usage: $(call profile_target,<name>)
 define profile_target
 .PHONY: profile-$(1)
-profile-$(1): req-playbook ## Run $(1) profile
+profile-$(1): req-playbook pip-deps ## Run $(1) profile
 	@echo 'Configuring $(1) profile'
 	@ARGS="$$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py make-args --profile $(1) 2>/dev/null)" || \
 		{ echo "Error: Unknown profile '$(1)'" >&2; \
 		  echo "" >&2; \
 		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
 		  exit 1; }; \
-	ansible-playbook -i localhost play.yml --ask-become-pass $$$$ARGS
+	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
 endef
 
 # Generate a target for each profile
 $(foreach profile,$(PROFILES),$(eval $(call profile_target,$(profile))))
+
+# Catch-all profile target for unknown profiles (gives a helpful error)
+.PHONY: profile-%
+profile-%: req-playbook pip-deps ## Run arbitrary profile (with validation)
+	@echo 'Configuring $* profile'
+	@ARGS="$$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py make-args --profile $* 2>/dev/null)" || \
+		{ echo "Error: Unknown profile '$*'" >&2; \
+		  echo "" >&2; \
+		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
+		  exit 1; }; \
+	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
 
 .PHONY: validate-profiles
 validate-profiles: pip-deps ## Validate all profiles for correctness
