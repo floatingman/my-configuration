@@ -23,6 +23,11 @@ from profile_dispatcher import (
     load_profile,
     validate_profile,
     list_profiles,
+    load_overlay,
+    _discover_overlays,
+    OverlayDefinition,
+    ResolvedOverlay,
+    ResolvedOverlayRole,
     ResolvedProfile,
 )
 
@@ -662,6 +667,154 @@ class TestListProfiles:
             names = list_profiles(tmpdir)
             assert set(names) == {'alpha', 'beta'}
             assert 'broken' not in names
+
+
+class TestDiscoverOverlays:
+    """Test _discover_overlays() function."""
+
+    def test_returns_sorted_overlay_names(self):
+        """_discover_overlays returns overlay names sorted alphabetically."""
+        names = _discover_overlays(_PROFILES_DIR)
+        assert names == ["bluetooth", "laptop"]
+
+    def test_returns_empty_list_for_nonexistent_overlays_dir(self):
+        """_discover_overlays returns empty list when overlays directory doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Empty profiles dir (no overlays subdirectory)
+            names = _discover_overlays(tmpdir)
+            assert names == []
+
+    def test_returns_empty_list_for_empty_overlays_dir(self):
+        """_discover_overlays returns empty list when overlays directory is empty."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            names = _discover_overlays(tmpdir)
+            assert names == []
+
+
+class TestLoadOverlay:
+    """Test load_overlay() function."""
+
+    def test_load_laptop_overlay(self):
+        """load_overlay correctly parses laptop.yml."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop")
+        assert isinstance(overlay, OverlayDefinition)
+        assert overlay.name == "Laptop Features Overlay"
+        assert overlay.applies_when == "laptop | default(false)"
+        assert isinstance(overlay.roles, list)
+        assert len(overlay.roles) == 2
+        # First role entry
+        assert overlay.roles[0]["role"] == "laptop"
+        assert overlay.roles[0]["tags"] == ["laptop"]
+        # Second role entry
+        assert overlay.roles[1]["role"] == "backlight"
+        assert overlay.roles[1]["tags"] == ["backlight"]
+        assert overlay.roles[1]["requires_display"] is True
+
+    def test_load_bluetooth_overlay(self):
+        """load_overlay correctly parses bluetooth.yml."""
+        overlay = load_overlay(_PROFILES_DIR, "bluetooth")
+        assert isinstance(overlay, OverlayDefinition)
+        assert overlay.name == "Bluetooth Support Overlay"
+        assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
+        assert isinstance(overlay.roles, list)
+        assert len(overlay.roles) == 1
+        assert overlay.roles[0]["role"] == "bluetooth"
+        assert overlay.roles[0]["tags"] == ["bluetooth"]
+        assert overlay.roles[0]["os"] == "archlinux"
+
+    def test_load_overlay_with_yml_extension(self):
+        """load_overlay accepts name with .yml extension."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop.yml")
+        assert overlay.name == "Laptop Features Overlay"
+
+    def test_missing_overlay_raises_value_error(self):
+        """Missing overlay file raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            load_overlay(_PROFILES_DIR, "nonexistent_overlay")
+        error_msg = str(exc_info.value)
+        assert "not found" in error_msg
+        assert "nonexistent_overlay" in error_msg
+
+    def test_overlay_missing_name_field_raises_value_error(self):
+        """Overlay missing 'name' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'applies_when: "true"\nroles:\n  - { role: test }\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "name" in error_msg
+
+    def test_overlay_missing_applies_when_field_raises_value_error(self):
+        """Overlay missing 'applies_when' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'name: "Bad Overlay"\nroles:\n  - { role: test }\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "applies_when" in error_msg
+
+    def test_overlay_missing_roles_field_raises_value_error(self):
+        """Overlay missing 'roles' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'name: "Bad Overlay"\napplies_when: "true"\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "roles" in error_msg
+
+    def test_overlay_with_path_traversal_raises_value_error(self):
+        """Overlay name with path separators raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            load_overlay(_PROFILES_DIR, "../etc/passwd")
+        error_msg = str(exc_info.value)
+        assert "invalid path characters" in error_msg
+
+
+class TestOverlayDataclasses:
+    """Test overlay dataclass properties."""
+
+    def test_overlay_definition_is_frozen(self):
+        """OverlayDefinition should be immutable (frozen dataclass)."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop")
+        with pytest.raises(AttributeError):
+            overlay.name = "Modified"  # Should raise AttributeError
+
+    def test_resolved_overlay_is_frozen(self):
+        """ResolvedOverlay should be immutable (frozen dataclass)."""
+        role = ResolvedOverlayRole(role="test", tags=("test",), applies=True)
+        overlay = ResolvedOverlay(
+            name="Test Overlay",
+            applies=True,
+            roles=(role,)
+        )
+        with pytest.raises(AttributeError):
+            overlay.name = "Modified"  # Should raise AttributeError
+
+    def test_resolved_overlay_role_is_frozen(self):
+        """ResolvedOverlayRole should be immutable (frozen dataclass)."""
+        role = ResolvedOverlayRole(role="test", tags=("test",), applies=True)
+        with pytest.raises(AttributeError):
+            role.role = "modified"  # Should raise AttributeError
 
 
 class TestCLIResolve:
