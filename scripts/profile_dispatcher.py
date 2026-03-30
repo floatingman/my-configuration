@@ -58,6 +58,53 @@ class ResolvedProfile:
     is_kde: bool
 
 
+@dataclass(frozen=True)
+class OverlayDefinition:
+    """
+    Parsed overlay YAML file.
+
+    Attributes:
+        name: Human-readable overlay name
+        description: Optional description of what this overlay does
+        applies_when: Jinja2 expression string to evaluate if overlay applies
+        roles: List of role dicts with role name and optional annotations
+    """
+    name: str
+    description: Optional[str]
+    applies_when: str
+    roles: tuple
+
+
+@dataclass(frozen=True)
+class ResolvedOverlay:
+    """
+    Resolution output for one overlay.
+
+    Attributes:
+        name: The overlay name (filename without .yml extension)
+        applies: Whether the overlay's applies_when condition evaluated to true
+        roles: Tuple of per-role resolution results
+    """
+    name: str
+    applies: bool
+    roles: tuple
+
+
+@dataclass(frozen=True)
+class ResolvedOverlayRole:
+    """
+    Per-role result for an overlay.
+
+    Attributes:
+        role: The role name
+        tags: Tuple of tags to apply
+        applies: Whether this specific role applies
+    """
+    role: str
+    tags: tuple
+    applies: bool
+
+
 def load_profile(profiles_dir: str, name: str) -> dict:
     """
     Load a profile by name, merging its extends chain.
@@ -118,6 +165,114 @@ def _load_profile_inner(profiles_dir: str, name: str, visited: frozenset) -> dic
     parent_name = str(extends).removesuffix(".yml")
     parent_data = _load_profile_inner(profiles_dir, parent_name, visited | {name})
     return _merge_profile_data(parent_data, data)
+
+
+def load_overlay(profiles_dir: str, name: str) -> OverlayDefinition:
+    """
+    Load a single overlay YAML file by name.
+
+    Args:
+        profiles_dir: Directory containing overlay YAML files
+        name: Overlay name with or without .yml extension (e.g. 'laptop' or 'laptop.yml')
+
+    Returns:
+        OverlayDefinition with parsed overlay data
+
+    Raises:
+        ValueError: If the overlay file does not exist, path is invalid,
+                    or required fields are missing
+    """
+    name = name.removesuffix(".yml")
+
+    # Guard against path traversal: reject names with separators or parent references
+    if "/" in name or "\\" in name or ".." in name:
+        raise ValueError(
+            f"Overlay name '{name}' contains invalid path characters. "
+            "Overlay names must not include path separators or '..'."
+        )
+
+    overlays_root = Path(profiles_dir).resolve() / "overlays"
+    overlay_path = overlays_root / f"{name}.yml"
+
+    # Enforce the path stays inside overlays directory even after resolution
+    try:
+        overlay_path.resolve().relative_to(overlays_root.resolve())
+    except ValueError:
+        raise ValueError(
+            f"Overlay '{name}' resolves outside the overlays directory."
+        )
+
+    if not overlay_path.exists():
+        raise ValueError(f"Overlay '{name}' not found at {overlay_path}")
+
+    with open(overlay_path) as f:
+        data = yaml.safe_load(f) or {}
+
+    # Validate required fields
+    required_fields = ("name", "applies_when", "roles")
+    missing_fields = [f for f in required_fields if f not in data]
+    if missing_fields:
+        raise ValueError(
+            f"Overlay '{name}' is missing required fields: {', '.join(missing_fields)}"
+        )
+
+    # Extract and validate fields
+    overlay_name = data["name"]
+    if not isinstance(overlay_name, str):
+        raise ValueError(
+            f"Field 'name' in overlay '{name}' must be a string, got {type(overlay_name).__name__}"
+        )
+
+    description = data.get("description")
+    if description is not None and not isinstance(description, str):
+        raise ValueError(
+            f"Field 'description' in overlay '{name}' must be a string or null, got {type(description).__name__}"
+        )
+
+    applies_when = data["applies_when"]
+    if not isinstance(applies_when, str):
+        raise ValueError(
+            f"Field 'applies_when' in overlay '{name}' must be a string, got {type(applies_when).__name__}"
+        )
+
+    roles = data.get("roles", [])
+    if not isinstance(roles, list):
+        raise ValueError(
+            f"Field 'roles' in overlay '{name}' must be a list, got {type(roles).__name__}"
+        )
+
+    # Convert roles list to tuple for immutability
+    roles_tuple = tuple(roles)
+
+    return OverlayDefinition(
+        name=overlay_name,
+        description=description,
+        applies_when=applies_when,
+        roles=roles_tuple,
+    )
+
+
+def _discover_overlays(profiles_dir: str) -> list:
+    """
+    Discover all overlay YAML files in the overlays directory.
+
+    Args:
+        profiles_dir: Directory containing profile YAML files (overlays are in profiles_dir/overlays/)
+
+    Returns:
+        Sorted list of overlay names (without .yml extension). Empty list if overlays
+        directory does not exist or contains no YAML files.
+    """
+    overlays_root = Path(profiles_dir).resolve() / "overlays"
+
+    if not overlays_root.exists() or not overlays_root.is_dir():
+        return []
+
+    overlays = [
+        p.stem
+        for p in overlays_root.glob("*.yml")
+    ]
+    return sorted(overlays)
 
 
 def _merge_profile_data(parent: dict, child: dict) -> dict:
