@@ -21,10 +21,137 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Protocol, Optional
+
+try:
+    import jinja2
+    JINJA2_AVAILABLE = True
+except ImportError:
+    JINJA2_AVAILABLE = False
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
+
+
+# ---------------------------------------------------------------------------
+# Expression Evaluation
+# ---------------------------------------------------------------------------
+
+class EvaluationError(Exception):
+    """Raised when an expression cannot be evaluated."""
+
+
+class ConditionEvaluator(Protocol):
+    """
+    Protocol for evaluating conditional expressions.
+
+    This isolates the resolver from any specific expression engine,
+    enabling test injection of simple implementations.
+    """
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """
+        Evaluate an expression against a context dict.
+
+        Args:
+            expression: A condition expression (e.g., 'laptop | default(false)')
+            context: Variable names to values mapping
+
+        Returns:
+            True if the expression evaluates to truthy, False otherwise
+
+        Raises:
+            EvaluationError: If the expression cannot be parsed or evaluated
+        """
+        ...
+
+
+class Jinja2Evaluator:
+    """
+    Jinja2-based expression evaluator.
+
+    Wraps expressions in an {% if %} template to evaluate them.
+    Supports Jinja2 syntax: | default(), is defined, and, or, not,
+    dotted access, parenthesized expressions.
+    """
+
+    def __init__(self) -> None:
+        if not JINJA2_AVAILABLE:
+            raise ImportError(
+                "jinja2 is required for Jinja2Evaluator. "
+                "Install it with: pip install jinja2"
+            )
+
+        # Use StrictUndefined to catch undefined variables explicitly
+        # We'll handle 'is defined' tests via custom logic
+        self._env = jinja2.Environment(
+            undefined=jinja2.Undefined,
+            autoescape=False,
+        )
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """
+        Evaluate a Jinja2 expression.
+
+        Args:
+            expression: Jinja2 expression (e.g., 'laptop | default(false)')
+            context: Variable names to values mapping
+
+        Returns:
+            True if expression evaluates to truthy, False otherwise
+
+        Raises:
+            EvaluationError: If expression is invalid or evaluation fails
+        """
+        # Wrap expression in an if/else template to extract boolean result
+        template_str = (
+            "{% if " + expression + " %}__TRUE__{% else %}__FALSE__{% endif %}"
+        )
+
+        try:
+            template = self._env.from_string(template_str)
+            result = template.render(**context)
+        except (jinja2.TemplateError, jinja2.TemplateSyntaxError) as exc:
+            raise EvaluationError(
+                f"Failed to evaluate expression '{expression}': {exc}"
+            ) from exc
+        except Exception as exc:
+            raise EvaluationError(
+                f"Unexpected error evaluating '{expression}': {exc}"
+            ) from exc
+
+        return result.strip() == "__TRUE__"
+
+
+class DictEvaluator:
+    """
+    Simple dict-based expression evaluator for testing.
+
+    Maps expression strings directly to boolean values.
+    Returns False for any unknown expression.
+    """
+
+    def __init__(self, mapping: dict[str, bool]) -> None:
+        """
+        Initialize with a mapping of expressions to boolean values.
+
+        Args:
+            mapping: Dictionary mapping expression strings to their boolean values
+        """
+        self._mapping = dict(mapping)
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """
+        Look up expression in the mapping.
+
+        Args:
+            expression: Expression string to look up
+            context: Ignored (present for Protocol compatibility)
+
+        Returns:
+            Boolean value from mapping, or False if expression not found
+        """
+        return self._mapping.get(expression, False)
 
 # Allowed values for profile fields
 ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
