@@ -39,7 +39,7 @@ SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
 
 .PHONY: test
-test: lint syntax-check ## Run all tests (lint + syntax check)
+test: lint syntax-check validate-profiles ## Run all tests (lint + syntax check + profile validation)
 
 .PHONY: lint
 lint: ## Run yamllint and ansible-lint
@@ -112,53 +112,54 @@ list-tags: ## List all available tags in the playbook
 	@grep -oP 'tags: \["\K[^"]+' play.yml | sort -u | sed 's/^/  - /'
 
 .PHONY: list-profiles
-list-profiles: ## List all available configuration profiles
-	@echo 'Available profiles:'
-	@echo '  headless   - CLI-only, no display manager or desktop environment'
-	@echo '  i3         - i3 window manager with lightdm display manager'
-	@echo '  hyprland   - Hyprland Wayland compositor with sddm display manager'
-	@echo '  gnome      - GNOME desktop environment with gdm display manager'
-	@echo '  awesomewm  - AwesomeWM tiling window manager with lightdm display manager'
-	@echo '  kde        - KDE Plasma desktop with sddm display manager'
+list-profiles: pip-deps ## List all available configuration profiles
+	@if ! $(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format pretty; then \
+		echo '  (Run make configure to set up profile dispatcher)'; \
+		exit 1; \
+	fi
 	@echo ''
 	@echo 'Usage: make profile-<name>  (e.g. make profile-i3)'
 	@echo 'Add TAGS="tag1,tag2" to run specific roles within a profile'
 
-.PHONY: profile-headless
-profile-headless: req-playbook ## Run headless profile (CLI-only, no display)
-	@echo 'Configuring headless profile (no display manager)'
-	ansible-playbook -i localhost play.yml --ask-become-pass \
-		-e "profile=headless"
+# ---------------------------------------------------------------------------
+# Dynamic profile targets
+# ---------------------------------------------------------------------------
 
-.PHONY: profile-i3
-profile-i3: req-playbook ## Run i3 window manager profile
-	@echo 'Configuring i3 window manager profile'
-	ansible-playbook -i localhost play.yml --ask-become-pass \
-		-e "desktop_environment=i3 display_manager=lightdm profile=i3"
+# Get list of valid profile names from available profile files (no Python dependency)
+PROFILES := $(basename $(notdir $(wildcard profiles/*.yml)))
 
-.PHONY: profile-hyprland
-profile-hyprland: req-playbook ## Run Hyprland Wayland compositor profile
-	@echo 'Configuring Hyprland Wayland compositor profile'
-	ansible-playbook -i localhost play.yml --ask-become-pass \
-		-e "desktop_environment=hyprland display_manager=sddm profile=hyprland"
+# Template for generating profile targets
+# Usage: $(call profile_target,<name>)
+define profile_target
+.PHONY: profile-$(1)
+profile-$(1): req-playbook pip-deps ## Run $(1) profile
+	@echo 'Configuring $(1) profile'
+	@ARGS="$$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py make-args --profile $(1) 2>/dev/null)" || \
+		{ echo "Error: Unknown profile '$(1)'" >&2; \
+		  echo "" >&2; \
+		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
+		  exit 1; }; \
+	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
+endef
 
-.PHONY: profile-gnome
-profile-gnome: req-playbook ## Run GNOME desktop environment profile
-	@echo 'Configuring GNOME desktop environment profile'
-	ansible-playbook -i localhost play.yml --ask-become-pass \
-		-e "desktop_environment=gnome display_manager=gdm profile=gnome"
+# Generate a target for each profile
+$(foreach profile,$(PROFILES),$(eval $(call profile_target,$(profile))))
 
-.PHONY: profile-awesomewm
-profile-awesomewm: req-playbook ## Run AwesomeWM tiling window manager profile
-	@echo 'Configuring AwesomeWM tiling window manager profile'
-	ansible-playbook -i localhost play.yml --ask-become-pass \
-		-e "desktop_environment=awesomewm display_manager=lightdm profile=awesomewm"
+# Catch-all profile target for unknown profiles (gives a helpful error)
+.PHONY: profile-%
+profile-%: req-playbook pip-deps ## Run arbitrary profile (with validation)
+	@echo 'Configuring $* profile'
+	@ARGS="$$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py make-args --profile $* 2>/dev/null)" || \
+		{ echo "Error: Unknown profile '$*'" >&2; \
+		  echo "" >&2; \
+		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
+		  exit 1; }; \
+	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
 
-.PHONY: profile-kde
-profile-kde: req-playbook ## Run KDE Plasma desktop profile
-	@echo 'Configuring KDE Plasma desktop profile'
-	ansible-playbook -i localhost play.yml --ask-become-pass \
-		-e "desktop_environment=kde display_manager=sddm profile=kde"
+.PHONY: validate-profiles
+validate-profiles: pip-deps ## Validate all profiles for correctness
+	@echo 'Validating profiles...'
+	@$(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py validate
 
 .PHONY: all
 all: install configure ## Run all goals
@@ -181,6 +182,11 @@ gpu-info: req-lspci ## Display detected GPU information
 	@echo 'Detected GPUs:'
 	@lspci | grep -E "(VGA|3D|Display)" | sed 's/^[0-9a-f]*:[0-9a-f]*.[0-9a-f]* /  - /'
 
-PHONY: help
+.PHONY: help
 help:  ## print this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort -d | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Profile targets (generated from profiles/):"
+	@for profile in $$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format names 2>/dev/null); do \
+		printf "\033[36m%-30s\033[0m Run $$profile profile\n" "profile-$$profile"; \
+	done || true
