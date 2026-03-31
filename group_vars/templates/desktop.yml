@@ -15,6 +15,7 @@ user:
   log:
     dir: log
     rotate: 8
+  githubuser: yourgithubusername
 
 # Hardware
 laptop: true                # true for laptops (enables power mgmt, trackpad config)
@@ -34,8 +35,8 @@ display_manager: lightdm    # lightdm | gdm | sddm
 # kernel_parameters: "quiet consoleblank=60"   # Kernel cmdline for GRUB (overrides default GRUB_CMDLINE_LINUX_DEFAULT)
 
 dotfiles:
-  repo_url: https://github.com/GITHUB_USER/dotfiles.git
-  path: "USERNAME/.dotfiles"
+  repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
+  path: "{{ user.name }}/.dotfiles"
   rcup_flags: -fx README.md
   linuxgui: true            # Install GUI dotfiles (i3, waybar, rofi, etc.)
 

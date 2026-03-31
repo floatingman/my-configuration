@@ -134,12 +134,13 @@ define profile_target
 .PHONY: profile-$(1)
 profile-$(1): req-playbook pip-deps ## Run $(1) profile
 	@echo 'Configuring $(1) profile'
-	@ARGS="$$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py make-args --profile $(1) 2>/dev/null)" || \
+	@set -e; \
+		ARGS="$$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py make-args --profile $(1) 2>/dev/null)" || \
 		{ echo "Error: Unknown profile '$(1)'" >&2; \
 		  echo "" >&2; \
 		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
 		  exit 1; }; \
-	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
+		ansible-playbook -i localhost play.yml --ask-become-pass $$$$ARGS
 endef
 
 # Generate a target for each profile
