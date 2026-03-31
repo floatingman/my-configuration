@@ -21,7 +21,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import List, Optional, Protocol, Tuple
 
 import jinja2
 
@@ -31,6 +31,57 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 # Allowed values for profile fields
 ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
+
+
+# ---------------------------------------------------------------------------
+# Overlay data model
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class ResolvedOverlayRole:
+    """
+    Result of overlay role resolution.
+
+    Attributes:
+        role: Role name
+        tags: Tuple of tags for this role
+        applies: Whether this role applies (based on OS-specific conditions)
+    """
+    role: str
+    tags: Tuple[str, ...]
+    applies: bool
+
+
+@dataclass(frozen=True)
+class ResolvedOverlay:
+    """
+    Result of overlay evaluation (not implemented in this slice).
+
+    Attributes:
+        name: Overlay name (from YAML)
+        applies: Whether the overlay applies based on its applies_when condition
+        roles: Tuple of resolved role entries
+    """
+    name: str
+    applies: bool
+    roles: Tuple[ResolvedOverlayRole, ...]
+
+
+@dataclass(frozen=True)
+class OverlayDefinition:
+    """
+    Parsed overlay YAML file.
+
+    Attributes:
+        name: Overlay name from YAML
+        description: Optional description from YAML
+        applies_when: Jinja2 condition string for when this overlay applies
+        roles: List of role entries (each is a dict with 'role' key and optional annotations)
+    """
+    name: str
+    description: Optional[str]
+    applies_when: str
+    roles: List[dict]
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +388,94 @@ def list_profiles(profiles_dir: str) -> list:
         if validate_profile(profiles_dir, name) == []
     ]
     return sorted(valid)
+
+
+# ---------------------------------------------------------------------------
+# Overlay loading and discovery
+# ---------------------------------------------------------------------------
+
+def _discover_overlays(profiles_dir: str) -> List[str]:
+    """
+    Discover all overlay names in profiles_dir/overlays/.
+
+    Scans for *.yml files in the overlays subdirectory,
+    excludes files starting with '_', and returns sorted stem names.
+
+    Args:
+        profiles_dir: Directory containing profile YAML files
+
+    Returns:
+        Sorted list of overlay names (without .yml extension)
+    """
+    overlays_path = Path(profiles_dir) / "overlays"
+    if not overlays_path.exists():
+        return []
+
+    overlay_names = [
+        p.stem
+        for p in overlays_path.glob("*.yml")
+        if not p.stem.startswith("_")
+    ]
+    return sorted(overlay_names)
+
+
+def load_overlay(profiles_dir: str, name: str) -> OverlayDefinition:
+    """
+    Load an overlay by name from profiles_dir/overlays/.
+
+    Args:
+        profiles_dir: Directory containing the overlays subdirectory
+        name: Overlay name with or without .yml extension (e.g. 'laptop' or 'laptop.yml')
+
+    Returns:
+        OverlayDefinition with parsed overlay data
+
+    Raises:
+        ValueError: If the overlay file does not exist, the name contains path separators,
+                    or required fields are missing (name, applies_when, roles)
+    """
+    name = name.removesuffix(".yml")
+
+    # Guard against path traversal
+    if "/" in name or "\\" in name or ".." in name:
+        raise ValueError(
+            f"Overlay name '{name}' contains invalid path characters. "
+            "Overlay names must not include path separators or '..'."
+        )
+
+    profiles_root = Path(profiles_dir).resolve()
+    overlay_path = profiles_root / "overlays" / f"{name}.yml"
+
+    # Enforce the path stays inside profiles_dir/overlays
+    try:
+        overlay_path.resolve().relative_to(profiles_root)
+    except ValueError:
+        raise ValueError(
+            f"Overlay '{name}' resolves outside the overlays directory."
+        )
+
+    if not overlay_path.exists():
+        raise ValueError(
+            f"Overlay '{name}' not found at {overlay_path}"
+        )
+
+    with open(overlay_path) as f:
+        data = yaml.safe_load(f) or {}
+
+    # Validate required fields
+    required_fields = ["name", "applies_when", "roles"]
+    missing = [field for field in required_fields if field not in data]
+    if missing:
+        raise ValueError(
+            f"Overlay '{name}' is missing required fields: {', '.join(missing)}"
+        )
+
+    return OverlayDefinition(
+        name=data["name"],
+        description=data.get("description"),
+        applies_when=data["applies_when"],
+        roles=data["roles"]
+    )
 
 
 def resolve(
