@@ -24,6 +24,9 @@ from profile_dispatcher import (
     validate_profile,
     list_profiles,
     ResolvedProfile,
+    Jinja2Evaluator,
+    DictEvaluator,
+    EvaluationError,
 )
 
 # Path to the real profiles directory used in integration-style tests
@@ -915,6 +918,156 @@ class TestResolveInvalidProfileError:
             # Should mention 'invalid', not 'Unknown profile'
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
+
+
+class TestJinja2Evaluator:
+    """Test Jinja2Evaluator expression evaluation."""
+
+    def test_truthy_variable(self):
+        """A variable set to a truthy value should evaluate to True."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop", {"laptop": "yes"}) is True
+        assert evaluator.evaluate("laptop", {"laptop": 1}) is True
+
+    def test_falsy_variable(self):
+        """A variable set to a falsy value should evaluate to False."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": False}) is False
+        assert evaluator.evaluate("laptop", {"laptop": ""}) is False
+        assert evaluator.evaluate("laptop", {"laptop": 0}) is False
+        assert evaluator.evaluate("laptop", {"laptop": None}) is False
+
+    def test_absent_variable_with_default(self):
+        """A variable with default filter should return the default value when absent."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop | default(false)", {}) is False
+        assert evaluator.evaluate("laptop | default(true)", {}) is True
+        assert evaluator.evaluate("laptop | default('')", {}) is False  # Empty string is falsy
+
+    def test_absent_variable_without_default_raises_error(self):
+        """Referencing an undefined variable without default() should raise EvaluationError."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(EvaluationError, match="Failed to evaluate"):
+            evaluator.evaluate("unknown_var", {})
+
+    def test_is_defined_test(self):
+        """The 'is defined' test should return True for defined variables."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop is defined", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop is defined", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop is defined", {}) is False
+
+    def test_nested_dict_access(self):
+        """Dotted access should work for nested dictionaries."""
+        evaluator = Jinja2Evaluator()
+        context = {
+            "bluetooth": {"disable": True},
+            "laptop": {"hardware": {"trackpad": True}},
+        }
+        assert evaluator.evaluate("bluetooth.disable", context) is True
+        assert evaluator.evaluate("laptop.hardware.trackpad", context) is True
+        assert evaluator.evaluate("laptop.hardware.touchscreen", context) is False
+
+    def test_boolean_and_operator(self):
+        """The 'and' operator should perform logical AND."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": False}) is False
+        assert evaluator.evaluate("laptop and desktop", {"laptop": False, "desktop": True}) is False
+
+    def test_boolean_or_operator(self):
+        """The 'or' operator should perform logical OR."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": False}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": False, "desktop": False}) is False
+
+    def test_boolean_not_operator(self):
+        """The 'not' operator should perform logical NOT."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("not laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("not laptop", {"laptop": True}) is False
+
+    def test_complex_boolean_expression(self):
+        """Complex boolean expressions with and/or/not should work correctly."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": True, "desktop": False, "gui": True}
+        assert evaluator.evaluate("laptop and not desktop", context) is True
+        assert evaluator.evaluate("(laptop or desktop) and gui", context) is True
+        assert evaluator.evaluate("laptop and desktop and gui", context) is False
+
+    def test_parenthesized_expressions(self):
+        """Parentheses should control operator precedence."""
+        evaluator = Jinja2Evaluator()
+        context = {"a": True, "b": True, "c": False}
+        assert evaluator.evaluate("(a or b) and c", context) is False
+        assert evaluator.evaluate("a or (b and c)", context) is True
+
+    def test_default_filter_with_boolean_operators(self):
+        """Default filters should work in boolean expressions."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"laptop": True}
+        ) is True
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"desktop": True}
+        ) is False
+
+    def test_invalid_syntax_raises_evaluation_error(self):
+        """Invalid Jinja2 syntax should raise EvaluationError."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(EvaluationError, match="Failed to evaluate"):
+            evaluator.evaluate("unclosed (parenthesis", {})
+
+    def test_nested_dict_access_with_default(self):
+        """Default filters should work with nested dict access."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": {}}
+        assert evaluator.evaluate("laptop.trackpad | default(false)", context) is False
+        assert evaluator.evaluate("laptop.trackpad | default(true)", context) is True
+
+
+class TestDictEvaluator:
+    """Test DictEvaluator expression evaluation."""
+
+    def test_mapped_expression_returns_correct_bool(self):
+        """An expression in the mapping should return its mapped boolean value."""
+        evaluator = DictEvaluator({"laptop": True, "desktop": False})
+        assert evaluator.evaluate("laptop", {}) is True
+        assert evaluator.evaluate("desktop", {}) is False
+
+    def test_unmapped_expression_returns_false(self):
+        """An expression not in the mapping should return False."""
+        evaluator = DictEvaluator({"laptop": True})
+        assert evaluator.evaluate("desktop", {}) is False
+        assert evaluator.evaluate("unknown", {}) is False
+
+    def test_context_parameter_is_ignored(self):
+        """The context parameter should be ignored (for protocol compatibility)."""
+        evaluator = DictEvaluator({"laptop": True})
+        # Context dict should not affect the result
+        assert evaluator.evaluate("laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop", {}) is True
+
+    def test_empty_mapping_returns_false_for_all(self):
+        """An empty mapping should return False for all expressions."""
+        evaluator = DictEvaluator({})
+        assert evaluator.evaluate("anything", {}) is False
+        assert evaluator.evaluate("laptop", {}) is False
+
+    def test_multiple_expressions(self):
+        """Multiple expressions should all resolve correctly."""
+        evaluator = DictEvaluator({
+            "laptop": True,
+            "desktop": False,
+            "server": True,
+        })
+        assert evaluator.evaluate("laptop", {}) is True
+        assert evaluator.evaluate("desktop", {}) is False
+        assert evaluator.evaluate("server", {}) is True
 
 
 if __name__ == '__main__':

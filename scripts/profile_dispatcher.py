@@ -21,7 +21,9 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
+
+import jinja2
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
@@ -29,6 +31,131 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 # Allowed values for profile fields
 ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
+
+
+# ---------------------------------------------------------------------------
+# Expression Evaluation
+# ---------------------------------------------------------------------------
+
+
+class EvaluationError(Exception):
+    """Raised when an expression cannot be evaluated.
+
+    This typically indicates a syntax error in the expression or
+    an undefined variable that cannot be resolved.
+    """
+    pass
+
+
+class ConditionEvaluator(Protocol):
+    """Protocol for condition expression evaluation.
+
+    Any class implementing evaluate() can be used as a condition evaluator,
+    enabling test injection and zero-dependency mocks.
+    """
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """Evaluate a condition expression against a context dict.
+
+        Args:
+            expression: A condition expression (e.g., "laptop", "x is defined", "x.enabled")
+            context: Dictionary of variables available to the expression
+
+        Returns:
+            True if the expression evaluates to truthy, False otherwise
+
+        Raises:
+            EvaluationError: If the expression cannot be parsed or evaluated
+        """
+        ...
+
+
+class Jinja2Evaluator:
+    """Evaluates conditions using Jinja2 template syntax.
+
+    Supports the full range of Jinja2 expressions:
+    - Variable existence: "laptop", "bluetooth is defined"
+    - Default values: "laptop | default(false)"
+    - Boolean operators: "laptop and not (desktop | default(false))"
+    - Nested dict access: "bluetooth.disable", "laptop.hardware.trackpad"
+    - Parenthesized expressions: "(laptop or desktop) and gui"
+
+    This evaluator is used in production to evaluate overlay conditions.
+    """
+
+    def __init__(self) -> None:
+        # Use StrictUndefined to catch missing variables explicitly
+        # (rather than rendering them as empty strings)
+        self._env = jinja2.Environment(
+            undefined=jinja2.StrictUndefined,
+            autoescape=False,
+        )
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """Evaluate a Jinja2 condition expression.
+
+        Wraps the expression in an if-else template to extract a boolean result.
+
+        Args:
+            expression: Jinja2 condition expression
+            context: Variables available to the expression
+
+        Returns:
+            True if the expression is truthy, False otherwise
+
+        Raises:
+            EvaluationError: If the expression cannot be parsed or contains
+                            undefined variables (without default filters)
+        """
+        # Wrap expression in a template that outputs __TRUE__ or __FALSE__
+        template_str = (
+            "{% if " + expression + " %}__TRUE__{% else %}__FALSE__{% endif %}"
+        )
+
+        try:
+            template = self._env.from_string(template_str)
+            result = template.render(**context)
+        except (jinja2.TemplateError, jinja2.UndefinedError) as exc:
+            raise EvaluationError(
+                f"Failed to evaluate expression '{expression}': {exc}"
+            ) from exc
+
+        return result.strip() == "__TRUE__"
+
+
+class DictEvaluator:
+    """Evaluates conditions by looking them up in a dictionary.
+
+    Returns the mapped boolean value if the expression is a key in the dict,
+    otherwise returns False. This is useful in tests that want to isolate
+    resolution logic from expression evaluation semantics.
+
+    Example:
+        evaluator = DictEvaluator({"laptop": True, "desktop": False})
+        evaluator.evaluate("laptop", {})  # Returns True
+        evaluator.evaluate("desktop", {})  # Returns False
+        evaluator.evaluate("unknown", {})  # Returns False
+    """
+
+    def __init__(self, mapping: dict[str, bool]) -> None:
+        """Initialize with a mapping of expression strings to boolean results.
+
+        Args:
+            mapping: Dictionary mapping expression strings to their evaluation results
+        """
+        self._mapping = dict(mapping)
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """Evaluate an expression by looking it up in the mapping.
+
+        Args:
+            expression: Expression string to look up
+            context: Ignored (kept for protocol compatibility)
+
+        Returns:
+            The mapped boolean value, or False if the expression is not in the mapping
+        """
+        return self._mapping.get(expression, False)
 
 
 @dataclass(frozen=True)
