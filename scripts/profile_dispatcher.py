@@ -21,7 +21,8 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol, runtime_checkable, Any
+from jinja2 import Environment
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
@@ -56,6 +57,191 @@ class ResolvedProfile:
     is_gnome: bool
     is_awesomewm: bool
     is_kde: bool
+
+
+# ---------------------------------------------------------------------------
+# Overlay Data Model (Slice 2)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class RoleEntry:
+    """
+    A single role within an overlay with optional annotations.
+
+    Attributes:
+        role: The role name (e.g., 'laptop', 'bluetooth')
+        tags: List of tags to apply when this role is activated
+        os: OS family constraint ('archlinux', 'debian', or None for any OS)
+        requires_display: Whether this role requires a display server
+    """
+    role: str
+    tags: list[str]
+    os: Optional[str] = None
+    requires_display: bool = False
+
+
+@dataclass(frozen=True)
+class Overlay:
+    """
+    An overlay loaded from a YAML file.
+
+    Attributes:
+        name: Human-readable name for the overlay
+        description: Free-form description
+        applies_when: Jinja2 expression string to evaluate against facts
+        roles: List of role entries with their annotations
+    """
+    name: str
+    description: str
+    applies_when: str
+    roles: list[RoleEntry]
+
+
+@dataclass(frozen=True)
+class ResolvedOverlay:
+    """
+    Result of overlay resolution with per-role applies status.
+
+    Attributes:
+        overlay: The loaded overlay data
+        applies: Whether the overlay-level applies_when evaluated to True
+        resolved_roles: List of tuples (role_entry, applies) where applies is per-role boolean
+    """
+    overlay: Overlay
+    applies: bool
+    resolved_roles: list[tuple[RoleEntry, bool]]
+
+
+# ---------------------------------------------------------------------------
+# ConditionEvaluator Protocol (Slice 1)
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class ConditionEvaluator(Protocol):
+    """
+    Protocol for evaluating boolean conditions against a facts dictionary.
+
+    Implementations can use different evaluation strategies:
+    - Jinja2Evaluator: Uses Jinja2 template engine
+    - DictEvaluator: Simple key lookup with optional path navigation
+    """
+
+    def evaluate(self, expression: str, facts: dict) -> bool:
+        """
+        Evaluate an expression against facts and return a boolean result.
+
+        Args:
+            expression: Expression string (e.g., 'laptop | default(false)')
+            facts: Dictionary of facts to evaluate against
+
+        Returns:
+            True if the expression evaluates to a truthy value, False otherwise
+
+        Raises:
+            ValueError: If the expression contains unknown patterns or syntax errors
+        """
+        ...
+
+
+class Jinja2Evaluator:
+    """
+    Jinja2-based condition evaluator.
+
+    Evaluates expressions using Jinja2 template rendering with
+    a minimal environment for security.
+    """
+
+    def __init__(self) -> None:
+        # Use a minimal Jinja2 environment without any filters or extensions
+        self._env = Environment()
+
+    def evaluate(self, expression: str, facts: dict) -> bool:
+        """
+        Evaluate a Jinja2 expression string against facts.
+
+        Args:
+            expression: Jinja2 expression (e.g., 'laptop | default(false)')
+            facts: Facts dictionary available to the expression
+
+        Returns:
+            True if the expression renders to a truthy value
+
+        Raises:
+            ValueError: If expression syntax is invalid or unknown filters are used
+        """
+        try:
+            template = self._env.from_string(f"{{{{ {expression} }}}}")
+            result = template.render(**facts)
+        except Exception as exc:
+            raise ValueError(
+                f"Failed to evaluate expression '{expression}': {exc}"
+            )
+
+        # Convert string result to boolean
+        if isinstance(result, str):
+            # Jinja2 renders 'True' as 'True' in string context
+            if result.lower() == 'true':
+                return True
+            # Empty string or 'false' means False
+            return bool(result and result.lower() != 'false')
+
+        return bool(result)
+
+
+class DictEvaluator:
+    """
+    Simple dictionary-based evaluator for key lookups and path navigation.
+
+    Supports:
+    - Direct key lookups: 'laptop'
+    - Nested path navigation: 'bluetooth.disable'
+    - Default values: 'laptop | default(false)' (returns False if key missing)
+
+    This is a simpler alternative to Jinja2 for basic boolean facts.
+    """
+
+    def evaluate(self, expression: str, facts: dict) -> bool:
+        """
+        Evaluate a simple key path expression against facts.
+
+        Args:
+            expression: Key path expression (e.g., 'laptop', 'bluetooth.disable')
+            facts: Facts dictionary to navigate
+
+        Returns:
+            True if the key exists and has a truthy value
+
+        Raises:
+            ValueError: If the expression contains unsupported patterns
+        """
+        # Check for supported 'default(false)' pattern first
+        if ' | default(false)' in expression or '| default(false)' in expression:
+            key = expression.split('|')[0].strip()
+            value = self._navigate_path(facts, key)
+            return bool(value)
+
+        # Check for unsupported Jinja2-like patterns
+        if any(pattern in expression for pattern in ('(', ')', '+', '-', '*', '/')):
+            raise ValueError(
+                f"Unknown expression pattern in '{expression}'. "
+                "DictEvaluator only supports key paths and default(false)."
+            )
+
+        # Simple key path navigation
+        value = self._navigate_path(facts, expression)
+        return bool(value)
+
+    def _navigate_path(self, facts: dict, path: str) -> Any:
+        """Navigate a nested key path like 'bluetooth.disable'."""
+        keys = path.split('.')
+        current = facts
+
+        for key in keys:
+            if not isinstance(current, dict):
+                return None
+            current = current.get(key)
+
+        return current
 
 
 def load_profile(profiles_dir: str, name: str) -> dict:
@@ -210,6 +396,239 @@ def list_profiles(profiles_dir: str) -> list:
         if validate_profile(profiles_dir, name) == []
     ]
     return sorted(valid)
+
+
+# ---------------------------------------------------------------------------
+# Overlay Discovery and Loading (Slice 2)
+# ---------------------------------------------------------------------------
+
+def _discover_overlays(profiles_dir: str) -> list[Path]:
+    """
+    Discover all overlay YAML files in profiles/overlays/ subdirectory.
+
+    Args:
+        profiles_dir: Root profiles directory
+
+    Returns:
+        List of overlay file paths, sorted alphabetically
+    """
+    overlays_root = Path(profiles_dir) / "overlays"
+    if not overlays_root.exists():
+        return []
+
+    return sorted(overlays_root.glob("*.yml"))
+
+
+def _load_overlay(path: Path) -> Overlay:
+    """
+    Load a single overlay from a YAML file.
+
+    Args:
+        path: Path to overlay YAML file
+
+    Returns:
+        Overlay dataclass instance
+
+    Raises:
+        ValueError: If the file cannot be parsed or has invalid structure
+    """
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+    except (yaml.YAMLError, OSError) as exc:
+        raise ValueError(f"Failed to load overlay '{path}': {exc}")
+
+    # Validate required fields
+    if "name" not in data:
+        raise ValueError(f"Overlay '{path}': missing required field 'name'")
+    if "applies_when" not in data:
+        raise ValueError(f"Overlay '{path}': missing required field 'applies_when'")
+    if "roles" not in data:
+        raise ValueError(f"Overlay '{path}': missing required field 'roles'")
+
+    # Validate applies_when is a string
+    applies_when = data["applies_when"]
+    if not isinstance(applies_when, str) or not applies_when.strip():
+        raise ValueError(
+            f"Overlay '{path}': 'applies_when' must be a non-empty string, "
+            f"got {type(applies_when).__name__}"
+        )
+
+    # Validate roles is a list
+    roles_raw = data["roles"]
+    if not isinstance(roles_raw, list):
+        raise ValueError(
+            f"Overlay '{path}': 'roles' must be a list, got {type(roles_raw).__name__}"
+        )
+
+    # Parse role entries
+    roles = []
+    for i, role_entry in enumerate(roles_raw):
+        if not isinstance(role_entry, dict):
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} must be a dict, "
+                f"got {type(role_entry).__name__}"
+            )
+
+        if "role" not in role_entry:
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} missing required field 'role'"
+            )
+
+        role_name = role_entry["role"]
+        if not isinstance(role_name, str):
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} 'role' must be a string, "
+                f"got {type(role_name).__name__}"
+            )
+
+        # Parse tags (required)
+        tags = role_entry.get("tags", [])
+        if not isinstance(tags, list):
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} 'tags' must be a list, "
+                f"got {type(tags).__name__}"
+            )
+
+        # Parse optional annotations
+        os_constraint = role_entry.get("os")
+        if os_constraint is not None and not isinstance(os_constraint, str):
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} 'os' must be a string or null, "
+                f"got {type(os_constraint).__name__}"
+            )
+
+        requires_display = role_entry.get("requires_display", False)
+        if not isinstance(requires_display, bool):
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} 'requires_display' must be a bool, "
+                f"got {type(requires_display).__name__}"
+            )
+
+        roles.append(RoleEntry(
+            role=role_name,
+            tags=tags,
+            os=os_constraint,
+            requires_display=requires_display,
+        ))
+
+    return Overlay(
+        name=data["name"],
+        description=data.get("description", ""),
+        applies_when=applies_when,
+        roles=roles,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Overlay Resolution and Validation (Slice 3)
+# ---------------------------------------------------------------------------
+
+def resolve_overlays(
+    facts: dict,
+    has_display: bool,
+    is_arch: bool,
+    profiles_dir: str = _DEFAULT_PROFILES_DIR,
+    evaluator: Optional[ConditionEvaluator] = None,
+) -> list[ResolvedOverlay]:
+    """
+    Discover and resolve overlays against host facts.
+
+    Args:
+        facts: Dictionary of host facts (e.g., from group_vars/all/local.yml)
+        has_display: Whether this machine has a display server
+        is_arch: Whether this is an Arch Linux system
+        profiles_dir: Directory containing profiles/ subdirectory
+        evaluator: ConditionEvaluator instance (defaults to Jinja2Evaluator)
+
+    Returns:
+        Sorted list of ResolvedOverlay instances with per-role applies status
+
+    Raises:
+        ValueError: If an overlay fails to load or contains invalid expressions
+    """
+    if evaluator is None:
+        evaluator = Jinja2Evaluator()
+
+    overlay_paths = _discover_overlays(profiles_dir)
+    results = []
+
+    for path in overlay_paths:
+        overlay = _load_overlay(path)
+
+        # Evaluate overlay-level applies_when
+        try:
+            overlay_applies = evaluator.evaluate(overlay.applies_when, facts)
+        except ValueError as exc:
+            raise ValueError(
+                f"Overlay '{overlay.name}': failed to evaluate applies_when: {exc}"
+            )
+
+        # Resolve each role with per-role conditions
+        resolved_roles = []
+        for role_entry in overlay.roles:
+            # Per-role applies = AND of:
+            # 1. Overlay-level applies result
+            # 2. OS constraint (if specified)
+            # 3. requires_display constraint (if specified)
+            role_applies = overlay_applies
+
+            # Check OS constraint
+            if role_entry.os is not None:
+                expected_os = "archlinux" if is_arch else "debian"
+                if role_entry.os != expected_os:
+                    role_applies = False
+
+            # Check requires_display constraint
+            if role_entry.requires_display and not has_display:
+                role_applies = False
+
+            resolved_roles.append((role_entry, role_applies))
+
+        results.append(ResolvedOverlay(
+            overlay=overlay,
+            applies=overlay_applies,
+            resolved_roles=resolved_roles,
+        ))
+
+    return results
+
+
+def validate_overlays(
+    profiles_dir: str = _DEFAULT_PROFILES_DIR,
+) -> list[tuple[str, list[str]]]:
+    """
+    Validate all overlay YAML files in profiles/overlays/.
+
+    Checks:
+    - Overlay files can be parsed as YAML
+    - Required fields present (name, applies_when, roles)
+    - applies_when is a non-empty string
+    - roles is a list
+    - Each role entry has required fields (role, tags) with correct types
+
+    Args:
+        profiles_dir: Directory containing profiles/ subdirectory
+
+    Returns:
+        List of (overlay_name, errors) tuples. Empty error list means valid.
+    """
+    overlay_paths = _discover_overlays(profiles_dir)
+    results = []
+
+    for path in overlay_paths:
+        overlay_name = path.stem  # filename without .yml
+        errors = []
+
+        try:
+            # Attempt to load the overlay - this validates all fields
+            _load_overlay(path)
+        except ValueError as exc:
+            errors.append(str(exc))
+
+        results.append((overlay_name, errors))
+
+    return results
 
 
 def resolve(
