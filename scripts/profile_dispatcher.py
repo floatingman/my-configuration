@@ -9,10 +9,11 @@ This is a standalone Python module with no Ansible dependency,
 making the dispatch logic unit-testable.
 
 CLI subcommands:
-  resolve       Resolve a profile to JSON (for Ansible script module)
-  validate      Validate all profiles in a directory (for CI)
-  list-profiles List available profile names or a human-readable table
-  make-args     Output -e flag string for Makefile consumption
+  resolve        Resolve a profile to JSON (for Ansible script module)
+  resolve-overlays Resolve overlays against host facts and output JSON
+  validate       Validate all profiles and overlays in a directory (for CI)
+  list-profiles  List available profile names or a human-readable table
+  make-args      Output -e flag string for Makefile consumption
 """
 
 import argparse
@@ -963,7 +964,8 @@ def _cmd_resolve(args: argparse.Namespace) -> int:
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
-    """Validate all profiles; write errors to stderr; exit 1 on any failure."""
+    """Validate all profiles and overlays; write errors to stderr; exit 1 on any failure."""
+    # Validate profiles
     profiles_path = Path(args.profiles_dir)
     all_names = [
         p.stem
@@ -977,7 +979,15 @@ def _cmd_validate(args: argparse.Namespace) -> int:
         if errors:
             any_invalid = True
             for error in errors:
-                print(f"{name}: {error}", file=sys.stderr)
+                print(f"profile {name}: {error}", file=sys.stderr)
+
+    # Validate overlays
+    overlay_results = validate_overlays(profiles_dir=args.profiles_dir)
+    for overlay_name, errors in overlay_results:
+        if errors:
+            any_invalid = True
+            for error in errors:
+                print(f"overlay {overlay_name}: {error}", file=sys.stderr)
 
     return 1 if any_invalid else 0
 
@@ -1016,6 +1026,19 @@ def _cmd_list_profiles(args: argparse.Namespace) -> int:
             f"{de}"
         )
 
+    # Also list overlays in pretty format
+    overlay_names = _discover_overlay_names(args.profiles_dir)
+    if overlay_names:
+        print()
+        print("Available overlays:")
+        for name in overlay_names:
+            try:
+                overlay = load_overlay(args.profiles_dir, name)
+            except (ValueError, yaml.YAMLError):
+                continue
+            description = str(overlay.description).splitlines()[0] if overlay.description else ""
+            print(f"  {name}: {description}")
+
     return 0
 
 
@@ -1034,6 +1057,62 @@ def _cmd_make_args(args: argparse.Namespace) -> int:
         parts.append(f"display_manager={result.display_manager}")
 
     print(f'-e "{" ".join(parts)}"')
+    return 0
+
+
+def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
+    """Resolve overlays and output JSON with overlays list and flat facts dict; exit 1 on error."""
+    try:
+        facts = json.loads(args.facts_json) if args.facts_json else {}
+    except json.JSONDecodeError as exc:
+        print(f"Invalid JSON in --facts-json: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        resolved_list = resolve_overlays(
+            facts=facts,
+            has_display=args.has_display,
+            is_arch=args.is_arch,
+            profiles_dir=args.profiles_dir,
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    # Convert ResolvedOverlay objects to dict format
+    overlays_output = []
+    flat_facts = {}
+
+    for resolved in resolved_list:
+        overlay_dict = {
+            "name": resolved.overlay.name,
+            "description": resolved.overlay.description,
+            "applies": resolved.applies,
+            "roles": []
+        }
+
+        for role_entry, applies in resolved.resolved_roles:
+            role_dict = {
+                "role": role_entry.role,
+                "tags": list(role_entry.tags),
+                "applies": applies,
+                "os": role_entry.os,
+                "requires_display": role_entry.requires_display,
+            }
+            overlay_dict["roles"].append(role_dict)
+
+            # Add to flat facts with _overlay_ prefix
+            fact_key = f"_overlay_{role_entry.role}"
+            flat_facts[fact_key] = applies
+
+        overlays_output.append(overlay_dict)
+
+    output = {
+        "overlays": overlays_output,
+        "facts": flat_facts,
+    }
+
+    print(json.dumps(output, indent=2))
     return 0
 
 
@@ -1095,6 +1174,44 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- resolve-overlays ---
+    p_resolve_overlays = subparsers.add_parser(
+        "resolve-overlays",
+        help="Resolve overlays against host facts and output JSON.",
+    )
+    p_resolve_overlays.add_argument(
+        "--facts-json",
+        default="{}",
+        help='JSON string of host facts (e.g., \'{"laptop": true}\')',
+    )
+    p_resolve_overlays.add_argument(
+        "--has-display",
+        action="store_true",
+        default=True,
+        help="Whether this machine has a display server (default: True)",
+    )
+    p_resolve_overlays.add_argument(
+        "--no-has-display",
+        dest="has_display",
+        action="store_false",
+        help="This machine does not have a display server",
+    )
+    p_resolve_overlays.add_argument(
+        "--is-arch",
+        action="store_true",
+        default=True,
+        help="Whether this is an Arch Linux system (default: True)",
+    )
+    p_resolve_overlays.add_argument(
+        "--no-is-arch",
+        dest="is_arch",
+        action="store_false",
+        help="This is not an Arch Linux system (e.g., Debian)",
+    )
+    p_resolve_overlays.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     return parser
 
 
@@ -1116,6 +1233,7 @@ def main(argv: Optional[list] = None) -> int:
 
     dispatch = {
         "resolve": _cmd_resolve,
+        "resolve-overlays": _cmd_resolve_overlays,
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
