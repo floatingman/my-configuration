@@ -1034,7 +1034,7 @@ def _cmd_list_profiles(args: argparse.Namespace) -> int:
         for name in overlay_names:
             try:
                 overlay = load_overlay(args.profiles_dir, name)
-            except (ValueError, yaml.YAMLError):
+            except (ValueError, yaml.YAMLError, OSError):
                 continue
             description = str(overlay.description).splitlines()[0] if overlay.description else ""
             print(f"  {name}: {description}")
@@ -1066,6 +1066,13 @@ def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
         facts = json.loads(args.facts_json) if args.facts_json else {}
     except json.JSONDecodeError as exc:
         print(f"Invalid JSON in --facts-json: {exc}", file=sys.stderr)
+        return 1
+
+    if not isinstance(facts, dict):
+        print(
+            "Invalid --facts-json: top-level JSON value must be an object (mapping).",
+            file=sys.stderr,
+        )
         return 1
 
     try:

@@ -1038,6 +1038,111 @@ class TestCLIUnknownSubcommand:
         assert "usage" in err.lower()
 
 
+class TestCLIResolveOverlays:
+    """Tests for the 'resolve-overlays' CLI subcommand."""
+
+    def test_resolve_overlays_outputs_valid_json(self, capsys):
+        """resolve-overlays with valid facts outputs JSON with overlays + facts keys."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{"laptop": true}',
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+        output = capsys.readouterr().out
+        data = json.loads(output)
+        assert "overlays" in data
+        assert "facts" in data
+        assert isinstance(data["overlays"], list)
+        assert isinstance(data["facts"], dict)
+
+    def test_resolve_overlays_schema(self, capsys):
+        """Each overlay in output has name, description, applies, and roles."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{"laptop": true}',
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        for overlay in data["overlays"]:
+            assert "name" in overlay
+            assert "description" in overlay
+            assert "applies" in overlay
+            assert "roles" in overlay
+            for role in overlay["roles"]:
+                assert "role" in role
+                assert "tags" in role
+                assert "applies" in role
+
+    def test_resolve_overlays_invalid_json_exits_1(self, capsys):
+        """resolve-overlays with invalid JSON exits 1."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", "not-json",
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 1
+
+    def test_resolve_overlays_non_object_json_exits_1(self, capsys):
+        """resolve-overlays with valid non-object JSON (e.g. array) exits 1."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '[1, 2, 3]',
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "object" in err.lower() or "mapping" in err.lower()
+
+    def test_resolve_overlays_no_has_display(self, capsys):
+        """resolve-overlays --no-has-display works and runs without error."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{}',
+            "--no-has-display",
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert isinstance(data["overlays"], list)
+
+    def test_resolve_overlays_no_is_arch(self, capsys):
+        """resolve-overlays --no-is-arch works and runs without error."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{}',
+            "--no-is-arch",
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+
+
+class TestCLIValidateOverlays:
+    """Tests for the 'validate' CLI subcommand with overlay validation."""
+
+    def test_validate_with_invalid_overlay_exits_1(self, capsys):
+        """validate exits 1 when an overlay file is structurally invalid."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir()
+
+            # Create a valid profile
+            Path(tmpdir, "headless.yml").write_text(
+                "display_manager_default: ''\ndesktop_environment: ''\n"
+            )
+
+            # Create an invalid overlay (missing applies_when)
+            (overlays_dir / "bad.yml").write_text(
+                "name: Bad Overlay\nroles:\n  - {role: test, tags: [test]}\n"
+            )
+
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "overlay" in err.lower()
+
+
 class TestValidateProfileTypeChecking:
     """Tests for type validation of YAML fields in validate_profile()."""
 
