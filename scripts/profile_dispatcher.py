@@ -21,7 +21,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional, Protocol, Tuple, runtime_checkable, Any
+from typing import List, Optional, Protocol, Tuple
 
 import jinja2
 
@@ -64,7 +64,7 @@ class ResolvedOverlay:
     """
     overlay: "Overlay"
     applies: bool
-    resolved_roles: list[tuple[RoleEntry, bool]]
+    resolved_roles: Tuple[tuple[RoleEntry, bool], ...]
 
 
 @dataclass(frozen=True)
@@ -252,7 +252,7 @@ class RoleEntry:
         requires_display: Whether this role requires a display server
     """
     role: str
-    tags: list[str]
+    tags: Tuple[str, ...]
     os: Optional[str] = None
     requires_display: bool = False
 
@@ -266,12 +266,12 @@ class Overlay:
         name: Human-readable name for the overlay
         description: Free-form description
         applies_when: Jinja2 expression string to evaluate against facts
-        roles: List of role entries with their annotations
+        roles: Tuple of role entries with their annotations
     """
     name: str
     description: str
     applies_when: str
-    roles: list[RoleEntry]
+    roles: Tuple[RoleEntry, ...]
 
 
 def load_profile(profiles_dir: str, name: str) -> dict:
@@ -446,7 +446,9 @@ def _discover_overlays(profiles_dir: str) -> list[Path]:
     if not overlays_root.exists():
         return []
 
-    return sorted(overlays_root.glob("*.yml"))
+    return sorted(
+        p for p in overlays_root.glob("*.yml") if not p.stem.startswith("_")
+    )
 
 
 def _load_overlay(path: Path) -> Overlay:
@@ -512,21 +514,40 @@ def _load_overlay(path: Path) -> Overlay:
                 f"got {type(role_name).__name__}"
             )
 
-        # Parse tags (required)
-        tags = role_entry.get("tags", [])
+        # Validate tags (required)
+        if "tags" not in role_entry:
+            raise ValueError(
+                f"Overlay '{path}': role entry {i} missing required field 'tags'"
+            )
+
+        tags = role_entry["tags"]
         if not isinstance(tags, list):
             raise ValueError(
                 f"Overlay '{path}': role entry {i} 'tags' must be a list, "
                 f"got {type(tags).__name__}"
             )
 
+        for j, tag in enumerate(tags):
+            if not isinstance(tag, str):
+                raise ValueError(
+                    f"Overlay '{path}': role entry {i} 'tags[{j}]' must be a string, "
+                    f"got {type(tag).__name__}"
+                )
+
         # Parse optional annotations
+        allowed_os = {"archlinux", "debian"}
         os_constraint = role_entry.get("os")
-        if os_constraint is not None and not isinstance(os_constraint, str):
-            raise ValueError(
-                f"Overlay '{path}': role entry {i} 'os' must be a string or null, "
-                f"got {type(os_constraint).__name__}"
-            )
+        if os_constraint is not None:
+            if not isinstance(os_constraint, str):
+                raise ValueError(
+                    f"Overlay '{path}': role entry {i} 'os' must be a string or null, "
+                    f"got {type(os_constraint).__name__}"
+                )
+            if os_constraint not in allowed_os:
+                raise ValueError(
+                    f"Overlay '{path}': role entry {i} 'os' must be one of "
+                    f"{sorted(allowed_os)}, got '{os_constraint}'"
+                )
 
         requires_display = role_entry.get("requires_display", False)
         if not isinstance(requires_display, bool):
@@ -537,7 +558,7 @@ def _load_overlay(path: Path) -> Overlay:
 
         roles.append(RoleEntry(
             role=role_name,
-            tags=tags,
+            tags=tuple(tags),
             os=os_constraint,
             requires_display=requires_display,
         ))
@@ -546,7 +567,7 @@ def _load_overlay(path: Path) -> Overlay:
         name=data["name"],
         description=data.get("description", ""),
         applies_when=applies_when,
-        roles=roles,
+        roles=tuple(roles),
     )
 
 
@@ -618,9 +639,10 @@ def resolve_overlays(
         results.append(ResolvedOverlay(
             overlay=overlay,
             applies=overlay_applies,
-            resolved_roles=resolved_roles,
+            resolved_roles=tuple(resolved_roles),
         ))
 
+    results.sort(key=lambda resolved: resolved.overlay.name)
     return results
 
 
