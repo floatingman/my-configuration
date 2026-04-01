@@ -25,9 +25,17 @@ from profile_dispatcher import (
     list_profiles,
     resolve_overlays,
     validate_overlays,
+    load_overlay,
+    _discover_overlay_names,
+    OverlayDefinition,
+    ResolvedOverlay,
+    ResolvedOverlayRole,
+    RoleEntry,
+    Overlay,
     ResolvedProfile,
     Jinja2Evaluator,
     DictEvaluator,
+    EvaluationError,
 )
 
 # Path to the real profiles directory used in integration-style tests
@@ -668,6 +676,154 @@ class TestListProfiles:
             assert 'broken' not in names
 
 
+class TestDiscoverOverlays:
+    """Test _discover_overlay_names() function."""
+
+    def test_returns_sorted_overlay_names(self):
+        """_discover_overlay_names returns overlay names sorted alphabetically."""
+        names = _discover_overlay_names(_PROFILES_DIR)
+        assert names == ["bluetooth", "laptop"]
+
+    def test_returns_empty_list_for_nonexistent_overlays_dir(self):
+        """_discover_overlay_names returns empty list when overlays directory doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Empty profiles dir (no overlays subdirectory)
+            names = _discover_overlay_names(tmpdir)
+            assert names == []
+
+    def test_returns_empty_list_for_empty_overlays_dir(self):
+        """_discover_overlay_names returns empty list when overlays directory is empty."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            names = _discover_overlay_names(tmpdir)
+            assert names == []
+
+
+class TestLoadOverlay:
+    """Test load_overlay() function."""
+
+    def test_load_laptop_overlay(self):
+        """load_overlay correctly parses laptop.yml."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop")
+        assert isinstance(overlay, OverlayDefinition)
+        assert overlay.name == "Laptop Features Overlay"
+        assert overlay.applies_when == "laptop | default(false)"
+        assert isinstance(overlay.roles, list)
+        assert len(overlay.roles) == 2
+        # First role entry
+        assert overlay.roles[0]["role"] == "laptop"
+        assert overlay.roles[0]["tags"] == ["laptop"]
+        # Second role entry
+        assert overlay.roles[1]["role"] == "backlight"
+        assert overlay.roles[1]["tags"] == ["backlight"]
+        assert overlay.roles[1]["requires_display"] is True
+
+    def test_load_bluetooth_overlay(self):
+        """load_overlay correctly parses bluetooth.yml."""
+        overlay = load_overlay(_PROFILES_DIR, "bluetooth")
+        assert isinstance(overlay, OverlayDefinition)
+        assert overlay.name == "Bluetooth Support Overlay"
+        assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
+        assert isinstance(overlay.roles, list)
+        assert len(overlay.roles) == 1
+        assert overlay.roles[0]["role"] == "bluetooth"
+        assert overlay.roles[0]["tags"] == ["bluetooth"]
+        assert overlay.roles[0]["os"] == "archlinux"
+
+    def test_load_overlay_with_yml_extension(self):
+        """load_overlay accepts name with .yml extension."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop.yml")
+        assert overlay.name == "Laptop Features Overlay"
+
+    def test_missing_overlay_raises_value_error(self):
+        """Missing overlay file raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            load_overlay(_PROFILES_DIR, "nonexistent_overlay")
+        error_msg = str(exc_info.value)
+        assert "not found" in error_msg
+        assert "nonexistent_overlay" in error_msg
+
+    def test_overlay_missing_name_field_raises_value_error(self):
+        """Overlay missing 'name' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'applies_when: "true"\nroles:\n  - { role: test }\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "name" in error_msg
+
+    def test_overlay_missing_applies_when_field_raises_value_error(self):
+        """Overlay missing 'applies_when' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'name: "Bad Overlay"\nroles:\n  - { role: test }\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "applies_when" in error_msg
+
+    def test_overlay_missing_roles_field_raises_value_error(self):
+        """Overlay missing 'roles' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'name: "Bad Overlay"\napplies_when: "true"\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "roles" in error_msg
+
+    def test_overlay_with_path_traversal_raises_value_error(self):
+        """Overlay name with path separators raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            load_overlay(_PROFILES_DIR, "../etc/passwd")
+        error_msg = str(exc_info.value)
+        assert "invalid path characters" in error_msg
+
+
+class TestOverlayDataclasses:
+    """Test overlay dataclass properties."""
+
+    def test_overlay_definition_is_frozen(self):
+        """OverlayDefinition should be immutable (frozen dataclass)."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop")
+        with pytest.raises(AttributeError):
+            overlay.name = "Modified"  # Should raise AttributeError
+
+    def test_resolved_overlay_is_frozen(self):
+        """ResolvedOverlay should be immutable (frozen dataclass)."""
+        role_entry = RoleEntry(role="test", tags=["test"])
+        overlay = ResolvedOverlay(
+            overlay=Overlay(name="Test", description="", applies_when="true", roles=[role_entry]),
+            applies=True,
+            resolved_roles=[(role_entry, True)]
+        )
+        with pytest.raises(AttributeError):
+            overlay.applies = False  # Should raise AttributeError
+
+    def test_resolved_overlay_role_is_frozen(self):
+        """ResolvedOverlayRole should be immutable (frozen dataclass)."""
+        role = ResolvedOverlayRole(role="test", tags=("test",), applies=True)
+        with pytest.raises(AttributeError):
+            role.role = "modified"  # Should raise AttributeError
+
+
 class TestCLIResolve:
     """Tests for the 'resolve' CLI subcommand."""
 
@@ -1041,7 +1197,10 @@ class TestResolveOverlays:
 
     def test_custom_evaluator_dict_evaluator(self):
         """resolve_overlays accepts custom evaluator parameter."""
-        evaluator = DictEvaluator()
+        evaluator = DictEvaluator({
+            "laptop | default(false)": True,
+            "bluetooth.disable | default(false)": False,
+        })
         results = resolve_overlays(
             facts={"laptop": True},
             has_display=True,
@@ -1249,6 +1408,162 @@ roles:
             for overlay_name, errors in results:
                 assert overlay_name in {"bad1", "bad2"}
                 assert len(errors) > 0
+
+
+class TestJinja2Evaluator:
+    """Test Jinja2Evaluator expression evaluation."""
+
+    def test_truthy_variable(self):
+        """A variable set to a truthy value should evaluate to True."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop", {"laptop": "yes"}) is True
+        assert evaluator.evaluate("laptop", {"laptop": 1}) is True
+
+    def test_falsy_variable(self):
+        """A variable set to a falsy value should evaluate to False."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": False}) is False
+        assert evaluator.evaluate("laptop", {"laptop": ""}) is False
+        assert evaluator.evaluate("laptop", {"laptop": 0}) is False
+        assert evaluator.evaluate("laptop", {"laptop": None}) is False
+
+    def test_absent_variable_with_default(self):
+        """A variable with default filter should return the default value when absent."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop | default(false)", {}) is False
+        assert evaluator.evaluate("laptop | default(true)", {}) is True
+        assert evaluator.evaluate("laptop | default('')", {}) is False  # Empty string is falsy
+
+    def test_absent_variable_without_default_raises_error(self):
+        """Referencing an undefined variable without default() should raise EvaluationError."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(EvaluationError, match="Failed to evaluate"):
+            evaluator.evaluate("unknown_var", {})
+
+    def test_is_defined_test(self):
+        """The 'is defined' test should return True for defined variables."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop is defined", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop is defined", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop is defined", {}) is False
+
+    def test_nested_dict_access(self):
+        """Dotted access should work for nested dictionaries.
+
+        Missing attributes on dicts raise EvaluationError with StrictUndefined;
+        use ``| default(false)`` for safe access (see test_nested_dict_access_with_default).
+        """
+        evaluator = Jinja2Evaluator()
+        context = {
+            "bluetooth": {"disable": True},
+            "laptop": {"hardware": {"trackpad": True}},
+        }
+        assert evaluator.evaluate("bluetooth.disable", context) is True
+        assert evaluator.evaluate("laptop.hardware.trackpad", context) is True
+        # Missing attribute on a dict raises EvaluationError (StrictUndefined)
+        with pytest.raises(EvaluationError):
+            evaluator.evaluate("laptop.hardware.touchscreen", context)
+
+    def test_boolean_and_operator(self):
+        """The 'and' operator should perform logical AND."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": False}) is False
+        assert evaluator.evaluate("laptop and desktop", {"laptop": False, "desktop": True}) is False
+
+    def test_boolean_or_operator(self):
+        """The 'or' operator should perform logical OR."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": False}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": False, "desktop": False}) is False
+
+    def test_boolean_not_operator(self):
+        """The 'not' operator should perform logical NOT."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("not laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("not laptop", {"laptop": True}) is False
+
+    def test_complex_boolean_expression(self):
+        """Complex boolean expressions with and/or/not should work correctly."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": True, "desktop": False, "gui": True}
+        assert evaluator.evaluate("laptop and not desktop", context) is True
+        assert evaluator.evaluate("(laptop or desktop) and gui", context) is True
+        assert evaluator.evaluate("laptop and desktop and gui", context) is False
+
+    def test_parenthesized_expressions(self):
+        """Parentheses should control operator precedence."""
+        evaluator = Jinja2Evaluator()
+        context = {"a": True, "b": True, "c": False}
+        assert evaluator.evaluate("(a or b) and c", context) is False
+        assert evaluator.evaluate("a or (b and c)", context) is True
+
+    def test_default_filter_with_boolean_operators(self):
+        """Default filters should work in boolean expressions."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"laptop": True}
+        ) is True
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"desktop": True}
+        ) is False
+
+    def test_invalid_syntax_raises_evaluation_error(self):
+        """Invalid Jinja2 syntax should raise EvaluationError."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(EvaluationError, match="Failed to evaluate"):
+            evaluator.evaluate("unclosed (parenthesis", {})
+
+    def test_nested_dict_access_with_default(self):
+        """Default filters should work with nested dict access."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": {}}
+        assert evaluator.evaluate("laptop.trackpad | default(false)", context) is False
+        assert evaluator.evaluate("laptop.trackpad | default(true)", context) is True
+
+
+class TestDictEvaluator:
+    """Test DictEvaluator expression evaluation."""
+
+    def test_mapped_expression_returns_correct_bool(self):
+        """An expression in the mapping should return its mapped boolean value."""
+        evaluator = DictEvaluator({"laptop": True, "desktop": False})
+        assert evaluator.evaluate("laptop", {}) is True
+        assert evaluator.evaluate("desktop", {}) is False
+
+    def test_unmapped_expression_returns_false(self):
+        """An expression not in the mapping should return False."""
+        evaluator = DictEvaluator({"laptop": True})
+        assert evaluator.evaluate("desktop", {}) is False
+        assert evaluator.evaluate("unknown", {}) is False
+
+    def test_context_parameter_is_ignored(self):
+        """The context parameter should be ignored (for protocol compatibility)."""
+        evaluator = DictEvaluator({"laptop": True})
+        # Context dict should not affect the result
+        assert evaluator.evaluate("laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop", {}) is True
+
+    def test_empty_mapping_returns_false_for_all(self):
+        """An empty mapping should return False for all expressions."""
+        evaluator = DictEvaluator({})
+        assert evaluator.evaluate("anything", {}) is False
+        assert evaluator.evaluate("laptop", {}) is False
+
+    def test_multiple_expressions(self):
+        """Multiple expressions should all resolve correctly."""
+        evaluator = DictEvaluator({
+            "laptop": True,
+            "desktop": False,
+            "server": True,
+        })
+        assert evaluator.evaluate("laptop", {}) is True
+        assert evaluator.evaluate("desktop", {}) is False
+        assert evaluator.evaluate("server", {}) is True
 
 
 if __name__ == '__main__':
