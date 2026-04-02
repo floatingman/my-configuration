@@ -236,8 +236,8 @@
     - { role: dotfiles,              tags: ["dotfiles"],           when: dotfiles is defined }
     - { role: goesimage,             tags: ["goesimage"],          when: "goesimage is defined and _has_display" }
     - { role: regdomain,             tags: ["regdomain"],          when: regdomain is defined }
-    - { role: bluetooth,             tags: ["bluetooth"],          when: "_is_arch and bluetooth is defined" }
-    - { role: laptop,                tags: ["laptop"],             when: laptop }
+    - { role: bluetooth,             tags: ["bluetooth"],          when: _overlay_bluetooth }
+    - { role: laptop,                tags: ["laptop"],             when: _overlay_laptop }
 
   vars_prompt:
     - name: user_password
