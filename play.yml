@@ -66,13 +66,13 @@
       vars:
         _overlay_facts_json: >-
           {{
-            {
-              "laptop": laptop | default(None),
-              "bluetooth": bluetooth | default(None),
-              "dotfiles": dotfiles | default(None),
-              "goesimage": goesimage | default(None),
-              "regdomain": regdomain | default(None),
-            } | to_json
+            {}
+            | combine({"laptop": laptop} if laptop is defined else {})
+            | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
+            | combine({"dotfiles": dotfiles} if dotfiles is defined else {})
+            | combine({"goesimage": goesimage} if goesimage is defined else {})
+            | combine({"regdomain": regdomain} if regdomain is defined else {})
+            | to_json
           }}
       register: _overlay_result
       changed_when: false
