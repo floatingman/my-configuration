@@ -65,7 +65,7 @@ class ResolvedOverlay:
     """
     overlay: "Overlay"
     applies: bool
-    resolved_roles: Tuple[tuple[RoleEntry, bool], ...]
+    resolved_roles: Tuple[tuple["RoleEntry", bool], ...]
 
 
 @dataclass(frozen=True)
