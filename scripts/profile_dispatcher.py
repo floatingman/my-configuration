@@ -22,7 +22,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import jinja2
 
@@ -237,6 +237,47 @@ class ResolvedProfile:
     is_kde: bool
 
 
+@dataclass(frozen=True)
+class RoleCondition:
+    """
+    A single role entry with its computed Jinja2 condition.
+
+    Attributes:
+        role: Role name
+        tags: Tuple of tags associated with this role
+        condition: Jinja2 when: expression (or empty string for no condition)
+        source: Name of the source (profile or overlay) that provided this role
+    """
+    role: str
+    tags: Tuple[str, ...]
+    condition: str
+    source: str
+
+
+@dataclass(frozen=True)
+class ResolvedManifest:
+    """
+    Complete role manifest with computed conditions.
+
+    Combines profile roles and overlay roles into a deduplicated list
+    with Jinja2 when: conditions pre-computed from annotations.
+
+    Attributes:
+        profile: The profile name that was resolved
+        display_manager: The display manager to use
+        has_display: Whether this machine has any display/GUI
+        profile_flags: Dict of profile boolean flags (_is_arch, _is_i3, etc.)
+        overlay_flags: Dict of overlay boolean flags (_overlay_laptop, _overlay_bluetooth, etc.)
+        roles: List of RoleCondition entries (deduplicated by role name)
+    """
+    profile: str
+    display_manager: Optional[str]
+    has_display: bool
+    profile_flags: Dict[str, Any]
+    overlay_flags: Dict[str, bool]
+    roles: Tuple[RoleCondition, ...]
+
+
 # ---------------------------------------------------------------------------
 # Overlay Data Model (Slice 2)
 # ---------------------------------------------------------------------------
@@ -348,6 +389,353 @@ def _merge_profile_data(parent: dict, child: dict) -> dict:
         else:
             result[key] = value
     return result
+
+
+def discover_overlays(profiles_dir: str) -> List[str]:
+    """
+    Discover all available overlay names in profiles/overlays/.
+
+    Scans for *.yml files in profiles/overlays/, returning sorted names.
+    Excludes files starting with '_'.
+
+    Args:
+        profiles_dir: Directory containing profile YAML files
+
+    Returns:
+        Sorted list of overlay names (without .yml extension)
+    """
+    overlays_root = Path(profiles_dir) / "overlays"
+    if not overlays_root.exists():
+        return []
+
+    overlays = [
+        p.stem
+        for p in overlays_root.glob("*.yml")
+        if not p.stem.startswith("_")
+    ]
+    return sorted(overlays)
+
+
+def translate_condition(
+    role_entry: dict,
+    host_vars: dict,
+    os_family: str,
+    evaluator: Any = None
+) -> str:
+    """
+    Translate role annotations into a Jinja2 when: condition string.
+
+    Maps role annotations (os, requires_display, requires_config, config_check)
+    into Jinja2 expressions using facts like _is_arch, _has_display, _dm, etc.
+
+    Args:
+        role_entry: Role dict with annotations (role, tags, os, requires_display, etc.)
+        host_vars: Host variables dict for config_check evaluation
+        os_family: OS family ('Archlinux' or 'Debian')
+        evaluator: Optional evaluator protocol for config_check expressions
+
+    Returns:
+        Jinja2 condition string (empty string if no condition)
+    """
+    conditions: List[str] = []
+
+    # Normalize role_entry: handle both string "role" and dict {"role": "..."}
+    if isinstance(role_entry, str):
+        role_name = role_entry
+        role_dict = {}
+    else:
+        role_name = role_entry.get("role", "")
+        role_dict = role_entry
+
+    # OS condition: os: archlinux → _is_arch, os: debian → not _is_arch
+    os_spec = role_dict.get("os")
+    if os_spec:
+        if os_spec == "archlinux":
+            conditions.append("_is_arch")
+        elif os_spec == "debian":
+            conditions.append("not _is_arch")
+
+    # Display condition: requires_display: true → _has_display
+    if role_dict.get("requires_display"):
+        conditions.append("_has_display")
+
+    # Config condition: requires_config: {display_manager: lightdm} → _dm == 'lightdm'
+    requires_config = role_dict.get("requires_config")
+    if requires_config and isinstance(requires_config, dict):
+        if "display_manager" in requires_config:
+            dm_value = requires_config["display_manager"]
+            conditions.append(f"_dm == '{dm_value}'")
+
+    # config_check: evaluate the expression and return boolean result
+    config_check = role_dict.get("config_check")
+    if config_check:
+        if evaluator:
+            # Evaluate config_check against host_vars using the evaluator
+            try:
+                result = evaluator.evaluate(config_check, host_vars)
+                # config_check becomes a boolean in the condition
+                conditions.append("true" if result else "false")
+            except Exception:
+                # If evaluation fails, use false to be safe
+                conditions.append("false")
+        else:
+            # No evaluator provided - fall back to string evaluation
+            # This is a simplified path for basic cases
+            try:
+                # Handle simple "dotfiles is defined" style checks
+                if " is defined" in config_check:
+                    var_name = config_check.split()[0]
+                    is_defined = var_name in host_vars and host_vars[var_name] is not None
+                    conditions.append("true" if is_defined else "false")
+                elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check:
+                    # Simple boolean check
+                    var_path = config_check.split(".")
+                    value = host_vars
+                    exists = True
+                    for key in var_path:
+                        if isinstance(value, dict) and key in value:
+                            value = value[key]
+                        else:
+                            exists = False
+                            break
+                    # For enabled flags like cursor_theme.enabled
+                    if isinstance(value, bool):
+                        conditions.append("true" if value else "false")
+                    elif isinstance(value, dict) and "enabled" in value:
+                        conditions.append("true" if value["enabled"] else "false")
+                    else:
+                        conditions.append("true" if exists and value else "false")
+                else:
+                    # Complex expression - keep as-is for Jinja2 to evaluate
+                    conditions.append(config_check)
+            except Exception:
+                # On any error, be conservative and include the role
+                conditions.append("true")
+
+    # Join all conditions with AND (implicit in Jinja2 when: list)
+    if conditions:
+        return " and ".join(conditions)
+
+    return ""
+
+
+def resolve_manifest(
+    profile: Optional[str] = None,
+    display_manager: Optional[str] = None,
+    desktop_environment: Optional[str] = None,
+    disable_i3: bool = False,
+    disable_hyprland: bool = False,
+    disable_gnome: bool = False,
+    disable_awesomewm: bool = False,
+    disable_kde: bool = False,
+    host_vars: Optional[dict] = None,
+    os_family: str = "Archlinux",
+    profiles_dir: str = _DEFAULT_PROFILES_DIR,
+    evaluator: Any = None,
+) -> ResolvedManifest:
+    """
+    Resolve a complete role manifest from profile configuration.
+
+    Combines profile roles and overlay roles into a deduplicated list
+    with pre-computed Jinja2 when: conditions.
+
+    Args:
+        profile: Profile name or None for manual mode
+        display_manager: Display manager for manual mode
+        desktop_environment: Desktop environment for manual mode
+        disable_i3: Suppress i3 in manual mode
+        disable_hyprland: Suppress Hyprland in manual mode
+        disable_gnome: Suppress GNOME in manual mode
+        disable_awesomewm: Suppress AwesomeWM in manual mode
+        disable_kde: Suppress KDE in manual mode
+        host_vars: Host variables dict for config_check evaluation
+        os_family: OS family ('Archlinux' or 'Debian')
+        profiles_dir: Directory containing profile YAML files
+        evaluator: Optional evaluator for config_check expressions
+
+    Returns:
+        ResolvedManifest with all roles and conditions
+    """
+    if host_vars is None:
+        host_vars = {}
+
+    # Resolve profile to get flags
+    resolved = resolve(
+        profile=profile,
+        display_manager=display_manager,
+        desktop_environment=desktop_environment,
+        disable_i3=disable_i3,
+        disable_hyprland=disable_hyprland,
+        disable_gnome=disable_gnome,
+        disable_awesomewm=disable_awesomewm,
+        disable_kde=disable_kde,
+        profiles_dir=profiles_dir,
+    )
+
+    # Build profile flags dict
+    profile_flags = {
+        "_is_arch": os_family == "Archlinux",
+        "_is_i3": resolved.is_i3,
+        "_is_hyprland": resolved.is_hyprland,
+        "_is_gnome": resolved.is_gnome,
+        "_is_awesomewm": resolved.is_awesomewm,
+        "_is_kde": resolved.is_kde,
+        "_has_display": resolved.has_display,
+        "_dm": resolved.display_manager or "",
+    }
+
+    # Collect all roles from profile chain
+    profile_roles: List[dict] = []
+    if resolved.profile != "manual":
+        profile_data = load_profile(profiles_dir, resolved.profile)
+        profile_roles = profile_data.get("roles", [])
+
+    # Discover and evaluate overlays
+    overlay_flags: Dict[str, bool] = {}
+    overlay_roles: List[dict] = []
+
+    overlays = discover_overlays(profiles_dir)
+    for overlay_name in overlays:
+        try:
+            overlay_data = load_overlay(profiles_dir, overlay_name)
+            # Support both dict (old API) and OverlayDefinition (new API)
+            if isinstance(overlay_data, dict):
+                applies_when = overlay_data.get("applies_when")
+                overlay_roles_list = overlay_data.get("roles", [])
+            else:
+                applies_when = overlay_data.applies_when
+                overlay_roles_list = overlay_data.roles
+            if not applies_when:
+                continue
+
+            # Evaluate applies_when expression (simplified)
+            # laptop | default(false) → check if laptop is truthy in host_vars
+            # bluetooth is defined and not (bluetooth.disable | default(false))
+            #   → check if bluetooth exists and not disabled
+
+            applies = False
+            overlay_var = host_vars.get(overlay_name)
+
+            if " is defined " in applies_when:
+                # Handle "var is defined" pattern
+                if overlay_var is not None:
+                    # Check for "not (var.disable | default(false))" pattern
+                    if "disable" in applies_when:
+                        if isinstance(overlay_var, dict):
+                            is_disabled = overlay_var.get("disable", False)
+                            applies = not is_disabled
+                        else:
+                            applies = True
+                    else:
+                        applies = True
+            elif " default(false)" in applies_when:
+                # Handle "var | default(false)" pattern
+                # An empty dict or False should not apply, but True or non-empty dict should
+                if isinstance(overlay_var, dict):
+                    # Empty dict doesn't apply, non-empty dict applies
+                    applies = bool(overlay_var)
+                elif overlay_var is True:
+                    applies = True
+                else:
+                    applies = False
+            else:
+                # Fallback: check if overlay variable is truthy
+                applies = bool(overlay_var)
+
+            if applies:
+                overlay_flags[f"_overlay_{overlay_name}"] = True
+                # Also emit per-role flags for consistency with resolve-overlays
+                for overlay_role in overlay_roles_list:
+                    if isinstance(overlay_role, str):
+                        rname = overlay_role
+                    elif isinstance(overlay_role, dict):
+                        rname = overlay_role.get("role", "")
+                    else:
+                        rname = getattr(overlay_role, "role", "")
+                    if rname:
+                        overlay_flags[f"_overlay_{rname}"] = True
+                overlay_roles.extend(overlay_roles_list)
+        except (ValueError, yaml.YAMLError):
+            # Skip invalid overlays
+            continue
+
+    # Combine roles from profile and overlays
+    all_roles = profile_roles + overlay_roles
+
+    # Build manifest: translate conditions and deduplicate by role name
+    role_map: Dict[str, RoleCondition] = {}
+
+    for role_entry in all_roles:
+        # Get role name
+        if isinstance(role_entry, str):
+            role_name = role_entry
+        else:
+            role_name = role_entry.get("role", "")
+
+        if not role_name:
+            continue
+
+        # Get tags
+        if isinstance(role_entry, str):
+            tags = ()
+        else:
+            tags_list = role_entry.get("tags", [])
+            tags = tuple(tags_list) if isinstance(tags_list, list) else ()
+
+        # Determine source
+        source = resolved.profile  # Default to profile
+
+        # Check if this role is from an overlay
+        # (In a full implementation, we'd track source during collection)
+        # For now, assume all roles are from profile
+        # TODO: Track source during role collection
+
+        # Translate condition
+        condition = translate_condition(role_entry, host_vars, os_family, evaluator)
+
+        # Deduplicate: OR conditions if role already exists
+        if role_name in role_map:
+            existing = role_map[role_name]
+            # Combine conditions with OR
+            if existing.condition and condition:
+                # Both have conditions - OR them
+                combined_condition = f"({existing.condition}) or ({condition})"
+                role_map[role_name] = RoleCondition(
+                    role=role_name,
+                    tags=tags,
+                    condition=combined_condition,
+                    source=f"{existing.source}+overlay",
+                )
+            elif condition:
+                # Use new condition (existing has no condition)
+                role_map[role_name] = RoleCondition(
+                    role=role_name,
+                    tags=tags,
+                    condition=condition,
+                    source=source,
+                )
+            # Otherwise: existing has condition and new doesn't, or neither has condition
+            # In both cases, keep the existing role_map entry unchanged
+        else:
+            # New role
+            role_map[role_name] = RoleCondition(
+                role=role_name,
+                tags=tags,
+                condition=condition,
+                source=source,
+            )
+
+    # Convert to sorted tuple
+    roles_tuple = tuple(role_map.values())
+
+    return ResolvedManifest(
+        profile=resolved.profile,
+        display_manager=resolved.display_manager,
+        has_display=resolved.has_display,
+        profile_flags=profile_flags,
+        overlay_flags=overlay_flags,
+        roles=roles_tuple,
+    )
 
 
 def validate_profile(profiles_dir: str, name: str) -> list:
@@ -1123,6 +1511,58 @@ def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_resolve_manifest(args: argparse.Namespace) -> int:
+    """Output ResolvedManifest as JSON to stdout; exit 1 on error."""
+    try:
+        # Parse host_vars JSON
+        host_vars = {}
+        if args.host_vars:
+            try:
+                host_vars = json.loads(args.host_vars)
+            except json.JSONDecodeError as exc:
+                print(f"Invalid JSON in --host-vars: {exc}", file=sys.stderr)
+                return 1
+
+        result = resolve_manifest(
+            profile=args.profile,
+            display_manager=args.display_manager,
+            desktop_environment=args.desktop_environment,
+            disable_i3=args.disable_i3,
+            disable_hyprland=args.disable_hyprland,
+            disable_gnome=args.disable_gnome,
+            disable_awesomewm=args.disable_awesomewm,
+            disable_kde=args.disable_kde,
+            host_vars=host_vars,
+            os_family=args.os_family,
+            profiles_dir=args.profiles_dir,
+            evaluator=Jinja2Evaluator(),
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    # Convert to dict for JSON serialization
+    output = {
+        "profile": result.profile,
+        "display_manager": result.display_manager,
+        "has_display": result.has_display,
+        "profile_flags": result.profile_flags,
+        "overlay_flags": result.overlay_flags,
+        "roles": [
+            {
+                "role": r.role,
+                "tags": list(r.tags),
+                "condition": r.condition,
+                "source": r.source,
+            }
+            for r in result.roles
+        ],
+    }
+
+    print(json.dumps(output, indent=2))
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="profile_dispatcher.py",
@@ -1219,6 +1659,36 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- resolve-manifest ---
+    p_manifest = subparsers.add_parser(
+        "resolve-manifest",
+        help="Resolve a complete role manifest with computed conditions.",
+    )
+    p_manifest.add_argument("--profile", default=None, help="Profile name (e.g. i3, headless)")
+    p_manifest.add_argument("--display-manager", dest="display_manager", default=None)
+    p_manifest.add_argument("--desktop-environment", dest="desktop_environment", default=None)
+    p_manifest.add_argument("--disable-i3", dest="disable_i3", action="store_true")
+    p_manifest.add_argument("--disable-hyprland", dest="disable_hyprland", action="store_true")
+    p_manifest.add_argument("--disable-gnome", dest="disable_gnome", action="store_true")
+    p_manifest.add_argument("--disable-awesomewm", dest="disable_awesomewm", action="store_true")
+    p_manifest.add_argument("--disable-kde", dest="disable_kde", action="store_true")
+    p_manifest.add_argument(
+        "--host-vars",
+        dest="host_vars",
+        default=None,
+        help="Host variables as JSON string for config_check evaluation",
+    )
+    p_manifest.add_argument(
+        "--os-family",
+        dest="os_family",
+        default="Archlinux",
+        choices=["Archlinux", "Debian"],
+        help="OS family for condition translation",
+    )
+    p_manifest.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     return parser
 
 
@@ -1244,6 +1714,7 @@ def main(argv: Optional[list] = None) -> int:
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
+        "resolve-manifest": _cmd_resolve_manifest,
     }
     return dispatch[args.subcommand](args)
 
