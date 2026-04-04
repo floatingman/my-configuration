@@ -2,7 +2,6 @@
 name: Laptop Features Overlay
 description: |
   Adds laptop-specific roles when laptop=true in group_vars/all/local.yml.
-  Activate by setting: active_overlays: [laptop]
 
 applies_when: "laptop | default(false)"
 

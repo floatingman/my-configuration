@@ -46,6 +46,48 @@
         _is_arch: "{{ _manifest.is_arch }}"
       tags: always
 
+    # ---------------------------------------------------------------------------
+    # Overlay Resolution
+    # ---------------------------------------------------------------------------
+    # Compute overlay-derived facts based on host variables.
+    # Overlay facts are available for roles to reference but are not yet
+    # consumed by existing role conditions (preserves current behavior).
+    # ---------------------------------------------------------------------------
+    - name: Resolve overlays
+      command: >-
+        {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
+        {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-overlays
+        --facts-json '{{ _overlay_facts_json }}'
+        {{ _has_display | ternary('--has-display', '--no-has-display') }}
+        {{ _is_arch | ternary('--is-arch', '--no-is-arch') }}
+      vars:
+        _overlay_facts_json: >-
+          {{
+            {}
+            | combine({"laptop": laptop} if laptop is defined else {})
+            | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
+            | combine({"dotfiles": dotfiles} if dotfiles is defined else {})
+            | combine({"goesimage": goesimage} if goesimage is defined else {})
+            | combine({"regdomain": regdomain} if regdomain is defined else {})
+            | to_json
+          }}
+      register: _overlay_result
+      changed_when: false
+      check_mode: false
+      tags: always
+
+    - name: Set overlay facts from resolved JSON
+      vars:
+        _overlay_resolved: "{{ _overlay_result.stdout | from_json }}"
+      set_fact:
+        _overlay_laptop: "{{ _overlay_resolved.facts._overlay_laptop | default(false) }}"
+        _overlay_backlight: "{{ _overlay_resolved.facts._overlay_backlight | default(false) }}"
+        _overlay_bluetooth: "{{ _overlay_resolved.facts._overlay_bluetooth | default(false) }}"
+        _overlay_dotfiles: "{{ _overlay_resolved.facts._overlay_dotfiles | default(false) }}"
+        _overlay_goesimage: "{{ _overlay_resolved.facts._overlay_goesimage | default(false) }}"
+        _overlay_regdomain: "{{ _overlay_resolved.facts._overlay_regdomain | default(false) }}"
+      tags: always
+
   roles:
     # -------------------------------------------------------------------------
     # GPU Detection & Drivers (Arch-only)
@@ -191,8 +233,8 @@
     - { role: dotfiles,              tags: ["dotfiles"],           when: dotfiles is defined }
     - { role: goesimage,             tags: ["goesimage"],          when: "goesimage is defined and _has_display" }
     - { role: regdomain,             tags: ["regdomain"],          when: regdomain is defined }
-    - { role: bluetooth,             tags: ["bluetooth"],          when: "_is_arch and bluetooth is defined" }
-    - { role: laptop,                tags: ["laptop"],             when: laptop }
+    - { role: bluetooth,             tags: ["bluetooth"],          when: _overlay_bluetooth }
+    - { role: laptop,                tags: ["laptop"],             when: _overlay_laptop }
 
   vars_prompt:
     - name: user_password

@@ -65,6 +65,43 @@ This is an Ansible-based configuration management repository for automating Linu
    - Test on a VM or container before applying to production systems
    - Verify idempotency (running playbook twice should be safe)
 
+## PR Review Guidelines
+
+Copilot should use the following checklist when reviewing pull requests. Focus on **correctness and safety** — this playbook runs on real machines that people depend on.
+
+### MUST check (flag as blocking)
+
+1. **Every new role in play.yml has a matching tag**: Roles without tags cannot be selectively tested or skipped. Tag name should match the role name.
+2. **OS conditionals are correct**: Arch-only roles use `when: _is_arch`, Debian-only roles use `when: not _is_arch`, desktop roles use `when: _has_display`. Profile roles use `when: _is_i3`, `_is_hyprland`, etc. Do NOT use raw `ansible_os_family` checks in play.yml — use the pre-resolved `_is_arch` fact.
+3. **New variables have defaults**: Every variable a role reads MUST have an entry in `defaults/main.yml`. Optional variables default to `null`, not omitted. Machine-specific variables must also appear as commented-out examples in `group_vars/templates/desktop.yml` and `group_vars/templates/server.yml`.
+4. **No hardcoded secrets or tokens**: No API keys, passwords, or tokens in plain text. Use environment variables, `ansible-vault`, or secret references.
+5. **Idempotency**: Tasks should produce the same result when run twice. Watch for `command`/`shell` tasks without `creates` or `changed_when` guards. Template/file tasks are generally fine.
+6. **Privilege escalation**: Never run the playbook as root. Use `become: true` on individual tasks that need it, not globally.
+7. **YAML syntax**: 2-space indentation, no tabs in YAML. Check for trailing whitespace and missing `---` document starts in playbooks.
+
+### SHOULD check (flag as suggestion)
+
+1. **Template vs copy**: Prefer `template` (Jinja2) over `copy` for config files that need variable interpolation. Use `copy` only for static files.
+2. **Handler correctness**: Any task that restarts a service must `notify` a handler. Handlers should be defined in `handlers/main.yml`, not inline.
+3. **Package manager consistency**: Development tools go through Homebrew where possible. System packages use the OS-native manager. AUR packages are separate (`make aur`).
+4. **Profile Dispatcher compatibility**: New desktop/display roles must integrate with the profile dispatcher (`scripts/profile_dispatcher.py`). New profile flags need corresponding `--disable-*` args in the playbook's `pre_tasks`.
+5. **Backward compatibility**: Changes to existing roles must not break existing deployments. Adding new defaults is fine; changing existing defaults needs careful consideration.
+
+### IGNORE (do not flag)
+
+- Cosmetic YAML formatting differences that don't affect execution
+- Suggestions to add comments to self-explanatory tasks
+- Requests to split large roles into smaller ones unless clearly warranted
+- Style suggestions that differ from existing patterns in the repo
+- General Ansible best practices that don't apply to this specific change
+
+### Review Tone
+
+- Be concise. One sentence per finding, with file:line reference.
+- Severity: BLOCK (must fix before merge), WARN (should fix), SUGGEST (nice to have).
+- Don't explain Ansible basics. The maintainers know Ansible.
+- Don't suggest unrelated improvements. Review only the diff.
+
 ### Common Tasks
 
 #### Adding a New Role
@@ -100,7 +137,7 @@ This is an Ansible-based configuration management repository for automating Linu
 
 1. **Privilege Escalation**: The playbook uses `--ask-become-pass` to prompt for sudo password. Never run as root directly.
 
-2. **Supported Systems**: 
+2. **Supported Systems**:
    - Primary: Arch Linux
    - Secondary: Debian-based systems
    - Some roles are OS-specific (check conditionals)
@@ -111,7 +148,7 @@ This is an Ansible-based configuration management repository for automating Linu
    - GNOME
    - AwesomeWM
 
-4. **Dependencies**: 
+4. **Dependencies**:
    - Python 3 and pip must be installed before running make bootstrap
    - User account must have sudo privileges
 
