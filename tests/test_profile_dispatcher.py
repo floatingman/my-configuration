@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 # Add scripts directory to path so profile_dispatcher can be imported
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
@@ -23,6 +24,11 @@ from profile_dispatcher import (
     load_profile,
     validate_profile,
     list_profiles,
+    translate_condition,
+    normalize_condition,
+    extract_roles_from_playbook,
+    generate_expected_roles,
+    compare_roles,
     ResolvedProfile,
 )
 
@@ -915,6 +921,256 @@ class TestResolveInvalidProfileError:
             # Should mention 'invalid', not 'Unknown profile'
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
+
+
+class TestTranslateCondition:
+    """Test translate_condition() function for profile role entries."""
+
+    def test_os_archlinux_condition(self):
+        """os: archlinux translates to _is_arch."""
+        result = translate_condition({"role": "base", "os": "archlinux"})
+        assert result == "_is_arch"
+
+    def test_os_debian_condition(self):
+        """os: debian translates to not _is_arch."""
+        result = translate_condition({"role": "golang", "os": "debian"})
+        assert result == "not _is_arch"
+
+    def test_requires_display_condition(self):
+        """requires_display: true adds _has_display."""
+        result = translate_condition({"role": "fonts", "requires_display": True})
+        assert result == "_has_display"
+
+    def test_os_and_requires_display(self):
+        """Combines os and requires_display with 'and'."""
+        result = translate_condition({
+            "role": "fonts",
+            "os": "archlinux",
+            "requires_display": True
+        })
+        assert result == "_is_arch and _has_display"
+
+    def test_config_check_condition(self):
+        """config_check is passed through as-is."""
+        result = translate_condition({
+            "role": "dotfiles",
+            "config_check": "dotfiles is defined"
+        })
+        assert result == "dotfiles is defined"
+
+    def test_requires_config_display_manager(self):
+        """requires_config with display_manager adds _dm == 'value'."""
+        result = translate_condition({
+            "role": "lightdm",
+            "requires_config": {"display_manager": "lightdm"}
+        })
+        assert result == '_dm == "lightdm"'
+
+    def test_combined_conditions(self):
+        """Multiple conditions are combined with 'and'."""
+        result = translate_condition({
+            "role": "cursors",
+            "os": "archlinux",
+            "requires_display": True,
+            "config_check": "cursor_theme.enabled"
+        })
+        assert result == '_is_arch and _has_display and cursor_theme.enabled'
+
+    def test_no_condition_returns_none(self):
+        """Role without annotations returns None."""
+        result = translate_condition({"role": "gnupg"})
+        assert result is None
+
+
+class TestNormalizeCondition:
+    """Test normalize_condition() for condition comparison."""
+
+    def test_none_returns_none(self):
+        """None input returns None."""
+        assert normalize_condition(None) is None
+
+    def test_true_returns_none(self):
+        """True input returns None (unconditional)."""
+        assert normalize_condition(True) is None
+
+    def test_empty_string_returns_none(self):
+        """Empty string returns None."""
+        assert normalize_condition("") is None
+
+    def test_simple_condition_passthrough(self):
+        """Simple condition is passed through."""
+        assert normalize_condition("_is_arch") == "_is_arch"
+
+    def test_double_quotes_removed(self):
+        """Surrounding double quotes are removed."""
+        assert normalize_condition('"_is_arch"') == "_is_arch"
+
+    def test_single_quotes_removed(self):
+        """Surrounding single quotes are removed."""
+        assert normalize_condition("'_is_arch'") == "_is_arch"
+
+    def test_bool_filter_removed(self):
+        """Redundant | bool filter is removed."""
+        assert normalize_condition("_has_display | bool") == "_has_display"
+
+    def test_bool_filter_with_and(self):
+        """| bool filter before 'and' is removed."""
+        assert normalize_condition("_has_display | bool and _is_arch") == "_has_display and _is_arch"
+
+    def test_single_quotes_normalized_to_double(self):
+        """Single quotes in comparisons are normalized to double quotes."""
+        assert normalize_condition('_dm == \'lightdm\'') == '_dm == "lightdm"'
+
+    def test_complex_condition_normalized(self):
+        """Complex condition with quotes and bool filter is normalized."""
+        result = normalize_condition('"_has_display | bool and _dm == \'lightdm\'"')
+        assert result == '_has_display and _dm == "lightdm"'
+
+
+class TestExtractRolesFromPlaybook:
+    """Test extract_roles_from_playbook() function."""
+
+    def test_extracts_roles_from_playbook(self):
+        """Extracts all roles from play.yml."""
+        roles = extract_roles_from_playbook("play.yml")
+        # Check that some known roles are present
+        assert "base" in roles
+        assert "gnome" in roles
+        assert "i3" in roles
+        # Check that roles have 'when' conditions (may be None)
+        assert "when" in roles["base"]
+        assert "when" in roles["gnome"]
+
+    def test_missing_playbook_raises_error(self):
+        """Missing playbook file raises FileNotFoundError."""
+        with pytest.raises(FileNotFoundError):
+            extract_roles_from_playbook("nonexistent.yml")
+
+    def test_invalid_yaml_raises_error(self):
+        """Invalid YAML raises yaml.YAMLError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            playbook_path = Path(tmpdir, "bad.yml")
+            playbook_path.write_text("invalid: yaml: content: [")
+            with pytest.raises(yaml.YAMLError):
+                extract_roles_from_playbook(str(playbook_path))
+
+
+class TestGenerateExpectedRoles:
+    """Test generate_expected_roles() function."""
+
+    def test_generates_expected_roles_from_profiles(self):
+        """Generates expected roles from real profiles directory."""
+        expected = generate_expected_roles(_PROFILES_DIR)
+        # Check that base roles are present
+        assert "base" in expected
+        assert "gnupg" in expected
+        assert "ssh" in expected
+        # Check that DE-specific roles are present
+        assert "i3" in expected
+        assert "gnome" in expected
+        # Check that roles have 'when' conditions
+        assert "when" in expected["base"]
+
+    def test_includes_os_specific_roles(self):
+        """Includes roles with os: archlinux condition."""
+        expected = generate_expected_roles(_PROFILES_DIR)
+        # These roles have os: archlinux in profiles
+        assert "base" in expected
+        assert expected["base"]["when"] == "_is_arch"
+
+    def test_includes_display_gated_roles(self):
+        """Includes roles with requires_display: true condition."""
+        expected = generate_expected_roles(_PROFILES_DIR)
+        # fonts requires display in some profiles
+        assert "fonts" in expected
+        # The condition should include _has_display (most restrictive from all profiles)
+        assert "_has_display" in str(expected["fonts"]["when"])
+
+
+class TestCompareRoles:
+    """Test compare_roles() function."""
+
+    def test_identical_roles_no_diff(self):
+        """Identical expected and actual return no differences."""
+        expected = {"role1": {"name": "role1", "when": "_is_arch"}}
+        actual = {"role1": {"name": "role1", "when": "_is_arch"}}
+        diff = compare_roles(expected, actual)
+        assert diff["missing"] == []
+        assert diff["extra"] == []
+        assert diff["mismatch"] == {}
+
+    def test_missing_role_detected(self):
+        """Role in expected but not in actual is reported as missing."""
+        expected = {"role1": {"name": "role1", "when": None}}
+        actual = {}
+        diff = compare_roles(expected, actual)
+        assert "role1" in diff["missing"]
+
+    def test_extra_role_detected(self):
+        """Role in actual but not in expected is reported as extra."""
+        expected = {}
+        actual = {"role1": {"name": "role1", "when": None}}
+        diff = compare_roles(expected, actual)
+        assert "role1" in diff["extra"]
+
+    def test_condition_mismatch_detected(self):
+        """Different conditions are reported as mismatch."""
+        expected = {"role1": {"name": "role1", "when": "_is_arch"}}
+        actual = {"role1": {"name": "role1", "when": "_has_display"}}
+        diff = compare_roles(expected, actual)
+        assert "role1" in diff["mismatch"]
+        assert diff["mismatch"]["role1"]["expected"] == "_is_arch"
+        assert diff["mismatch"]["role1"]["actual"] == "_has_display"
+
+    def test_superset_condition_accepted(self):
+        """Playbook condition that is superset of profile condition is accepted."""
+        expected = {"role1": {"name": "role1", "when": "_is_arch"}}
+        # Playbook has broader condition (adds _has_display)
+        actual = {"role1": {"name": "role1", "when": "_is_arch and _has_display"}}
+        diff = compare_roles(expected, actual)
+        # Should not be in mismatch because actual is a superset of expected
+        assert "role1" not in diff["mismatch"]
+
+    def test_none_vs_condition_no_mismatch(self):
+        """Unconditional (None) vs conditional is not a mismatch."""
+        # Profile says unconditional, playbook has condition
+        # This is allowed because the role might be DE-specific in other profiles
+        expected = {"role1": {"name": "role1", "when": None}}
+        actual = {"role1": {"name": "role1", "when": "_is_i3"}}
+        diff = compare_roles(expected, actual)
+        # Should not be in mismatch (allow playbook to have DE-specific conditions)
+        assert "role1" not in diff["mismatch"]
+
+
+class TestCLISyncPlaybook:
+    """Tests for the 'sync-playbook' CLI subcommand."""
+
+    def test_sync_playbook_check_mode_exits_1_on_drift(self, capsys):
+        """sync-playbook --check exits 1 when play.yml is out of sync."""
+        # The current play.yml is known to have drift
+        rc = main(["sync-playbook", "--check"])
+        assert rc == 1
+
+    def test_sync_playbook_check_mode_message(self, capsys):
+        """sync-playbook --check outputs minimal error message."""
+        main(["sync-playbook", "--check"])
+        err = capsys.readouterr().err
+        assert "out of sync" in err
+        assert "sync-playbook" in err
+
+    def test_sync_playbook_shows_detailed_diff(self, capsys):
+        """sync-playbook without --check shows detailed diff."""
+        rc = main(["sync-playbook"])
+        assert rc == 1  # Exits 1 because there is drift
+        out = capsys.readouterr().out
+        assert "out of sync" in out
+
+    def test_sync_playbook_help(self, capsys):
+        """sync-playbook --help shows help message."""
+        main(["sync-playbook", "--help"])
+        out = capsys.readouterr().out
+        assert "sync-playbook" in out
+        assert "--check" in out
 
 
 if __name__ == '__main__':

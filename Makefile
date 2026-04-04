@@ -39,7 +39,7 @@ SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
 
 .PHONY: test
-test: lint syntax-check ## Run all tests (lint + syntax check)
+test: lint syntax-check check-sync ## Run all tests (lint + syntax check + sync check)
 
 .PHONY: lint
 lint: ## Run yamllint and ansible-lint
@@ -123,6 +123,19 @@ list-profiles: ## List all available configuration profiles
 	@echo ''
 	@echo 'Usage: make profile-<name>  (e.g. make profile-i3)'
 	@echo 'Add TAGS="tag1,tag2" to run specific roles within a profile'
+
+.PHONY: sync-playbook
+sync-playbook: pip-deps ## Compare play.yml roles against profile-derived roles
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook
+
+.PHONY: check-sync
+check-sync: pip-deps ## Check if play.yml is in sync with profiles (CI gate)
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook --check
+
+.PHONY: validate-profiles
+validate-profiles: pip-deps check-sync ## Validate all profiles and check play.yml sync
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py validate
+
 
 .PHONY: profile-headless
 profile-headless: req-playbook ## Run headless profile (CLI-only, no display)

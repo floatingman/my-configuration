@@ -13,6 +13,7 @@ CLI subcommands:
   validate      Validate all profiles in a directory (for CI)
   list-profiles List available profile names or a human-readable table
   make-args     Output -e flag string for Makefile consumption
+  sync-playbook Compare play.yml roles section against profile-derived roles
 """
 
 import argparse
@@ -21,7 +22,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, List, Any, Set
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
@@ -377,6 +378,299 @@ def _resolve_manual_mode(
 
 
 # ---------------------------------------------------------------------------
+# Role condition translation and sync
+# ---------------------------------------------------------------------------
+
+def translate_condition(role_entry: dict) -> Optional[str]:
+    """
+    Translate a profile role entry's conditions to a Jinja2 expression string.
+
+    Converts profile annotations (os, requires_display, requires_config, etc.)
+    into the equivalent Jinja2 expression that would be used in play.yml.
+
+    Args:
+        role_entry: A single role dict from a profile's roles list
+
+    Returns:
+        Jinja2 condition string (without "when:" prefix) or None if no conditions
+
+    Examples:
+        {role: "base", os: archlinux} → "_is_arch"
+        {role: "fonts", requires_display: true, os: archlinux} → "_is_arch and _has_display"
+        {role: "dotfiles", config_check: "dotfiles is defined"} → "dotfiles is defined"
+    """
+    conditions = []
+
+    # OS condition
+    os_val = role_entry.get("os")
+    if os_val:
+        if os_val == "archlinux":
+            conditions.append("_is_arch")
+        elif os_val == "debian":
+            conditions.append("not _is_arch")
+        else:
+            # Unknown OS spec - include as-is for safety
+            conditions.append(f"ansible_facts['os_family'] == '{os_val}'")
+
+    # Display condition
+    if role_entry.get("requires_display"):
+        conditions.append("_has_display")
+
+    # Config check condition
+    config_check = role_entry.get("config_check")
+    if config_check:
+        conditions.append(config_check)
+
+    # Special: requires_config with display_manager value
+    requires_config = role_entry.get("requires_config", {})
+    if isinstance(requires_config, dict):
+        dm_val = requires_config.get("display_manager")
+        if dm_val:
+            # e.g., {requires_config: {display_manager: lightdm}} → "_dm == 'lightdm'"
+            conditions.append(f'_dm == "{dm_val}"')
+
+    return " and ".join(conditions) if conditions else None
+
+
+def normalize_condition(condition: Any) -> Optional[str]:
+    """
+    Normalize a play.yml condition string to canonical form for comparison.
+
+    Removes unnecessary quotes, normalizes boolean expressions, normalizes
+    quote styles, and handles different formatting styles to ensure semantic
+    equivalence is recognized.
+
+    Args:
+        condition: A when clause value from play.yml (str, bool, or None)
+
+    Returns:
+        Normalized condition string or None
+
+    Examples:
+        "_has_display and _is_arch" → "_has_display and _is_arch"
+        '"_has_display and _is_arch"' → "_has_display and _is_arch"
+        "_dm == 'lightdm'" → '_dm == "lightdm"' (normalize to double quotes)
+        "_has_display | bool" → "_has_display" (| bool is redundant for boolean vars)
+        true → None (unconditional)
+        None → None
+    """
+    if not condition or condition is True:
+        return None
+
+    # Convert to string
+    cond_str = str(condition).strip()
+
+    # Remove surrounding quotes if present
+    if (cond_str.startswith('"') and cond_str.endswith('"')) or \
+       (cond_str.startswith("'") and cond_str.endswith("'")):
+        cond_str = cond_str[1:-1].strip()
+
+    # Normalize single quotes to double quotes for string comparisons
+    # This handles: _dm == 'lightdm' → _dm == "lightdm"
+    import re
+    cond_str = re.sub(r"(\w+)\s*==\s*'([^']*)'", r'\1 == "\2"', cond_str)
+
+    # Remove | bool filter (redundant for boolean variables like _has_display, _is_arch)
+    # In Jinja2, boolean variables don't need | bool - they're already booleans
+    # This normalization allows semantic equivalence to be recognized
+    cond_str = re.sub(r'\s*\|\s*bool(?=\s*(?:and|or|\)|$))', '', cond_str)
+
+    return cond_str if cond_str else None
+
+
+def extract_roles_from_playbook(playbook_path: str) -> Dict[str, dict]:
+    """
+    Extract all role entries from play.yml and return as a dict keyed by role name.
+
+    Args:
+        playbook_path: Path to play.yml
+
+    Returns:
+        Dict mapping role name → role entry dict with 'when' condition
+
+    Raises:
+        FileNotFoundError: If playbook_path doesn't exist
+        yaml.YAMLError: If playbook is not valid YAML
+    """
+    with open(playbook_path) as f:
+        playbook = yaml.safe_load(f)
+
+    # Extract roles from the first play
+    roles_section = playbook[0].get("roles", [])
+
+    result = {}
+    for role_entry in roles_section:
+        # Normalize role entry: might be string or dict
+        if isinstance(role_entry, str):
+            role_name = role_entry
+            role_when = None
+        else:
+            # Dict format: {role: name, when: condition, tags: [...]}
+            role_name = role_entry.get("role")
+            role_when = role_entry.get("when")
+
+        if role_name:
+            result[role_name] = {
+                "name": role_name,
+                "when": normalize_condition(role_when),
+            }
+
+    return result
+
+
+def generate_expected_roles(profiles_dir: str) -> Dict[str, dict]:
+    """
+    Generate expected role entries from all profile YAML files.
+
+    Loads each profile independently and collects all roles with their
+    translated conditions. For roles that appear in multiple profiles,
+    tracks the most restrictive condition (the one that must be satisfied
+    for all profiles that use the role).
+
+    Args:
+        profiles_dir: Directory containing profile YAML files
+
+    Returns:
+        Dict mapping role name → role entry dict with 'when' condition
+    """
+    result = {}
+
+    # Get all profile names
+    profile_names = list_profiles(profiles_dir)
+
+    # Also include _base if it exists
+    try:
+        load_profile(profiles_dir, "_base")
+        profile_names = ["_base"] + [n for n in profile_names if n != "_base"]
+    except ValueError:
+        pass
+
+    # Process each profile independently
+    for profile_name in profile_names:
+        try:
+            profile_data = load_profile(profiles_dir, profile_name)
+            roles_list = profile_data.get("roles", [])
+        except (ValueError, yaml.YAMLError):
+            continue
+
+        for role_entry in roles_list:
+            if isinstance(role_entry, dict):
+                role_name = role_entry.get("role")
+            else:
+                role_name = str(role_entry)
+
+            if not role_name:
+                continue
+
+            # Compute condition for this role from this profile
+            if isinstance(role_entry, dict):
+                condition = translate_condition(role_entry)
+            else:
+                condition = None
+
+            # Track the most restrictive condition
+            # None is least restrictive, then simple conditions, then complex ones
+            if role_name not in result:
+                result[role_name] = {
+                    "name": role_name,
+                    "when": condition,
+                }
+            else:
+                existing_cond = result[role_name]["when"]
+                # Update to the new condition if:
+                # - old is None and new is not None (conditional is more restrictive)
+                # - new has more parts than old (more specific)
+                if existing_cond is None and condition is not None:
+                    result[role_name]["when"] = condition
+                elif existing_cond is not None and condition is not None:
+                    # Both have conditions - keep the one with more constraints
+                    existing_parts = len(existing_cond.split(" and "))
+                    new_parts = len(condition.split(" and "))
+                    if new_parts > existing_parts:
+                        result[role_name]["when"] = condition
+
+    return result
+
+
+def compare_roles(expected: Dict[str, dict], actual: Dict[str, dict]) -> dict:
+    """
+    Compare expected and actual role entries.
+
+    Returns a dict with keys:
+        missing: roles in expected but not in actual
+        extra: roles in actual but not in expected
+        mismatch: roles with different conditions
+    """
+    expected_roles = set(expected.keys())
+    actual_roles = set(actual.keys())
+
+    missing = expected_roles - actual_roles
+    extra = actual_roles - expected_roles
+
+    # Check for condition mismatches
+    mismatch = {}
+    common = expected_roles & actual_roles
+    for role_name in common:
+        expected_when = expected[role_name]["when"]
+        actual_when = actual[role_name]["when"]
+
+        # Normalize both for comparison
+        expected_norm = normalize_condition(expected_when) or ""
+        actual_norm = normalize_condition(actual_when) or ""
+
+        # Check if actual condition is a superset or matches expected
+        # A playbook condition can be broader than the profile condition
+        # e.g., if profile expects "_is_arch", playbook "_is_arch and _has_display" is valid
+        if expected_norm and expected_norm not in actual_norm:
+            # Expected condition is not a subset of actual condition
+            # We need to check if actual is actually equivalent or broader
+            if not _is_condition_superset(actual_norm, expected_norm):
+                mismatch[role_name] = {
+                    "expected": expected_when,
+                    "actual": actual_when,
+                }
+        elif not expected_norm and actual_norm:
+            # Profile says unconditional, but playbook has a condition
+            # This could be valid if the role is DE-specific in other profiles
+            # We'll allow it for now to avoid false positives
+            pass
+
+    return {
+        "missing": sorted(missing),
+        "extra": sorted(extra),
+        "mismatch": mismatch,
+    }
+
+
+def _is_condition_superset(actual: str, expected: str) -> bool:
+    """
+    Check if actual condition is a superset of expected condition.
+
+    This handles cases where the playbook condition is broader than
+    the profile condition, which is valid.
+
+    Args:
+        actual: The normalized playbook condition
+        expected: The normalized profile condition
+
+    Returns:
+        True if actual implies expected (actual is a superset or equivalent)
+    """
+    # Simple substring check for now
+    # e.g., "_is_arch and _has_display" is a superset of "_is_arch"
+    # This works for most cases but might need more sophisticated logic
+    if expected in actual:
+        return True
+
+    # Check for logical equivalence with different ordering
+    # Split by " and " and check if all expected parts are in actual
+    expected_parts = [p.strip() for p in expected.split(" and ")]
+    actual_parts = [p.strip() for p in actual.split(" and ")]
+
+    return all(part in actual_parts for part in expected_parts)
+
+
+# ---------------------------------------------------------------------------
 # CLI subcommands
 # ---------------------------------------------------------------------------
 
@@ -477,6 +771,73 @@ def _cmd_make_args(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sync_playbook(args: argparse.Namespace) -> int:
+    """Compare play.yml roles against profile-derived roles; exit 1 on drift in check mode."""
+    try:
+        # Generate expected roles from profiles
+        expected = generate_expected_roles(args.profiles_dir)
+
+        # Extract actual roles from playbook
+        actual = extract_roles_from_playbook(args.playbook)
+
+        # Compare
+        diff = compare_roles(expected, actual)
+
+        # Check if there are any differences
+        has_drift = bool(diff["missing"] or diff["extra"] or diff["mismatch"])
+
+        if not has_drift:
+            if not args.check:
+                print("✓ play.yml is in sync with profiles")
+            return 0
+
+        # There is drift - report it
+        if args.check:
+            # CI mode: exit 1 with minimal output
+            print("play.yml is out of sync with profiles. Run 'make sync-playbook' to see diff.", file=sys.stderr)
+            return 1
+
+        # Developer mode: show detailed diff
+        print("play.yml is out of sync with profiles:\n")
+
+        if diff["missing"]:
+            print("Missing roles (in profiles but not in play.yml):")
+            for role in diff["missing"]:
+                cond = expected[role]["when"]
+                if cond:
+                    print(f"  - {role}  # when: {cond}")
+                else:
+                    print(f"  - {role}")
+            print()
+
+        if diff["extra"]:
+            print("Extra roles (in play.yml but not in any profile):")
+            for role in diff["extra"]:
+                cond = actual[role]["when"]
+                if cond:
+                    print(f"  - {role}  # when: {cond}")
+                else:
+                    print(f"  - {role}")
+            print()
+
+        if diff["mismatch"]:
+            print("Roles with mismatched conditions:")
+            for role, details in diff["mismatch"].items():
+                print(f"  - {role}")
+                print(f"      Expected: when: {details['expected']}")
+                print(f"      Actual:   when: {details['actual']}")
+            print()
+
+        return 1
+
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except (yaml.YAMLError, ValueError) as exc:
+        print(f"Error parsing YAML: {exc}", file=sys.stderr)
+        return 1
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="profile_dispatcher.py",
@@ -535,6 +896,25 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- sync-playbook ---
+    p_sync = subparsers.add_parser(
+        "sync-playbook",
+        help="Compare play.yml roles against profile-derived roles.",
+    )
+    p_sync.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+    p_sync.add_argument(
+        "--playbook",
+        default=str(Path(__file__).parent.parent / "play.yml"),
+        help="Path to play.yml (default: ../play.yml)"
+    )
+    p_sync.add_argument(
+        "--check",
+        action="store_true",
+        help="CI mode: exit 1 on drift, minimal output"
+    )
+
     return parser
 
 
@@ -559,6 +939,7 @@ def main(argv: Optional[list] = None) -> int:
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
+        "sync-playbook": _cmd_sync_playbook,
     }
     return dispatch[args.subcommand](args)
 
