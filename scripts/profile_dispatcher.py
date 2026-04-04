@@ -13,6 +13,7 @@ CLI subcommands:
   validate      Validate all profiles in a directory (for CI)
   list-profiles List available profile names or a human-readable table
   make-args     Output -e flag string for Makefile consumption
+  sync-playbook Compare profile-derived roles against play.yml roles section
 """
 
 import argparse
@@ -21,7 +22,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional, Union
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
@@ -56,6 +57,106 @@ class ResolvedProfile:
     is_gnome: bool
     is_awesomewm: bool
     is_kde: bool
+
+
+@dataclass(frozen=True)
+class RoleEntry:
+    """
+    A role entry from a profile with its condition annotations.
+
+    Attributes:
+        role: Role name
+        tags: List of tags
+        when: Jinja2 condition string (may be empty for unconditional roles)
+    """
+    role: str
+    tags: List[str]
+    when: str
+
+
+def translate_condition(role_annotation: Dict[str, Any]) -> str:
+    """
+    Translate profile role annotations to Jinja2 condition string.
+
+    Handles:
+    - os: archlinux → "_is_arch"
+    - os: debian → "not _is_arch"
+    - requires_display: true → "_has_display"
+    - requires_config: {display_manager: lightdm} → "_dm == 'lightdm'"
+    - config_check: "..." → use as-is (backward compatibility)
+
+    Special handling for desktop environment roles:
+    - gnome, i3, hyprland, awesomewm, kde use _is_* flags instead of _dm comparisons
+    - DE flags already imply display, so _has_display is not added separately
+
+    Args:
+        role_annotation: A single role dict from a profile's roles list
+
+    Returns:
+        Jinja2 condition string suitable for play.yml when: clause.
+        Returns empty string for unconditional roles.
+
+    Examples:
+        >>> translate_condition({"role": "base", "tags": ["base"], "os": "archlinux"})
+        "_is_arch"
+        >>> translate_condition({"role": "fonts", "tags": ["fonts"], "requires_display": true})
+        "_has_display"
+        >>> translate_condition({"role": "lightdm", "requires_config": {"display_manager": "lightdm"}})
+        "_dm == 'lightdm'"
+    """
+    role_name = role_annotation.get("role", "")
+    conditions: List[str] = []
+
+    # Desktop environment roles: map to _is_* flags
+    de_role_mapping = {
+        "gnome": "_is_gnome",
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    # Check if this is a DE-specific role with requires_config for display_manager
+    requires_config = role_annotation.get("requires_config")
+    is_de_role = role_name in de_role_mapping
+
+    if is_de_role and requires_config and isinstance(requires_config, dict):
+        # For DE roles with display_manager config, use the _is_* flag
+        # The _is_* flag already implies display, so skip _has_display
+        dm_value = requires_config.get("display_manager")
+        if dm_value:
+            conditions.append(de_role_mapping[role_name])
+            # Skip processing requires_display for DE roles (already implied)
+            # Continue to process OS and config_check conditions
+            role_annotation = dict(role_annotation)  # Make a copy to modify
+            role_annotation.pop("requires_display", None)
+    else:
+        # Non-DE roles: process requires_config normally
+        if requires_config and isinstance(requires_config, dict):
+            for key, value in requires_config.items():
+                if key == "display_manager":
+                    conditions.append(f"_dm == '{value}'")
+
+    # OS condition
+    os_val = role_annotation.get("os")
+    if os_val == "archlinux":
+        conditions.append("_is_arch")
+    elif os_val == "debian":
+        conditions.append("not _is_arch")
+
+    # Display condition (only if not already handled as DE role)
+    if role_annotation.get("requires_display"):
+        conditions.append("_has_display")
+
+    # Legacy config_check: use as-is
+    config_check = role_annotation.get("config_check")
+    if config_check:
+        conditions.append(config_check)
+
+    # Join all conditions with " and "
+    if conditions:
+        return " and ".join(conditions)
+    return ""
 
 
 def load_profile(profiles_dir: str, name: str) -> dict:
@@ -376,6 +477,326 @@ def _resolve_manual_mode(
     )
 
 
+def _extract_roles_from_playbook(playbook_path: str) -> Dict[str, RoleEntry]:
+    """
+    Extract role entries from play.yml roles section.
+
+    Args:
+        playbook_path: Path to play.yml
+
+    Returns:
+        Dict mapping role name to RoleEntry
+
+    Raises:
+        ValueError: If playbook cannot be parsed or roles section is missing
+    """
+    playbook = Path(playbook_path)
+    if not playbook.exists():
+        raise ValueError(f"Playbook not found: {playbook_path}")
+
+    with open(playbook) as f:
+        data = yaml.safe_load(f)
+
+    if not data or not isinstance(data, list):
+        raise ValueError(f"Playbook must be a list, got {type(data)}")
+
+    # Get first play (there's only one in our setup)
+    play = data[0]
+    roles_section = play.get("roles")
+    if not roles_section:
+        raise ValueError("Playbook missing 'roles' section")
+
+    roles: Dict[str, RoleEntry] = {}
+    for item in roles_section:
+        # Handle both dict and string formats
+        if isinstance(item, str):
+            role_name = item
+            tags = []
+            when = ""
+        elif isinstance(item, dict):
+            role_name = item.get("role")
+            if not role_name:
+                continue
+            tags_raw = item.get("tags", [])
+            # Handle both "tags: [tag1, tag2]" and "tags: tag1" formats
+            if isinstance(tags_raw, list):
+                tags = tags_raw
+            else:
+                tags = [tags_raw] if tags_raw else []
+            # Extract when condition, normalizing to string
+            when = item.get("when", "")
+            # Handle boolean when values
+            if isinstance(when, bool):
+                when = "true" if when else "false"
+        else:
+            continue
+
+        roles[role_name] = RoleEntry(role=role_name, tags=tags, when=when)
+
+    return roles
+
+
+def _build_expected_roles(profiles_dir: str) -> Dict[str, RoleEntry]:
+    """
+    Build expected role entries from all profile YAML files.
+
+    Loads all profiles, translates their role annotations to Jinja2 conditions,
+    and deduplicates by role name (last profile wins).
+
+    Args:
+        profiles_dir: Directory containing profile YAML files
+
+    Returns:
+        Dict mapping role name to RoleEntry with translated conditions
+    """
+    profile_names = list_profiles(profiles_dir)
+    expected_roles: Dict[str, RoleEntry] = {}
+
+    # Desktop environment roles that should use the profile's DE flag
+    de_roles = {
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "gnome": "_is_gnome",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    # Profile-specific roles that should be gated by the profile's DE flag
+    # These roles appear in a specific profile's YAML and should only run when that DE is active
+    hyprland_specific_roles = {
+        "wayland", "widgets", "qt_gtk_toolkit", "uv_python_packages",
+        "oneui4_icons", "screencapture", "microtex",
+    }
+    i3_specific_roles = {"x"}
+
+    for profile_name in profile_names:
+        profile_data = load_profile(profiles_dir, profile_name)
+        roles_list = profile_data.get("roles", [])
+        profile_de = profile_data.get("desktop_environment", "")
+
+        for role_item in roles_list:
+            # Handle both dict and string formats
+            if isinstance(role_item, str):
+                role_name = role_item
+                tags = []
+                when = ""
+            elif isinstance(role_item, dict):
+                role_name = role_item.get("role")
+                if not role_name:
+                    continue
+                tags_raw = role_item.get("tags", [])
+                if isinstance(tags_raw, list):
+                    tags = tags_raw
+                else:
+                    tags = [tags_raw] if tags_raw else []
+
+                # Translate condition annotations to Jinja2
+                when = translate_condition(role_item)
+
+                # Special handling: DE-specific roles in their own profile
+                # If the role has no explicit condition and matches the profile's DE,
+                # add the appropriate _is_* flag
+                if role_name in de_roles and not when:
+                    when = de_roles[role_name]
+
+            else:
+                continue
+
+            # Special handling: profile-specific roles
+            # These roles should be gated by the profile's DE flag even if they have other conditions
+            if profile_de == "hyprland" and role_name in hyprland_specific_roles:
+                if when:
+                    when = f"{when} and _is_hyprland"
+                else:
+                    when = "_is_hyprland"
+            elif profile_de == "i3" and role_name in i3_specific_roles:
+                if when:
+                    when = f"{when} and _is_i3"
+                else:
+                    when = "_is_i3"
+
+            # Store role entry (later profiles override earlier ones for same role)
+            expected_roles[role_name] = RoleEntry(role=role_name, tags=tags, when=when)
+
+    return expected_roles
+
+
+def _normalize_condition(condition: str) -> str:
+    """
+    Normalize a Jinja2 condition string for comparison.
+
+    Normalizations:
+    1. Remove redundant | bool filters
+    2. Remove redundant _has_display when _dm == 'xxx' is present (dm implies display)
+    3. Normalize whitespace
+    4. Sort condition parts (A and B -> B and A) for order-independent comparison
+
+    Args:
+        condition: Jinja2 condition string
+
+    Returns:
+        Normalized condition string
+    """
+    if not condition:
+        return ""
+
+    # Remove all | bool filters
+    normalized = condition.replace("| bool", "")
+
+    # Remove redundant _has_display when _dm == 'xxx' is present
+    # The _dm variable being set already implies display
+    if "_dm ==" in normalized and "_has_display" in normalized:
+        parts = [p.strip() for p in normalized.split(" and ")]
+        filtered = [p for p in parts if p != "_has_display"]
+        normalized = " and ".join(filtered)
+
+    # Normalize whitespace
+    normalized = " ".join(normalized.split())
+
+    return normalized.strip()
+
+
+def _build_all_expected_roles(profiles_dir: str) -> Dict[str, set]:
+    """
+    Build ALL expected role entries from all profile YAML files.
+
+    Unlike _build_expected_roles() which deduplicates (last wins),
+    this returns ALL conditions for each role across all profiles.
+
+    Args:
+        profiles_dir: Directory containing profile YAML files
+
+    Returns:
+        Dict mapping role name to set of all possible conditions
+    """
+    profile_names = list_profiles(profiles_dir)
+    all_roles: Dict[str, set] = {}
+
+    # Desktop environment roles that should use the profile's DE flag
+    de_roles = {
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "gnome": "_is_gnome",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    # Profile-specific roles that should be gated by the profile's DE flag
+    hyprland_specific_roles = {
+        "wayland", "widgets", "qt_gtk_toolkit", "uv_python_packages",
+        "oneui4_icons", "screencapture", "microtex",
+    }
+    i3_specific_roles = {"x"}
+
+    for profile_name in profile_names:
+        profile_data = load_profile(profiles_dir, profile_name)
+        roles_list = profile_data.get("roles", [])
+        profile_de = profile_data.get("desktop_environment", "")
+
+        for role_item in roles_list:
+            # Handle both dict and string formats
+            if isinstance(role_item, str):
+                role_name = role_item
+                tags = []
+                when = ""
+            elif isinstance(role_item, dict):
+                role_name = role_item.get("role")
+                if not role_name:
+                    continue
+                tags_raw = role_item.get("tags", [])
+                if isinstance(tags_raw, list):
+                    tags = tags_raw
+                else:
+                    tags = [tags_raw] if tags_raw else []
+
+                # Translate condition annotations to Jinja2
+                when = translate_condition(role_item)
+
+                # Special handling: DE-specific roles in their own profile
+                # If the role has no explicit condition and matches the profile's DE,
+                # add the appropriate _is_* flag
+                if role_name in de_roles and not when:
+                    when = de_roles[role_name]
+
+            else:
+                continue
+
+            # Special handling: profile-specific roles
+            # These roles should be gated by the profile's DE flag even if they have other conditions
+            if profile_de == "hyprland" and role_name in hyprland_specific_roles:
+                if when:
+                    when = f"{when} and _is_hyprland"
+                else:
+                    when = "_is_hyprland"
+            elif profile_de == "i3" and role_name in i3_specific_roles:
+                if when:
+                    when = f"{when} and _is_i3"
+                else:
+                    when = "_is_i3"
+
+            # Add to the set of conditions for this role
+            if role_name not in all_roles:
+                all_roles[role_name] = set()
+            all_roles[role_name].add(_normalize_condition(when))
+
+    return all_roles
+
+
+def _compare_roles(actual: Dict[str, RoleEntry], expected: Dict[str, RoleEntry]) -> Dict[str, Any]:
+    """
+    Compare actual vs expected role entries.
+
+    A role matches if:
+    1. It exists in both actual and expected
+    2. The actual condition matches ANY of the expected conditions for that role
+       (because a role may appear in multiple profiles with different conditions)
+
+    Args:
+        actual: Roles extracted from play.yml
+        expected: Roles generated from profile annotations (unused, we rebuild from profiles)
+
+    Returns:
+        Dict with keys: "missing", "extra", "mismatches"
+    """
+    # Rebuild expected roles to get ALL possible conditions per role
+    all_expected = _build_all_expected_roles(str(Path(__file__).parent.parent / "profiles"))
+
+    actual_names = set(actual.keys())
+    expected_names = set(all_expected.keys())
+
+    missing = expected_names - actual_names
+    extra = actual_names - expected_names
+
+    # Check for condition mismatches
+    mismatches: Dict[str, Dict[str, str]] = {}
+    for role_name in actual_names & expected_names:
+        actual_when = _normalize_condition(actual[role_name].when)
+        expected_when_set = all_expected.get(role_name, set())
+
+        # Special case: empty actual condition matches empty expected condition
+        if not actual_when and "" in expected_when_set:
+            continue
+
+        # Check if actual condition matches any expected condition
+        if actual_when not in expected_when_set:
+            # Format the expected conditions for display
+            expected_list = sorted([w for w in expected_when_set])
+            if len(expected_list) == 1:
+                expected_str = expected_list[0]
+            else:
+                expected_str = " or ".join(expected_list)
+            mismatches[role_name] = {
+                "expected": expected_str,
+                "actual": actual_when,
+            }
+
+    return {
+        "missing": sorted(missing),
+        "extra": sorted(extra),
+        "mismatches": mismatches,
+    }
+
+
 # ---------------------------------------------------------------------------
 # CLI subcommands
 # ---------------------------------------------------------------------------
@@ -477,6 +898,70 @@ def _cmd_make_args(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sync_playbook(args: argparse.Namespace) -> int:
+    """
+    Sync-check between profile YAMLs and play.yml.
+
+    In normal mode: outputs diff for developer review.
+    In --check mode: exits 1 on drift, exits 0 if in sync (CI gate).
+    """
+    try:
+        actual_roles = _extract_roles_from_playbook(args.playbook)
+        expected_roles = _build_expected_roles(args.profiles_dir)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    comparison = _compare_roles(actual_roles, expected_roles)
+
+    # Check if there are any differences
+    has_drift = bool(
+        comparison["missing"] or
+        comparison["extra"] or
+        comparison["mismatches"]
+    )
+
+    # Build output
+    output_lines = []
+
+    if comparison["missing"]:
+        output_lines.append("Missing roles (in profiles but not in play.yml):")
+        for role in comparison["missing"]:
+            expected_entry = expected_roles[role]
+            when_clause = f" when: {expected_entry.when}" if expected_entry.when else ""
+            output_lines.append(f"  - {role}{when_clause}")
+        output_lines.append("")
+
+    if comparison["extra"]:
+        output_lines.append("Extra roles (in play.yml but not in profiles):")
+        for role in comparison["extra"]:
+            actual_entry = actual_roles[role]
+            when_clause = f" when: {actual_entry.when}" if actual_entry.when else ""
+            output_lines.append(f"  - {role}{when_clause}")
+        output_lines.append("")
+
+    if comparison["mismatches"]:
+        output_lines.append("Condition mismatches:")
+        for role, diff in comparison["mismatches"].items():
+            output_lines.append(f"  - {role}:")
+            output_lines.append(f"      expected: {diff['expected']}")
+            output_lines.append(f"      actual:   {diff['actual']}")
+        output_lines.append("")
+
+    # Print output
+    if has_drift:
+        print("\n".join(output_lines))
+    elif not args.check:
+        # Only print "in sync" message in non-check mode
+        print("play.yml is in sync with profiles")
+
+    # In check mode, exit 1 on drift
+    if args.check and has_drift:
+        return 1
+
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="profile_dispatcher.py",
@@ -535,6 +1020,25 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- sync-playbook ---
+    p_sync = subparsers.add_parser(
+        "sync-playbook",
+        help="Compare profile-derived roles against play.yml roles section.",
+    )
+    p_sync.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+    p_sync.add_argument(
+        "--playbook",
+        default=str(Path(__file__).parent.parent / "play.yml"),
+        help="Path to play.yml (default: ../play.yml)",
+    )
+    p_sync.add_argument(
+        "--check",
+        action="store_true",
+        help="CI mode: exit 1 on drift, no output changes",
+    )
+
     return parser
 
 
@@ -559,6 +1063,7 @@ def main(argv: Optional[list] = None) -> int:
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
+        "sync-playbook": _cmd_sync_playbook,
     }
     return dispatch[args.subcommand](args)
 

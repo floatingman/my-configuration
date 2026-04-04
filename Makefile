@@ -39,7 +39,7 @@ SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
 
 .PHONY: test
-test: lint syntax-check ## Run all tests (lint + syntax check)
+test: check-sync lint syntax-check ## Run all tests (sync check + lint + syntax check)
 
 .PHONY: lint
 lint: ## Run yamllint and ansible-lint
@@ -60,6 +60,16 @@ endif
 syntax-check: req-playbook ## Check playbook syntax
 	@echo 'Checking playbook syntax...'
 	ansible-playbook --syntax-check play.yml
+
+.PHONY: sync-playbook
+sync-playbook: pip-deps ## Show drift between profiles and play.yml
+	@echo 'Checking play.yml sync with profiles...'
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook
+
+.PHONY: check-sync
+check-sync: pip-deps ## Verify play.yml is in sync with profiles (CI gate)
+	@echo 'Checking play.yml sync with profiles...'
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook --check
 
 .PHONY: bootstrap
 bootstrap: req-pipx ## Install ansible (pipx required)
