@@ -39,7 +39,7 @@ SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
 
 .PHONY: test
-test: lint syntax-check validate-profiles ## Run all tests (lint + syntax check + profile validation)
+test: lint syntax-check validate-profiles check-sync ## Run all tests (lint + syntax check + profile validation + sync check)
 
 .PHONY: lint
 lint: ## Run yamllint and ansible-lint
@@ -106,6 +106,16 @@ validate-deps: pip-deps ## Validate role dependency graph (no cycles, no missing
 	@echo 'Validating role dependency graph...'
 	$(SCRIPT_PYTHON) scripts/validate_deps.py
 
+.PHONY: check-sync
+check-sync: pip-deps ## Check play.yml sync with profile definitions (CI gate)
+	@echo 'Checking play.yml sync with profile definitions...'
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook --check
+
+.PHONY: sync-playbook
+sync-playbook: pip-deps ## Show drift between play.yml and profile definitions
+	@echo 'Checking play.yml sync with profile definitions...'
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook || true
+
 .PHONY: list-tags
 list-tags: ## List all available tags in the playbook
 	@echo 'Available tags:'
@@ -158,7 +168,7 @@ profile-%: req-playbook pip-deps ## Run arbitrary profile (with validation)
 	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
 
 .PHONY: validate-profiles
-validate-profiles: pip-deps ## Validate all profiles for correctness
+validate-profiles: pip-deps check-sync ## Validate all profiles for correctness and check play.yml sync
 	@echo 'Validating profiles...'
 	@$(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py validate
 
