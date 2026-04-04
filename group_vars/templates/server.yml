@@ -4,9 +4,9 @@
 # Then edit at minimum: hostname, user.name, user.email
 
 # Identity  (REQUIRED)
-hostname: myserver          # Short hostname for this machine
+hostname: myserver # Short hostname for this machine
 user:
-  name: yourusername        # Your Linux username (must match existing user)
+  name: yourusername # Your Linux username (must match existing user)
   uid: 1000
   gid: 1000
   group: yourusername
@@ -15,9 +15,9 @@ user:
   log:
     dir: log
     rotate: 8
-
+  githubuser: yourgithubusername
 # Hardware
-laptop: false               # No power mgmt or trackpad config on servers
+laptop: false # No power mgmt or trackpad config on servers
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Boot
@@ -31,14 +31,14 @@ laptop: false               # No power mgmt or trackpad config on servers
 # disable_awesomewm: false  # Manual mode: set true to skip AwesomeWM install
 # disable_kde: false        # Manual mode: set true to skip KDE install
 dotfiles:
-  repo_url: https://github.com/GITHUB_USER/dotfiles.git
-  path: "USERNAME/.dotfiles"
+  repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
+  path: "{{ user.name }}/.dotfiles"
   rcup_flags: -fx README.md
-  linuxgui: false           # Skip GUI dotfiles on headless servers
+  linuxgui: false # Skip GUI dotfiles on headless servers
 
 # SSH
 ssh:
-  port: 22                  # SSH daemon listen port
+  port: 22 # SSH daemon listen port
   enable_sshd: true
   # user_key: files/id_rsa  # Optional: local SSH private key to install for the user
 
@@ -50,10 +50,10 @@ network:
     url: http://connectivitycheck.gstatic.com/generate_204
     interval: 5
     response: 204
-  wifi_wired_exclusive: false  # Typically false on servers (wired only)
+  wifi_wired_exclusive: false # Typically false on servers (wired only)
   trusted_uuid:
-    - REPLACE-WITH-YOUR-UUID   # Run: nmcli connection show | grep UUID
+    - REPLACE-WITH-YOUR-UUID # Run: nmcli connection show | grep UUID
 
 # Bluetooth
 bluetooth:
-  disable: true             # Disable bluetooth on servers
+  disable: true # Disable bluetooth on servers

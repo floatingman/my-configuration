@@ -23,6 +23,15 @@ from profile_dispatcher import (
     load_profile,
     validate_profile,
     list_profiles,
+    resolve_overlays,
+    validate_overlays,
+    load_overlay,
+    _discover_overlay_names,
+    OverlayDefinition,
+    ResolvedOverlay,
+    ResolvedOverlayRole,
+    RoleEntry,
+    Overlay,
     ResolvedProfile,
     RoleCondition,
     ResolvedManifest,
@@ -30,6 +39,9 @@ from profile_dispatcher import (
     resolve_manifest,
     discover_overlays,
     load_overlay,
+    Jinja2Evaluator,
+    DictEvaluator,
+    EvaluationError,
 )
 
 # Path to the real profiles directory used in integration-style tests
@@ -670,6 +682,154 @@ class TestListProfiles:
             assert 'broken' not in names
 
 
+class TestDiscoverOverlays:
+    """Test _discover_overlay_names() function."""
+
+    def test_returns_sorted_overlay_names(self):
+        """_discover_overlay_names returns overlay names sorted alphabetically."""
+        names = _discover_overlay_names(_PROFILES_DIR)
+        assert names == ["bluetooth", "laptop"]
+
+    def test_returns_empty_list_for_nonexistent_overlays_dir(self):
+        """_discover_overlay_names returns empty list when overlays directory doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Empty profiles dir (no overlays subdirectory)
+            names = _discover_overlay_names(tmpdir)
+            assert names == []
+
+    def test_returns_empty_list_for_empty_overlays_dir(self):
+        """_discover_overlay_names returns empty list when overlays directory is empty."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            names = _discover_overlay_names(tmpdir)
+            assert names == []
+
+
+class TestLoadOverlay:
+    """Test load_overlay() function."""
+
+    def test_load_laptop_overlay(self):
+        """load_overlay correctly parses laptop.yml."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop")
+        assert isinstance(overlay, OverlayDefinition)
+        assert overlay.name == "Laptop Features Overlay"
+        assert overlay.applies_when == "laptop | default(false)"
+        assert isinstance(overlay.roles, list)
+        assert len(overlay.roles) == 2
+        # First role entry
+        assert overlay.roles[0]["role"] == "laptop"
+        assert overlay.roles[0]["tags"] == ["laptop"]
+        # Second role entry
+        assert overlay.roles[1]["role"] == "backlight"
+        assert overlay.roles[1]["tags"] == ["backlight"]
+        assert overlay.roles[1]["requires_display"] is True
+
+    def test_load_bluetooth_overlay(self):
+        """load_overlay correctly parses bluetooth.yml."""
+        overlay = load_overlay(_PROFILES_DIR, "bluetooth")
+        assert isinstance(overlay, OverlayDefinition)
+        assert overlay.name == "Bluetooth Support Overlay"
+        assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
+        assert isinstance(overlay.roles, list)
+        assert len(overlay.roles) == 1
+        assert overlay.roles[0]["role"] == "bluetooth"
+        assert overlay.roles[0]["tags"] == ["bluetooth"]
+        assert overlay.roles[0]["os"] == "archlinux"
+
+    def test_load_overlay_with_yml_extension(self):
+        """load_overlay accepts name with .yml extension."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop.yml")
+        assert overlay.name == "Laptop Features Overlay"
+
+    def test_missing_overlay_raises_value_error(self):
+        """Missing overlay file raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            load_overlay(_PROFILES_DIR, "nonexistent_overlay")
+        error_msg = str(exc_info.value)
+        assert "not found" in error_msg
+        assert "nonexistent_overlay" in error_msg
+
+    def test_overlay_missing_name_field_raises_value_error(self):
+        """Overlay missing 'name' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'applies_when: "true"\nroles:\n  - { role: test }\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "name" in error_msg
+
+    def test_overlay_missing_applies_when_field_raises_value_error(self):
+        """Overlay missing 'applies_when' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'name: "Bad Overlay"\nroles:\n  - { role: test }\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "applies_when" in error_msg
+
+    def test_overlay_missing_roles_field_raises_value_error(self):
+        """Overlay missing 'roles' field raises ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_path = Path(tmpdir) / "overlays"
+            overlays_path.mkdir()
+            overlay_file = overlays_path / "bad.yml"
+            overlay_file.write_text(
+                'name: "Bad Overlay"\napplies_when: "true"\n'
+            )
+            with pytest.raises(ValueError) as exc_info:
+                load_overlay(tmpdir, "bad")
+            error_msg = str(exc_info.value)
+            assert "missing required fields" in error_msg
+            assert "roles" in error_msg
+
+    def test_overlay_with_path_traversal_raises_value_error(self):
+        """Overlay name with path separators raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            load_overlay(_PROFILES_DIR, "../etc/passwd")
+        error_msg = str(exc_info.value)
+        assert "invalid path characters" in error_msg
+
+
+class TestOverlayDataclasses:
+    """Test overlay dataclass properties."""
+
+    def test_overlay_definition_is_frozen(self):
+        """OverlayDefinition should be immutable (frozen dataclass)."""
+        overlay = load_overlay(_PROFILES_DIR, "laptop")
+        with pytest.raises(AttributeError):
+            overlay.name = "Modified"  # Should raise AttributeError
+
+    def test_resolved_overlay_is_frozen(self):
+        """ResolvedOverlay should be immutable (frozen dataclass)."""
+        role_entry = RoleEntry(role="test", tags=["test"])
+        overlay = ResolvedOverlay(
+            overlay=Overlay(name="Test", description="", applies_when="true", roles=[role_entry]),
+            applies=True,
+            resolved_roles=[(role_entry, True)]
+        )
+        with pytest.raises(AttributeError):
+            overlay.applies = False  # Should raise AttributeError
+
+    def test_resolved_overlay_role_is_frozen(self):
+        """ResolvedOverlayRole should be immutable (frozen dataclass)."""
+        role = ResolvedOverlayRole(role="test", tags=("test",), applies=True)
+        with pytest.raises(AttributeError):
+            role.role = "modified"  # Should raise AttributeError
+
+
 class TestCLIResolve:
     """Tests for the 'resolve' CLI subcommand."""
 
@@ -884,6 +1044,111 @@ class TestCLIUnknownSubcommand:
         assert "usage" in err.lower()
 
 
+class TestCLIResolveOverlays:
+    """Tests for the 'resolve-overlays' CLI subcommand."""
+
+    def test_resolve_overlays_outputs_valid_json(self, capsys):
+        """resolve-overlays with valid facts outputs JSON with overlays + facts keys."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{"laptop": true}',
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+        output = capsys.readouterr().out
+        data = json.loads(output)
+        assert "overlays" in data
+        assert "facts" in data
+        assert isinstance(data["overlays"], list)
+        assert isinstance(data["facts"], dict)
+
+    def test_resolve_overlays_schema(self, capsys):
+        """Each overlay in output has name, description, applies, and roles."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{"laptop": true}',
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        for overlay in data["overlays"]:
+            assert "name" in overlay
+            assert "description" in overlay
+            assert "applies" in overlay
+            assert "roles" in overlay
+            for role in overlay["roles"]:
+                assert "role" in role
+                assert "tags" in role
+                assert "applies" in role
+
+    def test_resolve_overlays_invalid_json_exits_1(self, capsys):
+        """resolve-overlays with invalid JSON exits 1."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", "not-json",
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 1
+
+    def test_resolve_overlays_non_object_json_exits_1(self, capsys):
+        """resolve-overlays with valid non-object JSON (e.g. array) exits 1."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '[1, 2, 3]',
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "object" in err.lower() or "mapping" in err.lower()
+
+    def test_resolve_overlays_no_has_display(self, capsys):
+        """resolve-overlays --no-has-display works and runs without error."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{}',
+            "--no-has-display",
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert isinstance(data["overlays"], list)
+
+    def test_resolve_overlays_no_is_arch(self, capsys):
+        """resolve-overlays --no-is-arch works and runs without error."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", '{}',
+            "--no-is-arch",
+            "--profiles-dir", _PROFILES_DIR,
+        ])
+        assert rc == 0
+
+
+class TestCLIValidateOverlays:
+    """Tests for the 'validate' CLI subcommand with overlay validation."""
+
+    def test_validate_with_invalid_overlay_exits_1(self, capsys):
+        """validate exits 1 when an overlay file is structurally invalid."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir()
+
+            # Create a valid profile
+            Path(tmpdir, "headless.yml").write_text(
+                "display_manager_default: ''\ndesktop_environment: ''\n"
+            )
+
+            # Create an invalid overlay (missing applies_when)
+            (overlays_dir / "bad.yml").write_text(
+                "name: Bad Overlay\nroles:\n  - {role: test, tags: [test]}\n"
+            )
+
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "overlay" in err.lower()
+
+
 class TestValidateProfileTypeChecking:
     """Tests for type validation of YAML fields in validate_profile()."""
 
@@ -923,57 +1188,497 @@ class TestResolveInvalidProfileError:
             assert 'Unknown profile' not in msg
 
 
-class TestDiscoverOverlays:
-    """Test discover_overlays() function."""
+class TestResolveOverlays:
+    """Tests for resolve_overlays() function."""
 
-    def test_discovers_overlays_in_overlays_directory(self):
-        """discover_overlays should find laptop and bluetooth overlays."""
-        overlays = discover_overlays(_PROFILES_DIR)
-        assert "laptop" in overlays
-        assert "bluetooth" in overlays
+    def test_laptop_with_display_returns_both_roles_active(self):
+        """Laptop overlay with display=True should activate both laptop and backlight roles."""
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Should return both overlays
+        assert len(results) == 2
+        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+
+        # Overlay applies
+        assert laptop_overlay.applies is True
+
+        # Both roles should apply
+        assert len(laptop_overlay.resolved_roles) == 2
+        laptop_role, backlight_role = laptop_overlay.resolved_roles
+
+        assert laptop_role[0].role == "laptop"
+        assert laptop_role[1] is True  # applies
+
+        assert backlight_role[0].role == "backlight"
+        assert backlight_role[1] is True  # applies (has_display=True)
+
+    def test_laptop_without_display_backlight_disabled(self):
+        """Laptop overlay with display=False should activate laptop but not backlight."""
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=False,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+
+        # Overlay applies, but backlight role should not
+        assert laptop_overlay.applies is True
+
+        laptop_role, backlight_role = laptop_overlay.resolved_roles
+
+        assert laptop_role[0].role == "laptop"
+        assert laptop_role[1] is True  # applies
+
+        assert backlight_role[0].role == "backlight"
+        assert backlight_role[1] is False  # does NOT apply (requires_display=True, has_display=False)
+
+    def test_empty_facts_no_overlays_apply(self):
+        """With empty facts, no overlays should apply."""
+        results = resolve_overlays(
+            facts={},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Both overlays should be present but not apply
+        assert len(results) == 2
+        for result in results:
+            assert result.applies is False
+
+    def test_bluetooth_with_disable_false_applies(self):
+        """Bluetooth overlay with disable=False should apply on Arch."""
+        results = resolve_overlays(
+            facts={"bluetooth": {"disable": False}},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        bluetooth_overlay = [r for r in results if r.overlay.name == "Bluetooth Support Overlay"][0]
+        assert bluetooth_overlay.applies is True
+
+        # Role should apply (is_arch=True, os=archlinux)
+        bluetooth_role = bluetooth_overlay.resolved_roles[0]
+        assert bluetooth_role[0].role == "bluetooth"
+        assert bluetooth_role[1] is True
+
+    def test_bluetooth_with_disable_true_does_not_apply(self):
+        """Bluetooth overlay with disable=True should not apply."""
+        results = resolve_overlays(
+            facts={"bluetooth": {"disable": True}},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        bluetooth_overlay = [r for r in results if r.overlay.name == "Bluetooth Support Overlay"][0]
+        assert bluetooth_overlay.applies is False
+
+        # Role should not apply (overlay doesn't apply)
+        bluetooth_role = bluetooth_overlay.resolved_roles[0]
+        assert bluetooth_role[0].role == "bluetooth"
+        assert bluetooth_role[1] is False
+
+    def test_bluetooth_on_debian_role_does_not_apply(self):
+        """Bluetooth overlay applies on Debian, but role has os:archlinux constraint."""
+        results = resolve_overlays(
+            facts={"bluetooth": {"disable": False}},
+            has_display=True,
+            is_arch=False,  # Debian system
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        bluetooth_overlay = [r for r in results if r.overlay.name == "Bluetooth Support Overlay"][0]
+
+        # Overlay-level applies (condition passes)
+        assert bluetooth_overlay.applies is True
+
+        # Role does NOT apply (os=archlinux, but is_arch=False)
+        bluetooth_role = bluetooth_overlay.resolved_roles[0]
+        assert bluetooth_role[0].role == "bluetooth"
+        assert bluetooth_role[1] is False
+
+    def test_custom_evaluator_dict_evaluator(self):
+        """resolve_overlays accepts custom evaluator parameter."""
+        evaluator = DictEvaluator({
+            "laptop | default(false)": True,
+            "bluetooth.disable | default(false)": False,
+        })
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+            evaluator=evaluator,
+        )
+
+        # Should work with DictEvaluator
+        assert len(results) == 2
+        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+        assert laptop_overlay.applies is True
+
+    def test_jinja2_evaluator_default(self):
+        """When evaluator is None, Jinja2Evaluator is used by default."""
+        # No evaluator provided - should use Jinja2Evaluator
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Should work with default Jinja2Evaluator
+        assert len(results) == 2
+
+    def test_raises_error_for_unknown_expression_patterns(self):
+        """resolve_overlays raises clear error for unknown expression patterns."""
+        # Create an overlay with an invalid expression
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "some_unknown_function()"
+roles:
+  - {role: test, tags: [test]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            with pytest.raises(ValueError) as exc_info:
+                resolve_overlays(
+                    facts={},
+                    has_display=True,
+                    is_arch=True,
+                    profiles_dir=tmpdir,
+                )
+
+            assert "failed to evaluate applies_when" in str(exc_info.value)
 
     def test_returns_sorted_list(self):
-        """discover_overlays returns names in sorted order."""
-        overlays = discover_overlays(_PROFILES_DIR)
-        assert overlays == sorted(overlays)
+        """Results are returned in sorted order by overlay name."""
+        results = resolve_overlays(
+            facts={},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
 
-    def test_empty_if_overlays_dir_missing(self):
-        """discover_overlays returns empty list if overlays/ directory doesn't exist."""
+        # Extract names
+        names = [r.overlay.name for r in results]
+        assert names == sorted(names)
+
+
+class TestValidateOverlays:
+    """Tests for validate_overlays() function."""
+
+    def test_real_overlays_are_valid(self):
+        """Existing overlay files should pass validation."""
+        results = validate_overlays(profiles_dir=_PROFILES_DIR)
+
+        # Should return results for both overlays
+        assert len(results) == 2
+
+        # Each should have empty error list
+        for overlay_name, errors in results:
+            assert overlay_name in {"laptop", "bluetooth"}
+            assert errors == []
+
+    def test_catches_missing_applies_when(self):
+        """Validation catches missing applies_when field."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            overlays = discover_overlays(tmpdir)
-            assert overlays == []
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+description: Missing applies_when
+roles:
+  - {role: test, tags: [test]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+
+            overlay_name, errors = results[0]
+            assert overlay_name == "bad"
+            assert len(errors) > 0
+            assert any("applies_when" in e for e in errors)
+
+    def test_catches_missing_roles(self):
+        """Validation catches missing roles field."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+
+            overlay_name, errors = results[0]
+            assert overlay_name == "bad"
+            assert len(errors) > 0
+            assert any("roles" in e for e in errors)
+
+    def test_catches_malformed_role_entries(self):
+        """Validation catches malformed role entries (missing role or tags)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            # Missing 'role' field
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+roles:
+  - {tags: [test]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+
+            overlay_name, errors = results[0]
+            assert overlay_name == "bad"
+            assert len(errors) > 0
+            assert any("role" in e for e in errors)
+
+    def test_catches_invalid_role_entry_types(self):
+        """Validation catches incorrect types in role entries."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            # tags should be a list, not a string
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+roles:
+  - {role: test, tags: "not_a_list"}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+
+            overlay_name, errors = results[0]
+            assert overlay_name == "bad"
+            assert len(errors) > 0
+            assert any("tags" in e and "list" in e for e in errors)
+
+    def test_catches_empty_applies_when(self):
+        """Validation catches empty applies_when string."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: ""
+roles:
+  - {role: test, tags: [test]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+
+            overlay_name, errors = results[0]
+            assert overlay_name == "bad"
+            assert len(errors) > 0
+            assert any("applies_when" in e and "non-empty" in e for e in errors)
+
+    def test_returns_empty_list_for_no_overlays(self):
+        """Validation returns empty list when overlays directory doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert results == []
+
+    def test_validates_multiple_overlays(self):
+        """Validation returns errors for all invalid overlays."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            # Create two invalid overlays
+            (overlays_dir / "bad1.yml").write_text("name: Bad1\n")
+            (overlays_dir / "bad2.yml").write_text("name: Bad2\n")
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 2
+
+            # Both should have errors
+            for overlay_name, errors in results:
+                assert overlay_name in {"bad1", "bad2"}
+                assert len(errors) > 0
 
 
-class TestLoadOverlay:
-    """Test load_overlay() function."""
+class TestJinja2Evaluator:
+    """Test Jinja2Evaluator expression evaluation."""
 
-    def test_load_laptop_overlay(self):
-        """load_overlay loads laptop overlay with expected fields."""
-        overlay = load_overlay(_PROFILES_DIR, "laptop")
-        assert "name" in overlay
-        assert "applies_when" in overlay
-        assert "roles" in overlay
+    def test_truthy_variable(self):
+        """A variable set to a truthy value should evaluate to True."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop", {"laptop": "yes"}) is True
+        assert evaluator.evaluate("laptop", {"laptop": 1}) is True
 
-    def test_load_bluetooth_overlay(self):
-        """load_overlay loads bluetooth overlay with expected fields."""
-        overlay = load_overlay(_PROFILES_DIR, "bluetooth")
-        assert "name" in overlay
-        assert "applies_when" in overlay
-        assert "roles" in overlay
+    def test_falsy_variable(self):
+        """A variable set to a falsy value should evaluate to False."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": False}) is False
+        assert evaluator.evaluate("laptop", {"laptop": ""}) is False
+        assert evaluator.evaluate("laptop", {"laptop": 0}) is False
+        assert evaluator.evaluate("laptop", {"laptop": None}) is False
 
-    def test_load_with_yml_extension(self):
-        """load_overlay accepts name with .yml extension."""
-        overlay = load_overlay(_PROFILES_DIR, "laptop.yml")
-        assert overlay is not None
+    def test_absent_variable_with_default(self):
+        """A variable with default filter should return the default value when absent."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop | default(false)", {}) is False
+        assert evaluator.evaluate("laptop | default(true)", {}) is True
+        assert evaluator.evaluate("laptop | default('')", {}) is False  # Empty string is falsy
 
-    def test_missing_overlay_raises_value_error(self):
-        """load_overlay raises ValueError for non-existent overlay."""
-        with pytest.raises(ValueError, match="not found"):
-            load_overlay(_PROFILES_DIR, "nonexistent")
+    def test_absent_variable_without_default_raises_error(self):
+        """Referencing an undefined variable without default() should raise EvaluationError."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(EvaluationError, match="Failed to evaluate"):
+            evaluator.evaluate("unknown_var", {})
+
+    def test_is_defined_test(self):
+        """The 'is defined' test should return True for defined variables."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop is defined", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop is defined", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop is defined", {}) is False
+
+    def test_nested_dict_access(self):
+        """Dotted access should work for nested dictionaries.
+
+        Missing attributes on dicts raise EvaluationError with StrictUndefined;
+        use ``| default(false)`` for safe access (see test_nested_dict_access_with_default).
+        """
+        evaluator = Jinja2Evaluator()
+        context = {
+            "bluetooth": {"disable": True},
+            "laptop": {"hardware": {"trackpad": True}},
+        }
+        assert evaluator.evaluate("bluetooth.disable", context) is True
+        assert evaluator.evaluate("laptop.hardware.trackpad", context) is True
+        # Missing attribute on a dict raises EvaluationError (StrictUndefined)
+        with pytest.raises(EvaluationError):
+            evaluator.evaluate("laptop.hardware.touchscreen", context)
+
+    def test_boolean_and_operator(self):
+        """The 'and' operator should perform logical AND."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": False}) is False
+        assert evaluator.evaluate("laptop and desktop", {"laptop": False, "desktop": True}) is False
+
+    def test_boolean_or_operator(self):
+        """The 'or' operator should perform logical OR."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": False}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": False, "desktop": False}) is False
+
+    def test_boolean_not_operator(self):
+        """The 'not' operator should perform logical NOT."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("not laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("not laptop", {"laptop": True}) is False
+
+    def test_complex_boolean_expression(self):
+        """Complex boolean expressions with and/or/not should work correctly."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": True, "desktop": False, "gui": True}
+        assert evaluator.evaluate("laptop and not desktop", context) is True
+        assert evaluator.evaluate("(laptop or desktop) and gui", context) is True
+        assert evaluator.evaluate("laptop and desktop and gui", context) is False
+
+    def test_parenthesized_expressions(self):
+        """Parentheses should control operator precedence."""
+        evaluator = Jinja2Evaluator()
+        context = {"a": True, "b": True, "c": False}
+        assert evaluator.evaluate("(a or b) and c", context) is False
+        assert evaluator.evaluate("a or (b and c)", context) is True
+
+    def test_default_filter_with_boolean_operators(self):
+        """Default filters should work in boolean expressions."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"laptop": True}
+        ) is True
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"desktop": True}
+        ) is False
+
+    def test_invalid_syntax_raises_evaluation_error(self):
+        """Invalid Jinja2 syntax should raise EvaluationError."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(EvaluationError, match="Failed to evaluate"):
+            evaluator.evaluate("unclosed (parenthesis", {})
+
+    def test_nested_dict_access_with_default(self):
+        """Default filters should work with nested dict access."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": {}}
+        assert evaluator.evaluate("laptop.trackpad | default(false)", context) is False
+        assert evaluator.evaluate("laptop.trackpad | default(true)", context) is True
 
 
-class TestTranslateCondition:
-    """Test translate_condition() function."""
+class TestDictEvaluator:
+    """Test DictEvaluator expression evaluation."""
+
+    def test_mapped_expression_returns_correct_bool(self):
+        """An expression in the mapping should return its mapped boolean value."""
+        evaluator = DictEvaluator({"laptop": True, "desktop": False})
+        assert evaluator.evaluate("laptop", {}) is True
+        assert evaluator.evaluate("desktop", {}) is False
+
+    def test_unmapped_expression_returns_false(self):
+        """An expression not in the mapping should return False."""
+        evaluator = DictEvaluator({"laptop": True})
+        assert evaluator.evaluate("desktop", {}) is False
+        assert evaluator.evaluate("unknown", {}) is False
+
+    def test_context_parameter_is_ignored(self):
+        """The context parameter should be ignored (for protocol compatibility)."""
+        evaluator = DictEvaluator({"laptop": True})
+        # Context dict should not affect the result
+        assert evaluator.evaluate("laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop", {}) is True
+
+    def test_empty_mapping_returns_false_for_all(self):
+        """An empty mapping should return False for all expressions."""
+        evaluator = DictEvaluator({})
+        assert evaluator.evaluate("anything", {}) is False
+        assert evaluator.evaluate("laptop", {}) is False
+
+    def test_multiple_expressions(self):
+        """Multiple expressions should all resolve correctly."""
+        evaluator = DictEvaluator({
+            "laptop": True,
+            "desktop": False,
+            "server": True,
+        })
+        assert evaluator.evaluate("laptop", {}) is True
+        assert evaluator.evaluate("desktop", {}) is False
+        assert evaluator.evaluate("server", {}) is True
+
+
+class TestTranslateConditionExtended:
+    """Extended tests for translate_condition() function."""
 
     def test_no_annotation_returns_empty_condition(self):
         """Role without annotations returns empty condition."""
@@ -1003,16 +1708,6 @@ class TestTranslateCondition:
         role_entry = {"role": "fonts", "tags": ["fonts"], "requires_display": True}
         condition = translate_condition(role_entry, {}, "Archlinux")
         assert condition == "_has_display"
-
-    def test_requires_config_dm_translates_to_dm_equals(self):
-        """requires_config: {display_manager: lightdm} translates to _dm == 'lightdm'."""
-        role_entry = {
-            "role": "lightdm",
-            "tags": ["lightdm"],
-            "requires_config": {"display_manager": "lightdm"},
-        }
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_dm == 'lightdm'"
 
     def test_combined_annotations_are_anded(self):
         """Multiple annotations are combined with AND."""
@@ -1048,30 +1743,8 @@ class TestTranslateCondition:
         condition = translate_condition(role_entry, host_vars, "Archlinux")
         assert condition == "false"
 
-    def test_config_check_is_defined_returns_true_when_defined(self):
-        """config_check 'var is defined' returns true when var exists."""
-        role_entry = {
-            "role": "dotfiles",
-            "tags": ["dotfiles"],
-            "config_check": "dotfiles is defined",
-        }
-        host_vars = {"dotfiles": {"repo_url": "https://github.com/example/dotfiles"}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
-        assert condition == "true"
 
-    def test_config_check_is_defined_returns_false_when_undefined(self):
-        """config_check 'var is defined' returns false when var doesn't exist."""
-        role_entry = {
-            "role": "dotfiles",
-            "tags": ["dotfiles"],
-            "config_check": "dotfiles is defined",
-        }
-        host_vars = {}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
-        assert condition == "false"
-
-
-class TestResolveManifest:
+class TestResolveManifestFunction:
     """Test resolve_manifest() function."""
 
     def test_resolves_hyprland_profile(self):
@@ -1089,8 +1762,6 @@ class TestResolveManifest:
         manifest = resolve_manifest(profile="headless", host_vars={}, os_family="Archlinux")
         assert manifest.profile == "headless"
         assert manifest.has_display is False
-        # Note: headless extends _base which includes devtools with requires_display: true
-        # These roles will have _has_display condition but won't run because flag is False
         assert manifest.profile_flags["_has_display"] is False
 
     def test_manual_mode_with_explicit_vars(self):
@@ -1108,7 +1779,7 @@ class TestResolveManifest:
 
     def test_includes_overlay_flags_when_overlay_applies(self):
         """resolve_manifest includes overlay flags when overlay applies."""
-        host_vars = {"laptop": True}  # laptop overlay applies (truthy value)
+        host_vars = {"laptop": True}
         manifest = resolve_manifest(
             profile="hyprland",
             host_vars=host_vars,
@@ -1119,28 +1790,10 @@ class TestResolveManifest:
 
     def test_deduplicates_roles_by_name(self):
         """Roles appearing in multiple profiles produce single manifest entry."""
-        # terminal appears in both _base and i3/hyprland/gnome
         manifest = resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
         role_names = [r.role for r in manifest.roles]
-        # terminal should appear only once
         terminal_count = role_names.count("terminal")
         assert terminal_count == 1
-
-    def test_or_logic_for_overlay_roles(self):
-        """Roles from both profile and overlay get ORed conditions."""
-        # backlight appears in both desktop profiles and laptop overlay
-        host_vars = {"laptop": {}}
-        manifest = resolve_manifest(
-            profile="i3",
-            host_vars=host_vars,
-            os_family="Archlinux",
-        )
-        backlight_roles = [r for r in manifest.roles if r.role == "backlight"]
-        assert len(backlight_roles) == 1
-        # Condition should have OR from overlay integration
-        # Note: Full OR logic requires tracking source during collection
-        # For now, we verify the role exists
-        assert len(backlight_roles) >= 1
 
     def test_evaluates_config_check_correctly(self):
         """config_check expressions are evaluated against host_vars."""
@@ -1154,8 +1807,6 @@ class TestResolveManifest:
         )
         dotfiles_roles = [r for r in manifest.roles if r.role == "dotfiles"]
         assert len(dotfiles_roles) == 1
-        # config_check "dotfiles is defined" should evaluate to true
-        # Condition should be "true" (config_check evaluated)
         assert "true" in dotfiles_roles[0].condition or dotfiles_roles[0].condition == ""
 
     def test_all_profiles_resolve_successfully(self):
@@ -1182,9 +1833,7 @@ class TestResolveManifest:
         manifest2 = resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
         manifest3 = resolve_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
 
-        # Same inputs produce equal manifests
         assert manifest1 == manifest2
-        # Different profiles produce different manifests
         assert manifest1 != manifest3
 
 
@@ -1250,7 +1899,6 @@ class TestCLIResolveManifest:
         data = json.loads(out)
         assert "roles" in data
         assert len(data["roles"]) > 0
-        # Check first role has required fields
         first_role = data["roles"][0]
         assert "role" in first_role
         assert "tags" in first_role

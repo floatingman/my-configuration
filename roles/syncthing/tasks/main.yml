@@ -8,7 +8,7 @@
 - name: Install Syncthingtray
   become: true
   kewlfft.aur.aur:
-    name: syncthingtray
+    name: syncthingtray-qt6
     use: auto
     state: present
   become_user: aur_builder
