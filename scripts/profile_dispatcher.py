@@ -22,7 +22,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, FrozenSet, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import jinja2
 
@@ -273,7 +273,7 @@ class ResolvedManifest:
     profile: str
     display_manager: Optional[str]
     has_display: bool
-    profile_flags: Dict[str, bool]
+    profile_flags: Dict[str, Any]
     overlay_flags: Dict[str, bool]
     roles: Tuple[RoleCondition, ...]
 
@@ -414,39 +414,6 @@ def discover_overlays(profiles_dir: str) -> List[str]:
         if not p.stem.startswith("_")
     ]
     return sorted(overlays)
-
-
-def load_overlay(profiles_dir: str, name: str) -> dict:
-    """
-    Load an overlay by name from profiles/overlays/.
-
-    Args:
-        profiles_dir: Directory containing profile YAML files
-        name: Overlay name with or without .yml extension
-
-    Returns:
-        Overlay data as a dict
-
-    Raises:
-        ValueError: If the overlay file does not exist
-    """
-    name = name.removesuffix(".yml")
-    overlays_root = Path(profiles_dir).resolve() / "overlays"
-    overlay_path = overlays_root / f"{name}.yml"
-
-    # Enforce the path stays inside overlays_dir
-    try:
-        overlay_path.resolve().relative_to(overlays_root.resolve())
-    except ValueError:
-        raise ValueError(
-            f"Overlay '{name}' resolves outside the overlays directory."
-        )
-
-    if not overlay_path.exists():
-        raise ValueError(f"Overlay '{name}' not found at {overlay_path}")
-
-    with open(overlay_path) as f:
-        return yaml.safe_load(f) or {}
 
 
 def translate_condition(
@@ -677,6 +644,16 @@ def resolve_manifest(
 
             if applies:
                 overlay_flags[f"_overlay_{overlay_name}"] = True
+                # Also emit per-role flags for consistency with resolve-overlays
+                for overlay_role in overlay_roles_list:
+                    if isinstance(overlay_role, str):
+                        rname = overlay_role
+                    elif isinstance(overlay_role, dict):
+                        rname = overlay_role.get("role", "")
+                    else:
+                        rname = getattr(overlay_role, "role", "")
+                    if rname:
+                        overlay_flags[f"_overlay_{rname}"] = True
                 overlay_roles.extend(overlay_roles_list)
         except (ValueError, yaml.YAMLError):
             # Skip invalid overlays
@@ -732,7 +709,7 @@ def resolve_manifest(
             elif condition:
                 # Use new condition (existing has no condition)
                 role_map[role_name] = RoleCondition(
-                    role_name=role_name,
+                    role=role_name,
                     tags=tags,
                     condition=condition,
                     source=source,
@@ -1558,7 +1535,7 @@ def _cmd_resolve_manifest(args: argparse.Namespace) -> int:
             host_vars=host_vars,
             os_family=args.os_family,
             profiles_dir=args.profiles_dir,
-            evaluator=None,  # No evaluator in CLI mode
+            evaluator=Jinja2Evaluator(),
         )
     except ValueError as exc:
         print(str(exc), file=sys.stderr)

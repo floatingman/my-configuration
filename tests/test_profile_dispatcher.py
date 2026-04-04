@@ -37,8 +37,6 @@ from profile_dispatcher import (
     ResolvedManifest,
     translate_condition,
     resolve_manifest,
-    discover_overlays,
-    load_overlay,
     Jinja2Evaluator,
     DictEvaluator,
     EvaluationError,
@@ -1807,7 +1805,7 @@ class TestResolveManifestFunction:
         )
         dotfiles_roles = [r for r in manifest.roles if r.role == "dotfiles"]
         assert len(dotfiles_roles) == 1
-        assert "true" in dotfiles_roles[0].condition or dotfiles_roles[0].condition == ""
+        assert dotfiles_roles[0].condition == "true"
 
     def test_all_profiles_resolve_successfully(self):
         """All 6 named profiles resolve to valid manifests."""
