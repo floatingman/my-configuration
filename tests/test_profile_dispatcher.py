@@ -20,6 +20,7 @@ import json
 from profile_dispatcher import (
     main,
     resolve,
+    resolve_manifest,
     load_profile,
     validate_profile,
     list_profiles,
@@ -33,6 +34,7 @@ from profile_dispatcher import (
     RoleEntry,
     Overlay,
     ResolvedProfile,
+    Manifest,
     Jinja2Evaluator,
     DictEvaluator,
     EvaluationError,
@@ -1669,6 +1671,112 @@ class TestDictEvaluator:
         assert evaluator.evaluate("laptop", {}) is True
         assert evaluator.evaluate("desktop", {}) is False
         assert evaluator.evaluate("server", {}) is True
+
+
+class TestManifest:
+    """Test Manifest dataclass and resolve_manifest() function."""
+
+    def test_manifest_is_frozen(self):
+        """Manifest should be immutable."""
+        m = Manifest(
+            profile="i3", display_manager="lightdm", has_display=True,
+            is_i3=True, is_hyprland=False, is_gnome=False,
+            is_awesomewm=False, is_kde=False, is_arch=True,
+        )
+        with pytest.raises(AttributeError):
+            m.profile = "hyprland"
+
+    def test_resolve_manifest_default_os_is_arch(self):
+        """Without os_family, defaults to Archlinux."""
+        manifest = resolve_manifest(profile="i3")
+        assert manifest.is_arch is True
+        assert manifest.is_i3 is True
+
+    def test_resolve_manifest_debian_is_not_arch(self):
+        """os_family='Debian' sets is_arch=False."""
+        manifest = resolve_manifest(profile="headless", os_family="Debian")
+        assert manifest.is_arch is False
+        assert manifest.has_display is False
+
+    def test_resolve_manifest_arch_explicit(self):
+        """os_family='Archlinux' sets is_arch=True."""
+        manifest = resolve_manifest(profile="hyprland", os_family="Archlinux")
+        assert manifest.is_arch is True
+        assert manifest.is_hyprland is True
+        assert manifest.display_manager == "sddm"
+
+    def test_resolve_manifest_manual_mode(self):
+        """Manual mode with explicit vars."""
+        manifest = resolve_manifest(
+            display_manager="lightdm",
+            desktop_environment="i3",
+            os_family="Debian",
+        )
+        assert manifest.profile == "manual"
+        assert manifest.is_arch is False
+        assert manifest.is_i3 is True
+
+    def test_resolve_manifest_null_os_family_defaults_arch(self):
+        """None os_family defaults to Archlinux."""
+        manifest = resolve_manifest(profile="gnome", os_family=None)
+        assert manifest.is_arch is True
+
+    def test_resolve_manifest_all_profiles(self):
+        """All 6 profiles resolve successfully with os_family."""
+        for name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
+            manifest = resolve_manifest(profile=name, os_family="Archlinux")
+            assert manifest.profile == name
+            assert manifest.is_arch is True
+
+
+class TestCLIResolveManifest:
+    """Tests for the 'resolve-manifest' CLI subcommand."""
+
+    def test_resolve_manifest_i3(self, capsys):
+        """resolve-manifest --profile i3 outputs valid JSON."""
+        rc = main(["resolve-manifest", "--profile", "i3"])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["profile"] == "i3"
+        assert data["is_i3"] is True
+        assert data["is_arch"] is True
+
+    def test_resolve_manifest_with_os_family(self, capsys):
+        """resolve-manifest --os-family Debian sets is_arch=False."""
+        rc = main(["resolve-manifest", "--profile", "headless", "--os-family", "Debian"])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["is_arch"] is False
+        assert data["has_display"] is False
+
+    def test_resolve_manifest_manual_mode(self, capsys):
+        """resolve-manifest works in manual mode."""
+        rc = main([
+            "resolve-manifest",
+            "--display-manager", "lightdm",
+            "--desktop-environment", "i3",
+        ])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["profile"] == "manual"
+        assert data["is_i3"] is True
+
+    def test_resolve_manifest_unknown_profile_exits_1(self, capsys):
+        """resolve-manifest with unknown profile exits 1."""
+        rc = main(["resolve-manifest", "--profile", "unknown"])
+        assert rc == 1
+        assert "Unknown profile" in capsys.readouterr().err
+
+    def test_resolve_manifest_json_has_all_fields(self, capsys):
+        """resolve-manifest output contains all Manifest fields."""
+        main(["resolve-manifest", "--profile", "gnome", "--os-family", "Archlinux"])
+        data = json.loads(capsys.readouterr().out)
+        expected_keys = {
+            "profile", "display_manager", "has_display",
+            "is_i3", "is_hyprland", "is_gnome",
+            "is_awesomewm", "is_kde", "is_arch",
+        }
+        assert expected_keys == set(data.keys())
 
 
 if __name__ == '__main__':

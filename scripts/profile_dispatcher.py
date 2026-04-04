@@ -243,11 +243,11 @@ class Manifest:
     """
     Complete manifest for Ansible playbook execution.
 
-    Combines profile resolution with overlay flags.
+    Combines profile resolution with OS detection into a single payload.
 
     Attributes:
         profile: The profile name that was resolved (or 'manual' for manual mode)
-        display_manager: The display manager to use ('gdm', 'lightdm', or None)
+        display_manager: The display manager to use ('gdm', 'lightdm', 'sddm', or None)
         has_display: Whether this machine has any display/GUI
         is_i3: Whether to install i3 window manager
         is_hyprland: Whether to install Hyprland compositor
