@@ -9,11 +9,13 @@ This is a standalone Python module with no Ansible dependency,
 making the dispatch logic unit-testable.
 
 CLI subcommands:
-  resolve        Resolve a profile to JSON (for Ansible script module)
-  resolve-overlays Resolve overlays against host facts and output JSON
-  validate       Validate all profiles and overlays in a directory (for CI)
-  list-profiles  List available profile names or a human-readable table
-  make-args      Output -e flag string for Makefile consumption
+  resolve              Resolve a profile to JSON (for Ansible script module)
+  resolve-manifest     Resolve profile to manifest JSON with OS detection (for Ansible)
+  resolve-role-manifest Resolve a complete role manifest with computed conditions
+  resolve-overlays     Resolve overlays against host facts and output JSON
+  validate             Validate all profiles and overlays in a directory (for CI)
+  list-profiles        List available profile names or a human-readable table
+  make-args            Output -e flag string for Makefile consumption
 """
 
 import argparse
@@ -235,6 +237,35 @@ class ResolvedProfile:
     is_gnome: bool
     is_awesomewm: bool
     is_kde: bool
+
+
+@dataclass(frozen=True)
+class Manifest:
+    """
+    Complete manifest for Ansible playbook execution.
+
+    Combines profile resolution with OS detection into a single payload.
+
+    Attributes:
+        profile: The profile name that was resolved (or 'manual' for manual mode)
+        display_manager: The display manager to use ('gdm', 'lightdm', 'sddm', or None)
+        has_display: Whether this machine has any display/GUI
+        is_i3: Whether to install i3 window manager
+        is_hyprland: Whether to install Hyprland compositor
+        is_gnome: Whether to install GNOME desktop
+        is_awesomewm: Whether to install AwesomeWM window manager
+        is_kde: Whether to install KDE Plasma desktop
+        is_arch: Whether the OS is Arch Linux (computed from os_family)
+    """
+    profile: str
+    display_manager: Optional[str]
+    has_display: bool
+    is_i3: bool
+    is_hyprland: bool
+    is_gnome: bool
+    is_awesomewm: bool
+    is_kde: bool
+    is_arch: bool
 
 
 @dataclass(frozen=True)
@@ -519,7 +550,7 @@ def translate_condition(
     return ""
 
 
-def resolve_manifest(
+def resolve_role_manifest(
     profile: Optional[str] = None,
     display_manager: Optional[str] = None,
     desktop_environment: Optional[str] = None,
@@ -1227,6 +1258,72 @@ def resolve(
     )
 
 
+def resolve_manifest(
+    profile: Optional[str] = None,
+    display_manager: Optional[str] = None,
+    desktop_environment: Optional[str] = None,
+    disable_i3: bool = False,
+    disable_hyprland: bool = False,
+    disable_gnome: bool = False,
+    disable_awesomewm: bool = False,
+    disable_kde: bool = False,
+    os_family: Optional[str] = None,
+    profiles_dir: str = _DEFAULT_PROFILES_DIR,
+) -> Manifest:
+    """
+    Resolve profile configuration into a complete manifest for Ansible.
+
+    This is the single entry point for play.yml pre_tasks, combining profile
+    resolution with OS detection into one JSON output.
+
+    Args:
+        profile: Profile name ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde')
+                or None for manual mode
+        display_manager: Display manager name ('gdm', 'lightdm', 'sddm') or None
+        desktop_environment: Desktop environment name or None
+        disable_i3: Suppress i3 in manual mode
+        disable_hyprland: Suppress Hyprland in manual mode
+        disable_gnome: Suppress GNOME in manual mode
+        disable_awesomewm: Suppress AwesomeWM in manual mode
+        disable_kde: Suppress KDE in manual mode
+        os_family: OS family ('Archlinux', 'Debian', etc.) - if None, defaults to 'Archlinux'
+        profiles_dir: Directory containing profile YAML files
+
+    Returns:
+        Manifest with all flags computed for Ansible consumption
+
+    Raises:
+        ValueError: If profile name is unknown
+    """
+    # Resolve profile using existing logic
+    resolved = resolve(
+        profile=profile,
+        display_manager=display_manager,
+        desktop_environment=desktop_environment,
+        disable_i3=disable_i3,
+        disable_hyprland=disable_hyprland,
+        disable_gnome=disable_gnome,
+        disable_awesomewm=disable_awesomewm,
+        disable_kde=disable_kde,
+        profiles_dir=profiles_dir,
+    )
+
+    # Compute is_arch from os_family (default to Archlinux for backward compatibility)
+    is_arch = (os_family or 'Archlinux') == 'Archlinux'
+
+    return Manifest(
+        profile=resolved.profile,
+        display_manager=resolved.display_manager,
+        has_display=resolved.has_display,
+        is_i3=resolved.is_i3,
+        is_hyprland=resolved.is_hyprland,
+        is_gnome=resolved.is_gnome,
+        is_awesomewm=resolved.is_awesomewm,
+        is_kde=resolved.is_kde,
+        is_arch=is_arch,
+    )
+
+
 def _resolve_profile_mode(profile: str, profiles_dir: str) -> ResolvedProfile:
     """
     Resolve in profile mode - settings come from YAML profile file.
@@ -1341,6 +1438,29 @@ def _cmd_resolve(args: argparse.Namespace) -> int:
             disable_gnome=args.disable_gnome,
             disable_awesomewm=args.disable_awesomewm,
             disable_kde=args.disable_kde,
+            profiles_dir=args.profiles_dir,
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    print(json.dumps(asdict(result)))
+    return 0
+
+
+def _cmd_resolve_manifest(args: argparse.Namespace) -> int:
+    """Output Manifest as JSON to stdout; exit 1 on error."""
+    try:
+        result = resolve_manifest(
+            profile=args.profile,
+            display_manager=args.display_manager,
+            desktop_environment=args.desktop_environment,
+            disable_i3=args.disable_i3,
+            disable_hyprland=args.disable_hyprland,
+            disable_gnome=args.disable_gnome,
+            disable_awesomewm=args.disable_awesomewm,
+            disable_kde=args.disable_kde,
+            os_family=args.os_family,
             profiles_dir=args.profiles_dir,
         )
     except ValueError as exc:
@@ -1511,7 +1631,7 @@ def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_resolve_manifest(args: argparse.Namespace) -> int:
+def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     """Output ResolvedManifest as JSON to stdout; exit 1 on error."""
     try:
         # Parse host_vars JSON
@@ -1523,7 +1643,7 @@ def _cmd_resolve_manifest(args: argparse.Namespace) -> int:
                 print(f"Invalid JSON in --host-vars: {exc}", file=sys.stderr)
                 return 1
 
-        result = resolve_manifest(
+        result = resolve_role_manifest(
             profile=args.profile,
             display_manager=args.display_manager,
             desktop_environment=args.desktop_environment,
@@ -1584,6 +1704,25 @@ def _build_parser() -> argparse.ArgumentParser:
     p_resolve.add_argument("--disable-awesomewm", dest="disable_awesomewm", action="store_true")
     p_resolve.add_argument("--disable-kde", dest="disable_kde", action="store_true")
     p_resolve.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
+    # --- resolve-manifest ---
+    p_manifest = subparsers.add_parser(
+        "resolve-manifest",
+        help="Resolve profile to manifest JSON for Ansible (includes OS detection).",
+    )
+    p_manifest.add_argument("--profile", default=None, help="Profile name (e.g. i3, headless)")
+    p_manifest.add_argument("--display-manager", dest="display_manager", default=None)
+    p_manifest.add_argument("--desktop-environment", dest="desktop_environment", default=None)
+    p_manifest.add_argument("--disable-i3", dest="disable_i3", action="store_true")
+    p_manifest.add_argument("--disable-hyprland", dest="disable_hyprland", action="store_true")
+    p_manifest.add_argument("--disable-gnome", dest="disable_gnome", action="store_true")
+    p_manifest.add_argument("--disable-awesomewm", dest="disable_awesomewm", action="store_true")
+    p_manifest.add_argument("--disable-kde", dest="disable_kde", action="store_true")
+    p_manifest.add_argument("--os-family", dest="os_family", default=None,
+                          help="OS family (e.g. Archlinux, Debian)")
+    p_manifest.add_argument(
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
@@ -1659,9 +1798,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
-    # --- resolve-manifest ---
+    # --- resolve-role-manifest ---
     p_manifest = subparsers.add_parser(
-        "resolve-manifest",
+        "resolve-role-manifest",
         help="Resolve a complete role manifest with computed conditions.",
     )
     p_manifest.add_argument("--profile", default=None, help="Profile name (e.g. i3, headless)")
@@ -1710,11 +1849,12 @@ def main(argv: Optional[list] = None) -> int:
 
     dispatch = {
         "resolve": _cmd_resolve,
+        "resolve-manifest": _cmd_resolve_manifest,
+        "resolve-role-manifest": _cmd_resolve_role_manifest,
         "resolve-overlays": _cmd_resolve_overlays,
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
-        "resolve-manifest": _cmd_resolve_manifest,
     }
     return dispatch[args.subcommand](args)
 

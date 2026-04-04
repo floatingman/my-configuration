@@ -20,6 +20,8 @@ import json
 from profile_dispatcher import (
     main,
     resolve,
+    resolve_manifest,
+    resolve_role_manifest,
     load_profile,
     validate_profile,
     list_profiles,
@@ -33,10 +35,10 @@ from profile_dispatcher import (
     RoleEntry,
     Overlay,
     ResolvedProfile,
+    Manifest,
     RoleCondition,
     ResolvedManifest,
     translate_condition,
-    resolve_manifest,
     Jinja2Evaluator,
     DictEvaluator,
     EvaluationError,
@@ -1675,6 +1677,62 @@ class TestDictEvaluator:
         assert evaluator.evaluate("server", {}) is True
 
 
+class TestManifest:
+    """Test Manifest dataclass and resolve_manifest() function."""
+
+    def test_manifest_is_frozen(self):
+        """Manifest should be immutable."""
+        m = Manifest(
+            profile="i3", display_manager="lightdm", has_display=True,
+            is_i3=True, is_hyprland=False, is_gnome=False,
+            is_awesomewm=False, is_kde=False, is_arch=True,
+        )
+        with pytest.raises(AttributeError):
+            m.profile = "hyprland"
+
+    def test_resolve_manifest_default_os_is_arch(self):
+        """Without os_family, defaults to Archlinux."""
+        manifest = resolve_manifest(profile="i3")
+        assert manifest.is_arch is True
+        assert manifest.is_i3 is True
+
+    def test_resolve_manifest_debian_is_not_arch(self):
+        """os_family='Debian' sets is_arch=False."""
+        manifest = resolve_manifest(profile="headless", os_family="Debian")
+        assert manifest.is_arch is False
+        assert manifest.has_display is False
+
+    def test_resolve_manifest_arch_explicit(self):
+        """os_family='Archlinux' sets is_arch=True."""
+        manifest = resolve_manifest(profile="hyprland", os_family="Archlinux")
+        assert manifest.is_arch is True
+        assert manifest.is_hyprland is True
+        assert manifest.display_manager == "sddm"
+
+    def test_resolve_manifest_manual_mode(self):
+        """Manual mode with explicit vars."""
+        manifest = resolve_manifest(
+            display_manager="lightdm",
+            desktop_environment="i3",
+            os_family="Debian",
+        )
+        assert manifest.profile == "manual"
+        assert manifest.is_arch is False
+        assert manifest.is_i3 is True
+
+    def test_resolve_manifest_null_os_family_defaults_arch(self):
+        """None os_family defaults to Archlinux."""
+        manifest = resolve_manifest(profile="gnome", os_family=None)
+        assert manifest.is_arch is True
+
+    def test_resolve_manifest_all_profiles(self):
+        """All 6 profiles resolve successfully with os_family."""
+        for name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
+            manifest = resolve_manifest(profile=name, os_family="Archlinux")
+            assert manifest.profile == name
+            assert manifest.is_arch is True
+
+
 class TestTranslateConditionExtended:
     """Extended tests for translate_condition() function."""
 
@@ -1742,12 +1800,12 @@ class TestTranslateConditionExtended:
         assert condition == "false"
 
 
-class TestResolveManifestFunction:
-    """Test resolve_manifest() function."""
+class TestResolveRoleManifestFunction:
+    """Test resolve_role_manifest() function."""
 
     def test_resolves_hyprland_profile(self):
-        """resolve_manifest for hyprland profile returns correct manifest."""
-        manifest = resolve_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
+        """resolve_role_manifest for hyprland profile returns correct manifest."""
+        manifest = resolve_role_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
         assert manifest.profile == "hyprland"
         assert manifest.display_manager == "sddm"
         assert manifest.has_display is True
@@ -1757,14 +1815,14 @@ class TestResolveManifestFunction:
 
     def test_resolves_headless_profile(self):
         """resolve_manifest for headless profile has _has_display=False in flags."""
-        manifest = resolve_manifest(profile="headless", host_vars={}, os_family="Archlinux")
+        manifest = resolve_role_manifest(profile="headless", host_vars={}, os_family="Archlinux")
         assert manifest.profile == "headless"
         assert manifest.has_display is False
         assert manifest.profile_flags["_has_display"] is False
 
     def test_manual_mode_with_explicit_vars(self):
         """resolve_manifest works in manual mode with explicit variables."""
-        manifest = resolve_manifest(
+        manifest = resolve_role_manifest(
             display_manager="lightdm",
             desktop_environment="i3",
             host_vars={},
@@ -1778,7 +1836,7 @@ class TestResolveManifestFunction:
     def test_includes_overlay_flags_when_overlay_applies(self):
         """resolve_manifest includes overlay flags when overlay applies."""
         host_vars = {"laptop": True}
-        manifest = resolve_manifest(
+        manifest = resolve_role_manifest(
             profile="hyprland",
             host_vars=host_vars,
             os_family="Archlinux",
@@ -1788,7 +1846,7 @@ class TestResolveManifestFunction:
 
     def test_deduplicates_roles_by_name(self):
         """Roles appearing in multiple profiles produce single manifest entry."""
-        manifest = resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
+        manifest = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
         role_names = [r.role for r in manifest.roles]
         terminal_count = role_names.count("terminal")
         assert terminal_count == 1
@@ -1798,7 +1856,7 @@ class TestResolveManifestFunction:
         host_vars = {
             "dotfiles": {"repo_url": "https://github.com/example/dotfiles"}
         }
-        manifest = resolve_manifest(
+        manifest = resolve_role_manifest(
             profile="hyprland",
             host_vars=host_vars,
             os_family="Archlinux",
@@ -1810,7 +1868,7 @@ class TestResolveManifestFunction:
     def test_all_profiles_resolve_successfully(self):
         """All 6 named profiles resolve to valid manifests."""
         for profile_name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
-            manifest = resolve_manifest(
+            manifest = resolve_role_manifest(
                 profile=profile_name,
                 host_vars={},
                 os_family="Archlinux",
@@ -1821,26 +1879,26 @@ class TestResolveManifestFunction:
 
     def test_resolved_manifest_is_frozen(self):
         """ResolvedManifest should be immutable (frozen dataclass)."""
-        manifest = resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
+        manifest = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
         with pytest.raises(AttributeError):
             manifest.profile = "hyprland"
 
     def test_resolved_manifest_equality(self):
         """ResolvedManifest with same inputs should be equal."""
-        manifest1 = resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-        manifest2 = resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-        manifest3 = resolve_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
+        manifest1 = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
+        manifest2 = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
+        manifest3 = resolve_role_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
 
         assert manifest1 == manifest2
         assert manifest1 != manifest3
 
 
-class TestCLIResolveManifest:
-    """Tests for the 'resolve-manifest' CLI subcommand."""
+class TestCLIResolveRoleManifest:
+    """Tests for the 'resolve-role-manifest' CLI subcommand."""
 
     def test_resolve_manifest_named_profile(self, capsys):
         """resolve-manifest --profile i3 outputs valid JSON."""
-        rc = main(["resolve-manifest", "--profile", "i3"])
+        rc = main(["resolve-role-manifest", "--profile", "i3"])
         out = capsys.readouterr().out
         assert rc == 0
         data = json.loads(out)
@@ -1853,7 +1911,7 @@ class TestCLIResolveManifest:
 
     def test_resolve_manifest_headless_profile(self, capsys):
         """resolve-manifest --profile headless outputs manifest with no display."""
-        rc = main(["resolve-manifest", "--profile", "headless"])
+        rc = main(["resolve-role-manifest", "--profile", "headless"])
         out = capsys.readouterr().out
         assert rc == 0
         data = json.loads(out)
@@ -1861,10 +1919,10 @@ class TestCLIResolveManifest:
         assert data["has_display"] is False
         assert data["display_manager"] is None
 
-    def test_resolve_manifest_with_host_vars(self, capsys):
-        """resolve-manifest --host-vars evaluates config_check expressions."""
+    def test_resolve_role_manifest_with_host_vars(self, capsys):
+        """resolve-role-manifest --host-vars evaluates config_check expressions."""
         host_vars_json = json.dumps({"laptop": True})
-        rc = main(["resolve-manifest", "--profile", "i3", "--host-vars", host_vars_json])
+        rc = main(["resolve-role-manifest", "--profile", "i3", "--host-vars", host_vars_json])
         out = capsys.readouterr().out
         assert rc == 0
         data = json.loads(out)
@@ -1872,7 +1930,7 @@ class TestCLIResolveManifest:
 
     def test_resolve_manifest_invalid_host_vars_exits_1(self, capsys):
         """resolve-manifest with invalid JSON in --host-vars exits 1."""
-        rc = main(["resolve-manifest", "--profile", "i3", "--host-vars", "invalid json"])
+        rc = main(["resolve-role-manifest", "--profile", "i3", "--host-vars", "invalid json"])
         err = capsys.readouterr().err
         assert rc == 1
         assert "Invalid JSON" in err
@@ -1880,7 +1938,7 @@ class TestCLIResolveManifest:
     def test_resolve_manifest_manual_mode(self, capsys):
         """resolve-manifest works in manual mode without --profile."""
         rc = main([
-            "resolve-manifest",
+            "resolve-role-manifest",
             "--display-manager", "lightdm",
             "--desktop-environment", "i3",
         ])
@@ -1892,7 +1950,7 @@ class TestCLIResolveManifest:
 
     def test_resolve_manifest_roles_have_required_fields(self, capsys):
         """resolve-manifest output includes all required role fields."""
-        main(["resolve-manifest", "--profile", "hyprland"])
+        main(["resolve-role-manifest", "--profile", "hyprland"])
         out = capsys.readouterr().out
         data = json.loads(out)
         assert "roles" in data
@@ -1905,7 +1963,7 @@ class TestCLIResolveManifest:
 
     def test_resolve_manifest_unknown_profile_exits_1(self, capsys):
         """resolve-manifest with unknown profile exits 1."""
-        rc = main(["resolve-manifest", "--profile", "unknown"])
+        rc = main(["resolve-role-manifest", "--profile", "unknown"])
         err = capsys.readouterr().err
         assert rc == 1
         assert "Unknown profile" in err
