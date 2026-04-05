@@ -13,6 +13,7 @@ CLI subcommands:
   resolve-manifest     Resolve profile to manifest JSON with OS detection (for Ansible)
   resolve-role-manifest Resolve a complete role manifest with computed conditions
   resolve-overlays     Resolve overlays against host facts and output JSON
+  sync-playbook        Compare play.yml roles with profile-derived expected roles
   validate             Validate all profiles and overlays in a directory (for CI)
   list-profiles        List available profile names or a human-readable table
   make-args            Output -e flag string for Makefile consumption
@@ -451,7 +452,8 @@ def translate_condition(
     role_entry: dict,
     host_vars: dict,
     os_family: str,
-    evaluator: Any = None
+    evaluator: Any = None,
+    preserve_config_check: bool = False,
 ) -> str:
     """
     Translate role annotations into a Jinja2 when: condition string.
@@ -464,6 +466,9 @@ def translate_condition(
         host_vars: Host variables dict for config_check evaluation
         os_family: OS family ('Archlinux' or 'Debian')
         evaluator: Optional evaluator protocol for config_check expressions
+        preserve_config_check: When True, keep config_check as a raw Jinja2
+            expression instead of evaluating it.  Use this for static comparison
+            (e.g., sync-playbook) where host_vars are not available.
 
     Returns:
         Jinja2 condition string (empty string if no condition)
@@ -500,7 +505,10 @@ def translate_condition(
     # config_check: evaluate the expression and return boolean result
     config_check = role_dict.get("config_check")
     if config_check:
-        if evaluator:
+        if preserve_config_check:
+            # Keep as-is for static comparison (sync-playbook); don't evaluate
+            conditions.append(config_check)
+        elif evaluator:
             # Evaluate config_check against host_vars using the evaluator
             try:
                 result = evaluator.evaluate(config_check, host_vars)
@@ -563,6 +571,7 @@ def resolve_role_manifest(
     os_family: str = "Archlinux",
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
     evaluator: Any = None,
+    preserve_config_check: bool = False,
 ) -> ResolvedManifest:
     """
     Resolve a complete role manifest from profile configuration.
@@ -583,6 +592,8 @@ def resolve_role_manifest(
         os_family: OS family ('Archlinux' or 'Debian')
         profiles_dir: Directory containing profile YAML files
         evaluator: Optional evaluator for config_check expressions
+        preserve_config_check: When True, keep config_check as raw Jinja2
+            expressions rather than evaluating them.
 
     Returns:
         ResolvedManifest with all roles and conditions
@@ -722,7 +733,7 @@ def resolve_role_manifest(
         # TODO: Track source during role collection
 
         # Translate condition
-        condition = translate_condition(role_entry, host_vars, os_family, evaluator)
+        condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
 
         # Deduplicate: OR conditions if role already exists
         if role_name in role_map:
@@ -1683,6 +1694,182 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sync_playbook(args: argparse.Namespace) -> int:
+    """
+    Compare actual play.yml roles with profile-derived expected roles.
+
+    Reads all profile YAML files, generates the expected play.yml roles section
+    (with computed when: conditions using resolve-role-manifest), and diffs it
+    against the actual play.yml.
+
+    Uses no_eval mode so keep config_check expressions as raw Jinja2
+    (e.g. "dotfiles is defined") instead of evaluating them against empty
+    host_vars, which would produce constant "true"/"false" strings that
+    never match the actual play.yml conditions.
+
+    Exits 1 on drift in --check mode; otherwise outputs diff to stdout.
+    """
+    playbook_path = Path(args.playbook)
+    if not playbook_path.exists():
+        print(f"Error: Playbook not found: {playbook_path}", file=sys.stderr)
+        return 1
+
+    # Load actual play.yml
+    with open(playbook_path) as f:
+        playbook_data = yaml.safe_load(f)
+
+    # Extract roles from play.yml (handle list of plays format)
+    if isinstance(playbook_data, list):
+        plays = playbook_data
+    else:
+        plays = [playbook_data]
+
+    actual_roles = []
+    for play in plays:
+        if "roles" in play:
+            actual_roles.extend(play["roles"])
+
+    # Build actual role map: role name -> condition
+    actual_role_map = {}
+    for role_entry in actual_roles:
+        if isinstance(role_entry, str):
+            role_name = role_entry
+            condition = None
+        else:
+            role_name = role_entry.get("role", "")
+            condition = role_entry.get("when")
+        actual_role_map[role_name] = condition
+
+    # Validate profiles directory exists
+    profiles_path = Path(args.profiles_dir)
+    if not profiles_path.exists():
+        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
+        return 1
+    if not profiles_path.is_dir():
+        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
+        return 1
+    profile_names = list_profiles(args.profiles_dir)
+
+    # Build expected role map from all profiles using resolve-role-manifest
+    # Use preserve_config_check=True so config_check expressions are kept as
+    # raw Jinja2 strings (not evaluated against empty host_vars).
+    expected_role_map = {}
+    for profile_name in profile_names:
+        try:
+            manifest = resolve_role_manifest(
+                profile=profile_name,
+                os_family="Archlinux",  # Default OS for sync comparison
+                host_vars={},  # Empty host vars (dict, not string)
+                profiles_dir=args.profiles_dir,
+                preserve_config_check=True,
+            )
+        except ValueError:
+            # Skip invalid profiles
+            continue
+
+        # Collect roles from manifest and merge repeated roles the same way
+        # resolve_role_manifest does: OR differing conditions, and keep a role
+        # unconditional if any profile includes it unconditionally.
+        for role_cond in manifest.roles:
+            role_name = role_cond.role
+            condition = role_cond.condition or None
+
+            if role_name not in expected_role_map:
+                expected_role_map[role_name] = condition
+                continue
+
+            existing_condition = expected_role_map[role_name]
+
+            if existing_condition is None or condition is None:
+                expected_role_map[role_name] = None
+            elif existing_condition != condition:
+                expected_role_map[role_name] = (
+                    f"({existing_condition}) or ({condition})"
+                )
+
+    # Compare actual vs expected
+    actual_roles_set = set(actual_role_map.keys())
+    expected_roles_set = set(expected_role_map.keys())
+
+    # Filter out overlay-based roles from comparison (they're dynamic, not in profiles)
+    overlay_roles = {
+        role for role, cond in actual_role_map.items()
+        if cond and "_overlay_" in str(cond)
+    }
+
+    actual_roles_filtered = actual_roles_set - overlay_roles
+    expected_roles_filtered = expected_roles_set - overlay_roles
+
+    missing_roles = expected_roles_filtered - actual_roles_filtered
+    extra_roles = actual_roles_filtered - expected_roles_filtered
+    common_roles = actual_roles_filtered & expected_roles_filtered
+
+    # Check for condition mismatches
+    condition_mismatches = []
+    for role_name in sorted(common_roles):
+        actual_cond = actual_role_map[role_name]
+        expected_cond = expected_role_map[role_name]
+
+        # Normalize conditions for comparison
+        # Strip whitespace, handle None vs empty string
+        actual_normalized = actual_cond.strip() if actual_cond else ""
+        expected_normalized = expected_cond.strip() if expected_cond else ""
+
+        if actual_normalized != expected_normalized:
+            condition_mismatches.append({
+                "role": role_name,
+                "actual": actual_cond,
+                "expected": expected_cond,
+            })
+
+    # Check if in sync
+    in_sync = (
+        not missing_roles and
+        not extra_roles and
+        not condition_mismatches
+    )
+
+    if in_sync:
+        print("play.yml is in sync with profile definitions")
+        return 0
+
+    # Output the diff
+    print("play.yml is out of sync with profile definitions:\n")
+
+    if missing_roles:
+        print("Missing roles (in profiles but not in play.yml):")
+        for role in sorted(missing_roles):
+            expected_cond = expected_role_map[role]
+            if expected_cond:
+                print(f"  - {role} (when: {expected_cond})")
+            else:
+                print(f"  - {role}")
+        print()
+
+    if extra_roles:
+        print("Extra roles (in play.yml but not in any profile):")
+        for role in sorted(extra_roles):
+            actual_cond = actual_role_map[role]
+            if actual_cond:
+                print(f"  - {role} (when: {actual_cond})")
+            else:
+                print(f"  - {role}")
+        print()
+
+    if condition_mismatches:
+        print("Condition mismatches:")
+        for mismatch in condition_mismatches:
+            print(f"  - {mismatch['role']}:")
+            print(f"      actual:   {mismatch['actual']}")
+            print(f"      expected: {mismatch['expected']}")
+        print()
+
+    if args.check:
+        return 1
+
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="profile_dispatcher.py",
@@ -1828,6 +2015,25 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- sync-playbook ---
+    p_sync = subparsers.add_parser(
+        "sync-playbook",
+        help="Compare play.yml roles with profile-derived expected roles.",
+    )
+    p_sync.add_argument(
+        "--playbook",
+        default=str(Path(__file__).parent.parent / "play.yml"),
+        help="Path to play.yml file",
+    )
+    p_sync.add_argument(
+        "--check",
+        action="store_true",
+        help="CI mode: exit 1 on drift, no output changes",
+    )
+    p_sync.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     return parser
 
 
@@ -1852,6 +2058,7 @@ def main(argv: Optional[list] = None) -> int:
         "resolve-manifest": _cmd_resolve_manifest,
         "resolve-role-manifest": _cmd_resolve_role_manifest,
         "resolve-overlays": _cmd_resolve_overlays,
+        "sync-playbook": _cmd_sync_playbook,
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
