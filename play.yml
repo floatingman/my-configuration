@@ -3,19 +3,20 @@
   hosts: localhost
 
   # ---------------------------------------------------------------------------
-  # Profile Dispatcher
+  # Profile Dispatcher — single unified manifest
   # ---------------------------------------------------------------------------
-  # Compute boolean flags once so every role gets a clean, single-variable
-  # condition.  Supports:
+  # Compute all boolean flags (profile + overlay) in one call.
+  # Replaces the previous dual resolve-manifest + resolve-overlays calls.
+  # Supports:
   #   a) Profile mode   – pass `profile=<name>` (via `make profile-*`)
   #   b) Manual mode    – set display_manager / desktop_environment directly
   #                       (legacy / backward-compatible behaviour)
   # ---------------------------------------------------------------------------
   pre_tasks:
-    - name: Resolve manifest via dispatcher
+    - name: Resolve unified role manifest
       command: >-
         {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
-        {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-manifest
+        {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-role-manifest
         --profiles-dir "{{ playbook_dir }}/profiles"
         --profile "{{ profile | default('manual') }}"
         --os-family "{{ ansible_facts['os_family'] }}"
@@ -26,66 +27,50 @@
         {{ (disable_gnome is defined and disable_gnome) | ternary('--disable-gnome', '') }}
         {{ (disable_awesomewm is defined and disable_awesomewm) | ternary('--disable-awesomewm', '') }}
         {{ (disable_kde is defined and disable_kde) | ternary('--disable-kde', '') }}
+        --host-vars '{{ _host_vars_json }}'
+      vars:
+        _host_vars_json: >-
+          {{
+            {}
+            | combine({"laptop": laptop}) if laptop is defined else {}
+            | combine({"bluetooth": bluetooth}) if bluetooth is defined else {}
+            | combine({"dotfiles": dotfiles}) if dotfiles is defined else {}
+            | combine({"goesimage": goesimage}) if goesimage is defined else {}
+            | combine({"regdomain": regdomain}) if regdomain is defined else {}
+            | to_json
+          }}
       register: _manifest_result
       changed_when: false
       check_mode: false
       tags: always
 
-    - name: Set facts from resolved manifest
+    - name: Set profile facts from resolved manifest
       vars:
         _manifest: "{{ _manifest_result.stdout | from_json }}"
+        _pf: "{{ _manifest.profile_flags }}"
       set_fact:
         _profile: "{{ _manifest.profile }}"
-        _dm: "{{ _manifest.display_manager | default('', true) }}"
-        _has_display: "{{ _manifest.has_display }}"
-        _is_i3: "{{ _manifest.is_i3 }}"
-        _is_hyprland: "{{ _manifest.is_hyprland }}"
-        _is_gnome: "{{ _manifest.is_gnome }}"
-        _is_awesomewm: "{{ _manifest.is_awesomewm }}"
-        _is_kde: "{{ _manifest.is_kde }}"
-        _is_arch: "{{ _manifest.is_arch }}"
+        _dm: "{{ _pf._dm | default('', true) }}"
+        _has_display: "{{ _pf._has_display }}"
+        _is_i3: "{{ _pf._is_i3 }}"
+        _is_hyprland: "{{ _pf._is_hyprland }}"
+        _is_gnome: "{{ _pf._is_gnome }}"
+        _is_awesomewm: "{{ _pf._is_awesomewm }}"
+        _is_kde: "{{ _pf._is_kde }}"
+        _is_arch: "{{ _pf._is_arch }}"
       tags: always
 
-    # ---------------------------------------------------------------------------
-    # Overlay Resolution
-    # ---------------------------------------------------------------------------
-    # Compute overlay-derived facts based on host variables.
-    # Overlay facts are available for roles to reference but are not yet
-    # consumed by existing role conditions (preserves current behavior).
-    # ---------------------------------------------------------------------------
-    - name: Resolve overlays
-      command: >-
-        {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
-        {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-overlays
-        --facts-json '{{ _overlay_facts_json }}'
-        {{ _has_display | ternary('--has-display', '--no-has-display') }}
-        {{ _is_arch | ternary('--is-arch', '--no-is-arch') }}
+    - name: Set overlay facts from resolved manifest
       vars:
-        _overlay_facts_json: >-
-          {{
-            {}
-            | combine({"laptop": laptop} if laptop is defined else {})
-            | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
-            | combine({"dotfiles": dotfiles} if dotfiles is defined else {})
-            | combine({"goesimage": goesimage} if goesimage is defined else {})
-            | combine({"regdomain": regdomain} if regdomain is defined else {})
-            | to_json
-          }}
-      register: _overlay_result
-      changed_when: false
-      check_mode: false
-      tags: always
-
-    - name: Set overlay facts from resolved JSON
-      vars:
-        _overlay_resolved: "{{ _overlay_result.stdout | from_json }}"
+        _manifest: "{{ _manifest_result.stdout | from_json }}"
+        _of: "{{ _manifest.overlay_flags }}"
       set_fact:
-        _overlay_laptop: "{{ _overlay_resolved.facts._overlay_laptop | default(false) }}"
-        _overlay_backlight: "{{ _overlay_resolved.facts._overlay_backlight | default(false) }}"
-        _overlay_bluetooth: "{{ _overlay_resolved.facts._overlay_bluetooth | default(false) }}"
-        _overlay_dotfiles: "{{ _overlay_resolved.facts._overlay_dotfiles | default(false) }}"
-        _overlay_goesimage: "{{ _overlay_resolved.facts._overlay_goesimage | default(false) }}"
-        _overlay_regdomain: "{{ _overlay_resolved.facts._overlay_regdomain | default(false) }}"
+        _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
+        _overlay_backlight: "{{ _of._overlay_backlight | default(false) }}"
+        _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"
+        _overlay_dotfiles: "{{ _of._overlay_dotfiles | default(false) }}"
+        _overlay_goesimage: "{{ _of._overlay_goesimage | default(false) }}"
+        _overlay_regdomain: "{{ _of._overlay_regdomain | default(false) }}"
       tags: always
 
   roles:
