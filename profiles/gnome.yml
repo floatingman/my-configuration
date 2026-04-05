@@ -24,9 +24,6 @@ roles:
   # GNOME Desktop
   - role: gnome
     tags: [gnome]
-    requires_config:
-      display_manager: gdm
-    requires_display: true
 
   # Display Infrastructure
   - { role: x,             tags: [x] }

@@ -495,11 +495,12 @@ def translate_condition(
     if role_dict.get("requires_display"):
         conditions.append("_has_display")
 
-    # Config condition: requires_config: {display_manager: lightdm} → _dm == 'lightdm'
+    # Config condition: requires_config: {display_manager: lightdm} → _has_display and _dm == 'lightdm'
     requires_config = role_dict.get("requires_config")
     if requires_config and isinstance(requires_config, dict):
         if "display_manager" in requires_config:
             dm_value = requires_config["display_manager"]
+            conditions.append("_has_display")
             conditions.append(f"_dm == '{dm_value}'")
 
     # config_check: evaluate the expression and return boolean result
@@ -1694,6 +1695,22 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def _normalize_condition(cond: Optional[str]) -> str:
+    """Normalize a condition string for comparison.
+
+    Strips '| bool' filters, sorts AND terms alphabetically
+    so that semantically equivalent conditions compare equal.
+    """
+    if not cond:
+        return ""
+    s = cond.strip()
+    # Strip Ansible '| bool' filter (semantically redundant for booleans)
+    s = s.replace(" | bool", "")
+    # Sort AND terms for commutativity
+    parts = sorted(p.strip() for p in s.split(" and "))
+    return " and ".join(parts)
+
+
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
     """
     Compare actual play.yml roles with profile-derived expected roles.
@@ -1702,10 +1719,12 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
     (with computed when: conditions using resolve-role-manifest), and diffs it
     against the actual play.yml.
 
-    Uses no_eval mode so keep config_check expressions as raw Jinja2
-    (e.g. "dotfiles is defined") instead of evaluating them against empty
-    host_vars, which would produce constant "true"/"false" strings that
-    never match the actual play.yml conditions.
+    Uses preserve_config_check=True so config_check expressions are kept as
+    raw Jinja2 (e.g. "dotfiles is defined") instead of evaluating them against
+    empty host_vars.
+
+    Also infers profile-gating conditions for roles exclusive to specific
+    DE profiles (e.g. _is_i3 for roles only in the i3 profile).
 
     Exits 1 on drift in --check mode; otherwise outputs diff to stdout.
     """
@@ -1750,42 +1769,80 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
         return 1
     profile_names = list_profiles(args.profiles_dir)
 
-    # Build expected role map from all profiles using resolve-role-manifest
-    # Use preserve_config_check=True so config_check expressions are kept as
-    # raw Jinja2 strings (not evaluated against empty host_vars).
+    # --- Profile-gating inference ---
+    # DE profiles and their corresponding _is_<de> flags
+    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+    profile_to_flag = {
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "gnome": "_is_gnome",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    # Track which profiles include each role AND build annotation conditions
+    role_to_profiles: Dict[str, set] = {}
     expected_role_map = {}
+
     for profile_name in profile_names:
         try:
             manifest = resolve_role_manifest(
                 profile=profile_name,
-                os_family="Archlinux",  # Default OS for sync comparison
-                host_vars={},  # Empty host vars (dict, not string)
+                os_family="Archlinux",
+                host_vars={},
                 profiles_dir=args.profiles_dir,
                 preserve_config_check=True,
             )
         except ValueError:
-            # Skip invalid profiles
             continue
 
-        # Collect roles from manifest and merge repeated roles the same way
-        # resolve_role_manifest does: OR differing conditions, and keep a role
-        # unconditional if any profile includes it unconditionally.
         for role_cond in manifest.roles:
             role_name = role_cond.role
             condition = role_cond.condition or None
 
+            # Track profile membership
+            role_to_profiles.setdefault(role_name, set()).add(profile_name)
+
+            # Merge conditions across profiles (OR differing ones)
             if role_name not in expected_role_map:
                 expected_role_map[role_name] = condition
                 continue
 
             existing_condition = expected_role_map[role_name]
-
             if existing_condition is None or condition is None:
                 expected_role_map[role_name] = None
             elif existing_condition != condition:
                 expected_role_map[role_name] = (
                     f"({existing_condition}) or ({condition})"
                 )
+
+    # Apply profile-gating for roles with empty annotation conditions
+    all_profile_set = set(profile_names)
+    for role_name, profiles in role_to_profiles.items():
+        existing = expected_role_map.get(role_name)
+        # Only add profile gate if annotation-based condition is empty
+        if existing is not None:
+            continue
+
+        # Universal roles (in ALL profiles including headless) need no gate
+        if profiles >= all_profile_set:
+            continue
+
+        de_members = profiles & de_profiles
+        if not de_members:
+            continue
+
+        # Determine the profile gate expression
+        if de_members == de_profiles:
+            gate = "_has_display"
+        elif len(de_members) == 1:
+            gate = profile_to_flag[next(iter(de_members))]
+        else:
+            gate = " or ".join(
+                profile_to_flag[p] for p in sorted(de_members)
+            )
+
+        expected_role_map[role_name] = gate
 
     # Compare actual vs expected
     actual_roles_set = set(actual_role_map.keys())
@@ -1804,16 +1861,14 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
     extra_roles = actual_roles_filtered - expected_roles_filtered
     common_roles = actual_roles_filtered & expected_roles_filtered
 
-    # Check for condition mismatches
+    # Check for condition mismatches (using normalized comparison)
     condition_mismatches = []
     for role_name in sorted(common_roles):
         actual_cond = actual_role_map[role_name]
         expected_cond = expected_role_map[role_name]
 
-        # Normalize conditions for comparison
-        # Strip whitespace, handle None vs empty string
-        actual_normalized = actual_cond.strip() if actual_cond else ""
-        expected_normalized = expected_cond.strip() if expected_cond else ""
+        actual_normalized = _normalize_condition(actual_cond)
+        expected_normalized = _normalize_condition(expected_cond)
 
         if actual_normalized != expected_normalized:
             condition_mismatches.append({

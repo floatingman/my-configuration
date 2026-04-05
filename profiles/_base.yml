@@ -45,12 +45,12 @@ roles:
   - { role: docker,        tags: [docker],        os: archlinux }
   - { role: kubernetes,    tags: [kubernetes],    os: archlinux }
 
-  # Display-gated Development (filtered out for headless)
-  - { role: devtools,      tags: [devtools],      requires_display: true }
+  # Display-gated Development (Arch-only, filtered out for headless)
+  - { role: devtools,      tags: [devtools],      os: archlinux,     requires_display: true }
 
   # Networking (Arch-only)
-  - { role: nmtrust,       tags: [nmtrust],       os: archlinux }
-  - { role: networkmanager, tags: [networkmanager], os: archlinux }
+  - { role: nmtrust,       tags: [nmtrust],       os: archlinux, requires_display: true }
+  - { role: networkmanager, tags: [networkmanager], os: archlinux, requires_display: true }
   - { role: nettools,      tags: [nettools],      os: archlinux }
   - { role: mirrorlist,    tags: [mirrorlist],    os: archlinux }
   - { role: filesharing,   tags: [filesharing],   os: archlinux }
