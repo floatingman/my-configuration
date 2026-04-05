@@ -114,7 +114,7 @@ check-sync: pip-deps ## Check play.yml sync with profile definitions (CI gate)
 .PHONY: sync-playbook
 sync-playbook: pip-deps ## Show drift between play.yml and profile definitions
 	@echo 'Checking play.yml sync with profile definitions...'
-	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook || true
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook
 
 .PHONY: list-tags
 list-tags: ## List all available tags in the playbook

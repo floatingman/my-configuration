@@ -452,7 +452,8 @@ def translate_condition(
     role_entry: dict,
     host_vars: dict,
     os_family: str,
-    evaluator: Any = None
+    evaluator: Any = None,
+    preserve_config_check: bool = False,
 ) -> str:
     """
     Translate role annotations into a Jinja2 when: condition string.
@@ -465,6 +466,9 @@ def translate_condition(
         host_vars: Host variables dict for config_check evaluation
         os_family: OS family ('Archlinux' or 'Debian')
         evaluator: Optional evaluator protocol for config_check expressions
+        preserve_config_check: When True, keep config_check as a raw Jinja2
+            expression instead of evaluating it.  Use this for static comparison
+            (e.g., sync-playbook) where host_vars are not available.
 
     Returns:
         Jinja2 condition string (empty string if no condition)
@@ -501,7 +505,10 @@ def translate_condition(
     # config_check: evaluate the expression and return boolean result
     config_check = role_dict.get("config_check")
     if config_check:
-        if evaluator:
+        if preserve_config_check:
+            # Keep as-is for static comparison (sync-playbook); don't evaluate
+            conditions.append(config_check)
+        elif evaluator:
             # Evaluate config_check against host_vars using the evaluator
             try:
                 result = evaluator.evaluate(config_check, host_vars)
@@ -564,6 +571,7 @@ def resolve_role_manifest(
     os_family: str = "Archlinux",
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
     evaluator: Any = None,
+    preserve_config_check: bool = False,
 ) -> ResolvedManifest:
     """
     Resolve a complete role manifest from profile configuration.
@@ -584,6 +592,8 @@ def resolve_role_manifest(
         os_family: OS family ('Archlinux' or 'Debian')
         profiles_dir: Directory containing profile YAML files
         evaluator: Optional evaluator for config_check expressions
+        preserve_config_check: When True, keep config_check as raw Jinja2
+            expressions rather than evaluating them.
 
     Returns:
         ResolvedManifest with all roles and conditions
@@ -723,7 +733,7 @@ def resolve_role_manifest(
         # TODO: Track source during role collection
 
         # Translate condition
-        condition = translate_condition(role_entry, host_vars, os_family, evaluator)
+        condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
 
         # Deduplicate: OR conditions if role already exists
         if role_name in role_map:
@@ -1727,9 +1737,14 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
 
     # Load all valid profiles
     profiles_path = Path(args.profiles_dir)
+    if not profiles_path.exists() or not profiles_path.is_dir():
+        print(f"Error: Profiles directory not found: {profiles_path}", file=sys.stderr)
+        return 1
     profile_names = list_profiles(args.profiles_dir)
 
     # Build expected role map from all profiles using resolve-role-manifest
+    # Use preserve_config_check=True so config_check expressions are kept as
+    # raw Jinja2 strings (not evaluated against empty host_vars).
     expected_role_map = {}
     for profile_name in profile_names:
         try:
@@ -1738,19 +1753,31 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
                 os_family="Archlinux",  # Default OS for sync comparison
                 host_vars={},  # Empty host vars (dict, not string)
                 profiles_dir=args.profiles_dir,
+                preserve_config_check=True,
             )
         except ValueError:
             # Skip invalid profiles
             continue
 
-        # Collect roles from manifest
+        # Collect roles from manifest and merge repeated roles the same way
+        # resolve_role_manifest does: OR differing conditions, and keep a role
+        # unconditional if any profile includes it unconditionally.
         for role_cond in manifest.roles:
             role_name = role_cond.role
-            condition = role_cond.condition
+            condition = role_cond.condition if role_cond.condition else None
 
-            # First profile's definition wins (no OR-ing for sync)
             if role_name not in expected_role_map:
-                expected_role_map[role_name] = condition if condition else None
+                expected_role_map[role_name] = condition
+                continue
+
+            existing_condition = expected_role_map[role_name]
+
+            if existing_condition is None or condition is None:
+                expected_role_map[role_name] = None
+            elif existing_condition != condition:
+                expected_role_map[role_name] = (
+                    f"({existing_condition}) or ({condition})"
+                )
 
     # Compare actual vs expected
     actual_roles_set = set(actual_role_map.keys())
