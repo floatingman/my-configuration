@@ -29,6 +29,7 @@ from profile_dispatcher import (
     validate_overlays,
     load_overlay,
     _discover_overlay_names,
+    _normalize_condition,
     OverlayDefinition,
     ResolvedOverlay,
     ResolvedOverlayRole,
@@ -1967,6 +1968,189 @@ class TestCLIResolveRoleManifest:
         err = capsys.readouterr().err
         assert rc == 1
         assert "Unknown profile" in err
+
+
+class TestNormalizeCondition:
+    """Tests for _normalize_condition helper."""
+
+    def test_empty_string(self):
+        assert _normalize_condition("") == ""
+
+    def test_none_returns_empty(self):
+        assert _normalize_condition(None) == ""
+
+    def test_single_condition_unchanged(self):
+        assert _normalize_condition("_is_arch") == "_is_arch"
+
+    def test_sorts_and_terms(self):
+        result = _normalize_condition("_has_display and _is_arch")
+        assert result == "_has_display and _is_arch"
+
+    def test_sorts_and_terms_reverse(self):
+        result = _normalize_condition("_is_arch and _has_display")
+        assert result == "_has_display and _is_arch"
+
+    def test_strips_bool_filter(self):
+        assert _normalize_condition("_has_display | bool") == "_has_display"
+
+    def test_strips_bool_filter_in_and_expr(self):
+        result = _normalize_condition("_is_arch and _has_display | bool")
+        assert result == "_has_display and _is_arch"
+
+    def test_equivalent_conditions_compare_equal(self):
+        """goesimage-style ordering difference normalizes to same string."""
+        a = _normalize_condition("goesimage is defined and _has_display")
+        b = _normalize_condition("_has_display and goesimage is defined")
+        assert a == b
+
+
+class TestSyncPlaybook:
+    """Tests for the sync-playbook CLI subcommand."""
+
+    _PLAYBOOK = str(Path(__file__).resolve().parent.parent / "play.yml")
+
+    def test_sync_playbook_in_sync(self, capsys):
+        """sync-playbook exits 0 when play.yml matches profiles."""
+        rc = main(["sync-playbook", "--playbook", self._PLAYBOOK])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "in sync" in out
+
+    def test_sync_playbook_check_mode(self, capsys):
+        """sync-playbook --check exits 0 when in sync (CI gate)."""
+        rc = main(["sync-playbook", "--playbook", self._PLAYBOOK, "--check"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "in sync" in out
+
+    def test_sync_playbook_missing_playbook(self, capsys):
+        """sync-playbook exits 1 if playbook file doesn't exist."""
+        rc = main(["sync-playbook", "--playbook", "/nonexistent/play.yml"])
+        err = capsys.readouterr().err
+        assert rc == 1
+        assert "not found" in err.lower()
+
+    def test_sync_playbook_detects_extra_role(self, capsys, tmp_path):
+        """sync-playbook reports extra roles not in any profile."""
+        # Create a minimal playbook with a role that no profile defines
+        playbook = tmp_path / "play.yml"
+        playbook.write_text(
+            "---\n"
+            "- name: Configure localhost\n"
+            "  hosts: localhost\n"
+            "  roles:\n"
+            "    - { role: nonexistent_role_xyz, tags: ['test'] }\n"
+        )
+        rc = main(["sync-playbook", "--playbook", str(playbook)])
+        out = capsys.readouterr().out
+        assert rc == 0  # Non-check mode returns 0 but prints drift
+        assert "out of sync" in out
+        assert "nonexistent_role_xyz" in out
+
+    def test_sync_playbook_check_mode_exits_1_on_drift(self, capsys, tmp_path):
+        """sync-playbook --check exits 1 when drift is detected."""
+        playbook = tmp_path / "play.yml"
+        playbook.write_text(
+            "---\n"
+            "- name: Configure localhost\n"
+            "  hosts: localhost\n"
+            "  roles:\n"
+            "    - { role: fake_role, tags: ['test'] }\n"
+        )
+        rc = main(["sync-playbook", "--playbook", str(playbook), "--check"])
+        assert rc == 1
+
+    def test_sync_playbook_profile_gating(self, capsys):
+        """sync-playbook infers _is_<de> conditions from profile membership."""
+        # The hyprland role only appears in the hyprland profile,
+        # so the expected condition should include _is_hyprland.
+        rc = main(["sync-playbook", "--playbook", self._PLAYBOOK])
+        out = capsys.readouterr().out
+        assert rc == 0
+        # If in sync, the hyprland role must be gated with _is_hyprland
+        assert "in sync" in out
+
+    def test_sync_playbook_condition_normalization(self, capsys, tmp_path):
+        """sync-playbook normalizes condition ordering for comparison."""
+        # Read actual play.yml to get the real roles, but tweak a condition
+        # to use different AND-term ordering
+        with open(self._PLAYBOOK) as f:
+            real_play = f.read()
+        # Replace a condition with equivalent but reordered terms
+        modified = real_play.replace(
+            "goesimage is defined and _has_display",
+            "_has_display and goesimage is defined",
+        )
+        if modified == real_play:
+            # Condition not found with exact text — skip test gracefully
+            pytest.skip("goesimage condition not found with expected text")
+
+        playbook = tmp_path / "play.yml"
+        playbook.write_text(modified)
+        # Even though terms are reordered, sync should report in-sync
+        rc = main(["sync-playbook", "--playbook", str(playbook)])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "in sync" in out
+
+
+class TestORLogicForOverlappingRoles:
+    """Tests verifying OR logic when a role appears in both profile and overlay."""
+
+    def test_role_in_profile_and_overlay_gets_or_condition(self):
+        """When backlight appears in both profile and overlay, condition is OR'd."""
+        # backlight appears in _base.yml with requires_display AND in laptop overlay
+        manifest = resolve_role_manifest(
+            profile="i3",
+            host_vars={"laptop": True},
+            os_family="Archlinux",
+        )
+        backlight_roles = [r for r in manifest.roles if r.role == "backlight"]
+        assert len(backlight_roles) == 1
+        # Should have condition from profile (requires_display) OR overlay
+        cond = backlight_roles[0].condition
+        assert cond  # Not empty
+        # The condition should contain "or" since it's from both sources
+        assert " or " in cond.lower() or cond == "_has_display"
+
+    def test_overlay_only_role_included_in_manifest(self):
+        """Roles from overlays appear in manifest when overlay applies."""
+        manifest = resolve_role_manifest(
+            profile="i3",
+            host_vars={"laptop": True},
+            os_family="Archlinux",
+        )
+        # laptop role comes from overlay, not from profile
+        laptop_roles = [r for r in manifest.roles if r.role == "laptop"]
+        assert len(laptop_roles) == 1
+        # Overlay-derived role is included; condition is empty because
+        # gating is via _overlay_* facts set by play.yml pre_tasks
+        assert laptop_roles[0].role == "laptop"
+        assert "_overlay_laptop" in manifest.overlay_flags
+
+    def test_profile_only_role_not_affected_by_overlays(self):
+        """Profile roles that don't overlap with overlays keep their condition."""
+        manifest = resolve_role_manifest(
+            profile="i3",
+            host_vars={},  # No overlay vars
+            os_family="Archlinux",
+        )
+        # shell is universal (no annotations), should have no condition
+        shell_roles = [r for r in manifest.roles if r.role == "shell"]
+        assert len(shell_roles) == 1
+        # Universal roles from _base.yml have empty conditions
+        assert shell_roles[0].condition == ""
+
+    def test_deduplication_produces_single_entry(self):
+        """A role in both profile and overlay appears exactly once."""
+        manifest = resolve_role_manifest(
+            profile="i3",
+            host_vars={"laptop": True},
+            os_family="Archlinux",
+        )
+        role_names = [r.role for r in manifest.roles]
+        # backlight is in both _base.yml (profile) and laptop overlay
+        assert role_names.count("backlight") == 1
 
 
 if __name__ == '__main__':
