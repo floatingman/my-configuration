@@ -1702,6 +1702,11 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
     (with computed when: conditions using resolve-role-manifest), and diffs it
     against the actual play.yml.
 
+    Uses no_eval mode so keep config_check expressions as raw Jinja2
+    (e.g. "dotfiles is defined") instead of evaluating them against empty
+    host_vars, which would produce constant "true"/"false" strings that
+    never match the actual play.yml conditions.
+
     Exits 1 on drift in --check mode; otherwise outputs diff to stdout.
     """
     playbook_path = Path(args.playbook)
@@ -1735,7 +1740,7 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
             condition = role_entry.get("when")
         actual_role_map[role_name] = condition
 
-    # Load all valid profiles
+    # Validate profiles directory exists
     profiles_path = Path(args.profiles_dir)
     if not profiles_path.exists():
         print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
