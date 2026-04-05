@@ -88,7 +88,6 @@
   changed_when: false
   tags:
     - gpu_detect
-    - always
 
 - name: Save GPU facts to file for debugging
   ansible.builtin.copy:
@@ -104,4 +103,3 @@
     mode: '0644'
   tags:
     - gpu_detect
-    - always
