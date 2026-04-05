@@ -17,7 +17,7 @@ if [[ "$action" != "up" && "$action" != "down" ]]; then
     exit 0
 fi
 
-active_ethernet=$(nmcli conn show --active | tr -s ' ' | cut -d' ' -f3 | grep ethernet)
+active_ethernet=$(nmcli -t -f TYPE conn show --active | grep -q 'ethernet' && echo yes)
 
 enable_wifi() {
     echo "$syslog_tag: No active ethernet connections, enabling wifi."
