@@ -1737,8 +1737,11 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
 
     # Load all valid profiles
     profiles_path = Path(args.profiles_dir)
-    if not profiles_path.exists() or not profiles_path.is_dir():
-        print(f"Error: Profiles directory not found: {profiles_path}", file=sys.stderr)
+    if not profiles_path.exists():
+        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
+        return 1
+    if not profiles_path.is_dir():
+        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
         return 1
     profile_names = list_profiles(args.profiles_dir)
 
@@ -1764,7 +1767,7 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
         # unconditional if any profile includes it unconditionally.
         for role_cond in manifest.roles:
             role_name = role_cond.role
-            condition = role_cond.condition if role_cond.condition else None
+            condition = role_cond.condition or None
 
             if role_name not in expected_role_map:
                 expected_role_map[role_name] = condition
