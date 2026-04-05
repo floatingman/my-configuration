@@ -31,16 +31,10 @@ This is an Ansible configuration management repository that automates the comple
 - `make configure` - Run the main playbook (requires sudo)
 - `make configure TAGS="role1,role2"` - Run specific roles only
 - `make list-tags` - List all available tags in the playbook
+- `make list-profiles` - Show all available configuration profiles
+- `make test` - Run all tests (lint + syntax + profile validation + sync check)
+- `make check-sync` - CI gate: verify play.yml matches profile definitions
 - `make help` - Show all available Makefile targets
-
-### Testing and Validation
-- Tag-based testing: Run individual roles with `make configure TAGS="rolename"`
-- Validate tag syntax: The Makefile automatically validates tags before execution
-- Use `VERBOSE=1` for detailed Ansible output during troubleshooting
-
-### Output Control
-- By default, Makefile runs in silent mode for cleaner output
-- Use `VERBOSE=1` flag for verbose output: `make configure VERBOSE=1`
 
 ## Architecture and Structure
 
@@ -60,7 +54,7 @@ Profiles are the single source of truth for which roles run and under what condi
 
 - **6 profiles**: headless, i3, hyprland, gnome, awesomewm, kde (all extend `_base.yml`)
 - **Role annotations** in profile YAML: `os`, `requires_display`, `config_check`, `requires_config`
-- **Overlays** add optional roles gated by host vars (laptop, bluetooth, dotfiles, goesimage, regdomain)
+- **2 overlays**: laptop, bluetooth — add optional roles gated by host vars
 - **`play.yml` pre_tasks** calls `resolve-role-manifest` once to compute all flags
 - **Profile-gating inference**: roles exclusive to a DE profile automatically get `_is_<de>` conditions
 - **Tests**: `python -m pytest tests/ -v` — pure Python (no Ansible needed)
@@ -89,6 +83,7 @@ python scripts/profile_dispatcher.py list-profiles --format pretty     # Show al
 6. **Services**: docker, cups, bluetooth, printing
 
 ### Important Patterns
+- **`group_vars/all/local.yml` is gitignored** — machine-specific vars go there; templates in `group_vars/templates/`
 - **Tagging System**: All roles are tagged for selective execution
 - **OS-Specific**: Conditional execution using `ansible_facts['os_family']`
 - **Desktop Variables**: Use `display_manager` and `desktop_environment` variables
@@ -121,7 +116,7 @@ The configuration uses a hybrid approach:
    - Debian: apt via ansible-role-packages
 
 3. **AUR**: Arch User Repository packages via kewlfft.aur collection
-   - Run separately with `make aur` after main playbook
+   - Installed during main playbook run via the aur role
 
 4. **Direct Binaries**: For packages not available in Homebrew
    - Handled by ansible-role-binaries
@@ -219,7 +214,6 @@ Each role should follow Ansible Galaxy structure:
 - If ansible-galaxy fails, check connectivity and requirements.yml syntax
 - If role fails, isolate with specific tag
 - Check Ansible version compatibility (requires Ansible 2.x)
-- For AUR packages, run `make aur` separately
 
 ## GPU Driver Management
 
@@ -265,7 +259,7 @@ make configure
 4. **Verify OS compatibility** - Role execution varies between Arch and Debian systems
 5. **Update dependencies** - Run `make install` after updating requirements.yml
 6. **Run playbook incrementally** - Start with base system, then add components
-7. **Use the AUR target separately** - `make aur` for AUR packages after main configuration
+7. **AUR packages** - Installed via kewlfft.aur collection during main playbook run
 8. **Document changes** - Update README.md for user-facing changes
 9. **Maintain compatibility** - Support both Arch and Debian where possible
 10. **Test GPU changes separately** - Use gpu_detect and gpu_drivers tags for GPU-specific testing
