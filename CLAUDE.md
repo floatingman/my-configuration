@@ -49,6 +49,29 @@ This is an Ansible configuration management repository that automates the comple
 - **requirements.yml** - Defines Ansible roles and collections (all Git-based)
 - **Makefile** - Build automation with validation and help system
 - **group_vars/all.yml** - Main configuration file with all system variables
+- **scripts/profile_dispatcher.py** - Profile resolver and CLI (no Ansible dependency)
+- **profiles/*.yml** - Profile definitions with role annotations (single source of truth)
+- **profiles/overlays/*.yml** - Overlay definitions (laptop, bluetooth, etc.)
+- **.github/workflows/ci.yml** - CI: pytest + validate + sync-playbook --check
+
+### Profile Dispatcher
+Profiles are the single source of truth for which roles run and under what conditions.
+`play.yml` conditions are derived from profile definitions; `sync-playbook` detects drift.
+
+- **6 profiles**: headless, i3, hyprland, gnome, awesomewm, kde (all extend `_base.yml`)
+- **Role annotations** in profile YAML: `os`, `requires_display`, `config_check`, `requires_config`
+- **Overlays** add optional roles gated by host vars (laptop, bluetooth, dotfiles, goesimage, regdomain)
+- **`play.yml` pre_tasks** calls `resolve-role-manifest` once to compute all flags
+- **Profile-gating inference**: roles exclusive to a DE profile automatically get `_is_<de>` conditions
+- **Tests**: `python -m pytest tests/ -v` — pure Python (no Ansible needed)
+
+Key CLI commands:
+```bash
+python scripts/profile_dispatcher.py validate                          # Validate all profiles/overlays
+python scripts/profile_dispatcher.py sync-playbook --check             # CI gate: drift detection
+python scripts/profile_dispatcher.py resolve-role-manifest --profile i3 # Resolve manifest for a profile
+python scripts/profile_dispatcher.py list-profiles --format pretty     # Show all profiles
+```
 
 ### Key Technologies
 - Ansible for configuration management
@@ -72,15 +95,6 @@ This is an Ansible configuration management repository that automates the comple
 - **Opt-out Variables**: Individual desktop components can be disabled with `disable_*` flags
 - **Idempotency**: Playbook designed to be safe to run multiple times
 - **Privilege Escalation**: Uses `--ask-become-pass` for sudo access when needed
-
-## Configuration Variables
-
-The playbook uses several key configuration variables:
-- `display_manager`: Controls which display manager to install
-- `desktop_environment`: Sets the primary desktop environment
-- `disable_i3`: Disable i3 window manager
-- `disable_hyprland`: Disable Hyprland Wayland compositor
-- Variables are set in group_vars templates for different use cases
 
 ## Configuration Variables
 
@@ -158,8 +172,10 @@ When no `disable_*` flags are set and `desktop_environment` is undefined, both i
 ### Adding New Roles
 1. Create role directory or add to requirements.yml if using remote role
 2. Add role to play.yml with appropriate tags and conditions
-3. Follow role structure: tasks/, defaults/, vars/, handlers/, meta/
-4. Test with `make configure TAGS="role_name"`
+3. Add role to `profiles/_base.yml` (or specific profile) with annotations
+4. Run `python scripts/profile_dispatcher.py sync-playbook` to verify sync
+5. Follow role structure: tasks/, defaults/, vars/, handlers/, meta/
+6. Test with `make configure TAGS="role_name"`
 
 ### Role Variable Convention (PR checklist item)
 
@@ -189,6 +205,10 @@ Each role should follow Ansible Galaxy structure:
 - `meta/main.yml` - Role metadata
 
 ### Testing and Validation
+- **Profile tests**: `python -m pytest tests/ -v` — pure Python, no Ansible needed
+- **Profile validation**: `python scripts/profile_dispatcher.py validate`
+- **Sync check**: `python scripts/profile_dispatcher.py sync-playbook --check`
+- **CI**: `.github/workflows/ci.yml` runs all of the above on push/PR
 - **Before Changes**: Run `make list-tags` to see available tags
 - **Role Testing**: Use `make configure TAGS="tag_name"` to test specific roles
 - **VM Testing**: Always test on VM or container first
