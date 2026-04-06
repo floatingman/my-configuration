@@ -58,13 +58,14 @@ class ConditionTranslator(Protocol):
 
     def translate_annotation(
         self,
-        annotation: dict,
+        annotation: str | dict[str, Any],
         host_vars: dict,
     ) -> str:
         """Translate role annotations to a Jinja2 condition string.
 
         Args:
-            annotation: Role dict with annotations (role, tags, os, requires_display,
+            annotation: Role entry as either a plain role name string or a role
+                        dict with annotations (role, tags, os, requires_display,
                         requires_config, config_check)
             host_vars: Host variables dict for config_check evaluation
 
@@ -145,7 +146,7 @@ class AnsibleConditionTranslator:
 
     def translate_annotation(
         self,
-        annotation: dict,
+        annotation: str | dict[str, Any],
         host_vars: dict,
     ) -> str:
         """Translate role annotations to a Jinja2 condition string."""
@@ -188,29 +189,32 @@ class AnsibleConditionTranslator:
             return ""
 
 
-def DefaultTranslator(
-    os_family: str = "Archlinux",
-    evaluator: Any = None,
-    preserve_config_check: bool = False,
-) -> ConditionTranslator:
-    """Convenience factory function for the default Ansible translator.
+class DefaultTranslator(AnsibleConditionTranslator):
+    """Convenience default translator with Ansible semantics.
 
-    This provides a simple constructor with sensible defaults matching
-    the existing translate_condition() behavior.
-
-    Args:
-        os_family: OS family ('Archlinux' or 'Debian')
-        evaluator: Optional evaluator for config_check expressions
-        preserve_config_check: Keep config_check as raw Jinja2
-
-    Returns:
-        A ConditionTranslator instance configured with Ansible semantics
+    This preserves the existing constructor-style API while ensuring the
+    CapWords name refers to an actual class rather than a factory function.
+    Inherits all behavior from AnsibleConditionTranslator with default settings.
     """
-    return AnsibleConditionTranslator(
-        os_family=os_family,
-        evaluator=evaluator,
-        preserve_config_check=preserve_config_check,
-    )
+
+    def __init__(
+        self,
+        os_family: str = "Archlinux",
+        evaluator: Any = None,
+        preserve_config_check: bool = False,
+    ) -> None:
+        """Initialize the default Ansible translator.
+
+        Args:
+            os_family: OS family ('Archlinux' or 'Debian')
+            evaluator: Optional evaluator for config_check expressions
+            preserve_config_check: Keep config_check as raw Jinja2
+        """
+        super().__init__(
+            os_family=os_family,
+            evaluator=evaluator,
+            preserve_config_check=preserve_config_check,
+        )
 
 
 # ---------------------------------------------------------------------------

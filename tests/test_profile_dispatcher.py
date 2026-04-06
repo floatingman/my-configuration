@@ -2237,7 +2237,10 @@ class TestConditionTranslatorProtocol:
             "requires_config": {"display_manager": "lightdm"}
         }
         result = translator.translate_annotation(annotation, {})
-        # requires_config with display_manager adds another _has_display, so we get duplicate
+        # Known behavior: requires_config with display_manager adds _has_display,
+        # which duplicates the one from requires_display. This matches the current
+        # translate_condition() behavior and will be addressed in a future slice
+        # when condition normalization is added.
         assert result == "_is_arch and _has_display and _has_display and _dm == 'lightdm'"
 
     def test_empty_annotations(self):
