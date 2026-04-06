@@ -38,6 +38,186 @@ ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde
 
 
 # ---------------------------------------------------------------------------
+# Condition Translator Protocol (Slice 1 - Issue #104)
+# ---------------------------------------------------------------------------
+
+
+class ConditionTranslator(Protocol):
+    """Protocol for translating role annotations to Jinja2 conditions.
+
+    This protocol enables test doubles and alternative implementations
+    for condition translation. The default implementation is
+    AnsibleConditionTranslator which wraps the existing translate_condition()
+    logic.
+
+    Methods:
+        translate_annotation: Convert role annotations to Jinja2 condition
+        translate_profile_gate: Compute profile-gating conditions
+        combine_conditions: Combine annotation and profile-gate conditions
+    """
+
+    def translate_annotation(
+        self,
+        annotation: str | dict[str, Any],
+        host_vars: dict,
+    ) -> str:
+        """Translate role annotations to a Jinja2 condition string.
+
+        Args:
+            annotation: Role entry as either a plain role name string or a role
+                        dict with annotations (role, tags, os, requires_display,
+                        requires_config, config_check)
+            host_vars: Host variables dict for config_check evaluation
+
+        Returns:
+            Jinja2 condition string (empty string if no condition)
+        """
+        ...
+
+    def translate_profile_gate(
+        self,
+        role_name: str,
+        member_profiles: list[str],
+        all_profiles: list[str],
+        de_profile_map: dict[str, str],
+    ) -> str:
+        """Translate profile membership into a Jinja2 condition.
+
+        For roles that are exclusive to certain desktop environment profiles,
+        this generates the appropriate profile-gating condition (e.g., _is_i3).
+
+        Args:
+            role_name: The role name
+            member_profiles: List of profile names that include this role
+            all_profiles: List of all valid profile names
+            de_profile_map: Mapping of desktop environment names to profile names
+
+        Returns:
+            Jinja2 condition string for profile-gating (empty string if no gate)
+
+        Note:
+            In Slice 1, this is a pass-through that returns empty string.
+            Profile-gating logic will be implemented in Slice 3.
+        """
+        ...
+
+    def combine_conditions(
+        self,
+        annotation_condition: str,
+        profile_gate: str,
+    ) -> str:
+        """Combine annotation and profile-gating conditions with AND.
+
+        Args:
+            annotation_condition: Condition from translate_annotation (may be empty)
+            profile_gate: Condition from translate_profile_gate (may be empty)
+
+        Returns:
+            Combined Jinja2 condition (AND of both, or whichever is non-empty,
+            or empty string if both are empty)
+        """
+        ...
+
+
+class AnsibleConditionTranslator:
+    """Concrete implementation of ConditionTranslator that wraps translate_condition().
+
+    This class wraps the existing translate_condition() function to implement
+    the ConditionTranslator protocol, preserving proven behavior while enabling
+    test injection and future extensibility.
+    """
+
+    def __init__(
+        self,
+        os_family: str = "Archlinux",
+        evaluator: Any = None,
+        preserve_config_check: bool = False,
+    ) -> None:
+        """Initialize the translator.
+
+        Args:
+            os_family: OS family ('Archlinux' or 'Debian')
+            evaluator: Optional evaluator for config_check expressions
+            preserve_config_check: Keep config_check as raw Jinja2 (for static comparison)
+        """
+        self._os_family = os_family
+        self._evaluator = evaluator
+        self._preserve_config_check = preserve_config_check
+
+    def translate_annotation(
+        self,
+        annotation: str | dict[str, Any],
+        host_vars: dict,
+    ) -> str:
+        """Translate role annotations to a Jinja2 condition string."""
+        return translate_condition(
+            role_entry=annotation,
+            host_vars=host_vars,
+            os_family=self._os_family,
+            evaluator=self._evaluator,
+            preserve_config_check=self._preserve_config_check,
+        )
+
+    def translate_profile_gate(
+        self,
+        role_name: str,
+        member_profiles: list[str],
+        all_profiles: list[str],
+        de_profile_map: dict[str, str],
+    ) -> str:
+        """Translate profile membership into a Jinja2 condition.
+
+        Note: This is a pass-through implementation for Slice 1.
+        Profile-gating logic will be implemented in Slice 3.
+        """
+        # Slice 1: Pass-through (profile-gating not implemented yet)
+        return ""
+
+    def combine_conditions(
+        self,
+        annotation_condition: str,
+        profile_gate: str,
+    ) -> str:
+        """Combine annotation and profile-gating conditions with AND."""
+        if annotation_condition and profile_gate:
+            return f"{annotation_condition} and {profile_gate}"
+        elif annotation_condition:
+            return annotation_condition
+        elif profile_gate:
+            return profile_gate
+        else:
+            return ""
+
+
+class DefaultTranslator(AnsibleConditionTranslator):
+    """Convenience default translator with Ansible semantics.
+
+    This preserves the existing constructor-style API while ensuring the
+    CapWords name refers to an actual class rather than a factory function.
+    Inherits all behavior from AnsibleConditionTranslator with default settings.
+    """
+
+    def __init__(
+        self,
+        os_family: str = "Archlinux",
+        evaluator: Any = None,
+        preserve_config_check: bool = False,
+    ) -> None:
+        """Initialize the default Ansible translator.
+
+        Args:
+            os_family: OS family ('Archlinux' or 'Debian')
+            evaluator: Optional evaluator for config_check expressions
+            preserve_config_check: Keep config_check as raw Jinja2
+        """
+        super().__init__(
+            os_family=os_family,
+            evaluator=evaluator,
+            preserve_config_check=preserve_config_check,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Overlay data model
 # ---------------------------------------------------------------------------
 
