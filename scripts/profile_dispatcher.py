@@ -1696,7 +1696,9 @@ class PlaybookGenerator:
         Args:
             profiles_dir: Directory containing profile YAML files
             os_family: OS family for OS-specific role filtering
-            host_vars: Host variables for config_check evaluation (empty dict for raw Jinja2)
+            host_vars: Host variables for overlay resolution (e.g. laptop, bluetooth).
+                Note: generate() calls resolve_role_manifest with preserve_config_check=True,
+                so config_check expressions are kept as raw Jinja2 rather than evaluated.
         """
         self.profiles_dir = profiles_dir
         self.os_family = os_family
@@ -1815,6 +1817,10 @@ class PlaybookGenerator:
         with open(playbook) as f:
             playbook_data = yaml.safe_load(f)
 
+        # Validate playbook_data is usable (empty file yields None)
+        if playbook_data is None:
+            playbook_data = []
+
         # Extract roles from playbook (handle list of plays format)
         if isinstance(playbook_data, list):
             plays = playbook_data
@@ -1823,6 +1829,8 @@ class PlaybookGenerator:
 
         actual_roles: List[PlaybookRole] = []
         for play in plays:
+            if not isinstance(play, dict):
+                continue
             if "roles" in play:
                 for role_entry in play["roles"]:
                     if isinstance(role_entry, str):
@@ -2018,7 +2026,7 @@ class PlaybookGenerator:
         # Compute annotation-based conditions
         lines.append("  Annotation-based conditions:")
         profile_conditions = {}  # profile -> condition string
-        translator = AnsibleConditionTranslator()
+        translator = AnsibleConditionTranslator(preserve_config_check=True)
 
         for profile in sorted(containing_profiles):
             annotations = role_annotations.get(profile, {})
