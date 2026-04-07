@@ -1897,6 +1897,193 @@ class PlaybookGenerator:
             condition_mismatches=tuple(condition_mismatches),
         )
 
+    def resolve(
+        self,
+        profile: str,
+        host_vars: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[PlaybookRole, ...]:
+        """
+        Generate the role list scoped to a single profile.
+
+        Returns only roles that would run for the specified profile,
+        with conditions evaluated against the provided host_vars
+        (or unevaluated if no host_vars given).
+
+        This is the single-profile equivalent of generate().
+
+        Args:
+            profile: Profile name to resolve
+            host_vars: Optional host variables for overlay evaluation
+
+        Returns:
+            Tuple of PlaybookRole objects for this profile
+        """
+        # Use provided host_vars or fall back to instance's host_vars
+        hv = host_vars if host_vars is not None else self.host_vars
+
+        # Resolve the profile manifest
+        manifest = resolve_role_manifest(
+            profile=profile,
+            os_family=self.os_family,
+            host_vars=hv,
+            profiles_dir=self.profiles_dir,
+            preserve_config_check=True,
+        )
+
+        # Convert RoleCondition to PlaybookRole
+        return tuple(
+            PlaybookRole(role=rc.role, condition=rc.condition or None)
+            for rc in manifest.roles
+        )
+
+    def explain(self, role_name: str) -> str:
+        """
+        Return a human-readable explanation of why a role has its condition.
+
+        Shows the chain: which profiles contain the role, what annotations
+        it carries, what the annotation-based condition is, what the
+        profile-gate condition is, and how they combine.
+
+        Args:
+            role_name: Name of the role to explain
+
+        Returns:
+            Human-readable explanation string
+        """
+        # DE profiles and their corresponding _is_<de> flags
+        de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+        profile_to_flag = {
+            "i3": "_is_i3",
+            "hyprland": "_is_hyprland",
+            "gnome": "_is_gnome",
+            "awesomewm": "_is_awesomewm",
+            "kde": "_is_kde",
+        }
+
+        # Find all profiles that contain this role
+        profile_names = list_profiles(self.profiles_dir)
+        containing_profiles = []
+        role_annotations = {}  # profile -> annotations dict
+
+        for profile_name in profile_names:
+            try:
+                profile_data = load_profile(self.profiles_dir, profile_name)
+                roles = profile_data.get("roles", [])
+
+                for role_entry in roles:
+                    if isinstance(role_entry, str):
+                        if role_entry == role_name:
+                            containing_profiles.append(profile_name)
+                            role_annotations[profile_name] = {}
+                        continue
+
+                    entry_role = role_entry.get("role", "")
+                    if entry_role == role_name:
+                        containing_profiles.append(profile_name)
+                        # Extract annotations
+                        role_annotations[profile_name] = {
+                            k: v for k, v in role_entry.items()
+                            if k in ("os", "requires_display", "requires_config", "config_check", "tags")
+                        }
+            except (ValueError, KeyError):
+                # Skip profiles that can't be loaded
+                continue
+
+        # Build explanation
+        lines = [f"Role: {role_name}"]
+        lines.append("")
+
+        if not containing_profiles:
+            lines.append("  This role is not defined in any profile.")
+            return "\n".join(lines)
+
+        # List containing profiles
+        lines.append(f"  Found in {len(containing_profiles)} profile(s):")
+        for profile in sorted(containing_profiles):
+            lines.append(f"    - {profile}")
+        lines.append("")
+
+        # Show annotations per profile
+        lines.append("  Annotations by profile:")
+        for profile in sorted(containing_profiles):
+            lines.append(f"    {profile}:")
+            annotations = role_annotations.get(profile, {})
+            if annotations:
+                for key, value in sorted(annotations.items()):
+                    lines.append(f"      {key}: {value}")
+            else:
+                lines.append(f"      (no annotations)")
+        lines.append("")
+
+        # Compute annotation-based conditions
+        lines.append("  Annotation-based conditions:")
+        profile_conditions = {}  # profile -> condition string
+        translator = AnsibleConditionTranslator()
+
+        for profile in sorted(containing_profiles):
+            annotations = role_annotations.get(profile, {})
+            if annotations:
+                condition = translator.translate_annotation(
+                    annotations if annotations else role_name,
+                    self.host_vars,
+                )
+                profile_conditions[profile] = condition
+                if condition:
+                    lines.append(f"    {profile}: {condition}")
+                else:
+                    lines.append(f"    {profile}: (no condition)")
+            else:
+                profile_conditions[profile] = ""
+                lines.append(f"    {profile}: (no annotations → no condition)")
+        lines.append("")
+
+        # Compute profile-gating condition
+        all_profile_set = set(profile_names)
+        de_members = set(containing_profiles) & de_profiles
+
+        if not de_members:
+            profile_gate = ""
+            lines.append("  Profile-gating: (none - role not in any DE profile)")
+        elif set(containing_profiles) >= all_profile_set:
+            profile_gate = ""
+            lines.append("  Profile-gating: (none - role in all profiles including headless)")
+        elif de_members == de_profiles:
+            profile_gate = "_has_display"
+            lines.append("  Profile-gating: _has_display (role in all DE profiles)")
+        elif len(de_members) == 1:
+            profile_gate = profile_to_flag[next(iter(de_members))]
+            lines.append(f"  Profile-gating: {profile_gate} (role exclusive to one DE profile)")
+        else:
+            profile_gate = " or ".join(
+                profile_to_flag[p] for p in sorted(de_members)
+            )
+            lines.append(f"  Profile-gating: {profile_gate} (role in subset of DE profiles)")
+        lines.append("")
+
+        # Show final combined condition
+        lines.append("  Final condition:")
+        annotation_conditions = [c for c in profile_conditions.values() if c]
+
+        if annotation_conditions and profile_gate:
+            # Both annotation and profile-gating conditions exist
+            combined = f"({profile_gate}) and ({' or '.join(annotation_conditions)})"
+            lines.append(f"    {combined}")
+        elif annotation_conditions:
+            # Only annotation-based conditions
+            if len(annotation_conditions) == 1:
+                lines.append(f"    {annotation_conditions[0]}")
+            else:
+                combined = f"({' or '.join(annotation_conditions)})"
+                lines.append(f"    {combined}")
+        elif profile_gate:
+            # Only profile-gating condition
+            lines.append(f"    {profile_gate}")
+        else:
+            # No condition at all
+            lines.append("    (unconditional - runs on all systems)")
+
+        return "\n".join(lines)
+
 
 # ---------------------------------------------------------------------------
 # CLI subcommands
