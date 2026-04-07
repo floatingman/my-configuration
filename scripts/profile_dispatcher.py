@@ -1704,6 +1704,13 @@ class PlaybookGenerator:
         self.os_family = os_family
         self.host_vars = host_vars or {}
 
+        # Validate profiles_dir at construction time for clear error messages
+        profiles_path = Path(self.profiles_dir)
+        if not profiles_path.exists():
+            raise ValueError(f"Profiles directory does not exist: {profiles_path}")
+        if not profiles_path.is_dir():
+            raise ValueError(f"Profiles path is not a directory: {profiles_path}")
+
     def generate(self) -> Tuple[PlaybookRole, ...]:
         """
         Generate the expected playbook role list.
@@ -1832,8 +1839,10 @@ class PlaybookGenerator:
                 for role_entry in play["roles"]:
                     if isinstance(role_entry, str):
                         actual_roles.append(PlaybookRole(role=role_entry, condition=None))
-                    else:
-                        role_name = role_entry.get("role", "")
+                    elif isinstance(role_entry, dict):
+                        role_name = role_entry.get("role")
+                        if not role_name:
+                            continue
                         condition = role_entry.get("when")
                         actual_roles.append(PlaybookRole(role=role_name, condition=condition))
 
