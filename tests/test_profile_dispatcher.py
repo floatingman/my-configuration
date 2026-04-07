@@ -2566,11 +2566,28 @@ class TestPlaybookGenerator:
             host_vars={},
         )
 
-        # Create a playbook with a subset of expected roles (missing one)
-        playbook_data = {
-            "hosts": "all",
-            "roles": ["shell", "system"],  # May be missing other expected roles
-        }
+        # Generate expected roles, then remove a known role to force a gap
+        expected_roles = generator.generate()
+        assert len(expected_roles) > 0, "generate() should return at least one role"
+
+        # Pick a role to omit (the first one with no condition is simplest)
+        removed_role = expected_roles[0]
+        for r in expected_roles:
+            if r.condition is None:
+                removed_role = r
+                break
+
+        # Build playbook from expected roles minus the removed one
+        playbook_roles = []
+        for role in expected_roles:
+            if role.role == removed_role.role:
+                continue
+            if role.condition:
+                playbook_roles.append({"role": role.role, "when": role.condition})
+            else:
+                playbook_roles.append(role.role)
+
+        playbook_data = {"hosts": "all", "roles": playbook_roles}
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
             yaml.dump(playbook_data, f)
@@ -2578,9 +2595,13 @@ class TestPlaybookGenerator:
 
         try:
             result = generator.sync_check(temp_path)
-            # Should detect missing roles (unless shell and system are the only expected roles)
-            if not result.in_sync:
-                assert len(result.missing_roles) > 0 or len(result.extra_roles) > 0
+            assert result.in_sync is False, (
+                f"Expected in_sync=False after removing '{removed_role.role}'"
+            )
+            missing_names = {r.role for r in result.missing_roles}
+            assert removed_role.role in missing_names, (
+                f"Expected '{removed_role.role}' in missing_roles, got {missing_names}"
+            )
         finally:
             os.unlink(temp_path)
 
