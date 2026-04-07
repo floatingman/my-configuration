@@ -1731,16 +1731,13 @@ class PlaybookGenerator:
         role_map: Dict[str, Optional[str]] = {}
 
         for profile_name in profile_names:
-            try:
-                manifest = resolve_role_manifest(
-                    profile=profile_name,
-                    os_family=self.os_family,
-                    host_vars=self.host_vars,
-                    profiles_dir=self.profiles_dir,
-                    preserve_config_check=True,
-                )
-            except ValueError:
-                continue
+            manifest = resolve_role_manifest(
+                profile=profile_name,
+                os_family=self.os_family,
+                host_vars=self.host_vars,
+                profiles_dir=self.profiles_dir,
+                preserve_config_check=True,
+            )
 
             for role_cond in manifest.roles:
                 role_name = role_cond.role
@@ -2172,205 +2169,50 @@ def _cmd_sync_playbook(args: argparse.Namespace) -> int:
     """
     Compare actual play.yml roles with profile-derived expected roles.
 
-    Reads all profile YAML files, generates the expected play.yml roles section
-    (with computed when: conditions using resolve-role-manifest), and diffs it
-    against the actual play.yml.
-
-    Uses preserve_config_check=True so config_check expressions are kept as
-    raw Jinja2 (e.g. "dotfiles is defined") instead of evaluating them against
-    empty host_vars.
-
-    Also infers profile-gating conditions for roles exclusive to specific
-    DE profiles (e.g. _is_i3 for roles only in the i3 profile).
+    Uses PlaybookGenerator.sync_check() to compare the playbook against
+    all profile definitions. Outputs a human-readable diff on drift.
 
     Exits 1 on drift in --check mode; otherwise outputs diff to stdout.
     """
-    playbook_path = Path(args.playbook)
-    if not playbook_path.exists():
-        print(f"Error: Playbook not found: {playbook_path}", file=sys.stderr)
+    try:
+        generator = PlaybookGenerator(
+            profiles_dir=args.profiles_dir,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        result = generator.sync_check(args.playbook)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
-    # Load actual play.yml
-    with open(playbook_path) as f:
-        playbook_data = yaml.safe_load(f)
-
-    # Extract roles from play.yml (handle list of plays format)
-    if isinstance(playbook_data, list):
-        plays = playbook_data
-    else:
-        plays = [playbook_data]
-
-    actual_roles = []
-    for play in plays:
-        if "roles" in play:
-            actual_roles.extend(play["roles"])
-
-    # Build actual role map: role name -> condition
-    actual_role_map = {}
-    for role_entry in actual_roles:
-        if isinstance(role_entry, str):
-            role_name = role_entry
-            condition = None
-        else:
-            role_name = role_entry.get("role", "")
-            condition = role_entry.get("when")
-        actual_role_map[role_name] = condition
-
-    # Validate profiles directory exists
-    profiles_path = Path(args.profiles_dir)
-    if not profiles_path.exists():
-        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
-        return 1
-    if not profiles_path.is_dir():
-        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
-        return 1
-    profile_names = list_profiles(args.profiles_dir)
-
-    # --- Profile-gating inference ---
-    # DE profiles and their corresponding _is_<de> flags
-    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
-    profile_to_flag = {
-        "i3": "_is_i3",
-        "hyprland": "_is_hyprland",
-        "gnome": "_is_gnome",
-        "awesomewm": "_is_awesomewm",
-        "kde": "_is_kde",
-    }
-
-    # Track which profiles include each role AND build annotation conditions
-    role_to_profiles: Dict[str, set] = {}
-    expected_role_map = {}
-
-    for profile_name in profile_names:
-        try:
-            manifest = resolve_role_manifest(
-                profile=profile_name,
-                os_family="Archlinux",
-                host_vars={},
-                profiles_dir=args.profiles_dir,
-                preserve_config_check=True,
-            )
-        except ValueError:
-            continue
-
-        for role_cond in manifest.roles:
-            role_name = role_cond.role
-            condition = role_cond.condition or None
-
-            # Track profile membership
-            role_to_profiles.setdefault(role_name, set()).add(profile_name)
-
-            # Merge conditions across profiles (OR differing ones)
-            if role_name not in expected_role_map:
-                expected_role_map[role_name] = condition
-                continue
-
-            existing_condition = expected_role_map[role_name]
-            if existing_condition is None or condition is None:
-                expected_role_map[role_name] = None
-            elif existing_condition != condition:
-                expected_role_map[role_name] = (
-                    f"({existing_condition}) or ({condition})"
-                )
-
-    # Apply profile-gating for roles with empty annotation conditions
-    all_profile_set = set(profile_names)
-    for role_name, profiles in role_to_profiles.items():
-        existing = expected_role_map.get(role_name)
-        # Only add profile gate if annotation-based condition is empty
-        if existing is not None:
-            continue
-
-        # Universal roles (in ALL profiles including headless) need no gate
-        if profiles >= all_profile_set:
-            continue
-
-        de_members = profiles & de_profiles
-        if not de_members:
-            continue
-
-        # Determine the profile gate expression
-        if de_members == de_profiles:
-            gate = "_has_display"
-        elif len(de_members) == 1:
-            gate = profile_to_flag[next(iter(de_members))]
-        else:
-            gate = " or ".join(
-                profile_to_flag[p] for p in sorted(de_members)
-            )
-
-        expected_role_map[role_name] = gate
-
-    # Compare actual vs expected
-    actual_roles_set = set(actual_role_map.keys())
-    expected_roles_set = set(expected_role_map.keys())
-
-    # Filter out overlay-based roles from comparison (they're dynamic, not in profiles)
-    overlay_roles = {
-        role for role, cond in actual_role_map.items()
-        if cond and "_overlay_" in str(cond)
-    }
-
-    actual_roles_filtered = actual_roles_set - overlay_roles
-    expected_roles_filtered = expected_roles_set - overlay_roles
-
-    missing_roles = expected_roles_filtered - actual_roles_filtered
-    extra_roles = actual_roles_filtered - expected_roles_filtered
-    common_roles = actual_roles_filtered & expected_roles_filtered
-
-    # Check for condition mismatches (using normalized comparison)
-    condition_mismatches = []
-    for role_name in sorted(common_roles):
-        actual_cond = actual_role_map[role_name]
-        expected_cond = expected_role_map[role_name]
-
-        actual_normalized = _normalize_condition(actual_cond)
-        expected_normalized = _normalize_condition(expected_cond)
-
-        if actual_normalized != expected_normalized:
-            condition_mismatches.append({
-                "role": role_name,
-                "actual": actual_cond,
-                "expected": expected_cond,
-            })
-
-    # Check if in sync
-    in_sync = (
-        not missing_roles and
-        not extra_roles and
-        not condition_mismatches
-    )
-
-    if in_sync:
+    if result.in_sync:
         print("play.yml is in sync with profile definitions")
         return 0
 
     # Output the diff
     print("play.yml is out of sync with profile definitions:\n")
 
-    if missing_roles:
+    if result.missing_roles:
         print("Missing roles (in profiles but not in play.yml):")
-        for role in sorted(missing_roles):
-            expected_cond = expected_role_map[role]
-            if expected_cond:
-                print(f"  - {role} (when: {expected_cond})")
+        for role in result.missing_roles:
+            if role.condition:
+                print(f"  - {role.role} (when: {role.condition})")
             else:
-                print(f"  - {role}")
+                print(f"  - {role.role}")
         print()
 
-    if extra_roles:
+    if result.extra_roles:
         print("Extra roles (in play.yml but not in any profile):")
-        for role in sorted(extra_roles):
-            actual_cond = actual_role_map[role]
-            if actual_cond:
-                print(f"  - {role} (when: {actual_cond})")
+        for role in result.extra_roles:
+            if role.condition:
+                print(f"  - {role.role} (when: {role.condition})")
             else:
-                print(f"  - {role}")
+                print(f"  - {role.role}")
         print()
 
-    if condition_mismatches:
+    if result.condition_mismatches:
         print("Condition mismatches:")
-        for mismatch in condition_mismatches:
+        for mismatch in result.condition_mismatches:
             print(f"  - {mismatch['role']}:")
             print(f"      actual:   {mismatch['actual']}")
             print(f"      expected: {mismatch['expected']}")
