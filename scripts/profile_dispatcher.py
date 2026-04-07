@@ -17,6 +17,7 @@ CLI subcommands:
   validate             Validate all profiles and overlays in a directory (for CI)
   list-profiles        List available profile names or a human-readable table
   make-args            Output -e flag string for Makefile consumption
+  generate-playbook    Generate Ansible playbook roles section from profile definitions
 """
 
 import argparse
@@ -1643,6 +1644,139 @@ def _resolve_manual_mode(
 
 
 # ---------------------------------------------------------------------------
+# Playbook Generation (Slice 9)
+# ---------------------------------------------------------------------------
+
+
+class PlaybookGenerator:
+    """
+    Generates Ansible playbook roles section from profile definitions.
+
+    This class encapsulates the logic for converting profile YAML files
+    into the Ansible roles section format expected by play.yml.
+    """
+
+    def __init__(self, profiles_dir: str = _DEFAULT_PROFILES_DIR) -> None:
+        """
+        Initialize the generator.
+
+        Args:
+            profiles_dir: Directory containing profile YAML files
+        """
+        self.profiles_dir = profiles_dir
+
+    def generate(self) -> list:
+        """
+        Generate the Ansible roles section from all profile definitions.
+
+        This method:
+        1. Reads all profile YAML files
+        2. Generates expected play.yml roles section using resolve_role_manifest
+        3. Merges conditions across profiles (OR differing ones)
+        4. Applies profile-gating for roles exclusive to specific DE profiles
+
+        Returns:
+            List of role entries in Ansible format (strings or dicts with role/when)
+
+        Raises:
+            ValueError: If profiles directory does not exist
+        """
+        # Validate profiles directory exists
+        profiles_path = Path(self.profiles_dir)
+        if not profiles_path.exists():
+            raise ValueError(f"Profiles directory does not exist: {profiles_path}")
+        if not profiles_path.is_dir():
+            raise ValueError(f"Profiles path is not a directory: {profiles_path}")
+
+        profile_names = list_profiles(self.profiles_dir)
+
+        # --- Profile-gating inference ---
+        # DE profiles and their corresponding _is_<de> flags
+        de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+        profile_to_flag = {
+            "i3": "_is_i3",
+            "hyprland": "_is_hyprland",
+            "gnome": "_is_gnome",
+            "awesomewm": "_is_awesomewm",
+            "kde": "_is_kde",
+        }
+
+        # Track which profiles include each role AND build annotation conditions
+        role_to_profiles: Dict[str, set] = {}
+        expected_role_map: Dict[str, Optional[str]] = {}
+
+        for profile_name in profile_names:
+            try:
+                manifest = resolve_role_manifest(
+                    profile=profile_name,
+                    os_family="Archlinux",
+                    host_vars={},
+                    profiles_dir=self.profiles_dir,
+                    preserve_config_check=True,
+                )
+            except ValueError:
+                continue
+
+            for role_cond in manifest.roles:
+                role_name = role_cond.role
+                condition = role_cond.condition or None
+
+                # Track profile membership
+                role_to_profiles.setdefault(role_name, set()).add(profile_name)
+
+                # Merge conditions across profiles (OR differing ones)
+                if role_name not in expected_role_map:
+                    expected_role_map[role_name] = condition
+                    continue
+
+                existing_condition = expected_role_map[role_name]
+                if existing_condition is None or condition is None:
+                    expected_role_map[role_name] = None
+                elif existing_condition != condition:
+                    expected_role_map[role_name] = (
+                        f"({existing_condition}) or ({condition})"
+                    )
+
+        # Apply profile-gating for roles with empty annotation conditions
+        all_profile_set = set(profile_names)
+        for role_name, profiles in role_to_profiles.items():
+            existing = expected_role_map.get(role_name)
+            # Only add profile gate if annotation-based condition is empty
+            if existing is not None:
+                continue
+
+            # Universal roles (in ALL profiles including headless) need no gate
+            if profiles >= all_profile_set:
+                continue
+
+            de_members = profiles & de_profiles
+            if not de_members:
+                continue
+
+            # Determine the profile gate expression
+            if de_members == de_profiles:
+                gate = "_has_display"
+            elif len(de_members) == 1:
+                gate = profile_to_flag[next(iter(de_members))]
+            else:
+                gate = " or ".join(
+                    profile_to_flag[p] for p in sorted(de_members)
+                )
+
+            expected_role_map[role_name] = gate
+
+        # Build the roles list in Ansible format
+        roles = []
+        for role_name, condition in sorted(expected_role_map.items()):
+            if condition:
+                roles.append({"role": role_name, "when": condition})
+            else:
+                roles.append(role_name)
+
+        return roles
+
+
+# ---------------------------------------------------------------------------
 # CLI subcommands
 # ---------------------------------------------------------------------------
 
@@ -1902,6 +2036,25 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     print(json.dumps(output, indent=2))
     return 0
 
+
+
+def _cmd_generate_playbook(args: argparse.Namespace) -> int:
+    """
+    Generate Ansible playbook roles section from profile definitions.
+
+    Outputs valid Ansible YAML to stdout representing the roles section
+    that should be in play.yml based on all profile definitions.
+    """
+    try:
+        generator = PlaybookGenerator(profiles_dir=args.profiles_dir)
+        roles = generator.generate()
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    # Output as YAML
+    yaml.dump({"roles": roles}, sys.stdout, default_flow_style=False, sort_keys=False)
+    return 0
 
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
@@ -2282,6 +2435,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- generate-playbook ---
+    p_generate = subparsers.add_parser(
+        "generate-playbook",
+        help="Generate Ansible playbook roles section from profile definitions.",
+    )
+    p_generate.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     return parser
 
 
@@ -2310,6 +2472,7 @@ def main(argv: Optional[list] = None) -> int:
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
+        "generate-playbook": _cmd_generate_playbook,
     }
     return dispatch[args.subcommand](args)
 

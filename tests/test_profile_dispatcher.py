@@ -47,6 +47,7 @@ from profile_dispatcher import (
     ConditionTranslator,
     AnsibleConditionTranslator,
     DefaultTranslator,
+    PlaybookGenerator,
 )
 
 # Path to the real profiles directory used in integration-style tests
@@ -2472,6 +2473,95 @@ class TestConditionTranslatorProtocol:
         result = translator.translate_annotation(annotation, {})
         # With preserve_config_check=True, the expression is kept as-is
         assert result == "dotfiles is defined"
+class TestPlaybookGenerator:
+    """Tests for PlaybookGenerator.generate() method."""
+
+    def test_generate_returns_list(self):
+        """generate() should return a list of role entries."""
+        generator = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        roles = generator.generate()
+        assert isinstance(roles, list)
+
+    def test_generate_contains_role_names(self):
+        """generate() should include expected role names."""
+        generator = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        roles = generator.generate()
+        role_names = []
+        for role in roles:
+            if isinstance(role, str):
+                role_names.append(role)
+            else:
+                role_names.append(role["role"])
+        # Some universal roles should always be present
+        assert "shell" in role_names
+        assert "base" in role_names
+
+    def test_generate_includes_conditions(self):
+        """generate() should include 'when' conditions for conditional roles."""
+        generator = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        roles = generator.generate()
+        # At least some roles should have conditions
+        conditional_roles = [r for r in roles if isinstance(r, dict)]
+        assert len(conditional_roles) > 0
+
+    def test_generate_invalid_profiles_dir_raises_error(self):
+        """generate() should raise ValueError for non-existent profiles directory."""
+        generator = PlaybookGenerator(profiles_dir="/nonexistent/path")
+        with pytest.raises(ValueError, match="Profiles directory does not exist"):
+            generator.generate()
+
+
+class TestCLIGeneratePlaybook:
+    """Tests for the 'generate-playbook' CLI subcommand."""
+
+    def test_generate_playbook_outputs_valid_yaml(self, capsys):
+        """generate-playbook should output valid YAML with roles section."""
+        rc = main(["generate-playbook"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        # Should be valid YAML with roles key
+        assert "roles:" in out
+        # Should contain some expected roles
+        assert "shell:" in out or "- shell" in out or "- base" in out
+
+    def test_generate_playbook_with_custom_profiles_dir(self, capsys):
+        """generate-playbook with --profiles-dir should use that directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create _base.yml (required by all profiles)
+            base_path = Path(tmpdir, "_base.yml")
+            base_path.write_text("""
+name: base
+roles:
+  - role: base
+""")
+            # Create a simple profile with proper structure
+            profile_path = Path(tmpdir, "test.yml")
+            profile_path.write_text("""
+name: test
+extends: _base.yml
+display_manager_default: ""
+desktop_environment: ""
+roles:
+  - role: test_role
+""")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir])
+            out = capsys.readouterr().out
+            assert rc == 0
+            assert "test_role" in out
+
+    def test_generate_playbook_invalid_dir_exits_1(self, capsys):
+        """generate-playbook should exit 1 and write error to stderr for invalid dir."""
+        rc = main(["generate-playbook", "--profiles-dir", "/nonexistent/path"])
+        err = capsys.readouterr().err
+        assert rc == 1
+        assert "Profiles directory does not exist" in err
+
+    def test_generate_playbook_outputs_to_stdout_not_stderr(self, capsys):
+        """generate-playbook should write YAML to stdout, not stderr."""
+        main(["generate-playbook"])
+        captured = capsys.readouterr()
+        assert captured.out  # stdout should not be empty
+        assert captured.err == ""  # stderr should be empty
 
 
 if __name__ == '__main__':
