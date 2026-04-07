@@ -1643,6 +1643,262 @@ def _resolve_manual_mode(
 
 
 # ---------------------------------------------------------------------------
+# Playbook Generator (Slice 7)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class PlaybookRole:
+    """
+    A single role in a playbook with its condition.
+
+    Attributes:
+        role: Role name
+        condition: Jinja2 when: expression (or None for no condition)
+    """
+    role: str
+    condition: Optional[str]
+
+
+@dataclass(frozen=True)
+class SyncResult:
+    """
+    Result of comparing a playbook against profile-derived expectations.
+
+    Attributes:
+        in_sync: True if playbook matches expected roles exactly
+        missing_roles: Roles in generated output but not in playbook
+        extra_roles: Roles in playbook but not in generated output
+        condition_mismatches: Roles with different conditions (dict with role, actual, expected)
+    """
+    in_sync: bool
+    missing_roles: Tuple[PlaybookRole, ...]
+    extra_roles: Tuple[PlaybookRole, ...]
+    condition_mismatches: Tuple[Dict[str, Any], ...]
+
+
+class PlaybookGenerator:
+    """
+    Generates playbook role sections from profile definitions.
+
+    Produces the expected roles list for a given OS family and host vars,
+    with conditions computed from profile/overlay annotations.
+    """
+
+    def __init__(
+        self,
+        profiles_dir: str = _DEFAULT_PROFILES_DIR,
+        os_family: str = "Archlinux",
+        host_vars: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Initialize the generator.
+
+        Args:
+            profiles_dir: Directory containing profile YAML files
+            os_family: OS family for OS-specific role filtering
+            host_vars: Host variables for config_check evaluation (empty dict for raw Jinja2)
+        """
+        self.profiles_dir = profiles_dir
+        self.os_family = os_family
+        self.host_vars = host_vars or {}
+
+    def generate(self) -> Tuple[PlaybookRole, ...]:
+        """
+        Generate the expected playbook role list.
+
+        Resolves all profiles, builds the complete role manifest with
+        computed conditions, and returns roles in a deterministic order.
+
+        Returns:
+            Tuple of PlaybookRole objects with role names and conditions
+        """
+        profile_names = list_profiles(self.profiles_dir)
+
+        # DE profiles and their corresponding _is_<de> flags
+        de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+        profile_to_flag = {
+            "i3": "_is_i3",
+            "hyprland": "_is_hyprland",
+            "gnome": "_is_gnome",
+            "awesomewm": "_is_awesomewm",
+            "kde": "_is_kde",
+        }
+
+        # Track which profiles include each role AND build annotation conditions
+        role_to_profiles: Dict[str, set] = {}
+        role_map: Dict[str, Optional[str]] = {}
+
+        for profile_name in profile_names:
+            try:
+                manifest = resolve_role_manifest(
+                    profile=profile_name,
+                    os_family=self.os_family,
+                    host_vars=self.host_vars,
+                    profiles_dir=self.profiles_dir,
+                    preserve_config_check=True,
+                )
+            except ValueError:
+                continue
+
+            for role_cond in manifest.roles:
+                role_name = role_cond.role
+                condition = role_cond.condition or None
+
+                # Track profile membership
+                role_to_profiles.setdefault(role_name, set()).add(profile_name)
+
+                # Merge conditions across profiles (OR differing ones)
+                if role_name not in role_map:
+                    role_map[role_name] = condition
+                    continue
+
+                existing_condition = role_map[role_name]
+                if existing_condition is None or condition is None:
+                    role_map[role_name] = None
+                elif existing_condition != condition:
+                    role_map[role_name] = (
+                        f"({existing_condition}) or ({condition})"
+                    )
+
+        # Apply profile-gating for roles with empty annotation conditions
+        all_profile_set = set(profile_names)
+        for role_name, profiles in role_to_profiles.items():
+            existing = role_map.get(role_name)
+            # Only add profile gate if annotation-based condition is empty
+            if existing is not None:
+                continue
+
+            # Universal roles (in ALL profiles including headless) need no gate
+            if profiles >= all_profile_set:
+                continue
+
+            de_members = profiles & de_profiles
+            if not de_members:
+                continue
+
+            # Determine the profile gate expression
+            if de_members == de_profiles:
+                gate = "_has_display"
+            elif len(de_members) == 1:
+                gate = profile_to_flag[next(iter(de_members))]
+            else:
+                gate = " or ".join(
+                    profile_to_flag[p] for p in sorted(de_members)
+                )
+
+            role_map[role_name] = gate
+
+        # Convert to PlaybookRole tuple in sorted order for determinism
+        return tuple(
+            PlaybookRole(role=role, condition=cond)
+            for role, cond in sorted(role_map.items())
+        )
+
+    def sync_check(self, playbook_path: str) -> SyncResult:
+        """
+        Compare a playbook against the generated expected roles.
+
+        Parses the existing playbook, extracts roles and conditions,
+        and compares them to the generated output.
+
+        Args:
+            playbook_path: Path to the playbook YAML file
+
+        Returns:
+            SyncResult with in_sync flag and lists of differences
+        """
+        playbook = Path(playbook_path)
+        if not playbook.exists():
+            raise ValueError(f"Playbook not found: {playbook_path}")
+
+        # Load actual playbook
+        with open(playbook) as f:
+            playbook_data = yaml.safe_load(f)
+
+        # Extract roles from playbook (handle list of plays format)
+        if isinstance(playbook_data, list):
+            plays = playbook_data
+        else:
+            plays = [playbook_data]
+
+        actual_roles: List[PlaybookRole] = []
+        for play in plays:
+            if "roles" in play:
+                for role_entry in play["roles"]:
+                    if isinstance(role_entry, str):
+                        actual_roles.append(PlaybookRole(role=role_entry, condition=None))
+                    else:
+                        role_name = role_entry.get("role", "")
+                        condition = role_entry.get("when")
+                        actual_roles.append(PlaybookRole(role=role_name, condition=condition))
+
+        # Get expected roles
+        expected_roles = self.generate()
+
+        # Build role maps for comparison
+        actual_role_map: Dict[str, Optional[str]] = {
+            r.role: r.condition for r in actual_roles
+        }
+        expected_role_map: Dict[str, Optional[str]] = {
+            r.role: r.condition for r in expected_roles
+        }
+
+        # Filter out overlay-based roles (dynamic, not in profiles)
+        overlay_roles = {
+            role for role, cond in actual_role_map.items()
+            if cond and "_overlay_" in str(cond)
+        }
+
+        actual_roles_filtered = {r for r in actual_role_map if r not in overlay_roles}
+        expected_roles_filtered = {r for r in expected_role_map if r not in overlay_roles}
+
+        # Find differences
+        missing_role_names = expected_roles_filtered - actual_roles_filtered
+        extra_role_names = actual_roles_filtered - expected_roles_filtered
+        common_role_names = actual_roles_filtered & expected_roles_filtered
+
+        # Build PlaybookRole tuples for missing and extra
+        missing_roles = tuple(
+            PlaybookRole(role=name, condition=expected_role_map[name])
+            for name in sorted(missing_role_names)
+        )
+        extra_roles = tuple(
+            PlaybookRole(role=name, condition=actual_role_map[name])
+            for name in sorted(extra_role_names)
+        )
+
+        # Check for condition mismatches
+        condition_mismatches = []
+        for role_name in sorted(common_role_names):
+            actual_cond = actual_role_map[role_name]
+            expected_cond = expected_role_map[role_name]
+
+            actual_normalized = _normalize_condition(actual_cond)
+            expected_normalized = _normalize_condition(expected_cond)
+
+            if actual_normalized != expected_normalized:
+                condition_mismatches.append({
+                    "role": role_name,
+                    "actual": actual_cond,
+                    "expected": expected_cond,
+                })
+
+        # Check if in sync
+        in_sync = (
+            not missing_roles and
+            not extra_roles and
+            not condition_mismatches
+        )
+
+        return SyncResult(
+            in_sync=in_sync,
+            missing_roles=missing_roles,
+            extra_roles=extra_roles,
+            condition_mismatches=tuple(condition_mismatches),
+        )
+
+
+# ---------------------------------------------------------------------------
 # CLI subcommands
 # ---------------------------------------------------------------------------
 
