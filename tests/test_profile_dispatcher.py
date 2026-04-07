@@ -2519,10 +2519,18 @@ class TestCLIGeneratePlaybook:
         rc = main(["generate-playbook"])
         out = capsys.readouterr().out
         assert rc == 0
-        # Should be valid YAML with roles key
-        assert "roles:" in out
-        # Should contain some expected roles
-        assert "shell:" in out or "- shell" in out or "- base" in out
+        parsed = yaml.safe_load(out)
+        assert isinstance(parsed, dict)
+        assert "roles" in parsed
+        assert isinstance(parsed["roles"], list)
+        assert any(
+            (
+                role == "shell"
+                or role == "base"
+                or (isinstance(role, dict) and role.get("role") in {"shell", "base"})
+            )
+            for role in parsed["roles"]
+        )
 
     def test_generate_playbook_with_custom_profiles_dir(self, capsys):
         """generate-playbook with --profiles-dir should use that directory."""

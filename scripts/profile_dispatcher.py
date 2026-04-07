@@ -2053,7 +2053,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
         return 1
 
     # Output as YAML
-    yaml.dump({"roles": roles}, sys.stdout, default_flow_style=False, sort_keys=False)
+    yaml.safe_dump({"roles": roles}, sys.stdout, default_flow_style=False, sort_keys=False)
     return 0
 
 
