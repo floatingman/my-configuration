@@ -2162,7 +2162,6 @@ class TestORLogicForOverlappingRoles:
         assert role_names.count("backlight") == 1
 
 
-<<<<<<< HEAD
 class TestDeduplicationSemantics:
     """Focused tests for role deduplication with conditions and tags.
 
@@ -2478,7 +2477,8 @@ class TestConditionTranslatorProtocol:
         result = translator.translate_annotation(annotation, {})
         # With preserve_config_check=True, the expression is kept as-is
         assert result == "dotfiles is defined"
-=======
+
+
 class TestPlaybookGenerator:
     """Test PlaybookGenerator.generate() and sync_check()."""
 
@@ -2718,7 +2718,6 @@ class TestPlaybookGenerator:
 
         with pytest.raises(ValueError, match="Playbook not found"):
             generator.sync_check("/nonexistent/path/play.yml")
->>>>>>> 7761e63 (chore: Slice 7: sync_check() + SyncResult (closes #110))
 
 
 if __name__ == '__main__':
