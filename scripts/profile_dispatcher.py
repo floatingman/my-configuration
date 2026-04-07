@@ -739,6 +739,22 @@ def translate_condition(
     return ""
 
 
+def _normalize_condition(cond: Optional[str]) -> str:
+    """Normalize a condition string for comparison.
+
+    Strips '| bool' filters, sorts AND terms alphabetically
+    so that semantically equivalent conditions compare equal.
+    """
+    if not cond:
+        return ""
+    s = cond.strip()
+    # Strip Ansible '| bool' filter (semantically redundant for booleans)
+    s = s.replace(" | bool", "")
+    # Sort AND terms for commutativity
+    parts = sorted(p.strip() for p in s.split(" and "))
+    return " and ".join(parts)
+
+
 def resolve_role_manifest(
     profile: Optional[str] = None,
     display_manager: Optional[str] = None,
@@ -916,29 +932,44 @@ def resolve_role_manifest(
         # Translate condition
         condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
 
-        # Deduplicate: OR conditions if role already exists
+        # Deduplicate: merge conditions and union tags if role already exists
         if role_name in role_map:
             existing = role_map[role_name]
-            # Combine conditions with OR
+
+            # Union tags from all sources
+            merged_tags = tuple(sorted(set(existing.tags + tags)))
+
+            # Merge conditions: OR only if they differ
             if existing.condition and condition:
-                # Both have conditions - OR them
-                combined_condition = f"({existing.condition}) or ({condition})"
-                role_map[role_name] = RoleCondition(
-                    role=role_name,
-                    tags=tags,
-                    condition=combined_condition,
-                    source=f"{existing.source}+overlay",
-                )
+                # Both have conditions - check if they're identical
+                existing_norm = _normalize_condition(existing.condition)
+                new_norm = _normalize_condition(condition)
+
+                if existing_norm == new_norm:
+                    # Identical conditions - keep existing (no OR needed)
+                    merged_condition = existing.condition
+                    merged_source = existing.source
+                else:
+                    # Different conditions - OR them
+                    merged_condition = f"({existing.condition}) or ({condition})"
+                    merged_source = f"{existing.source}+overlay"
             elif condition:
                 # Use new condition (existing has no condition)
-                role_map[role_name] = RoleCondition(
-                    role=role_name,
-                    tags=tags,
-                    condition=condition,
-                    source=source,
-                )
-            # Otherwise: existing has condition and new doesn't, or neither has condition
-            # In both cases, keep the existing role_map entry unchanged
+                merged_condition = condition
+                merged_source = source
+            else:
+                # Existing has condition and new doesn't, or neither has condition
+                # Keep existing condition and source
+                merged_condition = existing.condition
+                merged_source = existing.source
+
+            # Update with merged data
+            role_map[role_name] = RoleCondition(
+                role=role_name,
+                tags=merged_tags,
+                condition=merged_condition,
+                source=merged_source,
+            )
         else:
             # New role
             role_map[role_name] = RoleCondition(
@@ -1874,21 +1905,6 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     print(json.dumps(output, indent=2))
     return 0
 
-
-def _normalize_condition(cond: Optional[str]) -> str:
-    """Normalize a condition string for comparison.
-
-    Strips '| bool' filters, sorts AND terms alphabetically
-    so that semantically equivalent conditions compare equal.
-    """
-    if not cond:
-        return ""
-    s = cond.strip()
-    # Strip Ansible '| bool' filter (semantically redundant for booleans)
-    s = s.replace(" | bool", "")
-    # Sort AND terms for commutativity
-    parts = sorted(p.strip() for p in s.split(" and "))
-    return " and ".join(parts)
 
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
