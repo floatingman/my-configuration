@@ -25,7 +25,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
 
 import jinja2
 
@@ -739,6 +739,22 @@ def translate_condition(
     return ""
 
 
+def _normalize_condition(cond: Optional[str]) -> str:
+    """Normalize a condition string for comparison.
+
+    Strips '| bool' filters, sorts AND terms alphabetically
+    so that semantically equivalent conditions compare equal.
+    """
+    if not cond:
+        return ""
+    s = cond.strip()
+    # Strip Ansible '| bool' filter (semantically redundant for booleans)
+    s = s.replace(" | bool", "")
+    # Sort AND terms for commutativity
+    parts = sorted(p.strip() for p in s.split(" and "))
+    return " and ".join(parts)
+
+
 def resolve_role_manifest(
     profile: Optional[str] = None,
     display_manager: Optional[str] = None,
@@ -887,6 +903,8 @@ def resolve_role_manifest(
 
     # Build manifest: translate conditions and deduplicate by role name
     role_map: Dict[str, RoleCondition] = {}
+    # Track normalized OR-disjuncts per role to avoid duplicate terms on 3+ merges
+    role_disjuncts: Dict[str, Set[str]] = {}
 
     for role_entry in all_roles:
         # Get role name
@@ -916,29 +934,38 @@ def resolve_role_manifest(
         # Translate condition
         condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
 
-        # Deduplicate: OR conditions if role already exists
+        # Deduplicate: merge conditions and union tags if role already exists
+        norm_cond = _normalize_condition(condition)
         if role_name in role_map:
             existing = role_map[role_name]
-            # Combine conditions with OR
-            if existing.condition and condition:
-                # Both have conditions - OR them
-                combined_condition = f"({existing.condition}) or ({condition})"
-                role_map[role_name] = RoleCondition(
-                    role=role_name,
-                    tags=tags,
-                    condition=combined_condition,
-                    source=f"{existing.source}+overlay",
-                )
-            elif condition:
-                # Use new condition (existing has no condition)
-                role_map[role_name] = RoleCondition(
-                    role=role_name,
-                    tags=tags,
-                    condition=condition,
-                    source=source,
-                )
-            # Otherwise: existing has condition and new doesn't, or neither has condition
-            # In both cases, keep the existing role_map entry unchanged
+
+            # Union tags from all sources
+            merged_tags = tuple(sorted(set(existing.tags + tags)))
+
+            # Merge conditions using tracked disjuncts to avoid duplicates
+            disjuncts = role_disjuncts[role_name]
+            merged_source = existing.source
+
+            if condition and norm_cond not in disjuncts:
+                # New condition term — add to disjunct set and OR into condition
+                disjuncts.add(norm_cond)
+                if existing.condition:
+                    merged_condition = f"({existing.condition}) or ({condition})"
+                    merged_source = f"{existing.source}+overlay"
+                else:
+                    merged_condition = condition
+                    merged_source = source
+            else:
+                # Condition already tracked (or no new condition) — keep existing
+                merged_condition = existing.condition
+
+            # Update with merged data
+            role_map[role_name] = RoleCondition(
+                role=role_name,
+                tags=merged_tags,
+                condition=merged_condition,
+                source=merged_source,
+            )
         else:
             # New role
             role_map[role_name] = RoleCondition(
@@ -947,6 +974,7 @@ def resolve_role_manifest(
                 condition=condition,
                 source=source,
             )
+            role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
     # Convert to sorted tuple
     roles_tuple = tuple(role_map.values())
@@ -1874,21 +1902,6 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     print(json.dumps(output, indent=2))
     return 0
 
-
-def _normalize_condition(cond: Optional[str]) -> str:
-    """Normalize a condition string for comparison.
-
-    Strips '| bool' filters, sorts AND terms alphabetically
-    so that semantically equivalent conditions compare equal.
-    """
-    if not cond:
-        return ""
-    s = cond.strip()
-    # Strip Ansible '| bool' filter (semantically redundant for booleans)
-    s = s.replace(" | bool", "")
-    # Sort AND terms for commutativity
-    parts = sorted(p.strip() for p in s.split(" and "))
-    return " and ".join(parts)
 
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
