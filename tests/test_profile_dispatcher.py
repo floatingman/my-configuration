@@ -16,6 +16,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import json
+import yaml
 
 from profile_dispatcher import (
     main,
@@ -2154,6 +2155,146 @@ class TestORLogicForOverlappingRoles:
         role_names = [r.role for r in manifest.roles]
         # backlight is in both _base.yml (profile) and laptop overlay
         assert role_names.count("backlight") == 1
+
+
+class TestDeduplicationSemantics:
+    """Focused tests for role deduplication with conditions and tags.
+
+    Exercises:
+    - Identical conditions across 2+ sources are NOT OR-ed
+    - Distinct conditions across 3+ sources are OR-ed without duplicates
+    - Tags are unioned across all sources
+    """
+
+    @staticmethod
+    def _make_profiles(tmp_path, base_roles, overlay_roles=None, overlay_name="test_overlay"):
+        """Create temporary profile + overlay files for testing."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        overlays_path = profiles_dir / "overlays"
+        overlays_path.mkdir()
+
+        # Write _base.yml
+        base_data = {
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": base_roles,
+        }
+        (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
+
+        # Write profile extending _base
+        profile_data = {
+            "extends": "_base",
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [],
+        }
+        (profiles_dir / "test.yml").write_text(yaml.dump(profile_data, default_flow_style=False))
+
+        # Write overlay if provided
+        if overlay_roles:
+            overlay_data = {
+                "name": overlay_name,
+                "applies_when": f"{overlay_name} | default(false)",
+                "roles": overlay_roles,
+            }
+            (overlays_path / f"{overlay_name}.yml").write_text(
+                yaml.dump(overlay_data, default_flow_style=False)
+            )
+
+        return str(profiles_dir)
+
+    def test_identical_conditions_not_or_ed(self, tmp_path):
+        """When a role appears twice with identical conditions, no OR is produced."""
+        profiles_dir = self._make_profiles(
+            tmp_path,
+            base_roles=[{"role": "foo", "tags": ["t1"], "os": "archlinux"}],
+            overlay_roles=[{"role": "foo", "tags": ["t2"], "os": "archlinux"}],
+        )
+        manifest = resolve_role_manifest(
+            profile="test",
+            host_vars={"test_overlay": True},
+            os_family="Archlinux",
+            profiles_dir=profiles_dir,
+        )
+        foo_roles = [r for r in manifest.roles if r.role == "foo"]
+        assert len(foo_roles) == 1
+        # Condition should NOT contain "or" — both sources gave the same condition
+        assert " or " not in foo_roles[0].condition.lower()
+        assert foo_roles[0].condition == "_is_arch"
+
+    def test_tags_unioned_across_sources(self, tmp_path):
+        """Tags from all sources are unioned (no duplicates, sorted)."""
+        profiles_dir = self._make_profiles(
+            tmp_path,
+            base_roles=[{"role": "foo", "tags": ["alpha", "beta"], "os": "archlinux"}],
+            overlay_roles=[{"role": "foo", "tags": ["beta", "gamma"], "os": "archlinux"}],
+        )
+        manifest = resolve_role_manifest(
+            profile="test",
+            host_vars={"test_overlay": True},
+            os_family="Archlinux",
+            profiles_dir=profiles_dir,
+        )
+        foo_roles = [r for r in manifest.roles if r.role == "foo"]
+        assert len(foo_roles) == 1
+        assert foo_roles[0].tags == ("alpha", "beta", "gamma")
+
+    def test_three_sources_no_duplicate_or_terms(self, tmp_path):
+        """With 3 sources, duplicate conditions are not re-OR-ed.
+
+        Scenario:
+          Source 1: _has_display
+          Source 2: _is_arch        → produces "(_has_display) or (_is_arch)"
+          Source 3: _has_display    → should NOT re-add _has_display
+        """
+        profiles_dir = self._make_profiles(
+            tmp_path,
+            base_roles=[
+                {"role": "bar", "tags": ["t1"], "requires_display": True},
+                {"role": "bar", "tags": ["t2"], "os": "archlinux"},
+            ],
+            overlay_roles=[
+                {"role": "bar", "tags": ["t3"], "requires_display": True},
+            ],
+        )
+        manifest = resolve_role_manifest(
+            profile="test",
+            host_vars={"test_overlay": True},
+            os_family="Archlinux",
+            profiles_dir=profiles_dir,
+        )
+        bar_roles = [r for r in manifest.roles if r.role == "bar"]
+        assert len(bar_roles) == 1
+        cond = bar_roles[0].condition
+        # Should have exactly two terms OR'd, not three
+        # _has_display appears twice in sources but should appear once in output
+        or_count = cond.lower().count(" or ")
+        assert or_count == 1, f"Expected exactly 1 'or', got {or_count}: {cond}"
+
+    def test_three_distinct_conditions_all_or_ed(self, tmp_path):
+        """Three distinct conditions produce a 3-way OR."""
+        profiles_dir = self._make_profiles(
+            tmp_path,
+            base_roles=[
+                {"role": "baz", "tags": ["t1"], "requires_display": True},
+                {"role": "baz", "tags": ["t2"], "os": "archlinux"},
+            ],
+            overlay_roles=[
+                {"role": "baz", "tags": ["t3"], "os": "debian"},
+            ],
+        )
+        manifest = resolve_role_manifest(
+            profile="test",
+            host_vars={"test_overlay": True},
+            os_family="Archlinux",
+            profiles_dir=profiles_dir,
+        )
+        baz_roles = [r for r in manifest.roles if r.role == "baz"]
+        assert len(baz_roles) == 1
+        cond = baz_roles[0].condition
+        # Three distinct terms: _has_display, _is_arch, not _is_arch
+        assert cond.count(" or ") == 2, f"Expected 2 'or's, got: {cond}"
 
 
 class TestConditionTranslatorProtocol:

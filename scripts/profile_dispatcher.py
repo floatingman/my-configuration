@@ -25,7 +25,7 @@ import sys
 import yaml
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
 
 import jinja2
 
@@ -903,6 +903,8 @@ def resolve_role_manifest(
 
     # Build manifest: translate conditions and deduplicate by role name
     role_map: Dict[str, RoleCondition] = {}
+    # Track normalized OR-disjuncts per role to avoid duplicate terms on 3+ merges
+    role_disjuncts: Dict[str, Set[str]] = {}
 
     for role_entry in all_roles:
         # Get role name
@@ -933,35 +935,29 @@ def resolve_role_manifest(
         condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
 
         # Deduplicate: merge conditions and union tags if role already exists
+        norm_cond = _normalize_condition(condition)
         if role_name in role_map:
             existing = role_map[role_name]
 
             # Union tags from all sources
             merged_tags = tuple(sorted(set(existing.tags + tags)))
 
-            # Merge conditions: OR only if they differ
-            if existing.condition and condition:
-                # Both have conditions - check if they're identical
-                existing_norm = _normalize_condition(existing.condition)
-                new_norm = _normalize_condition(condition)
+            # Merge conditions using tracked disjuncts to avoid duplicates
+            disjuncts = role_disjuncts[role_name]
+            merged_source = existing.source
 
-                if existing_norm == new_norm:
-                    # Identical conditions - keep existing (no OR needed)
-                    merged_condition = existing.condition
-                    merged_source = existing.source
-                else:
-                    # Different conditions - OR them
+            if condition and norm_cond not in disjuncts:
+                # New condition term — add to disjunct set and OR into condition
+                disjuncts.add(norm_cond)
+                if existing.condition:
                     merged_condition = f"({existing.condition}) or ({condition})"
                     merged_source = f"{existing.source}+overlay"
-            elif condition:
-                # Use new condition (existing has no condition)
-                merged_condition = condition
-                merged_source = source
+                else:
+                    merged_condition = condition
+                    merged_source = source
             else:
-                # Existing has condition and new doesn't, or neither has condition
-                # Keep existing condition and source
+                # Condition already tracked (or no new condition) — keep existing
                 merged_condition = existing.condition
-                merged_source = existing.source
 
             # Update with merged data
             role_map[role_name] = RoleCondition(
@@ -978,6 +974,7 @@ def resolve_role_manifest(
                 condition=condition,
                 source=source,
             )
+            role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
     # Convert to sorted tuple
     roles_tuple = tuple(role_map.values())
