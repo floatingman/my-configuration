@@ -6,11 +6,13 @@ Comprehensive unit tests covering all input combinations and edge cases.
 No Ansible dependency - pure Python tests.
 """
 
+import os
 import sys
 import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 # Add scripts directory to path so profile_dispatcher can be imported
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
@@ -47,6 +49,9 @@ from profile_dispatcher import (
     ConditionTranslator,
     AnsibleConditionTranslator,
     DefaultTranslator,
+    PlaybookRole,
+    SyncResult,
+    PlaybookGenerator,
 )
 
 # Path to the real profiles directory used in integration-style tests
@@ -2472,6 +2477,268 @@ class TestConditionTranslatorProtocol:
         result = translator.translate_annotation(annotation, {})
         # With preserve_config_check=True, the expression is kept as-is
         assert result == "dotfiles is defined"
+
+
+class TestPlaybookGenerator:
+    """Test PlaybookGenerator.generate() and sync_check()."""
+
+    def test_generate_returns_playbook_roles(self):
+        """generate() should return PlaybookRole tuples with conditions."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        roles = generator.generate()
+
+        # Should return a tuple
+        assert isinstance(roles, tuple)
+
+        # Should have PlaybookRole objects
+        assert all(isinstance(r, PlaybookRole) for r in roles)
+
+        # Should have some roles
+        assert len(roles) > 0
+
+        # Each role should have a name
+        for role in roles:
+            assert isinstance(role.role, str)
+            assert len(role.role) > 0
+
+    def test_generate_deterministic_order(self):
+        """generate() should return roles in consistent order."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        roles1 = generator.generate()
+        roles2 = generator.generate()
+
+        # Same length
+        assert len(roles1) == len(roles2)
+
+        # Same order
+        assert roles1 == roles2
+
+    def test_sync_check_in_sync_returns_true(self):
+        """sync_check() on an in-sync playbook should return in_sync=True."""
+        # Create a temporary playbook file matching expected output
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        expected_roles = generator.generate()
+
+        # Build playbook YAML
+        playbook_roles = []
+        for role in expected_roles:
+            if role.condition:
+                playbook_roles.append({"role": role.role, "when": role.condition})
+            else:
+                playbook_roles.append(role.role)
+
+        playbook_data = {
+            "hosts": "all",
+            "roles": playbook_roles,
+        }
+
+        # Write to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(playbook_data, f)
+            temp_path = f.name
+
+        try:
+            result = generator.sync_check(temp_path)
+            assert result.in_sync is True
+            assert len(result.missing_roles) == 0
+            assert len(result.extra_roles) == 0
+            assert len(result.condition_mismatches) == 0
+        finally:
+            os.unlink(temp_path)
+
+    def test_sync_check_detects_missing_role(self):
+        """sync_check() should detect roles in generated but not in playbook."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+
+        # Generate expected roles, then remove a known role to force a gap
+        expected_roles = generator.generate()
+        assert len(expected_roles) > 0, "generate() should return at least one role"
+
+        # Pick a role to omit (the first one with no condition is simplest)
+        removed_role = expected_roles[0]
+        for r in expected_roles:
+            if r.condition is None:
+                removed_role = r
+                break
+
+        # Build playbook from expected roles minus the removed one
+        playbook_roles = []
+        for role in expected_roles:
+            if role.role == removed_role.role:
+                continue
+            if role.condition:
+                playbook_roles.append({"role": role.role, "when": role.condition})
+            else:
+                playbook_roles.append(role.role)
+
+        playbook_data = {"hosts": "all", "roles": playbook_roles}
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(playbook_data, f)
+            temp_path = f.name
+
+        try:
+            result = generator.sync_check(temp_path)
+            assert result.in_sync is False, (
+                f"Expected in_sync=False after removing '{removed_role.role}'"
+            )
+            missing_names = {r.role for r in result.missing_roles}
+            assert removed_role.role in missing_names, (
+                f"Expected '{removed_role.role}' in missing_roles, got {missing_names}"
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_sync_check_detects_extra_role(self):
+        """sync_check() should detect roles in playbook but not in generated."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+
+        # Create a playbook with an extra role not in profiles
+        playbook_data = {
+            "hosts": "all",
+            "roles": ["shell", "system", "fake_extra_role_xyz"],
+        }
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(playbook_data, f)
+            temp_path = f.name
+
+        try:
+            result = generator.sync_check(temp_path)
+            assert result.in_sync is False
+            assert len(result.extra_roles) > 0
+            # Should contain the fake role
+            extra_role_names = {r.role for r in result.extra_roles}
+            assert "fake_extra_role_xyz" in extra_role_names
+        finally:
+            os.unlink(temp_path)
+
+    def test_sync_check_detects_condition_mismatch(self):
+        """sync_check() should detect condition mismatches."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        expected_roles = generator.generate()
+
+        # Find a role with a condition and change it
+        test_role = None
+        test_role_idx = -1
+        for i, role in enumerate(expected_roles):
+            if role.condition:
+                test_role = role
+                test_role_idx = i
+                break
+
+        # Skip test if no role has a condition
+        if test_role is None:
+            return
+
+        # Build playbook with wrong condition
+        playbook_roles = []
+        for i, role in enumerate(expected_roles):
+            if i == test_role_idx:
+                # Use wrong condition
+                playbook_roles.append({
+                    "role": role.role,
+                    "when": "_is_wrong_condition_xyz"
+                })
+            elif role.condition:
+                playbook_roles.append({"role": role.role, "when": role.condition})
+            else:
+                playbook_roles.append(role.role)
+
+        playbook_data = {
+            "hosts": "all",
+            "roles": playbook_roles,
+        }
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(playbook_data, f)
+            temp_path = f.name
+
+        try:
+            result = generator.sync_check(temp_path)
+            assert result.in_sync is False
+            assert len(result.condition_mismatches) > 0
+
+            # Check mismatch details
+            mismatch = result.condition_mismatches[0]
+            assert "role" in mismatch
+            assert "actual" in mismatch
+            assert "expected" in mismatch
+            assert mismatch["role"] == test_role.role
+            assert mismatch["actual"] == "_is_wrong_condition_xyz"
+        finally:
+            os.unlink(temp_path)
+
+    def test_sync_check_multiple_mismatches_reported(self):
+        """sync_check() should report multiple differences together."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+
+        # Create a playbook with multiple issues
+        playbook_data = {
+            "hosts": "all",
+            "roles": [
+                "shell",
+                "extra_role_1",
+                "extra_role_2",
+            ],
+        }
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(playbook_data, f)
+            temp_path = f.name
+
+        try:
+            result = generator.sync_check(temp_path)
+            assert result.in_sync is False
+
+            # Should have both extra roles
+            extra_role_names = {r.role for r in result.extra_roles}
+            assert "extra_role_1" in extra_role_names
+            assert "extra_role_2" in extra_role_names
+
+            # Should also have missing roles
+            assert len(result.missing_roles) > 0
+        finally:
+            os.unlink(temp_path)
+
+    def test_sync_check_nonexistent_playbook_raises(self):
+        """sync_check() should raise ValueError for nonexistent playbook."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+
+        with pytest.raises(ValueError, match="Playbook not found"):
+            generator.sync_check("/nonexistent/path/play.yml")
 
 
 if __name__ == '__main__':
