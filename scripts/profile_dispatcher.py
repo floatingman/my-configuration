@@ -2377,7 +2377,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    # Convert PlaybookRole tuples to Ansible-format dicts
+    # Convert PlaybookRole dataclass instances to Ansible-format dicts
     role_entries = []
     for r in roles:
         entry: Dict[str, Any] = {"role": r.role}
