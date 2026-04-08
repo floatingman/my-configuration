@@ -1649,13 +1649,15 @@ def _resolve_manual_mode(
 @dataclass(frozen=True)
 class PlaybookRole:
     """
-    A single role in a playbook with its condition.
+    A single role in a playbook with its tags and condition.
 
     Attributes:
         role: Role name
+        tags: Ansible tags for selective execution
         condition: Jinja2 when: expression (or None for no condition)
     """
     role: str
+    tags: Tuple[str, ...]
     condition: Optional[str]
 
 
@@ -1735,6 +1737,7 @@ class PlaybookGenerator:
         # Track which profiles include each role AND build annotation conditions
         role_to_profiles: Dict[str, set] = {}
         role_map: Dict[str, Optional[str]] = {}
+        role_tags: Dict[str, set] = {}
 
         for profile_name in profile_names:
             manifest = resolve_role_manifest(
@@ -1751,6 +1754,11 @@ class PlaybookGenerator:
 
                 # Track profile membership
                 role_to_profiles.setdefault(role_name, set()).add(profile_name)
+
+                # Union tags across profiles
+                if role_name not in role_tags:
+                    role_tags[role_name] = set()
+                role_tags[role_name].update(role_cond.tags)
 
                 # Merge conditions across profiles (OR differing ones)
                 if role_name not in role_map:
@@ -1795,7 +1803,11 @@ class PlaybookGenerator:
 
         # Convert to PlaybookRole tuple in sorted order for determinism
         return tuple(
-            PlaybookRole(role=role, condition=cond)
+            PlaybookRole(
+                role=role,
+                tags=tuple(sorted(role_tags.get(role, ()))),
+                condition=cond,
+            )
             for role, cond in sorted(role_map.items())
         )
 
@@ -1837,13 +1849,15 @@ class PlaybookGenerator:
             if "roles" in play:
                 for role_entry in play["roles"]:
                     if isinstance(role_entry, str):
-                        actual_roles.append(PlaybookRole(role=role_entry, condition=None))
+                        actual_roles.append(PlaybookRole(role=role_entry, tags=(), condition=None))
                     elif isinstance(role_entry, dict):
                         role_name = role_entry.get("role")
                         if not role_name:
                             continue
                         condition = role_entry.get("when")
-                        actual_roles.append(PlaybookRole(role=role_name, condition=condition))
+                        raw_tags = role_entry.get("tags", [])
+                        tags = tuple(raw_tags) if isinstance(raw_tags, list) else ()
+                        actual_roles.append(PlaybookRole(role=role_name, tags=tags, condition=condition))
 
         # Get expected roles
         expected_roles = self.generate()
@@ -1872,11 +1886,11 @@ class PlaybookGenerator:
 
         # Build PlaybookRole tuples for missing and extra
         missing_roles = tuple(
-            PlaybookRole(role=name, condition=expected_role_map[name])
+            PlaybookRole(role=name, tags=(), condition=expected_role_map[name])
             for name in sorted(missing_role_names)
         )
         extra_roles = tuple(
-            PlaybookRole(role=name, condition=actual_role_map[name])
+            PlaybookRole(role=name, tags=(), condition=actual_role_map[name])
             for name in sorted(extra_role_names)
         )
 
@@ -1945,7 +1959,7 @@ class PlaybookGenerator:
 
         # Convert RoleCondition to PlaybookRole
         return tuple(
-            PlaybookRole(role=rc.role, condition=rc.condition or None)
+            PlaybookRole(role=rc.role, tags=rc.tags, condition=rc.condition or None)
             for rc in manifest.roles
         )
 
@@ -2381,6 +2395,8 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     role_entries = []
     for r in roles:
         entry: Dict[str, Any] = {"role": r.role}
+        if r.tags:
+            entry["tags"] = list(r.tags)
         if r.condition:
             entry["when"] = r.condition
         role_entries.append(entry)

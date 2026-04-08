@@ -2500,10 +2500,57 @@ class TestPlaybookGenerator:
         # Should have some roles
         assert len(roles) > 0
 
-        # Each role should have a name
+        # Each role should have a name and tags
         for role in roles:
             assert isinstance(role.role, str)
             assert len(role.role) > 0
+            assert isinstance(role.tags, tuple)
+            assert all(isinstance(t, str) for t in role.tags)
+
+    def test_generate_roles_have_nonempty_tags(self):
+        """generate() should include tags from profile definitions."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        roles = generator.generate()
+        role_map = {r.role: r for r in roles}
+
+        # Known roles that should have tags matching their name
+        for name in ("base", "shell", "gpu_detect"):
+            assert name in role_map, f"Expected role '{name}' in generated output"
+            assert name in role_map[name].tags, (
+                f"Expected '{name}' in tags for role '{name}', got {role_map[name].tags}"
+            )
+
+    def test_generate_tags_are_sorted(self):
+        """Tags on each role should be sorted for determinism."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        for role in generator.generate():
+            assert role.tags == tuple(sorted(role.tags)), (
+                f"Tags for '{role.role}' not sorted: {role.tags}"
+            )
+
+    def test_generate_tags_unioned_across_profiles(self):
+        """Tags from all profiles containing a role are unioned."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        roles = generator.generate()
+        role_map = {r.role: r for r in roles}
+
+        # backlight appears in _base.yml and laptop overlay with different tags
+        # base gives it backlight tag, overlay gives it backlight tag too
+        # After unioning it should have at least the backlight tag
+        assert "backlight" in role_map, "Expected 'backlight' in generated output"
+        assert "backlight" in role_map["backlight"].tags
 
     def test_generate_deterministic_order(self):
         """generate() should return roles in consistent order."""
@@ -2767,6 +2814,15 @@ class TestPlaybookGeneratorResolve:
         # shell and system are base roles that should be in i3
         assert "shell" in role_names or len(roles) > 5  # At minimum, some roles
 
+        # Resolved roles should have tags from profile definitions
+        for r in roles:
+            assert isinstance(r.tags, tuple)
+
+        # Check specific role has expected tag content
+        shell_roles = [r for r in roles if r.role == "shell"]
+        assert len(shell_roles) == 1
+        assert "shell" in shell_roles[0].tags
+
     def test_resolve_headless_excludes_display_gated(self):
         """resolve('headless') should exclude roles that require a display."""
         generator = PlaybookGenerator(
@@ -2935,6 +2991,20 @@ class TestCLIGeneratePlaybook:
             )
             for role in parsed["roles"]
         )
+
+    def test_generate_playbook_output_includes_tags(self, capsys):
+        """generate-playbook output should include tags for each role."""
+        main(["generate-playbook"])
+        out = capsys.readouterr().out
+        parsed = yaml.safe_load(out)
+        dict_roles = [r for r in parsed["roles"] if isinstance(r, dict)]
+        # Most roles should have tags
+        with_tags = [r for r in dict_roles if "tags" in r]
+        assert len(with_tags) > 0, "Expected at least one role with tags"
+        # Tags should be lists of strings
+        for role in with_tags:
+            assert isinstance(role["tags"], list)
+            assert all(isinstance(t, str) for t in role["tags"])
 
     def test_generate_playbook_custom_dir(self, capsys):
         """generate-playbook respects --profiles-dir."""
