@@ -2917,6 +2917,44 @@ class TestPlaybookGeneratorExplain:
         assert has_profile_section or has_annotation_section or has_condition_section
 
 
+class TestCLIGeneratePlaybook:
+    """Tests for the 'generate-playbook' CLI subcommand."""
+
+    def test_generate_playbook_outputs_valid_yaml(self, capsys):
+        """generate-playbook should output valid YAML with roles section."""
+        rc = main(["generate-playbook"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        parsed = yaml.safe_load(out)
+        assert isinstance(parsed, dict)
+        assert "roles" in parsed
+        assert isinstance(parsed["roles"], list)
+        assert any(
+            (
+                isinstance(role, dict) and role.get("role") in {"shell", "base"}
+            )
+            for role in parsed["roles"]
+        )
+
+    def test_generate_playbook_custom_dir(self, capsys):
+        """generate-playbook respects --profiles-dir."""
+        valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "myprofile.yml").write_text(valid)
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir])
+        out = capsys.readouterr().out
+        assert rc == 0
+        parsed = yaml.safe_load(out)
+        assert "roles" in parsed
+
+    def test_generate_playbook_bad_dir_exits_1(self, capsys):
+        """generate-playbook with nonexistent profiles-dir exits 1."""
+        rc = main(["generate-playbook", "--profiles-dir", "/nonexistent/path"])
+        captured = capsys.readouterr()
+        assert rc == 1
+        assert captured.out == ""
+        assert "does not exist" in captured.err
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

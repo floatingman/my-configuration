@@ -2359,6 +2359,35 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_generate_playbook(args: argparse.Namespace) -> int:
+    """
+    Generate the profile-derived Ansible roles mapping.
+
+    Outputs YAML to stdout as a top-level mapping with a single ``roles:``
+    key. This is intended for comparison with, or embedding into, the roles
+    portion of ``play.yml``; it is not a complete play definition.
+
+    Overlay-driven roles are intentionally excluded by default because this
+    generator runs without host vars.
+    """
+    try:
+        generator = PlaybookGenerator(profiles_dir=args.profiles_dir)
+        roles = generator.generate()
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    # Convert PlaybookRole dataclass instances to Ansible-format dicts
+    role_entries = []
+    for r in roles:
+        entry: Dict[str, Any] = {"role": r.role}
+        if r.condition:
+            entry["when"] = r.condition
+        role_entries.append(entry)
+
+    yaml.safe_dump({"roles": role_entries}, sys.stdout, default_flow_style=False, sort_keys=False)
+    return 0
+
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
     """
@@ -2583,6 +2612,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    p_gen = subparsers.add_parser(
+        "generate-playbook",
+        help="Generate Ansible playbook roles section from profile definitions.",
+    )
+    p_gen.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     return parser
 
 
@@ -2608,6 +2645,7 @@ def main(argv: Optional[list] = None) -> int:
         "resolve-role-manifest": _cmd_resolve_role_manifest,
         "resolve-overlays": _cmd_resolve_overlays,
         "sync-playbook": _cmd_sync_playbook,
+        "generate-playbook": _cmd_generate_playbook,
         "validate": _cmd_validate,
         "list-profiles": _cmd_list_profiles,
         "make-args": _cmd_make_args,
