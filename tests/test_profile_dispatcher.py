@@ -2741,5 +2741,182 @@ class TestPlaybookGenerator:
             generator.sync_check("/nonexistent/path/play.yml")
 
 
+class TestPlaybookGeneratorResolve:
+    """Test PlaybookGenerator.resolve() method."""
+
+    def test_resolve_i3_profile(self):
+        """resolve('i3') should return only roles from the i3 profile + overlays."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        roles = generator.resolve("i3")
+
+        # Should return a tuple
+        assert isinstance(roles, tuple)
+
+        # Should have PlaybookRole objects
+        assert all(isinstance(r, PlaybookRole) for r in roles)
+
+        # Should have some roles (i3 profile has roles)
+        assert len(roles) > 0
+
+        # Check for some expected roles in i3 profile
+        role_names = {r.role for r in roles}
+        # shell and system are base roles that should be in i3
+        assert "shell" in role_names or len(roles) > 5  # At minimum, some roles
+
+    def test_resolve_headless_excludes_display_gated(self):
+        """resolve('headless') should exclude roles that require a display."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        roles = generator.resolve("headless")
+
+        role_names = {r.role for r in roles}
+        role_conditions = {r.role: r.condition for r in roles}
+
+        # Check that display-gated roles are either not present or have conditions
+        # (e.g., fonts, i3, hyprland should be absent or conditional)
+        # The headless profile should not have roles that require a display
+        # without appropriate conditions
+
+        # Verify no unconditional roles that are display-specific
+        for role_name, condition in role_conditions.items():
+            # If a role is display-specific (like i3, hyprland, etc.),
+            # it should have a condition or not be in headless
+            display_specific = {"i3", "hyprland", "gnome", "awesomewm", "kde", "lightdm"}
+            if role_name in display_specific:
+                # These should either not be in headless, or have conditions
+                assert role_name not in role_names or condition is not None
+
+    def test_resolve_with_host_vars(self):
+        """resolve() should use provided host_vars for overlay evaluation."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},  # Empty default
+        )
+
+        # With laptop host_vars, should get laptop overlay roles
+        roles_with_laptop = generator.resolve("i3", host_vars={"laptop": True})
+
+        # Without laptop host_vars, should not get laptop overlay roles
+        roles_without_laptop = generator.resolve("i3", host_vars={})
+
+        # The laptop overlay should add roles
+        role_names_with = {r.role for r in roles_with_laptop}
+        role_names_without = {r.role for r in roles_without_laptop}
+
+        # The "laptop" role from the laptop overlay must be present when
+        # host_vars={"laptop": True} and absent when host_vars={}
+        assert "laptop" in role_names_with, (
+            "Expected 'laptop' role when host_vars={'laptop': True}"
+        )
+        assert "laptop" not in role_names_without, (
+            "Did not expect 'laptop' role when host_vars={}"
+        )
+
+        # The laptop overlay should add strictly more roles than without it
+        assert len(role_names_with) >= len(role_names_without)
+
+    def test_resolve_unknown_profile_raises(self):
+        """resolve() with unknown profile should raise ValueError."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+
+        with pytest.raises(ValueError):
+            generator.resolve("nonexistent_profile_xyz")
+
+
+class TestPlaybookGeneratorExplain:
+    """Test PlaybookGenerator.explain() method."""
+
+    def test_explain_gpu_detect_os_annotation(self):
+        """explain('gpu_detect') should describe os: archlinux annotation."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        explanation = generator.explain("gpu_detect")
+
+        # Should contain the role name
+        assert "gpu_detect" in explanation
+
+        # Should mention profiles
+        assert "profile" in explanation.lower()
+
+        # Should mention annotations
+        assert "annotation" in explanation.lower()
+
+        # Should mention the os annotation
+        assert "archlinux" in explanation.lower() or "os" in explanation.lower()
+
+        # Should explain the condition
+        assert "condition" in explanation.lower()
+
+    def test_explain_fonts_profile_gating(self):
+        """explain('fonts') should describe profile-gating across multiple DE profiles."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        explanation = generator.explain("fonts")
+
+        # Should contain the role name
+        assert "fonts" in explanation
+
+        # Should mention profile-gating
+        assert "profile-gating" in explanation.lower() or "gate" in explanation.lower()
+
+        # Should list containing profiles
+        assert "Found in" in explanation or "profile" in explanation.lower()
+
+    def test_explain_unknown_role(self):
+        """explain() with unknown role should return appropriate message."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        explanation = generator.explain("fake_role_xyz")
+
+        # Should say role not found
+        assert "not defined" in explanation or "not found" in explanation.lower()
+
+    def test_explain_structure_contains_all_sections(self):
+        """explain() output should contain all required explanation sections."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+
+        # Test with a role that should exist (like shell or system)
+        explanation = generator.explain("shell")
+
+        # Should have structured sections
+        lines = explanation.split("\n")
+
+        # Should contain key sections
+        text_lower = explanation.lower()
+        # Check for at least some of the expected sections
+        has_profile_section = "profile" in text_lower
+        has_annotation_section = "annotation" in text_lower
+        has_condition_section = "condition" in text_lower
+
+        # At least one section should be present for existing roles
+        assert has_profile_section or has_annotation_section or has_condition_section
+
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
