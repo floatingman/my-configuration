@@ -2361,10 +2361,14 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
 
 def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     """
-    Generate Ansible playbook roles section from profile definitions.
+    Generate the profile-derived Ansible roles mapping.
 
-    Outputs valid Ansible YAML to stdout representing the roles section
-    that should be in play.yml based on all profile definitions.
+    Outputs YAML to stdout as a top-level mapping with a single ``roles:``
+    key. This is intended for comparison with, or embedding into, the roles
+    portion of ``play.yml``; it is not a complete play definition.
+
+    Overlay-driven roles are intentionally excluded by default because this
+    generator runs without host vars.
     """
     try:
         generator = PlaybookGenerator(profiles_dir=args.profiles_dir)

@@ -2950,9 +2950,10 @@ class TestCLIGeneratePlaybook:
     def test_generate_playbook_bad_dir_exits_1(self, capsys):
         """generate-playbook with nonexistent profiles-dir exits 1."""
         rc = main(["generate-playbook", "--profiles-dir", "/nonexistent/path"])
-        err = capsys.readouterr().err
+        captured = capsys.readouterr()
         assert rc == 1
-        assert "does not exist" in err
+        assert captured.out == ""
+        assert "does not exist" in captured.err
 
 
 if __name__ == '__main__':
