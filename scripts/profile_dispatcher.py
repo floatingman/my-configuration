@@ -2648,7 +2648,7 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     lines = ["{{"]
     lines.append("  {}")
     for var in overlay_vars:
-        lines.append(f'  | combine({{"{var}": {var}}}) if {var} is defined else {{}}')
+        lines.append(f'  | combine({{"{var}": {var}}} if {var} is defined else {{}})')
     lines.append("  | to_json")
     lines.append("}}")
     return "\n".join(lines)
