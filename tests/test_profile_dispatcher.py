@@ -33,6 +33,9 @@ from profile_dispatcher import (
     load_overlay,
     _discover_overlay_names,
     _normalize_condition,
+    discover_overlay_variables,
+    generate_host_vars_template,
+    generate_overlay_facts_task,
     _section_sort_key,
     OverlayDefinition,
     ResolvedOverlay,
@@ -3041,6 +3044,246 @@ class TestCLIGeneratePlaybook:
         assert "does not exist" in captured.err
 
 
+class TestDiscoverOverlayVariables:
+    """Tests for discover_overlay_variables() function."""
+
+    def test_discovers_current_overlays(self):
+        """Returns all overlay variables from current overlays directory."""
+        variables = discover_overlay_variables(_PROFILES_DIR)
+        # Current overlays: laptop and bluetooth
+        expected = ["bluetooth", "laptop"]
+        assert variables == expected
+
+    def test_returns_sorted_list(self):
+        """Variables are returned in sorted order."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir)
+            overlays_dir = profiles_dir / "overlays"
+            overlays_dir.mkdir()
+
+            # Create overlays with variable names in reverse alphabetical order
+            (overlays_dir / "zebra.yml").write_text(
+                "name: Zebra\napplies_when: zebra | default(false)\nroles: []\n"
+            )
+            (overlays_dir / "alpha.yml").write_text(
+                "name: Alpha\napplies_when: alpha is defined\nroles: []\n"
+            )
+
+            variables = discover_overlay_variables(str(profiles_dir))
+            assert variables == ["alpha", "zebra"]
+
+    def test_extracts_variable_from_default_pattern(self):
+        """Extracts variable name from 'var | default(...)' pattern."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir)
+            overlays_dir = profiles_dir / "overlays"
+            overlays_dir.mkdir()
+
+            (overlays_dir / "test.yml").write_text(
+                "name: Test\napplies_when: laptop | default(false)\nroles: []\n"
+            )
+
+            variables = discover_overlay_variables(str(profiles_dir))
+            assert "laptop" in variables
+
+    def test_extracts_variable_from_is_defined_pattern(self):
+        """Extracts variable name from 'var is defined' pattern."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir)
+            overlays_dir = profiles_dir / "overlays"
+            overlays_dir.mkdir()
+
+            (overlays_dir / "test.yml").write_text(
+                "name: Test\napplies_when: dotfiles is defined\nroles: []\n"
+            )
+
+            variables = discover_overlay_variables(str(profiles_dir))
+            assert "dotfiles" in variables
+
+    def test_deduplicates_variables(self):
+        """Same variable appearing in multiple overlays appears only once."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir)
+            overlays_dir = profiles_dir / "overlays"
+            overlays_dir.mkdir()
+
+            (overlays_dir / "test1.yml").write_text(
+                "name: Test1\napplies_when: laptop | default(false)\nroles: []\n"
+            )
+            (overlays_dir / "test2.yml").write_text(
+                "name: Test2\napplies_when: laptop is defined\nroles: []\n"
+            )
+
+            variables = discover_overlay_variables(str(profiles_dir))
+            assert variables.count("laptop") == 1
+
+    def test_raises_error_when_overlays_dir_missing(self):
+        """Raises ValueError if overlays directory doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir) / "profiles"
+            # Don't create overlays subdirectory
+
+            with pytest.raises(ValueError, match="Overlays directory not found"):
+                discover_overlay_variables(str(profiles_dir))
+
+    def test_skips_private_files(self):
+        """Files starting with underscore are skipped."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir)
+            overlays_dir = profiles_dir / "overlays"
+            overlays_dir.mkdir()
+
+            (overlays_dir / "_private.yml").write_text(
+                "name: Private\napplies_when: private | default(false)\nroles: []\n"
+            )
+            (overlays_dir / "public.yml").write_text(
+                "name: Public\napplies_when: public is defined\nroles: []\n"
+            )
+
+            variables = discover_overlay_variables(str(profiles_dir))
+            assert variables == ["public"]
+
+    def test_handles_complex_applies_when(self):
+        """Extracts variables from complex applies_when expressions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profiles_dir = Path(tmpdir)
+            overlays_dir = profiles_dir / "overlays"
+            overlays_dir.mkdir()
+
+            (overlays_dir / "test.yml").write_text(
+                'name: Test\n'
+                "applies_when: bluetooth is defined and not (bluetooth.disable | default(false))\n"
+                "roles: []\n"
+            )
+
+            variables = discover_overlay_variables(str(profiles_dir))
+            assert "bluetooth" in variables
+
+
+class TestGenerateHostVarsTemplate:
+    """Tests for generate_host_vars_template() function."""
+
+    def test_empty_variables_returns_empty_template(self):
+        """Empty list returns minimal template."""
+        template = generate_host_vars_template([])
+        assert template == "{{ {} | to_json }}"
+
+    def test_single_variable_template(self):
+        """Generates correct template for single variable."""
+        template = generate_host_vars_template(["laptop"])
+        expected = "{{\n  {}\n  | combine({\"laptop\": laptop} if laptop is defined else {})\n  | to_json\n}}"
+        assert template == expected
+
+    def test_multiple_variables_template(self):
+        """Generates correct template for multiple variables."""
+        template = generate_host_vars_template(["laptop", "bluetooth"])
+        lines = template.split("\n")
+        assert lines[0] == "{{"
+        assert lines[1] == "  {}"
+        assert '  | combine({"bluetooth": bluetooth} if bluetooth is defined else {})' in lines
+        assert '  | combine({"laptop": laptop} if laptop is defined else {})' in lines
+        assert "  | to_json" in lines
+        assert "}}" in lines
+
+    def test_variables_are_sorted(self):
+        """Variables are sorted alphabetically in template."""
+        template = generate_host_vars_template(["zebra", "alpha", "beta"])
+        lines = template.split("\n")
+        # Find the combine lines
+        combine_lines = [l for l in lines if "combine" in l]
+        assert len(combine_lines) == 3
+        assert "alpha" in combine_lines[0]
+        assert "beta" in combine_lines[1]
+        assert "zebra" in combine_lines[2]
+
+    def test_template_matches_play_yml_format(self):
+        """Generated template matches the format used in play.yml."""
+        variables = ["laptop", "bluetooth", "dotfiles", "goesimage", "regdomain"]
+        template = generate_host_vars_template(variables)
+
+        # Verify template structure matches _generate_host_vars_json_template format
+        assert template.startswith("{{\n  {}")
+        assert template.endswith("}}")
+
+        # Verify all variables are present
+        for var in variables:
+            assert f'"{var}": {var}' in template
+            assert f"if {var} is defined" in template
+
+    def test_jinja2_syntax_is_valid(self):
+        """Template can be parsed as valid Jinja2."""
+        from jinja2 import Environment
+
+        variables = ["laptop", "bluetooth"]
+        template = generate_host_vars_template(variables)
+
+        # Parse the template - should not raise
+        env = Environment()
+        env.parse(template)
+
+
+class TestGenerateOverlayFactsTask:
+    """Tests for generate_overlay_facts_task() function."""
+
+    def test_empty_variables_returns_empty_string(self):
+        """Empty list returns empty task string."""
+        task = generate_overlay_facts_task([])
+        assert task == ""
+
+    def test_single_variable_task(self):
+        """Generates correct task for single variable."""
+        task = generate_overlay_facts_task(["laptop"])
+
+        assert "Set overlay facts from resolved manifest" in task
+        assert "_manifest_result.stdout | from_json" in task
+        assert "overlay_flags" in task
+        assert "_overlay_laptop" in task
+        assert "default(false)" in task
+        assert "tags: always" in task
+
+    def test_multiple_variables_task(self):
+        """Generates correct task for multiple variables."""
+        task = generate_overlay_facts_task(["laptop", "bluetooth"])
+
+        # Check structure
+        assert "- name: Set overlay facts from resolved manifest" in task
+        assert "  vars:" in task
+        assert "  set_fact:" in task
+        assert "  tags: always" in task
+
+        # Check all variables are present
+        assert "_overlay_laptop" in task
+        assert "_overlay_bluetooth" in task
+
+    def test_variables_are_sorted(self):
+        """Variables are sorted alphabetically in task."""
+        task = generate_overlay_facts_task(["zebra", "alpha", "beta"])
+        lines = task.split("\n")
+
+        # Find set_fact lines
+        fact_lines = [l for l in lines if "_overlay_" in l]
+        assert len(fact_lines) == 3
+        assert "_overlay_alpha" in fact_lines[0]
+        assert "_overlay_beta" in fact_lines[1]
+        assert "_overlay_zebra" in fact_lines[2]
+
+    def test_task_matches_play_yml_format(self):
+        """Generated task matches the format used in play.yml."""
+        variables = ["laptop", "bluetooth"]
+        task = generate_overlay_facts_task(variables)
+
+        # Verify task structure matches play.yml format
+        assert task.startswith("- name: Set overlay facts from resolved manifest")
+        assert "_manifest: \"{{ _manifest_result.stdout | from_json }}\"" in task
+        assert "_of: \"{{ _manifest.overlay_flags }}\"" in task
+        assert "  set_fact:" in task
+        assert "  tags: always" in task
+
+        # Verify fact format
+        for var in variables:
+            assert f"    _overlay_{var}: \"{{{{ _of._overlay_{var} | default(false) }}}}\"" in task
+
+
 class TestSectionSorting:
     """Tests verifying role sorting by section."""
 
@@ -3109,7 +3352,6 @@ class TestSectionSorting:
             section_span = role_names[sorted_indices[0]: sorted_indices[-1] + 1]
             for role in section_span:
                 assert _section_sort_key(role)[0] == expected_section
-
 
 
 if __name__ == '__main__':
