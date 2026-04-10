@@ -3353,7 +3353,7 @@ class TestSectionSorting:
                 assert _section_sort_key(role)[0] == expected_section
 
 
-class TestPlaybookGenerator:
+class TestPlaybookGeneratorWritePlaybook:
     """Test PlaybookGenerator.write_playbook() method."""
 
     def test_write_playbook_creates_valid_yaml(self, tmp_path):
@@ -3402,13 +3402,18 @@ class TestPlaybookGenerator:
         generator = PlaybookGenerator(profile="headless", profiles_dir=_PROFILES_DIR)
         generator.write_playbook(str(playbook_path))
 
-        # Verify pre_tasks are preserved
+        # Verify pre_tasks are preserved structurally
         with open(playbook_path) as f:
             data = yaml.safe_load(f)
 
         pre_tasks = data[0]["pre_tasks"]
         assert len(pre_tasks) == 1
         assert pre_tasks[0]["name"] == "Test task"
+
+        # Verify task name appears in the written text
+        with open(playbook_path) as f:
+            content = f.read()
+        assert "Test task" in content
 
     def test_write_playbook_preserves_vars_prompt(self, tmp_path):
         """write_playbook() should preserve vars_prompt block."""
@@ -3432,7 +3437,7 @@ class TestPlaybookGenerator:
         generator = PlaybookGenerator(profile="headless", profiles_dir=_PROFILES_DIR)
         generator.write_playbook(str(playbook_path))
 
-        # Verify vars_prompt is preserved
+        # Verify vars_prompt is preserved structurally
         with open(playbook_path) as f:
             data = yaml.safe_load(f)
 
@@ -3440,6 +3445,12 @@ class TestPlaybookGenerator:
         assert len(vars_prompt) == 2
         assert vars_prompt[0]["name"] == "user_password"
         assert vars_prompt[1]["name"] == "test_var"
+
+        # Verify prompts appear in the written text
+        with open(playbook_path) as f:
+            content = f.read()
+        assert "user_password" in content
+        assert "test_var" in content
 
     def test_write_playbook_adds_header_comment(self, tmp_path):
         """write_playbook() should add generated header comment."""
@@ -3498,24 +3509,40 @@ class TestPlaybookGenerator:
         generator = PlaybookGenerator(profile="headless", profiles_dir=_PROFILES_DIR)
         generator.write_playbook(str(playbook_path))
 
-        # Run ansible-playbook syntax check (if ansible is available)
+        # Verify it's valid YAML at minimum
+        with open(playbook_path) as f:
+            yaml.safe_load(f)
+
+        # Run ansible-playbook syntax check when available.
+        # Note: syntax check may fail due to missing roles in the temp directory,
+        # which is expected — the check validates YAML structure and role references,
+        # but roles won't be installed under tmp_path.
         try:
             result = subprocess.run(
-                ["ansible-playbook", "--syntax-check", str(playbook_path)],
+                [
+                    "ansible-playbook",
+                    "--syntax-check",
+                    "-i", "localhost,",
+                    "-c", "local",
+                    str(playbook_path),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=10,
             )
-            # ansible-playbook returns 0 on success
-            # Note: may fail if ansible is not installed or inventory is not configured
-            # We'll just check the file is valid YAML instead
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            # If ansible is not available, just verify YAML structure
-            pass
+        except FileNotFoundError:
+            pytest.skip("ansible-playbook is not installed")
+        except subprocess.TimeoutExpired:
+            pytest.fail("ansible-playbook --syntax-check timed out")
 
-        # Verify it's valid YAML at minimum
-        with open(playbook_path) as f:
-            yaml.safe_load(f)  # Will raise if invalid
+        # If syntax check ran, verify no YAML parsing errors (role-not-found is ok
+        # since roles aren't installed in the temp directory)
+        if result.returncode != 0 and "was not found" not in result.stderr:
+            pytest.fail(
+                "ansible-playbook --syntax-check failed with unexpected error\n"
+                f"stdout:\n{result.stdout}\n"
+                f"stderr:\n{result.stderr}"
+            )
 
 
 if __name__ == '__main__':

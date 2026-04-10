@@ -2287,8 +2287,9 @@ class PlaybookGenerator:
         Generate a playbook file from the resolved profile.
 
         Reads an existing playbook (if present) to preserve pre_tasks and
-        vars_prompt, resolves the role manifest for the configured profile,
-        and writes the complete playbook to output_path.
+        vars_prompt (via YAML parse/serialize, not byte-for-byte), resolves
+        the role manifest for the configured profile, and writes the complete
+        playbook to output_path.
 
         Args:
             output_path: Path to write the playbook YAML file
@@ -2299,7 +2300,9 @@ class PlaybookGenerator:
         if not self.profile:
             raise ValueError("write_playbook() requires a profile name")
 
-        # Read existing playbook to preserve pre_tasks and vars_prompt
+        # Read existing playbook to preserve name, hosts, pre_tasks, vars_prompt
+        play_name = "Configure localhost"
+        play_hosts = "localhost"
         pre_tasks = []
         vars_prompt = []
         output_file = Path(output_path)
@@ -2309,6 +2312,8 @@ class PlaybookGenerator:
                     existing = yaml.safe_load(f)
                 if existing and isinstance(existing, list) and existing:
                     play = existing[0] if isinstance(existing[0], dict) else {}
+                    play_name = play.get("name", play_name)
+                    play_hosts = play.get("hosts", play_hosts)
                     pre_tasks = play.get("pre_tasks", [])
                     vars_prompt = play.get("vars_prompt", [])
             except (yaml.YAMLError, OSError):
@@ -2334,8 +2339,8 @@ class PlaybookGenerator:
 
         # Build the play dict
         play: Dict[str, Any] = {
-            "name": "Configure localhost",
-            "hosts": "localhost",
+            "name": play_name,
+            "hosts": play_hosts,
         }
         if pre_tasks:
             play["pre_tasks"] = pre_tasks
@@ -2415,22 +2420,15 @@ class PlaybookGenerator:
             lines.extend(self._format_role_entry(r))
 
     def _format_role_entry(self, role_entry: dict) -> list:
-        """Format a single role entry as YAML lines."""
-        lines = []
-        role_name = role_entry["role"]
-        tags = role_entry.get("tags", [])
-        when = role_entry.get("when")
-
-        parts = [f"role: {role_name}"]
-        if tags:
-            tag_strs = ", ".join(f'"{t}"' for t in tags)
-            parts.append(f"tags: [{tag_strs}]")
-        if when:
-            parts.append(f"when: {when}")
-
-        line = ", ".join(parts)
-        lines.append(f"    - {{ {line} }}")
-        return lines
+        """Format a single role entry as YAML lines using safe serialization."""
+        role_yaml = yaml.safe_dump(
+            role_entry,
+            default_flow_style=True,
+            sort_keys=False,
+            allow_unicode=True,
+            width=4096,
+        ).strip()
+        return [f"    - {role_yaml}"]
 
     def _get_section_for_role(self, role_name: str) -> Optional[str]:
         """Look up which section a role belongs to in _ROLE_SECTIONS."""
