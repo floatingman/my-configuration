@@ -3101,13 +3101,14 @@ class TestSectionSorting:
         ]
         indices = {role: role_names.index(role) for role in pkg_mgmt_roles if role in role_names}
 
-        # All package management roles should be adjacent
-        # (no roles from other sections between them)
+        # All roles between the first and last Package Management role should
+        # belong to the same section, even if additional roles are added there.
         if len(indices) >= 2:
             sorted_indices = sorted(indices.values())
-            for i in range(len(sorted_indices) - 1):
-                # Adjacent roles should have consecutive or near-consecutive indices
-                assert sorted_indices[i + 1] - sorted_indices[i] <= 2
+            expected_section = _section_sort_key(role_names[sorted_indices[0]])[0]
+            section_span = role_names[sorted_indices[0]: sorted_indices[-1] + 1]
+            for role in section_span:
+                assert _section_sort_key(role)[0] == expected_section
 
 
 
