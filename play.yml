@@ -29,7 +29,8 @@
         _host_vars_json: >-
           {{
             {}
-            | combine({bluetooth: bluetooth}) if bluetooth is defined else {}
+            | combine({"bluetooth": bluetooth}) if bluetooth is defined else {}
+            | combine({"laptop": laptop}) if laptop is defined else {}
             | to_json
           }}
       register: _manifest_result
@@ -70,126 +71,126 @@
     # -------------------------------------------------------------------------
     # GPU Detection & Drivers (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: gpu_detect, tags: ['gpu_detect'], when: _is_arch }
-    - { role: gpu_drivers, tags: ['gpu_drivers'], when: _is_arch }
+    - { role: gpu_detect, tags: ["gpu_detect"], when: _is_arch }
+    - { role: gpu_drivers, tags: ["gpu_drivers"], when: _is_arch }
     # -------------------------------------------------------------------------
     # Base System (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: base, tags: ['base'], when: _is_arch }
-    - { role: grub, tags: ['grub'], when: _is_arch }
-    - { role: microcode, tags: ['microcode'], when: _is_arch }
+    - { role: base, tags: ["base"], when: _is_arch }
+    - { role: grub, tags: ["grub"], when: _is_arch }
+    - { role: microcode, tags: ["microcode"], when: _is_arch }
     # -------------------------------------------------------------------------
     # Universal System Configuration
     # -------------------------------------------------------------------------
-    - { role: gnupg, tags: ['gnupg'] }
-    - { role: sysmon, tags: ['sysmon'] }
-    - { role: cron, tags: ['cron'] }
-    - { role: system, tags: ['system'] }
-    - { role: shell, tags: ['shell'] }
-    - { role: ssh, tags: ['ssh'] }
-    - { role: archive, tags: ['archive'] }
+    - { role: gnupg, tags: ["gnupg"] }
+    - { role: sysmon, tags: ["sysmon"] }
+    - { role: cron, tags: ["cron"] }
+    - { role: system, tags: ["system"] }
+    - { role: shell, tags: ["shell"] }
+    - { role: ssh, tags: ["ssh"] }
+    - { role: archive, tags: ["archive"] }
     # -------------------------------------------------------------------------
     # Package Management
     # -------------------------------------------------------------------------
-    - { role: ansible-role-packages, tags: ['packages'] }
-    - { role: ansible-role-asdf, tags: ['asdf'] }
-    - { role: flatpak, tags: ['flatpak'] }
-    - { role: golang, tags: ['golang'], when: not _is_arch }
-    - { role: homebrew, tags: ['homebrew'], when: not _is_arch }
-    - { role: ansible-role-binaries, tags: ['binaries'], when: not _is_arch }
-    - { role: aur, tags: ['aur'], when: _is_arch }
+    - { role: ansible-role-packages, tags: ["packages"] }
+    - { role: ansible-role-asdf, tags: ["asdf"] }
+    - { role: flatpak, tags: ["flatpak"] }
+    - { role: golang, tags: ["golang"], when: not _is_arch }
+    - { role: homebrew, tags: ["homebrew"], when: not _is_arch }
+    - { role: ansible-role-binaries, tags: ["binaries"], when: not _is_arch }
+    - { role: aur, tags: ["aur"], when: _is_arch }
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
-    - { role: editors, tags: ['editors'] }
-    - { role: filesystem, tags: ['filesystem'] }
-    - { role: python, tags: ['python'] }
-    - { role: rust, tags: ['rust'] }
-    - { role: docker, tags: ['docker'], when: _is_arch }
-    - { role: kubernetes, tags: ['kubernetes'], when: _is_arch }
-    - { role: devtools, tags: ['devtools'], when: _is_arch and _has_display }
+    - { role: editors, tags: ["editors"] }
+    - { role: filesystem, tags: ["filesystem"] }
+    - { role: python, tags: ["python"] }
+    - { role: rust, tags: ["rust"] }
+    - { role: docker, tags: ["docker"], when: _is_arch }
+    - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
+    - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: nmtrust, tags: ['nmtrust'], when: _is_arch and _has_display }
-    - { role: networkmanager, tags: ['networkmanager'], when: _is_arch and _has_display }
-    - { role: nettools, tags: ['nettools'], when: _is_arch }
-    - { role: mirrorlist, tags: ['mirrorlist'], when: _is_arch }
-    - { role: filesharing, tags: ['filesharing'], when: _is_arch }
+    - { role: nmtrust, tags: ["nmtrust"], when: _is_arch and _has_display }
+    - { role: networkmanager, tags: ["networkmanager"], when: _is_arch and _has_display }
+    - { role: nettools, tags: ["nettools"], when: _is_arch }
+    - { role: mirrorlist, tags: ["mirrorlist"], when: _is_arch }
+    - { role: filesharing, tags: ["filesharing"], when: _is_arch }
     # -------------------------------------------------------------------------
     # Productivity & Utilities
     # -------------------------------------------------------------------------
-    - { role: taskwarrior, tags: ['taskwarrior'], when: _is_arch }
-    - { role: pass, tags: ['pass'], when: _is_arch }
-    - { role: spell, tags: ['spell'] }
-    - { role: clipboard, tags: ['clipboard'], when: _is_arch }
-    - { role: clouddrive, tags: ['clouddrive'], when: _is_arch }
-    - { role: syncthing, tags: ['syncthing'] }
+    - { role: taskwarrior, tags: ["taskwarrior"], when: _is_arch }
+    - { role: pass, tags: ["pass"], when: _is_arch }
+    - { role: spell, tags: ["spell"] }
+    - { role: clipboard, tags: ["clipboard"], when: _is_arch }
+    - { role: clouddrive, tags: ["clouddrive"], when: _is_arch }
+    - { role: syncthing, tags: ["syncthing"] }
     # -------------------------------------------------------------------------
     # Display Manager
     # -------------------------------------------------------------------------
-    - { role: lightdm, tags: ['lightdm'], when: _has_display and _dm == 'lightdm' }
-    - { role: gdm, tags: ['gdm'], when: _has_display and _dm == 'gdm' }
+    - { role: lightdm, tags: ["lightdm"], when: _has_display and _dm == 'lightdm' }
+    - { role: gdm, tags: ["gdm"], when: _has_display and _dm == 'gdm' }
     # -------------------------------------------------------------------------
     # Profile: i3 (X11 tiling window manager)
     # -------------------------------------------------------------------------
-    - { role: x, tags: ['x'], when: _is_awesomewm or _is_gnome or _is_i3 or _is_kde }
-    - { role: i3, tags: ['i3'], when: _is_i3 }
+    - { role: x, tags: ["x"], when: _is_awesomewm or _is_gnome or _is_i3 or _is_kde }
+    - { role: i3, tags: ["i3"], when: _is_i3 }
     # -------------------------------------------------------------------------
     # Profile: Hyprland (Wayland compositor)
     # -------------------------------------------------------------------------
-    - { role: wayland, tags: ['wayland'], when: _is_hyprland }
-    - { role: hyprland, tags: ['hyprland'], when: _is_hyprland }
-    - { role: qt_gtk_toolkit, tags: ['qt_gtk_toolkit'], when: _is_hyprland }
-    - { role: widgets, tags: ['widgets'], when: _is_hyprland }
-    - { role: uv_python_packages, tags: ['uv_python_packages'], when: _is_hyprland }
-    - { role: microtex, tags: ['microtex'], when: _is_hyprland }
-    - { role: oneui4_icons, tags: ['oneui4_icons'], when: _is_hyprland }
-    - { role: screencapture, tags: ['screencapture'], when: _is_hyprland }
+    - { role: wayland, tags: ["wayland"], when: _is_hyprland }
+    - { role: hyprland, tags: ["hyprland"], when: _is_hyprland }
+    - { role: qt_gtk_toolkit, tags: ["qt_gtk_toolkit"], when: _is_hyprland }
+    - { role: widgets, tags: ["widgets"], when: _is_hyprland }
+    - { role: uv_python_packages, tags: ["uv_python_packages"], when: _is_hyprland }
+    - { role: microtex, tags: ["microtex"], when: _is_hyprland }
+    - { role: oneui4_icons, tags: ["oneui4_icons"], when: _is_hyprland }
+    - { role: screencapture, tags: ["screencapture"], when: _is_hyprland }
     # -------------------------------------------------------------------------
     # Profile: GNOME
     # -------------------------------------------------------------------------
-    - { role: gnome, tags: ['gnome'], when: _is_gnome }
+    - { role: gnome, tags: ["gnome"], when: _is_gnome }
     # -------------------------------------------------------------------------
     # Profile: AwesomeWM
     # -------------------------------------------------------------------------
-    - { role: awesomewm, tags: ['awesomewm'], when: _is_awesomewm }
+    - { role: awesomewm, tags: ["awesomewm"], when: _is_awesomewm }
     # -------------------------------------------------------------------------
     # Profile: KDE
     # -------------------------------------------------------------------------
-    - { role: kde, tags: ['kde'], when: _is_kde }
+    - { role: kde, tags: ["kde"], when: _is_kde }
     # -------------------------------------------------------------------------
     # Fonts & Theming (any desktop profile)
     # -------------------------------------------------------------------------
-    - { role: fonts, tags: ['fonts'], when: _is_arch and _has_display }
-    - { role: nerd-fonts, tags: ['nerd-fonts'], when: _has_display }
-    - { role: cursor-theme, tags: ['cursor-theme'], when: _has_display and cursor_theme.enabled }
+    - { role: fonts, tags: ["fonts"], when: _is_arch and _has_display }
+    - { role: nerd-fonts, tags: ["fonts"], when: _has_display }
+    - { role: cursor-theme, tags: ["cursor-theme"], when: _has_display and cursor_theme.enabled }
     # -------------------------------------------------------------------------
     # Desktop Applications (any desktop profile)
     # -------------------------------------------------------------------------
-    - { role: terminal, tags: ['terminal'], when: _has_display }
-    - { role: notes, tags: ['notes'], when: _has_display }
-    - { role: browsers, tags: ['browsers'], when: _has_display }
-    - { role: filemanager, tags: ['filemanager'], when: _has_display }
-    - { role: screensaver, tags: ['screensaver'], when: _has_display }
-    - { role: mpv, tags: ['mpv'], when: _has_display }
-    - { role: media, tags: ['media'], when: _has_display }
-    - { role: sound, tags: ['sound'], when: _has_display }
-    - { role: proton, tags: ['proton'], when: _has_display }
-    - { role: android, tags: ['android'], when: _has_display }
-    - { role: backlight, tags: ['backlight'], when: _has_display }
-    - { role: mpd, tags: ['mpd'], when: _has_display }
-    - { role: twitch, tags: ['twitch'], when: _has_display }
-    - { role: cups, tags: ['cups'], when: _is_arch and _has_display }
-    - { role: udisks, tags: ['udisks'], when: _is_arch and _has_display }
+    - { role: terminal, tags: ["terminal"], when: _has_display }
+    - { role: notes, tags: ["notes"], when: _has_display }
+    - { role: browsers, tags: ["browsers"], when: _has_display }
+    - { role: filemanager, tags: ["filemanager"], when: _has_display }
+    - { role: screensaver, tags: ["screensaver"], when: _has_display }
+    - { role: mpv, tags: ["mpv"], when: _has_display }
+    - { role: media, tags: ["media"], when: _has_display }
+    - { role: sound, tags: ["sound"], when: _has_display }
+    - { role: proton, tags: ["proton"], when: _has_display }
+    - { role: android, tags: ["android"], when: _has_display }
+    - { role: backlight, tags: ["backlight"], when: _has_display }
+    - { role: mpd, tags: ["mpd"], when: _has_display }
+    - { role: twitch, tags: ["twitch"], when: _has_display }
+    - { role: cups, tags: ["cups"], when: _is_arch and _has_display }
+    - { role: udisks, tags: ["udisks"], when: _is_arch and _has_display }
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------
-    - { role: dotfiles, tags: ['dotfiles'], when: dotfiles is defined }
-    - { role: goesimage, tags: ['goesimage'], when: _has_display and goesimage is defined }
-    - { role: regdomain, tags: ['regdomain'], when: regdomain is defined }
-    - { role: bluetooth, tags: ['bluetooth'], when: _overlay_bluetooth }
-    - { role: laptop, tags: ['laptop'], when: _overlay_laptop }
+    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
+    - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
+    - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
+    - { role: bluetooth, tags: ["bluetooth"], when: _overlay_bluetooth }
+    - { role: laptop, tags: ["laptop"], when: _overlay_laptop }
 
   vars_prompt:
     - name: user_password

@@ -2602,11 +2602,15 @@ def _discover_overlay_variables(profiles_dir: str) -> List[str]:
                 continue
 
             # Extract variable name from applies_when
-            # Format: "var_name is defined and not (var_name.disable | default(false))"
-            # or: "var_name | default(false)"
+            # Format 1: "bluetooth is defined and not (bluetooth.disable | default(false))"
+            #   → extract "bluetooth" (before " is defined")
+            # Format 2: "laptop | default(false)"
+            #   → extract "laptop" (before " | default")
             if " is defined" in applies_when:
-                # Extract variable name before " is defined"
                 var_match = applies_when.split(" is defined")[0].strip()
+                overlay_vars.add(var_match)
+            elif " | default" in applies_when:
+                var_match = applies_when.split(" | default")[0].strip()
                 overlay_vars.add(var_match)
         except Exception:
             # Skip malformed overlay files
@@ -2640,11 +2644,11 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
 }}"""
 
     # Generate dynamic template from discovered overlay variables
-    # Use proper Jinja2 formatting with newlines preserved
+    # Use proper Jinja2 formatting with quoted dict keys
     lines = ["{{"]
     lines.append("  {}")
     for var in overlay_vars:
-        lines.append(f'  | combine({{{var}: {var}}}) if {var} is defined else {{}}')
+        lines.append(f'  | combine({{"{var}": {var}}}) if {var} is defined else {{}}')
     lines.append("  | to_json")
     lines.append("}}")
     return "\n".join(lines)
@@ -2720,6 +2724,8 @@ def write_playbook(
     # Track which profiles include each role AND build annotation conditions
     role_to_profiles: Dict[str, set] = {}
     expected_role_map: Dict[str, Optional[str]] = {}
+    # Union tags from all profiles (preserves profile-defined tags like [fonts])
+    role_tags: Dict[str, set] = {}
 
     for profile_name in profile_names:
         try:
@@ -2739,6 +2745,11 @@ def write_playbook(
 
             # Track profile membership
             role_to_profiles.setdefault(role_name, set()).add(profile_name)
+
+            # Union tags across profiles
+            if role_name not in role_tags:
+                role_tags[role_name] = set()
+            role_tags[role_name].update(role_cond.tags)
 
             # Merge conditions across profiles (OR differing ones)
             if role_name not in expected_role_map:
@@ -2781,17 +2792,17 @@ def write_playbook(
 
         expected_role_map[role_name] = gate
 
-    # Organize roles into sections
-    sections = [section.copy() for section in _SECTION_DEFINITIONS]
+    # Organize roles into sections (deep copy to avoid mutating module-level list)
+    sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
     section_map = {section["name"]: section for section in sections}
 
     for role_name, condition in expected_role_map.items():
         section_name = _ROLE_TO_SECTION.get(role_name)
         if section_name and section_name in section_map:
-            # Use role name as tag (common pattern)
-            tag = role_name.replace("ansible-role-", "")
+            # Use tags unioned from profile definitions (preserves [fonts], etc.)
+            tags = sorted(role_tags.get(role_name, {role_name}))
             section_map[section_name]["roles"].append(
-                (role_name, condition, [tag])
+                (role_name, condition, tags)
             )
 
     # Add overlay-based roles to the optional section
@@ -2815,7 +2826,7 @@ def write_playbook(
         f.write("---\n")
         f.write("# ---------------------------------------------------------------------------\n")
         f.write("# AUTO-GENERATED FILE - DO NOT EDIT BY HAND\n")
-        f.write("# \n")
+        f.write("#\n")
         f.write("# This file is generated from profile definitions in profiles/\n")
         f.write('# To regenerate, run: make generate-playbook\n')
         f.write("# ---------------------------------------------------------------------------\n\n")
@@ -2888,12 +2899,13 @@ def write_playbook(
                 f.write("    # -------------------------------------------------------------------------\n")
                 f.write(f"    # {section['comment']}\n")
                 f.write("    # -------------------------------------------------------------------------\n")
-                # Write roles in this section
+                # Write roles in this section (double-quoted tags for Makefile grep compat)
                 for role_name, condition, tags in section["roles"]:
+                    yaml_tags = '[' + ', '.join(f'"{t}"' for t in tags) + ']'
                     if condition:
-                        f.write(f"    - {{ role: {role_name}, tags: {tags}, when: {condition} }}\n")
+                        f.write(f"    - {{ role: {role_name}, tags: {yaml_tags}, when: {condition} }}\n")
                     else:
-                        f.write(f"    - {{ role: {role_name}, tags: {tags} }}\n")
+                        f.write(f"    - {{ role: {role_name}, tags: {yaml_tags} }}\n")
 
         # Write vars_prompt
         f.write("\n  vars_prompt:\n")
@@ -2918,37 +2930,6 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
         playbook_path=args.playbook,
         os_family=args.os_family or "Archlinux",
     )
-
-
-def _cmd_generate_playbook(args: argparse.Namespace) -> int:
-    """Generate the profile-derived Ansible roles mapping.
-
-    Outputs YAML to stdout as a top-level mapping with a single ``roles:``
-    key. This is intended for comparison with, or embedding into, the roles
-    portion of ``play.yml``; it is not a complete play definition.
-
-    Overlay-driven roles are intentionally excluded by default because this
-    generator runs without host vars.
-    """
-    try:
-        generator = PlaybookGenerator(profiles_dir=args.profiles_dir)
-        roles = generator.generate()
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-
-    # Convert PlaybookRole dataclass instances to Ansible-format dicts
-    role_entries = []
-    for r in roles:
-        entry: Dict[str, Any] = {"role": r.role}
-        if r.tags:
-            entry["tags"] = list(r.tags)
-        if r.condition:
-            entry["when"] = r.condition
-        role_entries.append(entry)
-
-    yaml.safe_dump({"roles": role_entries}, sys.stdout, default_flow_style=False, sort_keys=False)
-    return 0
 
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
@@ -3155,7 +3136,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
-    # --- sync-playbook ---
     # --- generate-playbook ---
     p_generate = subparsers.add_parser(
         "generate-playbook",
@@ -3190,14 +3170,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="CI mode: exit 1 on drift, no output changes",
     )
     p_sync.add_argument(
-        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
-    )
-
-    p_gen = subparsers.add_parser(
-        "generate-playbook",
-        help="Generate Ansible playbook roles section from profile definitions.",
-    )
-    p_gen.add_argument(
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
