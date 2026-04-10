@@ -22,6 +22,7 @@ CLI subcommands:
 
 import argparse
 import json
+import re
 import sys
 import yaml
 from dataclasses import asdict, dataclass
@@ -1410,6 +1411,131 @@ def load_overlay(profiles_dir: str, name: str) -> "OverlayDefinition":
         applies_when=data["applies_when"],
         roles=data["roles"]
     )
+
+
+# ---------------------------------------------------------------------------
+# Dynamic Host Vars Generation (Phase 2 Slice 3)
+# ---------------------------------------------------------------------------
+
+def discover_overlay_variables(profiles_dir: str = _DEFAULT_PROFILES_DIR) -> list[str]:
+    """
+    Discover overlay variable names from overlay applies_when expressions.
+
+    Parses all overlay YAML files from profiles/overlays/ and extracts
+    top-level variable names referenced in applies_when expressions.
+
+    Args:
+        profiles_dir: Directory containing profiles/ subdirectory
+
+    Returns:
+        Sorted, deduplicated list of variable names
+
+    Raises:
+        ValueError: If profiles/overlays/ directory doesn't exist
+    """
+    overlays_path = Path(profiles_dir) / "overlays"
+    if not overlays_path.exists():
+        raise ValueError(f"Overlays directory not found: {overlays_path}")
+
+    variables: set[str] = set()
+
+    for overlay_path in overlays_path.glob("*.yml"):
+        if overlay_path.stem.startswith("_"):
+            continue
+
+        try:
+            with open(overlay_path) as f:
+                data = yaml.safe_load(f) or {}
+        except (yaml.YAMLError, OSError) as exc:
+            raise ValueError(f"Failed to load overlay '{overlay_path}': {exc}")
+
+        applies_when = data.get("applies_when", "")
+        if not isinstance(applies_when, str):
+            continue
+
+        # Extract top-level variable names from applies_when expression
+        # Pattern: variable_name | default(...) or variable_name is defined
+        # We extract the variable name before these operators
+
+        # Match patterns like:
+        # - laptop | default(...)
+        # - bluetooth is defined
+        # - dotfiles is defined and not (dotfiles.disable | default(...))
+        # Use negative lookbehind to avoid matching dotted attributes
+        for match in re.finditer(r'(?<!\.|\w)\b([a-z_][a-z0-9_]*)\s*\|\s*default\b', applies_when):
+            variables.add(match.group(1))
+
+        for match in re.finditer(r'(?<!\.|\w)\b([a-z_][a-z0-9_]*)\s+is\s+defined\b', applies_when):
+            variables.add(match.group(1))
+
+    return sorted(variables)
+
+
+def generate_host_vars_template(variables: list[str]) -> str:
+    """
+    Generate the _host_vars_json Jinja2 template string.
+
+    Produces a Jinja2 template that combines all specified overlay variables
+    into a JSON object, with each variable only included if defined.
+
+    Args:
+        variables: List of variable names to include in template
+
+    Returns:
+        Jinja2 template string matching the format used in play.yml
+
+    Example:
+        >>> generate_host_vars_template(['laptop', 'bluetooth'])
+        "{{ {}\\n  | combine({\\"laptop\\": laptop} if laptop is defined else {})\\n  | combine({\\"bluetooth\\": bluetooth} if bluetooth is defined else {})\\n  | to_json\\n}}"
+    """
+    if not variables:
+        # Empty template - no variables to combine
+        return "{{ {} | to_json }}"
+
+    lines = ["{{ {}"]
+    for var in sorted(variables):
+        lines.append(f'  | combine({{"{var}": {var}}} if {var} is defined else {{}})')
+    lines.append("  | to_json")
+    lines.append("}}")
+
+    return "\n".join(lines)
+
+
+def generate_overlay_facts_task(variables: list[str]) -> str:
+    """
+    Generate the "Set overlay facts" pre-task YAML dynamically.
+
+    Produces a YAML pre_task that sets overlay flag facts for each
+    discovered overlay variable.
+
+    Args:
+        variables: List of variable names to generate facts for
+
+    Returns:
+        YAML string for the pre-task
+
+    Example:
+        >>> generate_overlay_facts_task(['laptop', 'bluetooth'])
+        '- name: Set overlay facts from resolved manifest\\n  vars:\\n    _manifest: "{{ _manifest_result.stdout | from_json }}"\\n    _of: "{{ _manifest.overlay_flags }}"\\n  set_fact:\\n    _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"\\n    _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"\\n  tags: always'
+    """
+    if not variables:
+        # No overlay facts to set
+        return ""
+
+    fact_lines = [
+        "- name: Set overlay facts from resolved manifest",
+        "  vars:",
+        '    _manifest: "{{ _manifest_result.stdout | from_json }}"',
+        '    _of: "{{ _manifest.overlay_flags }}"',
+        "  set_fact:"
+    ]
+
+    for var in sorted(variables):
+        fact_lines.append(f'    _overlay_{var}: "{{{{ _of._overlay_{var} | default(false) }}}}"')
+
+    fact_lines.append("  tags: always")
+
+    return "\n".join(fact_lines)
 
 
 
