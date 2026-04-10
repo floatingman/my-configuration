@@ -2316,8 +2316,16 @@ class PlaybookGenerator:
                     play_hosts = play.get("hosts", play_hosts)
                     pre_tasks = play.get("pre_tasks", [])
                     vars_prompt = play.get("vars_prompt", [])
-            except (yaml.YAMLError, OSError):
-                pass
+            except yaml.YAMLError as exc:
+                raise ValueError(
+                    f"Failed to parse existing playbook '{output_file}' while preserving "
+                    f"name/hosts/pre_tasks/vars_prompt: {exc}"
+                ) from exc
+            except OSError as exc:
+                raise ValueError(
+                    f"Failed to read existing playbook '{output_file}' while preserving "
+                    f"name/hosts/pre_tasks/vars_prompt: {exc}"
+                ) from exc
 
         # Resolve role manifest for this profile
         manifest = resolve_role_manifest(
@@ -2420,15 +2428,20 @@ class PlaybookGenerator:
             lines.extend(self._format_role_entry(r))
 
     def _format_role_entry(self, role_entry: dict) -> list:
-        """Format a single role entry as YAML lines using safe serialization."""
-        role_yaml = yaml.safe_dump(
-            role_entry,
-            default_flow_style=True,
-            sort_keys=False,
-            allow_unicode=True,
-            width=4096,
-        ).strip()
-        return [f"    - {role_yaml}"]
+        """Format a single role entry as an inline YAML mapping.
+
+        Uses double-quoted tag format (``tags: ["base"]``) to match the
+        repository's established style and ensure compatibility with
+        ``make list-tags`` / Makefile grep patterns.
+        """
+        parts = []
+        for key, value in role_entry.items():
+            if key == "tags" and isinstance(value, list):
+                tag_str = "[" + ", ".join(f'"{t}"' for t in value) + "]"
+                parts.append(f"tags: {tag_str}")
+            else:
+                parts.append(f"{key}: {value}")
+        return [f"    - {{ {', '.join(parts)} }}"]
 
     def _get_section_for_role(self, role_name: str) -> Optional[str]:
         """Look up which section a role belongs to in _ROLE_SECTIONS."""
