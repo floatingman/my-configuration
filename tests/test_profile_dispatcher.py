@@ -33,6 +33,7 @@ from profile_dispatcher import (
     load_overlay,
     _discover_overlay_names,
     _normalize_condition,
+    _section_sort_key,
     OverlayDefinition,
     ResolvedOverlay,
     ResolvedOverlayRole,
@@ -2162,6 +2163,7 @@ class TestORLogicForOverlappingRoles:
         assert role_names.count("backlight") == 1
 
 
+
 class TestDeduplicationSemantics:
     """Focused tests for role deduplication with conditions and tags.
 
@@ -3037,6 +3039,76 @@ class TestCLIGeneratePlaybook:
         assert rc == 1
         assert captured.out == ""
         assert "does not exist" in captured.err
+
+
+class TestSectionSorting:
+    """Tests verifying role sorting by section."""
+
+    def test_section_sort_key_gpu_roles_first(self):
+        """GPU roles should be in section 0 (first section)."""
+        assert _section_sort_key("gpu_detect") == (0, "gpu_detect")
+        assert _section_sort_key("gpu_drivers") == (0, "gpu_drivers")
+
+    def test_section_sort_key_base_system_section_1(self):
+        """Base system roles should be in section 1."""
+        assert _section_sort_key("base") == (1, "base")
+        assert _section_sort_key("grub") == (1, "grub")
+        assert _section_sort_key("microcode") == (1, "microcode")
+
+    def test_section_sort_key_roles_sorted_alphabetically_within_section(self):
+        """Roles within the same section should sort alphabetically."""
+        # Both in "Universal System Configuration" section (index 2)
+        key_gnupg = _section_sort_key("gnupg")
+        key_shell = _section_sort_key("shell")
+        assert key_gnupg[0] == key_shell[0]  # Same section
+        assert key_gnupg < key_shell  # Alphabetically "gnupg" < "shell"
+
+    def test_section_sort_key_unknown_role_goes_to_end(self):
+        """Roles not in any section should get section 999 (catch-all)."""
+        assert _section_sort_key("unknown_role_xyz") == (999, "unknown_role_xyz")
+
+    def test_resolve_role_manifest_output_sorted_by_section(self):
+        """Resolved manifest roles should be sorted by section, then alphabetically."""
+        manifest = resolve_role_manifest(
+            profile="i3",
+            os_family="Archlinux",
+        )
+        role_names = [r.role for r in manifest.roles]
+
+        # First 5 roles should be from GPU Detection & Drivers, then Base System sections
+        # These are the first 5 roles in current play.yml order:
+        # gpu_detect, gpu_drivers, base, grub, microcode
+        assert role_names[0] == "gpu_detect"
+        assert role_names[1] == "gpu_drivers"
+        assert role_names[2] == "base"
+        assert role_names[3] == "grub"
+        assert role_names[4] == "microcode"
+
+    def test_resolve_role_manifest_section_grouping(self):
+        """Roles from the same section should appear together."""
+        manifest = resolve_role_manifest(
+            profile="i3",
+            os_family="Archlinux",
+        )
+        role_names = [r.role for r in manifest.roles]
+
+        # Find indices of Package Management section roles
+        pkg_mgmt_roles = [
+            "ansible-role-packages",
+            "ansible-role-asdf",
+            "flatpak",
+            "aur",
+        ]
+        indices = {role: role_names.index(role) for role in pkg_mgmt_roles if role in role_names}
+
+        # All package management roles should be adjacent
+        # (no roles from other sections between them)
+        if len(indices) >= 2:
+            sorted_indices = sorted(indices.values())
+            for i in range(len(sorted_indices) - 1):
+                # Adjacent roles should have consecutive or near-consecutive indices
+                assert sorted_indices[i + 1] - sorted_indices[i] <= 2
+
 
 
 if __name__ == '__main__':

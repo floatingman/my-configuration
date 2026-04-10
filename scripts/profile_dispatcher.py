@@ -24,6 +24,7 @@ import argparse
 import json
 import sys
 import yaml
+from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
@@ -36,6 +37,47 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 # Allowed values for profile fields
 ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
+
+# Role-to-section mapping for playbook generation
+# Sections are ordered as they appear in the hand-maintained play.yml
+_ROLE_SECTIONS = OrderedDict([
+    ("GPU Detection & Drivers (Arch-only)", {"gpu_detect", "gpu_drivers"}),
+    ("Base System (Arch-only)", {"base", "grub", "microcode"}),
+    ("Universal System Configuration", {"gnupg", "sysmon", "cron", "system", "shell", "ssh", "archive"}),
+    ("Package Management", {"ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"}),
+    ("Development Tools", {"editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools"}),
+    ("Networking (Arch-only)", {"nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"}),
+    ("Productivity & Utilities", {"taskwarrior", "pass", "spell", "clipboard", "clouddrive", "syncthing"}),
+    ("Display Manager", {"lightdm", "gdm"}),
+    ("Profile: i3 (X11 tiling window manager)", {"x", "i3"}),
+    ("Profile: Hyprland (Wayland compositor)", {"wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"}),
+    ("Profile: GNOME", {"gnome"}),
+    ("Profile: AwesomeWM", {"awesomewm"}),
+    ("Profile: KDE", {"kde"}),
+    ("Fonts & Theming (any desktop profile)", {"fonts", "nerd-fonts", "cursor-theme"}),
+    ("Desktop Applications (any desktop profile)", {"terminal", "notes", "browsers", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"}),
+    ("Optional / Feature-gated", {"dotfiles", "goesimage", "regdomain", "bluetooth", "laptop"}),
+])
+
+
+def _section_sort_key(role_name: str) -> Tuple[int, str]:
+    """
+    Return a sort key for a role name based on its section membership.
+
+    Roles are sorted by section order first, then alphabetically within each section.
+    Roles not in any section are sorted last (section 999).
+
+    Args:
+        role_name: The role name to get a sort key for
+
+    Returns:
+        Tuple of (section_index, role_name) for sorting
+    """
+    for section_index, (section_name, role_set) in enumerate(_ROLE_SECTIONS.items()):
+        if role_name in role_set:
+            return (section_index, role_name)
+    # Catch-all for roles not in any section
+    return (999, role_name)
 
 
 # ---------------------------------------------------------------------------
@@ -977,8 +1019,8 @@ def resolve_role_manifest(
             )
             role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
-    # Convert to sorted tuple
-    roles_tuple = tuple(role_map.values())
+    # Convert to sorted tuple (by section, then alphabetically)
+    roles_tuple = tuple(sorted(role_map.values(), key=lambda r: _section_sort_key(r.role)))
 
     return ResolvedManifest(
         profile=resolved.profile,
