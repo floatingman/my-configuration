@@ -2977,45 +2977,58 @@ class TestCLIGeneratePlaybook:
     """Tests for the 'generate-playbook' CLI subcommand."""
 
     def test_generate_playbook_outputs_valid_yaml(self, capsys):
-        """generate-playbook should output valid YAML with roles section."""
-        rc = main(["generate-playbook"])
-        out = capsys.readouterr().out
-        assert rc == 0
-        parsed = yaml.safe_load(out)
-        assert isinstance(parsed, dict)
-        assert "roles" in parsed
-        assert isinstance(parsed["roles"], list)
-        assert any(
-            (
-                isinstance(role, dict) and role.get("role") in {"shell", "base"}
+        """generate-playbook should write a valid playbook YAML file."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--playbook", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                parsed = yaml.safe_load(f)
+            assert isinstance(parsed, list)
+            play = parsed[0]
+            assert "roles" in play
+            assert isinstance(play["roles"], list)
+            assert any(
+                (
+                    isinstance(role, dict) and role.get("role") in {"shell", "base"}
+                )
+                for role in play["roles"]
             )
-            for role in parsed["roles"]
-        )
+        finally:
+            os.unlink(tmpfile)
 
     def test_generate_playbook_output_includes_tags(self, capsys):
         """generate-playbook output should include tags for each role."""
-        main(["generate-playbook"])
-        out = capsys.readouterr().out
-        parsed = yaml.safe_load(out)
-        dict_roles = [r for r in parsed["roles"] if isinstance(r, dict)]
-        # Most roles should have tags
-        with_tags = [r for r in dict_roles if "tags" in r]
-        assert len(with_tags) > 0, "Expected at least one role with tags"
-        # Tags should be lists of strings
-        for role in with_tags:
-            assert isinstance(role["tags"], list)
-            assert all(isinstance(t, str) for t in role["tags"])
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            main(["generate-playbook", "--playbook", tmpfile])
+            with open(tmpfile) as f:
+                parsed = yaml.safe_load(f)
+            play = parsed[0]
+            dict_roles = [r for r in play["roles"] if isinstance(r, dict)]
+            # Most roles should have tags
+            with_tags = [r for r in dict_roles if "tags" in r]
+            assert len(with_tags) > 0, "Expected at least one role with tags"
+            # Tags should be lists of strings
+            for role in with_tags:
+                assert isinstance(role["tags"], list)
+                assert all(isinstance(t, str) for t in role["tags"])
+        finally:
+            os.unlink(tmpfile)
 
     def test_generate_playbook_custom_dir(self, capsys):
         """generate-playbook respects --profiles-dir."""
         valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "myprofile.yml").write_text(valid)
-            rc = main(["generate-playbook", "--profiles-dir", tmpdir])
-        out = capsys.readouterr().out
-        assert rc == 0
-        parsed = yaml.safe_load(out)
-        assert "roles" in parsed
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--playbook", outfile])
+            assert rc == 0
+            with open(outfile) as f:
+                parsed = yaml.safe_load(f)
+            assert "roles" in parsed[0]
 
     def test_generate_playbook_bad_dir_exits_1(self, capsys):
         """generate-playbook with nonexistent profiles-dir exits 1."""

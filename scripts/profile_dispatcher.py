@@ -14,6 +14,7 @@ CLI subcommands:
   resolve-role-manifest Resolve a complete role manifest with computed conditions
   resolve-overlays     Resolve overlays against host facts and output JSON
   sync-playbook        Compare play.yml roles with profile-derived expected roles
+  generate-playbook    Generate play.yml from profile definitions
   validate             Validate all profiles and overlays in a directory (for CI)
   list-profiles        List available profile names or a human-readable table
   make-args            Output -e flag string for Makefile consumption
@@ -2373,36 +2374,562 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_generate_playbook(args: argparse.Namespace) -> int:
-    """
-    Generate the profile-derived Ansible roles mapping.
+# ---------------------------------------------------------------------------
+# Role-to-Section Mapping for play.yml Generation
+# ---------------------------------------------------------------------------
 
-    Outputs YAML to stdout as a top-level mapping with a single ``roles:``
-    key. This is intended for comparison with, or embedding into, the roles
-    portion of ``play.yml``; it is not a complete play definition.
+# Role-to-section mapping based on current play.yml organization
+_ROLE_TO_SECTION: Dict[str, str] = {
+    # GPU Detection & Drivers (Arch-only)
+    "gpu_detect": "gpu",
+    "gpu_drivers": "gpu",
 
-    Overlay-driven roles are intentionally excluded by default because this
-    generator runs without host vars.
+    # Base System (Arch-only)
+    "base": "base",
+    "grub": "base",
+    "microcode": "base",
+
+    # Universal System Configuration
+    "gnupg": "universal",
+    "sysmon": "universal",
+    "cron": "universal",
+    "system": "universal",
+    "shell": "universal",
+    "ssh": "universal",
+    "archive": "universal",
+
+    # Package Management
+    "ansible-role-packages": "packages",
+    "ansible-role-asdf": "packages",
+    "flatpak": "packages",
+    "golang": "packages",
+    "homebrew": "packages",
+    "ansible-role-binaries": "packages",
+    "aur": "packages",
+
+    # Development Tools
+    "editors": "dev",
+    "filesystem": "dev",
+    "python": "dev",
+    "rust": "dev",
+    "docker": "dev",
+    "kubernetes": "dev",
+    "devtools": "dev",
+
+    # Networking (Arch-only)
+    "nmtrust": "networking",
+    "networkmanager": "networking",
+    "nettools": "networking",
+    "mirrorlist": "networking",
+    "filesharing": "networking",
+
+    # Productivity & Utilities
+    "taskwarrior": "productivity",
+    "pass": "productivity",
+    "spell": "productivity",
+    "clipboard": "productivity",
+    "clouddrive": "productivity",
+    "syncthing": "productivity",
+
+    # Display Manager
+    "lightdm": "display_manager",
+    "gdm": "display_manager",
+
+    # Profile: i3 (X11 tiling window manager)
+    "x": "i3_profile",
+    "i3": "i3_profile",
+
+    # Profile: Hyprland (Wayland compositor)
+    "wayland": "hyprland_profile",
+    "hyprland": "hyprland_profile",
+    "qt_gtk_toolkit": "hyprland_profile",
+    "widgets": "hyprland_profile",
+    "uv_python_packages": "hyprland_profile",
+    "microtex": "hyprland_profile",
+    "oneui4_icons": "hyprland_profile",
+    "screencapture": "hyprland_profile",
+
+    # Profile: GNOME
+    "gnome": "gnome_profile",
+
+    # Profile: AwesomeWM
+    "awesomewm": "awesomewm_profile",
+
+    # Profile: KDE
+    "kde": "kde_profile",
+
+    # Fonts & Theming (any desktop profile)
+    "fonts": "fonts_theming",
+    "nerd-fonts": "fonts_theming",
+    "cursor-theme": "fonts_theming",
+
+    # Desktop Applications (any desktop profile)
+    "terminal": "desktop_apps",
+    "notes": "desktop_apps",
+    "browsers": "desktop_apps",
+    "filemanager": "desktop_apps",
+    "screensaver": "desktop_apps",
+    "mpv": "desktop_apps",
+    "media": "desktop_apps",
+    "sound": "desktop_apps",
+    "proton": "desktop_apps",
+    "android": "desktop_apps",
+    "backlight": "desktop_apps",
+    "mpd": "desktop_apps",
+    "twitch": "desktop_apps",
+    "cups": "desktop_apps",
+    "udisks": "desktop_apps",
+
+    # Optional / Feature-gated (overlay-based)
+    "dotfiles": "optional",
+    "goesimage": "optional",
+    "regdomain": "optional",
+    "bluetooth": "optional",
+    "laptop": "optional",
+}
+
+# Section definitions with comments and ordering
+_SECTION_DEFINITIONS: List[Dict[str, Any]] = [
+    {
+        "name": "gpu",
+        "comment": "GPU Detection & Drivers (Arch-only)",
+        "roles": [],
+    },
+    {
+        "name": "base",
+        "comment": "Base System (Arch-only)",
+        "roles": [],
+    },
+    {
+        "name": "universal",
+        "comment": "Universal System Configuration",
+        "roles": [],
+    },
+    {
+        "name": "packages",
+        "comment": "Package Management",
+        "roles": [],
+    },
+    {
+        "name": "dev",
+        "comment": "Development Tools",
+        "roles": [],
+    },
+    {
+        "name": "networking",
+        "comment": "Networking (Arch-only)",
+        "roles": [],
+    },
+    {
+        "name": "productivity",
+        "comment": "Productivity & Utilities",
+        "roles": [],
+    },
+    {
+        "name": "display_manager",
+        "comment": "Display Manager",
+        "roles": [],
+    },
+    {
+        "name": "i3_profile",
+        "comment": "Profile: i3 (X11 tiling window manager)",
+        "roles": [],
+    },
+    {
+        "name": "hyprland_profile",
+        "comment": "Profile: Hyprland (Wayland compositor)",
+        "roles": [],
+    },
+    {
+        "name": "gnome_profile",
+        "comment": "Profile: GNOME",
+        "roles": [],
+    },
+    {
+        "name": "awesomewm_profile",
+        "comment": "Profile: AwesomeWM",
+        "roles": [],
+    },
+    {
+        "name": "kde_profile",
+        "comment": "Profile: KDE",
+        "roles": [],
+    },
+    {
+        "name": "fonts_theming",
+        "comment": "Fonts & Theming (any desktop profile)",
+        "roles": [],
+    },
+    {
+        "name": "desktop_apps",
+        "comment": "Desktop Applications (any desktop profile)",
+        "roles": [],
+    },
+    {
+        "name": "optional",
+        "comment": "Optional / Feature-gated",
+        "roles": [],
+    },
+]
+
+
+def _discover_overlay_variables(profiles_dir: str) -> List[str]:
+    """Discover overlay variable names from overlay definitions.
+
+    Parses overlay YAML files to extract variable names referenced in
+    applies_when conditions. These variables need to be included in
+    _host_vars_json for resolve-role-manifest.
+
+    Args:
+        profiles_dir: Path to profiles directory
+
+    Returns:
+        Sorted list of overlay variable names (without 'is defined' checks)
     """
-    try:
-        generator = PlaybookGenerator(profiles_dir=args.profiles_dir)
-        roles = generator.generate()
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
+    overlay_vars = set()
+    overlays_dir = Path(profiles_dir) / "overlays"
+
+    if not overlays_dir.exists():
+        return []
+
+    for overlay_path in overlays_dir.glob("*.yml"):
+        try:
+            with open(overlay_path) as f:
+                overlay_data = yaml.safe_load(f)
+
+            applies_when = overlay_data.get("applies_when", "")
+            if not applies_when:
+                continue
+
+            # Extract variable name from applies_when
+            # Format 1: "bluetooth is defined and not (bluetooth.disable | default(false))"
+            #   → extract "bluetooth" (before " is defined")
+            # Format 2: "laptop | default(false)"
+            #   → extract "laptop" (before " | default")
+            if " is defined" in applies_when:
+                var_match = applies_when.split(" is defined")[0].strip()
+                overlay_vars.add(var_match)
+            elif " | default" in applies_when:
+                var_match = applies_when.split(" | default")[0].strip()
+                overlay_vars.add(var_match)
+        except Exception:
+            # Skip malformed overlay files
+            continue
+
+    return sorted(overlay_vars)
+
+
+def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
+    """Generate _host_vars_json Jinja2 template with overlay variables.
+
+    Creates a Jinja2 template that combines all overlay variables
+    into JSON format for passing to resolve-role-manifest.
+
+    Args:
+        overlay_vars: List of overlay variable names
+
+    Returns:
+        Jinja2 template string for _host_vars_json
+    """
+    if not overlay_vars:
+        # Fallback to hardcoded template if no overlays discovered
+        return """{{
+  {}
+  | combine({"laptop": laptop} if laptop is defined else {})
+  | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
+  | combine({"dotfiles": dotfiles} if dotfiles is defined else {})
+  | combine({"goesimage": goesimage} if goesimage is defined else {})
+  | combine({"regdomain": regdomain} if regdomain is defined else {})
+  | to_json
+}}"""
+
+    # Generate dynamic template from discovered overlay variables
+    # Use proper Jinja2 formatting with quoted dict keys
+    lines = ["{{"]
+    lines.append("  {}")
+    for var in overlay_vars:
+        lines.append(f'  | combine({{"{var}": {var}}} if {var} is defined else {{}})')
+    lines.append("  | to_json")
+    lines.append("}}")
+    return "\n".join(lines)
+
+
+def _format_role_entry(role_name: str, condition: Optional[str], tags: List[str]) -> Dict[str, Any]:
+    """Format a role entry for play.yml output.
+
+    Args:
+        role_name: Name of the role
+        condition: Optional when condition
+        tags: List of tags
+
+    Returns:
+        Dictionary suitable for YAML output
+    """
+    entry = {"role": role_name, "tags": tags}
+    if condition:
+        entry["when"] = condition
+    return entry
+
+
+def write_playbook(
+    profiles_dir: str,
+    playbook_path: str,
+    os_family: str = "Archlinux",
+) -> int:
+    """Generate play.yml from profile definitions.
+
+    Reads all profile YAML files, generates the expected play.yml structure
+    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
+
+    Preserves:
+    - pre_tasks structure (resolve-role-manifest call)
+    - vars_prompt section
+    - Section comments in roles
+
+    The _host_vars_json template is auto-generated from discovered overlay variables.
+
+    Args:
+        profiles_dir: Path to profiles directory
+        playbook_path: Path where play.yml should be written
+        os_family: OS family for role resolution (default: Archlinux)
+
+    Returns:
+        0 on success, 1 on error
+    """
+    profiles_path = Path(profiles_dir)
+    if not profiles_path.exists():
+        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
+        return 1
+    if not profiles_path.is_dir():
+        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
         return 1
 
-    # Convert PlaybookRole dataclass instances to Ansible-format dicts
-    role_entries = []
-    for r in roles:
-        entry: Dict[str, Any] = {"role": r.role}
-        if r.tags:
-            entry["tags"] = list(r.tags)
-        if r.condition:
-            entry["when"] = r.condition
-        role_entries.append(entry)
+    # Discover overlay variables for _host_vars_json template
+    overlay_vars = _discover_overlay_variables(profiles_dir)
+    host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
-    yaml.safe_dump({"roles": role_entries}, sys.stdout, default_flow_style=False, sort_keys=False)
+    # Generate expected role map (same logic as sync-playbook)
+    profile_names = list_profiles(profiles_dir)
+
+    # DE profiles and their corresponding _is_<de> flags
+    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+    profile_to_flag = {
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "gnome": "_is_gnome",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    # Track which profiles include each role AND build annotation conditions
+    role_to_profiles: Dict[str, set] = {}
+    expected_role_map: Dict[str, Optional[str]] = {}
+    # Union tags from all profiles (preserves profile-defined tags like [fonts])
+    role_tags: Dict[str, set] = {}
+
+    for profile_name in profile_names:
+        try:
+            manifest = resolve_role_manifest(
+                profile=profile_name,
+                os_family=os_family,
+                host_vars={},
+                profiles_dir=profiles_dir,
+                preserve_config_check=True,
+            )
+        except ValueError:
+            continue
+
+        for role_cond in manifest.roles:
+            role_name = role_cond.role
+            condition = role_cond.condition or None
+
+            # Track profile membership
+            role_to_profiles.setdefault(role_name, set()).add(profile_name)
+
+            # Union tags across profiles
+            if role_name not in role_tags:
+                role_tags[role_name] = set()
+            role_tags[role_name].update(role_cond.tags)
+
+            # Merge conditions across profiles (OR differing ones)
+            if role_name not in expected_role_map:
+                expected_role_map[role_name] = condition
+                continue
+
+            existing_condition = expected_role_map[role_name]
+            if existing_condition is None or condition is None:
+                expected_role_map[role_name] = None
+            elif existing_condition != condition:
+                expected_role_map[role_name] = (
+                    f"({existing_condition}) or ({condition})"
+                )
+
+    # Apply profile-gating for roles with empty annotation conditions
+    all_profile_set = set(profile_names)
+    for role_name, profiles in role_to_profiles.items():
+        existing = expected_role_map.get(role_name)
+        # Only add profile gate if annotation-based condition is empty
+        if existing is not None:
+            continue
+
+        # Universal roles (in ALL profiles including headless) need no gate
+        if profiles >= all_profile_set:
+            continue
+
+        de_members = profiles & de_profiles
+        if not de_members:
+            continue
+
+        # Determine the profile gate expression
+        if de_members == de_profiles:
+            gate = "_has_display"
+        elif len(de_members) == 1:
+            gate = profile_to_flag[next(iter(de_members))]
+        else:
+            gate = " or ".join(
+                profile_to_flag[p] for p in sorted(de_members)
+            )
+
+        expected_role_map[role_name] = gate
+
+    # Organize roles into sections (deep copy to avoid mutating module-level list)
+    sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
+    section_map = {section["name"]: section for section in sections}
+
+    for role_name, condition in expected_role_map.items():
+        section_name = _ROLE_TO_SECTION.get(role_name)
+        if section_name and section_name in section_map:
+            # Use tags unioned from profile definitions (preserves [fonts], etc.)
+            tags = sorted(role_tags.get(role_name, {role_name}))
+            section_map[section_name]["roles"].append(
+                (role_name, condition, tags)
+            )
+
+    # Add overlay-based roles to the optional section
+    # These roles are not in profiles but are referenced in play.yml
+    overlay_roles_mapping = {
+        "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
+        "laptop": ("_overlay_laptop", ["laptop"]),
+    }
+
+    for role_name, (condition, tags) in overlay_roles_mapping.items():
+        section_map["optional"]["roles"].append(
+            (role_name, condition, tags)
+        )
+
+    # Write playbook to file with manual YAML formatting
+    playbook_file = Path(playbook_path)
+    playbook_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(playbook_file, "w") as f:
+        # Add header comment
+        f.write("---\n")
+        f.write("# ---------------------------------------------------------------------------\n")
+        f.write("# AUTO-GENERATED FILE - DO NOT EDIT BY HAND\n")
+        f.write("#\n")
+        f.write("# This file is generated from profile definitions in profiles/\n")
+        f.write('# To regenerate, run: make generate-playbook\n')
+        f.write("# ---------------------------------------------------------------------------\n\n")
+
+        # Write play definition
+        f.write("- name: Configure localhost\n")
+        f.write("  hosts: localhost\n\n")
+
+        # Write pre_tasks
+        f.write("  pre_tasks:\n")
+        f.write('    - name: Resolve unified role manifest\n')
+        f.write("      command: >-\n")
+        f.write("        {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}\n")
+        f.write("        {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-role-manifest\n")
+        f.write("        --profiles-dir \"{{ playbook_dir }}/profiles\"\n")
+        f.write("        --profile \"{{ profile | default('manual') }}\"\n")
+        f.write("        --os-family \"{{ ansible_facts['os_family'] }}\"\n")
+        f.write("        {{ (display_manager is defined) | ternary('--display-manager \"' ~ (display_manager | default('')) ~ '\"', '') }}\n")
+        f.write("        {{ (desktop_environment is defined) | ternary('--desktop-environment \"' ~ (desktop_environment | default('')) ~ '\"', '') }}\n")
+        f.write("        {{ (disable_i3 is defined and disable_i3) | ternary('--disable-i3', '') }}\n")
+        f.write("        {{ (disable_hyprland is defined and disable_hyprland) | ternary('--disable-hyprland', '') }}\n")
+        f.write("        {{ (disable_gnome is defined and disable_gnome) | ternary('--disable-gnome', '') }}\n")
+        f.write("        {{ (disable_awesomewm is defined and disable_awesomewm) | ternary('--disable-awesomewm', '') }}\n")
+        f.write("        {{ (disable_kde is defined and disable_kde) | ternary('--disable-kde', '') }}\n")
+        f.write("        --host-vars '{{ _host_vars_json }}'\n")
+        f.write("      vars:\n")
+        f.write(f"        _host_vars_json: >-\n")
+        # Write the host_vars template with proper indentation
+        for line in host_vars_template.split("\n"):
+            f.write(f"          {line}\n")
+        f.write("      register: _manifest_result\n")
+        f.write("      changed_when: false\n")
+        f.write("      check_mode: false\n")
+        f.write("      tags: always\n\n")
+
+        f.write('    - name: Set profile facts from resolved manifest\n')
+        f.write("      vars:\n")
+        f.write("        _manifest: \"{{ _manifest_result.stdout | from_json }}\"\n")
+        f.write("        _pf: \"{{ _manifest.profile_flags }}\"\n")
+        f.write("      set_fact:\n")
+        f.write("        _profile: \"{{ _manifest.profile }}\"\n")
+        f.write("        _dm: \"{{ _pf._dm | default('', true) }}\"\n")
+        f.write("        _has_display: \"{{ _pf._has_display }}\"\n")
+        f.write("        _is_i3: \"{{ _pf._is_i3 }}\"\n")
+        f.write("        _is_hyprland: \"{{ _pf._is_hyprland }}\"\n")
+        f.write("        _is_gnome: \"{{ _pf._is_gnome }}\"\n")
+        f.write("        _is_awesomewm: \"{{ _pf._is_awesomewm }}\"\n")
+        f.write("        _is_kde: \"{{ _pf._is_kde }}\"\n")
+        f.write("        _is_arch: \"{{ _pf._is_arch }}\"\n")
+        f.write("      tags: always\n\n")
+
+        f.write('    - name: Set overlay facts from resolved manifest\n')
+        f.write("      vars:\n")
+        f.write("        _manifest: \"{{ _manifest_result.stdout | from_json }}\"\n")
+        f.write("        _of: \"{{ _manifest.overlay_flags }}\"\n")
+        f.write("      set_fact:\n")
+        f.write("        _overlay_laptop: \"{{ _of._overlay_laptop | default(false) }}\"\n")
+        f.write("        _overlay_backlight: \"{{ _of._overlay_backlight | default(false) }}\"\n")
+        f.write("        _overlay_bluetooth: \"{{ _of._overlay_bluetooth | default(false) }}\"\n")
+        f.write("        _overlay_dotfiles: \"{{ _of._overlay_dotfiles | default(false) }}\"\n")
+        f.write("        _overlay_goesimage: \"{{ _of._overlay_goesimage | default(false) }}\"\n")
+        f.write("        _overlay_regdomain: \"{{ _of._overlay_regdomain | default(false) }}\"\n")
+        f.write("      tags: always\n\n")
+
+        # Write roles
+        f.write("  roles:\n")
+        for section in sections:
+            if section["roles"]:
+                # Add section comment
+                f.write("    # -------------------------------------------------------------------------\n")
+                f.write(f"    # {section['comment']}\n")
+                f.write("    # -------------------------------------------------------------------------\n")
+                # Write roles in this section (double-quoted tags for Makefile grep compat)
+                for role_name, condition, tags in section["roles"]:
+                    yaml_tags = '[' + ', '.join(f'"{t}"' for t in tags) + ']'
+                    if condition:
+                        f.write(f"    - {{ role: {role_name}, tags: {yaml_tags}, when: {condition} }}\n")
+                    else:
+                        f.write(f"    - {{ role: {role_name}, tags: {yaml_tags} }}\n")
+
+        # Write vars_prompt
+        f.write("\n  vars_prompt:\n")
+        f.write("    - name: user_password\n")
+        f.write("      prompt: \"Enter desired user password\"\n")
+
+    print(f"Generated {playbook_path} from profile definitions")
     return 0
+
+
+def _cmd_generate_playbook(args: argparse.Namespace) -> int:
+    """Generate play.yml from profile definitions.
+
+    Reads all profile YAML files, generates the complete play.yml structure
+    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
+
+    The _host_vars_json template is auto-generated from discovered overlay variables,
+    eliminating the need to manually maintain the list of overlay variables.
+    """
+    return write_playbook(
+        profiles_dir=args.profiles_dir,
+        playbook_path=args.playbook,
+        os_family=args.os_family or "Archlinux",
+    )
 
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
@@ -2609,6 +3136,24 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- generate-playbook ---
+    p_generate = subparsers.add_parser(
+        "generate-playbook",
+        help="Generate play.yml from profile definitions.",
+    )
+    p_generate.add_argument(
+        "--playbook",
+        default=str(Path(__file__).parent.parent / "play.yml"),
+        help="Path to play.yml file to write",
+    )
+    p_generate.add_argument(
+        "--os-family", dest="os_family", default=None,
+        help="OS family for role resolution (default: Archlinux)"
+    )
+    p_generate.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     # --- sync-playbook ---
     p_sync = subparsers.add_parser(
         "sync-playbook",
@@ -2625,14 +3170,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="CI mode: exit 1 on drift, no output changes",
     )
     p_sync.add_argument(
-        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
-    )
-
-    p_gen = subparsers.add_parser(
-        "generate-playbook",
-        help="Generate Ansible playbook roles section from profile definitions.",
-    )
-    p_gen.add_argument(
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
