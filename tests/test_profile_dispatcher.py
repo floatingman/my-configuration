@@ -3169,16 +3169,17 @@ class TestGenerateHostVarsTemplate:
     def test_single_variable_template(self):
         """Generates correct template for single variable."""
         template = generate_host_vars_template(["laptop"])
-        expected = "{{ {}\n  | combine({\"laptop\": laptop} if laptop is defined else {})\n  | to_json\n}}"
+        expected = "{{\n  {}\n  | combine({\"laptop\": laptop} if laptop is defined else {})\n  | to_json\n}}"
         assert template == expected
 
     def test_multiple_variables_template(self):
         """Generates correct template for multiple variables."""
         template = generate_host_vars_template(["laptop", "bluetooth"])
         lines = template.split("\n")
-        assert lines[0] == "{{ {}"
-        assert '  | combine({"laptop": laptop} if laptop is defined else {})' in lines
+        assert lines[0] == "{{"
+        assert lines[1] == "  {}"
         assert '  | combine({"bluetooth": bluetooth} if bluetooth is defined else {})' in lines
+        assert '  | combine({"laptop": laptop} if laptop is defined else {})' in lines
         assert "  | to_json" in lines
         assert "}}" in lines
 
@@ -3198,8 +3199,8 @@ class TestGenerateHostVarsTemplate:
         variables = ["laptop", "bluetooth", "dotfiles", "goesimage", "regdomain"]
         template = generate_host_vars_template(variables)
 
-        # Verify template structure
-        assert template.startswith("{{ {}")
+        # Verify template structure matches _generate_host_vars_json_template format
+        assert template.startswith("{{\n  {}")
         assert template.endswith("}}")
 
         # Verify all variables are present

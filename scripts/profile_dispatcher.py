@@ -1421,17 +1421,17 @@ def discover_overlay_variables(profiles_dir: str = _DEFAULT_PROFILES_DIR) -> lis
     """
     Discover overlay variable names from overlay applies_when expressions.
 
-    Parses all overlay YAML files from profiles/overlays/ and extracts
+    Parses all overlay YAML files from overlays/ under profiles_dir and extracts
     top-level variable names referenced in applies_when expressions.
 
     Args:
-        profiles_dir: Directory containing profiles/ subdirectory
+        profiles_dir: Profiles root directory containing the overlays/ subdirectory
 
     Returns:
         Sorted, deduplicated list of variable names
 
     Raises:
-        ValueError: If profiles/overlays/ directory doesn't exist
+        ValueError: If the overlays/ directory under profiles_dir doesn't exist
     """
     overlays_path = Path(profiles_dir) / "overlays"
     if not overlays_path.exists():
@@ -1447,7 +1447,7 @@ def discover_overlay_variables(profiles_dir: str = _DEFAULT_PROFILES_DIR) -> lis
             with open(overlay_path) as f:
                 data = yaml.safe_load(f) or {}
         except (yaml.YAMLError, OSError) as exc:
-            raise ValueError(f"Failed to load overlay '{overlay_path}': {exc}")
+            raise ValueError(f"Failed to load overlay '{overlay_path}': {exc}") from exc
 
         applies_when = data.get("applies_when", "")
         if not isinstance(applies_when, str):
@@ -1486,13 +1486,14 @@ def generate_host_vars_template(variables: list[str]) -> str:
 
     Example:
         >>> generate_host_vars_template(['laptop', 'bluetooth'])
-        "{{ {}\\n  | combine({\\"laptop\\": laptop} if laptop is defined else {})\\n  | combine({\\"bluetooth\\": bluetooth} if bluetooth is defined else {})\\n  | to_json\\n}}"
+        "{{\\n  {}\\n  | combine({\\"bluetooth\\": bluetooth} if bluetooth is defined else {})\\n  | combine({\\"laptop\\": laptop} if laptop is defined else {})\\n  | to_json\\n}}"
     """
     if not variables:
         # Empty template - no variables to combine
         return "{{ {} | to_json }}"
 
-    lines = ["{{ {}"]
+    lines = ["{{"]
+    lines.append("  {}")
     for var in sorted(variables):
         lines.append(f'  | combine({{"{var}": {var}}} if {var} is defined else {{}})')
     lines.append("  | to_json")
