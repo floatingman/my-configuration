@@ -36,9 +36,8 @@ display_manager: lightdm    # lightdm | gdm | sddm
 
 dotfiles:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
-  path: "{{ user.name }}/.dotfiles"
-  rcup_flags: -fx README.md
-  linuxgui: true            # Install GUI dotfiles (i3, waybar, rofi, etc.)
+  branch: main              # Git branch for dotfiles
+  # chezmoi applies all files by default; use chezmoi's tags system for conditional files
 
 # Backlight / ambient light sensor
 # Run: ls /sys/class/backlight/   to find your backlight device

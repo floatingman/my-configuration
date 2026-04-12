@@ -1,8 +1,8 @@
 ---
-- name: Install rcm on Arch
+- name: Install chezmoi on Arch
   become: true
   kewlfft.aur.aur:
-    name: rcm
+    name: chezmoi
     use: auto
     state: present
   become_user: aur_builder
@@ -10,44 +10,26 @@
   tags:
     - aur
 
-- name: Install rcm on Ubuntu or Debian
-  ansible.builtin.package:
-    name: rcm
+- name: Install chezmoi on Ubuntu or Debian via Homebrew
+  community.general.homebrew:
+    name: chezmoi
     state: present
-  when: ansible_facts["os_family"] != "Archlinux"
-  become: true
+  when: ansible_facts["os_family"] == "Debian"
+  environment:
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
 
-- name: Clone user dotfiles
+- name: Initialize user dotfiles with chezmoi
   become: true
-  ansible.builtin.git:  # noqa: latest[git]
-    repo: "{{ dotfiles.repo_url }}"
-    dest: "/home/{{ dotfiles.path }}"
-    accept_hostkey: true
-    version: HEAD
-    update: false
-    recursive: true
-  when: dotfiles is defined
-  become_user: "{{ user.name }}"
-
-- name: Symlink rcm rc file to user directory
-  ansible.builtin.file:
-    src: "/home/{{ dotfiles.path }}/rcrc"
-    dest: "/home/{{ user.name }}/.rcrc"
-    state: link
-
-- name: Install user dotfiles
-  become: true
-  ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} {{ dotfiles.rcup_flags }}
+  ansible.builtin.command: >
+    chezmoi init
+    --apply
+    --source="{{ dotfiles.repo_url }}"
+    --branch="{{ dotfiles.branch | default('main') }}"
   changed_when: true
   when: dotfiles is defined
   become_user: "{{ user.name }}"
-
-- name: Install linux gui tagged dotfiles
-  become: true
-  ansible.builtin.command: rcup -d /home/{{ dotfiles.path }} -tag linux-gui
-  changed_when: true
-  become_user: "{{ user.name }}"
-  when: dotfiles.linuxgui | bool
+  environment:
+    HOME: "/home/{{ user.name }}"
 
 - name: Create global gitconfig
   ansible.builtin.template:

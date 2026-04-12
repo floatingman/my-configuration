@@ -32,9 +32,8 @@ laptop: false # No power mgmt or trackpad config on servers
 # disable_kde: false        # Manual mode: set true to skip KDE install
 dotfiles:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
-  path: "{{ user.name }}/.dotfiles"
-  rcup_flags: -fx README.md
-  linuxgui: false # Skip GUI dotfiles on headless servers
+  branch: main              # Git branch for dotfiles
+  # chezmoi applies all files by default; use chezmoi's tags system for conditional files
 
 # SSH
 ssh:
