@@ -1,0 +1,8 @@
+---
+# defaults file for ai
+# Enable/disable individual AI tools
+ai_claude_code_enabled: true
+ai_claude_config_enabled: true
+ai_ccometixline_enabled: true
+ai_rtk_enabled: true
+ai_claudectx_enabled: true

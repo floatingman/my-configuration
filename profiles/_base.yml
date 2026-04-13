@@ -48,6 +48,9 @@ roles:
   # Display-gated Development (Arch-only, filtered out for headless)
   - { role: devtools,      tags: [devtools],      os: archlinux,     requires_display: true }
 
+  # AI Development Tools
+  - { role: ai,            tags: [ai] }
+
   # Networking (Arch-only)
   - { role: nmtrust,       tags: [nmtrust],       os: archlinux, requires_display: true }
   - { role: networkmanager, tags: [networkmanager], os: archlinux, requires_display: true }

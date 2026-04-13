@@ -109,6 +109,7 @@
     - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
     - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
+    - { role: ai, tags: ["ai"] }
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------

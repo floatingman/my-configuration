@@ -1,0 +1,93 @@
+---
+# tasks file for ai
+- name: Check if Homebrew is available
+  ansible.builtin.stat:
+    path: /home/linuxbrew/.linuxbrew/bin/brew
+  register: homebrew_stat
+
+- name: Set Homebrew availability fact
+  ansible.builtin.set_fact:
+    homebrew_available: "{{ homebrew_stat.stat.exists }}"
+
+# -------------------------------------------------------------------------
+# Claude Code (npm)
+# -------------------------------------------------------------------------
+- name: Install Claude Code via npm
+  community.general.npm:
+    name: "@anthropic-ai/claude-code"
+    global: true
+    state: present
+  when: ai_claude_code_enabled | default(true)
+
+- name: Apply Claude Code configuration from chezmoi
+  ansible.builtin.command: >
+    chezmoi apply ~/.claude
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  register: chezmoi_claude_result
+  changed_when: chezmoi_claude_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_enabled | default(true)
+    - ai_claude_config_enabled | default(true)
+
+# -------------------------------------------------------------------------
+# CCometixLine (npm)
+# -------------------------------------------------------------------------
+- name: Install CCometixLine via npm
+  community.general.npm:
+    name: "@cometix/ccline"
+    global: true
+    state: present
+  when: ai_ccometixline_enabled | default(true)
+
+# -------------------------------------------------------------------------
+# rtk (Rust tool - prefer Homebrew, fallback to cargo)
+# -------------------------------------------------------------------------
+- name: Install rtk via Homebrew
+  community.general.homebrew:
+    name: rtk-ai/rtk/rtk
+    state: present
+    path: /home/linuxbrew/.linuxbrew/bin
+  when:
+    - ai_rtk_enabled | default(true)
+    - homebrew_available
+  ignore_errors: true
+  register: rtk_homebrew_result
+
+- name: Install rtk via cargo (fallback)
+  ansible.builtin.command:
+    cmd: cargo install rtk
+  when:
+    - ai_rtk_enabled | default(true)
+    - not homebrew_available or rtk_homebrew_result is failed
+  register: rtk_cargo_result
+  changed_when: rtk_cargo_result.rc != 0 or "already installed" not in rtk_cargo_result.stderr | default("")
+  failed_when: false
+
+# -------------------------------------------------------------------------
+# claudectx (Go tool - prefer Homebrew, fallback to go install)
+# -------------------------------------------------------------------------
+- name: Install claudectx via Homebrew
+  community.general.homebrew:
+    name: foxj77/tap/claudectx
+    state: present
+    path: /home/linuxbrew/.linuxbrew/bin
+  when:
+    - ai_claudectx_enabled | default(true)
+    - homebrew_available
+  ignore_errors: true
+  register: claudectx_homebrew_result
+
+- name: Install claudectx via go install (fallback)
+  ansible.builtin.command:
+    cmd: go install github.com/foxj77/claudectx@latest
+  environment:
+    GOPATH: "{{ ansible_env.HOME }}/.local/go"
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/go/bin"
+  when:
+    - ai_claudectx_enabled | default(true)
+    - not homebrew_available or claudectx_homebrew_result is failed
+  register: claudectx_go_result
+  changed_when: claudectx_go_result.rc != 0
+  failed_when: false
