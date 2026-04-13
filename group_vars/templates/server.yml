@@ -56,3 +56,11 @@ network:
 # Bluetooth
 bluetooth:
   disable: true # Disable bluetooth on servers
+
+# AI Development Tools
+ai:
+  claude_code_enabled: true      # Install Claude Code (AI CLI tool)
+  claude_config_enabled: true    # Apply Claude Code config from chezmoi
+  ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
+  rtk_enabled: true              # Install rtk (token optimization proxy)
+  claudectx_enabled: true        # Install claudectx (context management tool)
