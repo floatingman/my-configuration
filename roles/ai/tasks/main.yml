@@ -19,7 +19,7 @@
 
 - name: Install Claude Code via native installer
   ansible.builtin.shell: |
-    curl -fsSL https://cdn.jsdelivr.net/npm/@anthropic-ai/claude-code/install.sh | sh
+    curl -fsSL https://claude.ai/install.sh | sh
   environment:
     HOME: "{{ ansible_env.HOME }}"
     PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
