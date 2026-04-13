@@ -101,3 +101,83 @@
   register: claudectx_go_result
   changed_when: claudectx_go_result.rc != 0
   failed_when: false
+
+# -------------------------------------------------------------------------
+# Claude Code Plugins
+# -------------------------------------------------------------------------
+- name: Ensure Claude Code is installed before plugin installation
+  ansible.builtin.stat:
+    path: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
+  register: claude_code_for_plugins
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+
+- name: Install claude-plugins-official marketplace plugins
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install {{ item }}
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  loop: "{{ ai_claude_official_plugins | default(claude_official_plugins_default) }}"
+  register: plugin_official_result
+  changed_when: plugin_official_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - claude_code_for_plugins.stat.exists
+
+- name: Install cc-skills marketplace plugins
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install {{ item }}
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  loop: "{{ ai_claude_cc_skills_plugins | default(claude_cc_skills_plugins_default) }}"
+  register: plugin_cc_skills_result
+  changed_when: plugin_cc_skills_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - claude_code_for_plugins.stat.exists
+
+- name: Install everything-claude-code plugin
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install everything-claude-code@everything-claude-code
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  register: plugin_everything_result
+  changed_when: plugin_everything_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - ai_everything_claude_code_enabled | default(true)
+    - claude_code_for_plugins.stat.exists
+
+- name: Add caveman custom marketplace
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin marketplace add caveman github://JuliusBrussee/caveman
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  register: caveman_marketplace_result
+  changed_when: caveman_marketplace_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - ai_caveman_enabled | default(true)
+    - claude_code_for_plugins.stat.exists
+
+- name: Install caveman plugin
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install caveman@caveman
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  register: caveman_plugin_result
+  changed_when: caveman_plugin_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - ai_caveman_enabled | default(true)
+    - claude_code_for_plugins.stat.exists
