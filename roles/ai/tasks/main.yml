@@ -10,14 +10,24 @@
     homebrew_available: "{{ homebrew_stat.stat.exists }}"
 
 # -------------------------------------------------------------------------
-# Claude Code (npm)
+# Claude Code (native installer)
 # -------------------------------------------------------------------------
-- name: Install Claude Code via npm
-  community.general.npm:
-    name: "@anthropic-ai/claude-code"
-    global: true
-    state: present
-  when: ai_claude_code_enabled | default(true)
+- name: Check if Claude Code is already installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/bin/claude"
+  register: claude_code_stat
+
+- name: Install Claude Code via native installer
+  ansible.builtin.shell: |
+    curl -fsSL https://cdn.jsdelivr.net/npm/@anthropic-ai/claude-code/install.sh | sh
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+  register: claude_code_install
+  changed_when: claude_code_install.rc == 0
+  when:
+    - ai_claude_code_enabled | default(true)
+    - not claude_code_stat.stat.exists
 
 - name: Apply Claude Code configuration from chezmoi
   ansible.builtin.command: >
