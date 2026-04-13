@@ -14,15 +14,15 @@
 # -------------------------------------------------------------------------
 - name: Check if Claude Code is already installed
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.local/bin/claude"
+    path: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
   register: claude_code_stat
 
 - name: Install Claude Code via native installer
   ansible.builtin.shell: |
     curl -fsSL https://claude.ai/install.sh | sh
   environment:
-    HOME: "{{ ansible_env.HOME }}"
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
   register: claude_code_install
   changed_when: claude_code_install.rc == 0
   when:
