@@ -9,7 +9,7 @@
   become: true
   ansible.builtin.package:
     name: illuminanced
-  when: backlight_illuminanced is defined
+  when: backlight_illuminanced is not none
 
 - name: Set max backlight file
   become: true
@@ -61,7 +61,7 @@
     name: illuminanced.service
     enabled: true
     state: started
-  when: backlight_illuminanced is defined
+  when: backlight_illuminanced is not none
 
 - name: Install ddcutil
   become: true

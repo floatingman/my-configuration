@@ -1,6 +1,7 @@
 ---
 # Dotfiles management with chezmoi
 # Set to enable dotfiles installation on this machine
-dotfiles_config:
-  repo_url: null             # Git repository URL for dotfiles (e.g., "https://github.com/user/dotfiles.git")
-  branch: main               # Git branch to checkout
+# Example:
+#   dotfiles_config:
+#     repo_url: "https://github.com/user/dotfiles.git"
+#     branch: main

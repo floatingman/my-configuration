@@ -11,7 +11,7 @@
   become_user: "{{ user.name }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  register: gnupg_gnupg_user_session_check
+  register: gnupg_user_session_check
   failed_when: false
   changed_when: false
   when: gnupg.enable_agent

@@ -30,7 +30,7 @@ laptop: false # No power mgmt or trackpad config on servers
 # disable_gnome: false      # Manual mode: set true to skip GNOME install
 # disable_awesomewm: false  # Manual mode: set true to skip AwesomeWM install
 # disable_kde: false        # Manual mode: set true to skip KDE install
-dotfiles:
+dotfiles_config:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
   branch: main              # Git branch for dotfiles
   # chezmoi applies all files by default; use chezmoi's tags system for conditional files
@@ -46,7 +46,7 @@ ssh_config:
 networkmanager_config:
   spoof_mac: true
   conn_check:
-    url: http://connectivitycheck.gstatic.com/generate_204
+    uri: http://connectivitycheck.gstatic.com/generate_204
     interval: 5
     response: 204
   wifi_wired_exclusive: false # Typically false on servers (wired only)
@@ -60,9 +60,10 @@ bluetooth:
   disable: true # Disable bluetooth on servers
 
 # AI Development Tools
-ai:
-  claude_code_enabled: true      # Install Claude Code (AI CLI tool)
-  claude_config_enabled: true    # Apply Claude Code config from chezmoi
-  ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
-  rtk_enabled: true              # Install rtk (token optimization proxy)
-  claudectx_enabled: true        # Install claudectx (context management tool)
+# Set ai_enabled: true to install AI tooling
+# ai_enabled: true
+ai_claude_code_enabled: true      # Install Claude Code (AI CLI tool)
+ai_claude_config_enabled: true    # Apply Claude Code config from chezmoi
+ai_ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
+ai_rtk_enabled: true              # Install rtk (token optimization proxy)
+ai_claudectx_enabled: true        # Install claudectx (context management tool)

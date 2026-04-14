@@ -49,7 +49,7 @@ roles:
   - { role: devtools, tags: [devtools], os: archlinux, requires_display: true }
 
   # AI Development Tools
-  - { role: ai, tags: [ai], config_check: "ai_enabled is defined" }
+  - { role: ai, tags: [ai], config_check: "ai_enabled | default(false) | bool" }
 
   # Networking (Arch-only)
   - { role: nmtrust, tags: [nmtrust], os: archlinux, requires_display: true }

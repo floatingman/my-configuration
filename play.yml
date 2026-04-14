@@ -102,7 +102,7 @@
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
-    - { role: ai, tags: ["ai"], when: ai_enabled is defined }
+    - { role: ai, tags: ["ai"], when: ai_enabled | default(false) | bool }
     - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
     - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: editors, tags: ["editors"] }

@@ -73,7 +73,7 @@
     - ai_rtk_enabled | default(true)
     - not ai_homebrew_available or ai_rtk_homebrew_result is failed
   register: ai_rtk_cargo_result
-  changed_when: ai_rtk_cargo_result.rc != 0 or "already installed" not in ai_rtk_cargo_result.stderr | default("")
+  changed_when: ai_rtk_cargo_result.rc == 0
   failed_when: false
 
 # -------------------------------------------------------------------------

@@ -1,4 +1,4 @@
 # {{ ansible_managed }}
-{% for uuid in network.trusted_uuid %}
+{% for uuid in nmtrust_config.trusted_uuid %}
 {{ uuid }}
 {% endfor %}
