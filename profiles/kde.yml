@@ -7,7 +7,7 @@ description: |
 
 extends: _base.yml
 
-display_manager_default: sddm
+display_manager_default: lightdm
 desktop_environment: kde
 
 requires:
@@ -20,7 +20,7 @@ roles:
   # KDE Plasma
   - { role: kde, tags: [kde] }
 
-  # Display Manager (SDDM is standard for KDE, but lightdm works too)
+  # Display Manager (lightdm is default; sddm not yet implemented as a role)
   - role: lightdm
     tags: [lightdm]
     requires_config:

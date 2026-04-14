@@ -92,10 +92,10 @@ class TestProfileMode:
         assert result.is_kde is False
 
     def test_hyprland_profile(self):
-        """Hyprland profile should use sddm and set only is_hyprland to True."""
+        """Hyprland profile should use lightdm and set only is_hyprland to True."""
         result = resolve(profile='hyprland')
         assert result.profile == 'hyprland'
-        assert result.display_manager == 'sddm'
+        assert result.display_manager == 'lightdm'
         assert result.has_display is True
         assert result.desktop_environment == 'hyprland'
         assert result.is_i3 is False
@@ -131,10 +131,10 @@ class TestProfileMode:
         assert result.is_kde is False
 
     def test_kde_profile(self):
-        """KDE profile should use sddm and set only is_kde to True."""
+        """KDE profile should use lightdm and set only is_kde to True."""
         result = resolve(profile='kde')
         assert result.profile == 'kde'
-        assert result.display_manager == 'sddm'
+        assert result.display_manager == 'lightdm'
         assert result.has_display is True
         assert result.desktop_environment == 'kde'
         assert result.is_i3 is False
@@ -980,7 +980,7 @@ class TestCLIListProfiles:
         out = capsys.readouterr().out
         assert "lightdm" in out
         assert "gdm" in out
-        assert "sddm" in out
+        assert "lightdm" in out
 
     def test_list_profiles_custom_dir(self, capsys):
         """list-profiles respects --profiles-dir."""
@@ -1721,7 +1721,7 @@ class TestManifest:
         manifest = resolve_manifest(profile="hyprland", os_family="Archlinux")
         assert manifest.is_arch is True
         assert manifest.is_hyprland is True
-        assert manifest.display_manager == "sddm"
+        assert manifest.display_manager == "lightdm"
 
     def test_resolve_manifest_manual_mode(self):
         """Manual mode with explicit vars."""
@@ -1821,7 +1821,7 @@ class TestResolveRoleManifestFunction:
         """resolve_role_manifest for hyprland profile returns correct manifest."""
         manifest = resolve_role_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
         assert manifest.profile == "hyprland"
-        assert manifest.display_manager == "sddm"
+        assert manifest.display_manager == "lightdm"
         assert manifest.has_display is True
         assert manifest.profile_flags["_is_arch"] is True
         assert manifest.profile_flags["_is_hyprland"] is True
