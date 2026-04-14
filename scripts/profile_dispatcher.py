@@ -3009,11 +3009,66 @@ def _format_role_entry(role_name: str, condition: Optional[str], tags: List[str]
     return entry
 
 
+def _apply_profile_gating(
+    role_to_profiles: Dict[str, set],
+    expected_role_map: Dict[str, Optional[str]],
+    profile_names: list,
+) -> None:
+    """Apply profile-gating conditions for roles without annotation conditions.
+
+    Roles that appear only in DE-specific profiles get automatic conditions
+    (e.g. ``_is_i3``, ``_has_display``) so play.yml matches sync-check output.
+    """
+    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+    profile_to_flag = {
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "gnome": "_is_gnome",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    all_profile_set = set(profile_names)
+    for role_name, profiles in role_to_profiles.items():
+        existing = expected_role_map.get(role_name)
+        if existing is not None:
+            continue
+
+        if profiles >= all_profile_set:
+            continue
+
+        de_members = profiles & de_profiles
+        if not de_members:
+            continue
+
+        if de_members == de_profiles:
+            gate = "_has_display"
+        elif len(de_members) == 1:
+            gate = profile_to_flag[next(iter(de_members))]
+        else:
+            gate = " or ".join(
+                profile_to_flag[p] for p in sorted(de_members)
+            )
+
+        expected_role_map[role_name] = gate
+
+
+_OVERLAY_ROLES = {
+    "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
+    "laptop": ("_overlay_laptop", ["laptop"]),
+}
+
+
 def _merge_all_profile_manifests(
     profiles_dir: str,
     os_family: str,
 ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
-    """Merge role manifests from all profiles.
+    """Merge role manifests from all profiles and apply profile-gating.
+
+    Produces the same final expected_role_map that would be written to
+    play.yml, including automatic profile-gating conditions and overlay
+    roles.  Both ``write_playbook()`` and stdout mode consume this so
+    their output is consistent.
 
     Args:
         profiles_dir: Path to profiles directory
@@ -3066,6 +3121,15 @@ def _merge_all_profile_manifests(
                     f"({existing_condition}) or ({condition})"
                 )
 
+    # Apply profile-gating for roles with empty annotation conditions
+    _apply_profile_gating(role_to_profiles, expected_role_map, profile_names)
+
+    # Add overlay-based roles (not in profiles but referenced in play.yml)
+    for role_name, (condition, tags) in _OVERLAY_ROLES.items():
+        expected_role_map[role_name] = condition
+        role_to_profiles.setdefault(role_name, set())
+        role_tags.setdefault(role_name, set()).update(tags)
+
     return role_to_profiles, expected_role_map, role_tags, profile_names
 
 
@@ -3106,47 +3170,9 @@ def write_playbook(
     overlay_vars = _discover_overlay_variables(profiles_dir)
     host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
-    # Merge all profile manifests
+    # Merge all profile manifests (includes profile-gating and overlay roles)
     role_to_profiles, expected_role_map, role_tags, profile_names = \
         _merge_all_profile_manifests(profiles_dir, os_family)
-
-    # DE profiles and their corresponding _is_<de> flags
-    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
-    profile_to_flag = {
-        "i3": "_is_i3",
-        "hyprland": "_is_hyprland",
-        "gnome": "_is_gnome",
-        "awesomewm": "_is_awesomewm",
-        "kde": "_is_kde",
-    }
-
-    # Apply profile-gating for roles with empty annotation conditions
-    all_profile_set = set(profile_names)
-    for role_name, profiles in role_to_profiles.items():
-        existing = expected_role_map.get(role_name)
-        # Only add profile gate if annotation-based condition is empty
-        if existing is not None:
-            continue
-
-        # Universal roles (in ALL profiles including headless) need no gate
-        if profiles >= all_profile_set:
-            continue
-
-        de_members = profiles & de_profiles
-        if not de_members:
-            continue
-
-        # Determine the profile gate expression
-        if de_members == de_profiles:
-            gate = "_has_display"
-        elif len(de_members) == 1:
-            gate = profile_to_flag[next(iter(de_members))]
-        else:
-            gate = " or ".join(
-                profile_to_flag[p] for p in sorted(de_members)
-            )
-
-        expected_role_map[role_name] = gate
 
     # Organize roles into sections (deep copy to avoid mutating module-level list)
     sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
@@ -3160,18 +3186,6 @@ def write_playbook(
             section_map[section_name]["roles"].append(
                 (role_name, condition, tags)
             )
-
-    # Add overlay-based roles to the optional section
-    # These roles are not in profiles but are referenced in play.yml
-    overlay_roles_mapping = {
-        "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
-        "laptop": ("_overlay_laptop", ["laptop"]),
-    }
-
-    for role_name, (condition, tags) in overlay_roles_mapping.items():
-        section_map["optional"]["roles"].append(
-            (role_name, condition, tags)
-        )
 
     # Write playbook to file with manual YAML formatting
     playbook_file = Path(playbook_path)
