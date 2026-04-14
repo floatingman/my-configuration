@@ -117,9 +117,9 @@ sync-playbook: pip-deps ## Show drift between play.yml and profile definitions
 	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook
 
 .PHONY: generate-playbook
-generate-playbook: pip-deps ## Generate play.yml from profile definitions
-	@echo 'Generating play.yml from profile definitions...'
-	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py generate-playbook
+generate-playbook: pip-deps ## Regenerate play.yml from profile definitions
+	@echo 'Regenerating play.yml from profile definitions...'
+	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py generate-playbook --write play.yml
 
 .PHONY: list-tags
 list-tags: ## List all available tags in the playbook

@@ -3009,47 +3009,16 @@ def _format_role_entry(role_name: str, condition: Optional[str], tags: List[str]
     return entry
 
 
-def write_playbook(
-    profiles_dir: str,
-    playbook_path: str,
-    os_family: str = "Archlinux",
-) -> int:
-    """Generate play.yml from profile definitions.
+def _apply_profile_gating(
+    role_to_profiles: Dict[str, set],
+    expected_role_map: Dict[str, Optional[str]],
+    profile_names: list,
+) -> None:
+    """Apply profile-gating conditions for roles without annotation conditions.
 
-    Reads all profile YAML files, generates the expected play.yml structure
-    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
-
-    Preserves:
-    - pre_tasks structure (resolve-role-manifest call)
-    - vars_prompt section
-    - Section comments in roles
-
-    The _host_vars_json template is auto-generated from discovered overlay variables.
-
-    Args:
-        profiles_dir: Path to profiles directory
-        playbook_path: Path where play.yml should be written
-        os_family: OS family for role resolution (default: Archlinux)
-
-    Returns:
-        0 on success, 1 on error
+    Roles that appear only in DE-specific profiles get automatic conditions
+    (e.g. ``_is_i3``, ``_has_display``) so play.yml matches sync-check output.
     """
-    profiles_path = Path(profiles_dir)
-    if not profiles_path.exists():
-        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
-        return 1
-    if not profiles_path.is_dir():
-        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
-        return 1
-
-    # Discover overlay variables for _host_vars_json template
-    overlay_vars = _discover_overlay_variables(profiles_dir)
-    host_vars_template = _generate_host_vars_json_template(overlay_vars)
-
-    # Generate expected role map (same logic as sync-playbook)
-    profile_names = list_profiles(profiles_dir)
-
-    # DE profiles and their corresponding _is_<de> flags
     de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
     profile_to_flag = {
         "i3": "_is_i3",
@@ -3059,10 +3028,60 @@ def write_playbook(
         "kde": "_is_kde",
     }
 
+    all_profile_set = set(profile_names)
+    for role_name, profiles in role_to_profiles.items():
+        existing = expected_role_map.get(role_name)
+        if existing is not None:
+            continue
+
+        if profiles >= all_profile_set:
+            continue
+
+        de_members = profiles & de_profiles
+        if not de_members:
+            continue
+
+        if de_members == de_profiles:
+            gate = "_has_display"
+        elif len(de_members) == 1:
+            gate = profile_to_flag[next(iter(de_members))]
+        else:
+            gate = " or ".join(
+                profile_to_flag[p] for p in sorted(de_members)
+            )
+
+        expected_role_map[role_name] = gate
+
+
+_OVERLAY_ROLES = {
+    "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
+    "laptop": ("_overlay_laptop", ["laptop"]),
+}
+
+
+def _merge_all_profile_manifests(
+    profiles_dir: str,
+    os_family: str,
+) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
+    """Merge role manifests from all profiles and apply profile-gating.
+
+    Produces the same final expected_role_map that would be written to
+    play.yml, including automatic profile-gating conditions and overlay
+    roles.  Both ``write_playbook()`` and stdout mode consume this so
+    their output is consistent.
+
+    Args:
+        profiles_dir: Path to profiles directory
+        os_family: OS family for role resolution
+
+    Returns:
+        Tuple of (role_to_profiles, expected_role_map, role_tags, profile_names)
+    """
+    profile_names = list_profiles(profiles_dir)
+
     # Track which profiles include each role AND build annotation conditions
     role_to_profiles: Dict[str, set] = {}
     expected_role_map: Dict[str, Optional[str]] = {}
-    # Union tags from all profiles (preserves profile-defined tags like [fonts])
     role_tags: Dict[str, set] = {}
 
     for profile_name in profile_names:
@@ -3103,32 +3122,57 @@ def write_playbook(
                 )
 
     # Apply profile-gating for roles with empty annotation conditions
-    all_profile_set = set(profile_names)
-    for role_name, profiles in role_to_profiles.items():
-        existing = expected_role_map.get(role_name)
-        # Only add profile gate if annotation-based condition is empty
-        if existing is not None:
-            continue
+    _apply_profile_gating(role_to_profiles, expected_role_map, profile_names)
 
-        # Universal roles (in ALL profiles including headless) need no gate
-        if profiles >= all_profile_set:
-            continue
+    # Add overlay-based roles (not in profiles but referenced in play.yml)
+    for role_name, (condition, tags) in _OVERLAY_ROLES.items():
+        expected_role_map[role_name] = condition
+        role_to_profiles.setdefault(role_name, set())
+        role_tags.setdefault(role_name, set()).update(tags)
 
-        de_members = profiles & de_profiles
-        if not de_members:
-            continue
+    return role_to_profiles, expected_role_map, role_tags, profile_names
 
-        # Determine the profile gate expression
-        if de_members == de_profiles:
-            gate = "_has_display"
-        elif len(de_members) == 1:
-            gate = profile_to_flag[next(iter(de_members))]
-        else:
-            gate = " or ".join(
-                profile_to_flag[p] for p in sorted(de_members)
-            )
 
-        expected_role_map[role_name] = gate
+def write_playbook(
+    profiles_dir: str,
+    playbook_path: str,
+    os_family: str = "Archlinux",
+) -> int:
+    """Generate play.yml from profile definitions.
+
+    Reads all profile YAML files, generates the expected play.yml structure
+    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
+
+    Preserves:
+    - pre_tasks structure (resolve-role-manifest call)
+    - vars_prompt section
+    - Section comments in roles
+
+    The _host_vars_json template is auto-generated from discovered overlay variables.
+
+    Args:
+        profiles_dir: Path to profiles directory
+        playbook_path: Path where play.yml should be written
+        os_family: OS family for role resolution (default: Archlinux)
+
+    Returns:
+        0 on success, 1 on error
+    """
+    profiles_path = Path(profiles_dir)
+    if not profiles_path.exists():
+        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
+        return 1
+    if not profiles_path.is_dir():
+        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
+        return 1
+
+    # Discover overlay variables for _host_vars_json template
+    overlay_vars = _discover_overlay_variables(profiles_dir)
+    host_vars_template = _generate_host_vars_json_template(overlay_vars)
+
+    # Merge all profile manifests (includes profile-gating and overlay roles)
+    role_to_profiles, expected_role_map, role_tags, profile_names = \
+        _merge_all_profile_manifests(profiles_dir, os_family)
 
     # Organize roles into sections (deep copy to avoid mutating module-level list)
     sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
@@ -3142,18 +3186,6 @@ def write_playbook(
             section_map[section_name]["roles"].append(
                 (role_name, condition, tags)
             )
-
-    # Add overlay-based roles to the optional section
-    # These roles are not in profiles but are referenced in play.yml
-    overlay_roles_mapping = {
-        "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
-        "laptop": ("_overlay_laptop", ["laptop"]),
-    }
-
-    for role_name, (condition, tags) in overlay_roles_mapping.items():
-        section_map["optional"]["roles"].append(
-            (role_name, condition, tags)
-        )
 
     # Write playbook to file with manual YAML formatting
     playbook_file = Path(playbook_path)
@@ -3257,17 +3289,52 @@ def write_playbook(
 def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     """Generate play.yml from profile definitions.
 
-    Reads all profile YAML files, generates the complete play.yml structure
-    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
+    When --write is provided, writes the complete play.yml structure
+    (with pre_tasks, roles, and vars_prompt) to the specified path.
 
-    The _host_vars_json template is auto-generated from discovered overlay variables,
-    eliminating the need to manually maintain the list of overlay variables.
+    When --write is omitted, outputs merged role manifest JSON to stdout
+    (aggregated from all profiles, same as what would be written to play.yml).
     """
-    return write_playbook(
-        profiles_dir=args.profiles_dir,
-        playbook_path=args.playbook,
-        os_family=args.os_family or "Archlinux",
-    )
+    profiles_path = Path(args.profiles_dir)
+    if not profiles_path.exists():
+        print(f"Error: Profiles directory does not exist: {profiles_path}", file=sys.stderr)
+        return 1
+    if not profiles_path.is_dir():
+        print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
+        return 1
+
+    os_family = args.os_family or "Archlinux"
+
+    if args.write_path:
+        # Write mode: generate complete playbook
+        return write_playbook(
+            profiles_dir=args.profiles_dir,
+            playbook_path=args.write_path,
+            os_family=os_family,
+        )
+    else:
+        # Stdout mode: output merged role manifest JSON
+        role_to_profiles, expected_role_map, role_tags, profile_names = \
+            _merge_all_profile_manifests(args.profiles_dir, os_family)
+
+        # Build output JSON
+        roles_output = []
+        for role_name in sorted(expected_role_map.keys()):
+            roles_output.append({
+                "role": role_name,
+                "tags": sorted(role_tags[role_name]),
+                "condition": expected_role_map[role_name],
+                "source": sorted(role_to_profiles[role_name]),
+            })
+
+        output = {
+            "os_family": os_family,
+            "profiles": profile_names,
+            "roles": roles_output,
+        }
+
+        print(json.dumps(output, indent=2))
+        return 0
 
 
 def _cmd_sync_playbook(args: argparse.Namespace) -> int:
@@ -3480,9 +3547,10 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Generate play.yml from profile definitions.",
     )
     p_generate.add_argument(
-        "--playbook",
-        default=str(Path(__file__).parent.parent / "play.yml"),
-        help="Path to play.yml file to write",
+        "--write",
+        dest="write_path",
+        default=None,
+        help="Path to write play.yml file (if omitted, outputs role manifest JSON to stdout)",
     )
     p_generate.add_argument(
         "--os-family", dest="os_family", default=None,

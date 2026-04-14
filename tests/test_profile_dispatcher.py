@@ -2985,7 +2985,7 @@ class TestCLIGeneratePlaybook:
         with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
             tmpfile = tmp.name
         try:
-            rc = main(["generate-playbook", "--playbook", tmpfile])
+            rc = main(["generate-playbook", "--write", tmpfile])
             assert rc == 0
             with open(tmpfile) as f:
                 parsed = yaml.safe_load(f)
@@ -3002,12 +3002,32 @@ class TestCLIGeneratePlaybook:
         finally:
             os.unlink(tmpfile)
 
+    def test_generate_playbook_stdout_mode(self, capsys):
+        """generate-playbook without --write should output role manifest JSON to stdout."""
+        rc = main(["generate-playbook"])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert captured.err == ""
+        # Verify output is valid JSON
+        output = json.loads(captured.out)
+        assert "os_family" in output
+        assert "profiles" in output
+        assert "roles" in output
+        # Verify roles structure
+        assert isinstance(output["roles"], list)
+        if len(output["roles"]) > 0:
+            role = output["roles"][0]
+            assert "role" in role
+            assert "tags" in role
+            assert "condition" in role
+            assert "source" in role
+
     def test_generate_playbook_output_includes_tags(self, capsys):
         """generate-playbook output should include tags for each role."""
         with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
             tmpfile = tmp.name
         try:
-            main(["generate-playbook", "--playbook", tmpfile])
+            main(["generate-playbook", "--write", tmpfile])
             with open(tmpfile) as f:
                 parsed = yaml.safe_load(f)
             play = parsed[0]
@@ -3028,7 +3048,7 @@ class TestCLIGeneratePlaybook:
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "myprofile.yml").write_text(valid)
             outfile = str(Path(tmpdir) / "output.yml")
-            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--playbook", outfile])
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
             assert rc == 0
             with open(outfile) as f:
                 parsed = yaml.safe_load(f)
