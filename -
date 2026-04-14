@@ -109,7 +109,6 @@
     - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
     - { role: python, tags: ["python"] }
     - { role: rust, tags: ["rust"] }
-    - { role: ai, tags: ["ai"] }
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------
