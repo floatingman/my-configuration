@@ -1,4 +1,7 @@
 ---
 golang_version: "1.23.4"
-golang_arch: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' if ansible_facts['architecture'] == 'aarch64' else ansible_facts['architecture'] }}"
+golang_arch: >-
+  {{ 'amd64' if ansible_facts['architecture'] == 'x86_64'
+     else 'arm64' if ansible_facts['architecture'] == 'aarch64'
+     else ansible_facts['architecture'] }}
 golang_install_dir: /usr/local/go

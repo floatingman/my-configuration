@@ -9,9 +9,9 @@
 #   illuminance_file:   ls /sys/bus/iio/devices/iio:device*/in_illuminance_raw
 #
 # Example:
-#   illuminanced:
+#   backlight_illuminanced:
 #     max_backlight_file: /sys/class/backlight/intel_backlight/max_brightness
 #     backlight_file: /sys/class/backlight/intel_backlight/brightness
 #     illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_raw
 #     min_backlight: 1
-illuminanced: null
+backlight_illuminanced: null

@@ -11,7 +11,7 @@
 
   pre_tasks:
     - name: Resolve unified role manifest
-      command: >-
+      ansible.builtin.command: >-
         {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
         {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-role-manifest
         --profiles-dir "{{ playbook_dir }}/profiles"
@@ -42,7 +42,7 @@
       vars:
         _manifest: "{{ _manifest_result.stdout | from_json }}"
         _pf: "{{ _manifest.profile_flags }}"
-      set_fact:
+      ansible.builtin.set_fact:
         _profile: "{{ _manifest.profile }}"
         _dm: "{{ _pf._dm | default('', true) }}"
         _has_display: "{{ _pf._has_display }}"
@@ -58,7 +58,7 @@
       vars:
         _manifest: "{{ _manifest_result.stdout | from_json }}"
         _of: "{{ _manifest.overlay_flags }}"
-      set_fact:
+      ansible.builtin.set_fact:
         _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
         _overlay_backlight: "{{ _of._overlay_backlight | default(false) }}"
         _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"
@@ -102,7 +102,7 @@
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
-    - { role: ai, tags: ["ai"] }
+    - { role: ai, tags: ["ai"], when: ai_enabled is defined }
     - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
     - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: editors, tags: ["editors"] }
@@ -188,7 +188,7 @@
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------
-    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
+    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles_config is defined }
     - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: _overlay_bluetooth }

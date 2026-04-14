@@ -3,11 +3,11 @@
 - name: Check if Homebrew is available
   ansible.builtin.stat:
     path: /home/linuxbrew/.linuxbrew/bin/brew
-  register: homebrew_stat
+  register: ai_homebrew_stat
 
 - name: Set Homebrew availability fact
   ansible.builtin.set_fact:
-    homebrew_available: "{{ homebrew_stat.stat.exists }}"
+    ai_homebrew_available: "{{ ai_homebrew_stat.stat.exists }}"
 
 # -------------------------------------------------------------------------
 # Claude Code (native installer)
@@ -15,27 +15,28 @@
 - name: Check if Claude Code is already installed
   ansible.builtin.stat:
     path: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
-  register: claude_code_stat
+  register: ai_claude_code_stat
 
 - name: Install Claude Code via native installer
-  ansible.builtin.shell: |
-    curl -fsSL https://claude.ai/install.sh | sh
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://claude.ai/install.sh | sh
+    executable: /bin/bash
   environment:
     HOME: "{{ lookup('env', 'HOME') }}"
     PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  register: claude_code_install
-  changed_when: claude_code_install.rc == 0
+  register: ai_claude_code_install
+  changed_when: ai_claude_code_install.rc == 0
   when:
     - ai_claude_code_enabled | default(true)
-    - not claude_code_stat.stat.exists
+    - not ai_claude_code_stat.stat.exists
 
 - name: Apply Claude Code configuration from chezmoi
   ansible.builtin.command: >
     chezmoi apply ~/.claude
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  register: chezmoi_claude_result
-  changed_when: chezmoi_claude_result.rc == 0
+  register: ai_chezmoi_claude_result
+  changed_when: ai_chezmoi_claude_result.rc == 0
   failed_when: false
   when:
     - ai_claude_code_enabled | default(true)
@@ -61,18 +62,18 @@
     path: /home/linuxbrew/.linuxbrew/bin
   when:
     - ai_rtk_enabled | default(true)
-    - homebrew_available
+    - ai_homebrew_available
   ignore_errors: true
-  register: rtk_homebrew_result
+  register: ai_rtk_homebrew_result
 
 - name: Install rtk via cargo (fallback)
   ansible.builtin.command:
     cmd: cargo install rtk
   when:
     - ai_rtk_enabled | default(true)
-    - not homebrew_available or rtk_homebrew_result is failed
-  register: rtk_cargo_result
-  changed_when: rtk_cargo_result.rc != 0 or "already installed" not in rtk_cargo_result.stderr | default("")
+    - not ai_homebrew_available or ai_rtk_homebrew_result is failed
+  register: ai_rtk_cargo_result
+  changed_when: ai_rtk_cargo_result.rc != 0 or "already installed" not in ai_rtk_cargo_result.stderr | default("")
   failed_when: false
 
 # -------------------------------------------------------------------------
@@ -85,9 +86,9 @@
     path: /home/linuxbrew/.linuxbrew/bin
   when:
     - ai_claudectx_enabled | default(true)
-    - homebrew_available
+    - ai_homebrew_available
   ignore_errors: true
-  register: claudectx_homebrew_result
+  register: ai_claudectx_homebrew_result
 
 - name: Install claudectx via go install (fallback)
   ansible.builtin.command:
@@ -97,9 +98,9 @@
     PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/go/bin"
   when:
     - ai_claudectx_enabled | default(true)
-    - not homebrew_available or claudectx_homebrew_result is failed
-  register: claudectx_go_result
-  changed_when: claudectx_go_result.rc != 0
+    - not ai_homebrew_available or ai_claudectx_homebrew_result is failed
+  register: ai_claudectx_go_result
+  changed_when: ai_claudectx_go_result.rc != 0
   failed_when: false
 
 # -------------------------------------------------------------------------
@@ -108,7 +109,7 @@
 - name: Ensure Claude Code is installed before plugin installation
   ansible.builtin.stat:
     path: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
-  register: claude_code_for_plugins
+  register: ai_claude_code_for_plugins
   when:
     - ai_claude_code_plugins_enabled | default(true)
 
@@ -118,13 +119,13 @@
   environment:
     HOME: "{{ lookup('env', 'HOME') }}"
     PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  loop: "{{ ai_claude_official_plugins | default(claude_official_plugins_default) }}"
-  register: plugin_official_result
-  changed_when: plugin_official_result.rc == 0
+  loop: "{{ ai_claude_official_plugins | default(ai_claude_official_plugins_default) }}"
+  register: ai_plugin_official_result
+  changed_when: ai_plugin_official_result.rc == 0
   failed_when: false
   when:
     - ai_claude_code_plugins_enabled | default(true)
-    - claude_code_for_plugins.stat.exists
+    - ai_claude_code_for_plugins.stat.exists
 
 - name: Install cc-skills marketplace plugins
   ansible.builtin.shell: |
@@ -132,13 +133,13 @@
   environment:
     HOME: "{{ lookup('env', 'HOME') }}"
     PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  loop: "{{ ai_claude_cc_skills_plugins | default(claude_cc_skills_plugins_default) }}"
-  register: plugin_cc_skills_result
-  changed_when: plugin_cc_skills_result.rc == 0
+  loop: "{{ ai_claude_cc_skills_plugins | default(ai_claude_cc_skills_plugins_default) }}"
+  register: ai_plugin_cc_skills_result
+  changed_when: ai_plugin_cc_skills_result.rc == 0
   failed_when: false
   when:
     - ai_claude_code_plugins_enabled | default(true)
-    - claude_code_for_plugins.stat.exists
+    - ai_claude_code_for_plugins.stat.exists
 
 - name: Install everything-claude-code plugin
   ansible.builtin.shell: |
@@ -146,13 +147,13 @@
   environment:
     HOME: "{{ lookup('env', 'HOME') }}"
     PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  register: plugin_everything_result
-  changed_when: plugin_everything_result.rc == 0
+  register: ai_plugin_everything_result
+  changed_when: ai_plugin_everything_result.rc == 0
   failed_when: false
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_everything_claude_code_enabled | default(true)
-    - claude_code_for_plugins.stat.exists
+    - ai_claude_code_for_plugins.stat.exists
 
 - name: Add caveman custom marketplace
   ansible.builtin.shell: |
@@ -160,13 +161,13 @@
   environment:
     HOME: "{{ lookup('env', 'HOME') }}"
     PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  register: caveman_marketplace_result
-  changed_when: caveman_marketplace_result.rc == 0
+  register: ai_caveman_marketplace_result
+  changed_when: ai_caveman_marketplace_result.rc == 0
   failed_when: false
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_caveman_enabled | default(true)
-    - claude_code_for_plugins.stat.exists
+    - ai_claude_code_for_plugins.stat.exists
 
 - name: Install caveman plugin
   ansible.builtin.shell: |
@@ -174,10 +175,10 @@
   environment:
     HOME: "{{ lookup('env', 'HOME') }}"
     PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  register: caveman_plugin_result
-  changed_when: caveman_plugin_result.rc == 0
+  register: ai_caveman_plugin_result
+  changed_when: ai_caveman_plugin_result.rc == 0
   failed_when: false
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_caveman_enabled | default(true)
-    - claude_code_for_plugins.stat.exists
+    - ai_claude_code_for_plugins.stat.exists

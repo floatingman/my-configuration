@@ -1,5 +1,8 @@
 ---
 # defaults file for ai
+# Set to true to enable AI tooling on this machine; null disables it
+ai_enabled: null
+
 # Enable/disable individual AI tools
 ai_claude_code_enabled: true
 ai_claude_config_enabled: true
@@ -13,7 +16,7 @@ ai_everything_claude_code_enabled: true
 ai_caveman_enabled: true
 
 # Default plugins to install from claude-plugins-official marketplace
-claude_official_plugins_default:
+ai_claude_official_plugins_default:
   - superpowers@claude-plugins-official
   - context7@claude-plugins-official
   - code-review@claude-plugins-official
@@ -33,6 +36,6 @@ claude_official_plugins_default:
   - firecrawl@claude-plugins-official
 
 # Default plugins to install from cc-skills marketplace
-claude_cc_skills_plugins_default:
+ai_claude_cc_skills_plugins_default:
   - dotfiles-tools@cc-skills
   - mise@cc-skills

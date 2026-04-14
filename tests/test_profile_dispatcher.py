@@ -1868,7 +1868,7 @@ class TestResolveRoleManifestFunction:
     def test_evaluates_config_check_correctly(self):
         """config_check expressions are evaluated against host_vars."""
         host_vars = {
-            "dotfiles": {"repo_url": "https://github.com/example/dotfiles"}
+            "dotfiles_config": {"repo_url": "https://github.com/example/dotfiles"}
         }
         manifest = resolve_role_manifest(
             profile="hyprland",

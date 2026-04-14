@@ -17,7 +17,7 @@
     src: connectivity.conf.j2
     dest: /etc/NetworkManager/conf.d/20-connectivity.conf
     mode: "0644"
-  when: network.conn_check is defined
+  when: networkmanager_config.conn_check is defined
 
 - name: Push MAC address randomization config
   become: true
@@ -32,7 +32,7 @@
     src: wifi-wired-exclusive.sh
     dest: /etc/NetworkManager/dispatcher.d/70-wifi-wired-exclusive
     mode: "0755"
-  when: network.wifi_wired_exclusive | default(false)
+  when: networkmanager_config.wifi_wired_exclusive | default(false)
 
 - name: Enable and start NetworkManager
   become: true

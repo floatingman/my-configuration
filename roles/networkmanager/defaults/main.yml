@@ -1,6 +1,6 @@
 ---
 # NetworkManager configuration.
-network:
+networkmanager_config:
   # Randomize MAC address on WiFi scan and per-connection.
   # true enables random_mac.conf; false skips it.
   spoof_mac: false

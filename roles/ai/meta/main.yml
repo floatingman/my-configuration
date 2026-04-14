@@ -1,7 +1,7 @@
 ---
 # meta file for ai
 galaxy_info:
-  author: your name
+  author: floatingman
   description: Install AI development tools (Claude Code, rtk, claudectx)
   company: your company
   license: MIT

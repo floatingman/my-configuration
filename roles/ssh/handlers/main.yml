@@ -4,4 +4,4 @@
   ansible.builtin.service:
     name: sshd.service
     state: restarted
-  when: ssh.enable_sshd
+  when: ssh_config.enable_sshd
