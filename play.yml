@@ -102,6 +102,7 @@
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
+    - { role: ai, tags: ["ai"] }
     - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
     - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: editors, tags: ["editors"] }
@@ -109,7 +110,6 @@
     - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
     - { role: python, tags: ["python"] }
     - { role: rust, tags: ["rust"] }
-    - { role: ai, tags: ["ai"] }
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------
@@ -132,6 +132,7 @@
     # -------------------------------------------------------------------------
     - { role: lightdm, tags: ["lightdm"], when: _has_display and _dm == 'lightdm' }
     - { role: gdm, tags: ["gdm"], when: _has_display and _dm == 'gdm' }
+    - { role: sddm, tags: ["sddm"], when: _has_display and _dm == 'sddm' }
     # -------------------------------------------------------------------------
     # Profile: i3 (X11 tiling window manager)
     # -------------------------------------------------------------------------

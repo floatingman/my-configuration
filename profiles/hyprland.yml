@@ -8,7 +8,7 @@ description: |
 
 extends: _base.yml
 
-display_manager_default: lightdm
+display_manager_default: sddm
 desktop_environment: hyprland
 
 requires:
@@ -19,7 +19,12 @@ roles:
   - { role: wayland, tags: [wayland] }
   - { role: hyprland, tags: [hyprland] }
 
-  # Display Manager (lightdm is default; sddm not yet implemented as a role)
+  # Display Manager (sddm is default; lightdm also supported)
+  - role: sddm
+    tags: [sddm]
+    requires_config:
+      display_manager: sddm
+
   - role: lightdm
     tags: [lightdm]
     requires_config:

@@ -46,10 +46,10 @@ _ROLE_SECTIONS = OrderedDict([
     ("Base System (Arch-only)", {"base", "grub", "microcode"}),
     ("Universal System Configuration", {"gnupg", "sysmon", "cron", "system", "shell", "ssh", "archive"}),
     ("Package Management", {"ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"}),
-    ("Development Tools", {"editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools"}),
+    ("Development Tools", {"editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools", "ai"}),
     ("Networking (Arch-only)", {"nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"}),
     ("Productivity & Utilities", {"taskwarrior", "pass", "spell", "clipboard", "clouddrive", "syncthing"}),
-    ("Display Manager", {"lightdm", "gdm"}),
+    ("Display Manager", {"lightdm", "gdm", "sddm"}),
     ("Profile: i3 (X11 tiling window manager)", {"x", "i3"}),
     ("Profile: Hyprland (Wayland compositor)", {"wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"}),
     ("Profile: GNOME", {"gnome"}),
@@ -2753,6 +2753,7 @@ _ROLE_TO_SECTION: Dict[str, str] = {
     "docker": "dev",
     "kubernetes": "dev",
     "devtools": "dev",
+    "ai": "dev",
 
     # Networking (Arch-only)
     "nmtrust": "networking",
@@ -2772,6 +2773,7 @@ _ROLE_TO_SECTION: Dict[str, str] = {
     # Display Manager
     "lightdm": "display_manager",
     "gdm": "display_manager",
+    "sddm": "display_manager",
 
     # Profile: i3 (X11 tiling window manager)
     "x": "i3_profile",
