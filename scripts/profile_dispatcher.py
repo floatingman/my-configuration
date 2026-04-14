@@ -3069,6 +3069,59 @@ def _merge_all_profile_manifests(
     return role_to_profiles, expected_role_map, role_tags, profile_names
 
 
+def _apply_profile_gating(
+    role_to_profiles: Dict[str, set],
+    expected_role_map: Dict[str, Optional[str]],
+    profile_names: list,
+) -> None:
+    """Apply profile-gating conditions for roles with empty annotation conditions.
+
+    For roles that are exclusive to certain desktop environment profiles,
+    this adds the appropriate _is_<de> condition (e.g., _is_i3) to the
+    expected_role_map. Mutates expected_role_map in place.
+
+    Args:
+        role_to_profiles: Mapping of role name to set of profiles containing it
+        expected_role_map: Mapping of role name to condition string (mutated)
+        profile_names: List of all profile names
+    """
+    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+    profile_to_flag = {
+        "i3": "_is_i3",
+        "hyprland": "_is_hyprland",
+        "gnome": "_is_gnome",
+        "awesomewm": "_is_awesomewm",
+        "kde": "_is_kde",
+    }
+
+    all_profile_set = set(profile_names)
+    for role_name, profiles in role_to_profiles.items():
+        existing = expected_role_map.get(role_name)
+        # Only add profile gate if annotation-based condition is empty
+        if existing is not None:
+            continue
+
+        # Universal roles (in ALL profiles including headless) need no gate
+        if profiles >= all_profile_set:
+            continue
+
+        de_members = profiles & de_profiles
+        if not de_members:
+            continue
+
+        # Determine the profile gate expression
+        if de_members == de_profiles:
+            gate = "_has_display"
+        elif len(de_members) == 1:
+            gate = profile_to_flag[next(iter(de_members))]
+        else:
+            gate = " or ".join(
+                profile_to_flag[p] for p in sorted(de_members)
+            )
+
+        expected_role_map[role_name] = gate
+
+
 def write_playbook(
     profiles_dir: str,
     playbook_path: str,
@@ -3110,43 +3163,8 @@ def write_playbook(
     role_to_profiles, expected_role_map, role_tags, profile_names = \
         _merge_all_profile_manifests(profiles_dir, os_family)
 
-    # DE profiles and their corresponding _is_<de> flags
-    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
-    profile_to_flag = {
-        "i3": "_is_i3",
-        "hyprland": "_is_hyprland",
-        "gnome": "_is_gnome",
-        "awesomewm": "_is_awesomewm",
-        "kde": "_is_kde",
-    }
-
     # Apply profile-gating for roles with empty annotation conditions
-    all_profile_set = set(profile_names)
-    for role_name, profiles in role_to_profiles.items():
-        existing = expected_role_map.get(role_name)
-        # Only add profile gate if annotation-based condition is empty
-        if existing is not None:
-            continue
-
-        # Universal roles (in ALL profiles including headless) need no gate
-        if profiles >= all_profile_set:
-            continue
-
-        de_members = profiles & de_profiles
-        if not de_members:
-            continue
-
-        # Determine the profile gate expression
-        if de_members == de_profiles:
-            gate = "_has_display"
-        elif len(de_members) == 1:
-            gate = profile_to_flag[next(iter(de_members))]
-        else:
-            gate = " or ".join(
-                profile_to_flag[p] for p in sorted(de_members)
-            )
-
-        expected_role_map[role_name] = gate
+    _apply_profile_gating(role_to_profiles, expected_role_map, profile_names)
 
     # Organize roles into sections (deep copy to avoid mutating module-level list)
     sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
@@ -3278,8 +3296,10 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     When --write is provided, writes the complete play.yml structure
     (with pre_tasks, roles, and vars_prompt) to the specified path.
 
-    When --write is omitted, outputs merged role manifest JSON to stdout
-    (aggregated from all profiles, same as what would be written to play.yml).
+    When --write is omitted, outputs merged role manifest JSON to stdout.
+    The output includes profile-gated conditions matching play.yml, but
+    excludes overlay-injected roles (bluetooth, laptop) which are only
+    added during full playbook generation.
     """
     profiles_path = Path(args.profiles_dir)
     if not profiles_path.exists():
@@ -3302,6 +3322,9 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
         # Stdout mode: output merged role manifest JSON
         role_to_profiles, expected_role_map, role_tags, profile_names = \
             _merge_all_profile_manifests(args.profiles_dir, os_family)
+
+        # Apply profile-gating so conditions match what play.yml would contain
+        _apply_profile_gating(role_to_profiles, expected_role_map, profile_names)
 
         # Build output JSON
         roles_output = []
