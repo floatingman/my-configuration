@@ -532,52 +532,6 @@ class ResolvedManifest:
     roles: Tuple[RoleCondition, ...]
 
 
-class PlaybookGenerator:
-    """
-    Generates and resolves role manifests from profile definitions.
-
-    Wraps resolve_role_manifest() in a class-based API suitable for
-    CLI commands and programmatic use.
-    """
-
-    def __init__(
-        self,
-        profiles_dir: str = _DEFAULT_PROFILES_DIR,
-    ):
-        self._profiles_dir = profiles_dir
-
-    def resolve(
-        self,
-        profile: Optional[str] = None,
-        display_manager: Optional[str] = None,
-        desktop_environment: Optional[str] = None,
-        disable_i3: bool = False,
-        disable_hyprland: bool = False,
-        disable_gnome: bool = False,
-        disable_awesomewm: bool = False,
-        disable_kde: bool = False,
-        host_vars: Optional[dict] = None,
-        os_family: str = "Archlinux",
-        evaluator: Any = None,
-        preserve_config_check: bool = False,
-    ) -> ResolvedManifest:
-        return resolve_role_manifest(
-            profile=profile,
-            display_manager=display_manager,
-            desktop_environment=desktop_environment,
-            disable_i3=disable_i3,
-            disable_hyprland=disable_hyprland,
-            disable_gnome=disable_gnome,
-            disable_awesomewm=disable_awesomewm,
-            disable_kde=disable_kde,
-            host_vars=host_vars,
-            os_family=os_family,
-            profiles_dir=self._profiles_dir,
-            evaluator=evaluator,
-            preserve_config_check=preserve_config_check,
-        )
-
-
 # ---------------------------------------------------------------------------
 # Overlay Data Model (Slice 2)
 # ---------------------------------------------------------------------------
@@ -2180,6 +2134,43 @@ class PlaybookGenerator:
             for rc in manifest.roles
         )
 
+    def resolve_manifest(
+        self,
+        profile: Optional[str] = None,
+        display_manager: Optional[str] = None,
+        desktop_environment: Optional[str] = None,
+        disable_i3: bool = False,
+        disable_hyprland: bool = False,
+        disable_gnome: bool = False,
+        disable_awesomewm: bool = False,
+        disable_kde: bool = False,
+        host_vars: Optional[Dict[str, Any]] = None,
+        os_family: Optional[str] = None,
+        evaluator: Optional[ConditionEvaluator] = None,
+        preserve_config_check: bool = False,
+    ) -> ResolvedManifest:
+        """Resolve a single profile manifest with full parameter control.
+
+        Wraps resolve_role_manifest() using this generator's profiles_dir.
+        Returns the ResolvedManifest with flags, overlay flags, and role
+        conditions for the given profile.
+        """
+        return resolve_role_manifest(
+            profile=profile,
+            display_manager=display_manager,
+            desktop_environment=desktop_environment,
+            disable_i3=disable_i3,
+            disable_hyprland=disable_hyprland,
+            disable_gnome=disable_gnome,
+            disable_awesomewm=disable_awesomewm,
+            disable_kde=disable_kde,
+            host_vars=host_vars,
+            os_family=os_family or self.os_family,
+            profiles_dir=self.profiles_dir,
+            evaluator=evaluator,
+            preserve_config_check=preserve_config_check,
+        )
+
     def explain(self, role_name: str) -> str:
         """
         Return a human-readable explanation of why a role has its condition.
@@ -2719,7 +2710,7 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
                 return 1
 
         generator = PlaybookGenerator(profiles_dir=args.profiles_dir)
-        result = generator.resolve(
+        result = generator.resolve_manifest(
             profile=args.profile,
             display_manager=args.display_manager,
             desktop_environment=args.desktop_environment,
