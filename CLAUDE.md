@@ -39,7 +39,7 @@ This is an Ansible configuration management repository that automates the comple
 ## Architecture and Structure
 
 ### Core Components
-- **play.yml** - Main playbook orchestrating ~60 roles with conditional OS support
+- **play.yml** - Auto-generated playbook from profiles/ (run `make generate-playbook` to regenerate)
 - **requirements.yml** - Defines Ansible roles and collections (all Git-based)
 - **Makefile** - Build automation with validation and help system
 - **group_vars/all.yml** - Main configuration file with all system variables
