@@ -100,7 +100,7 @@
     - ai_claudectx_enabled | default(true)
     - not ai_homebrew_available or ai_claudectx_homebrew_result is failed
   register: ai_claudectx_go_result
-  changed_when: ai_claudectx_go_result.rc != 0
+  changed_when: ai_claudectx_go_result.rc == 0
   failed_when: false
 
 # -------------------------------------------------------------------------
