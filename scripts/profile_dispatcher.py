@@ -2222,7 +2222,7 @@ class PlaybookGenerator:
             annotations = role_annotations.get(profile, {})
             if annotations:
                 condition = translator.translate_annotation(
-                    annotations if annotations else role_name,
+                    annotations,
                     self.host_vars,
                 )
                 profile_conditions[profile] = condition
@@ -2992,23 +2992,6 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     lines.append("  | to_json")
     lines.append("}}")
     return "\n".join(lines)
-
-
-def _format_role_entry(role_name: str, condition: Optional[str], tags: List[str]) -> Dict[str, Any]:
-    """Format a role entry for play.yml output.
-
-    Args:
-        role_name: Name of the role
-        condition: Optional when condition
-        tags: List of tags
-
-    Returns:
-        Dictionary suitable for YAML output
-    """
-    entry = {"role": role_name, "tags": tags}
-    if condition:
-        entry["when"] = condition
-    return entry
 
 
 def _apply_profile_gating(
