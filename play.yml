@@ -11,7 +11,7 @@
 
   pre_tasks:
     - name: Resolve unified role manifest
-      command: >-
+      ansible.builtin.command: >-
         {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
         {{ playbook_dir }}/scripts/profile_dispatcher.py resolve-role-manifest
         --profiles-dir "{{ playbook_dir }}/profiles"
@@ -42,7 +42,7 @@
       vars:
         _manifest: "{{ _manifest_result.stdout | from_json }}"
         _pf: "{{ _manifest.profile_flags }}"
-      set_fact:
+      ansible.builtin.set_fact:
         _profile: "{{ _manifest.profile }}"
         _dm: "{{ _pf._dm | default('', true) }}"
         _has_display: "{{ _pf._has_display }}"
@@ -58,7 +58,7 @@
       vars:
         _manifest: "{{ _manifest_result.stdout | from_json }}"
         _of: "{{ _manifest.overlay_flags }}"
-      set_fact:
+      ansible.builtin.set_fact:
         _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
         _overlay_backlight: "{{ _of._overlay_backlight | default(false) }}"
         _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"
@@ -82,56 +82,57 @@
     # -------------------------------------------------------------------------
     # Universal System Configuration
     # -------------------------------------------------------------------------
-    - { role: gnupg, tags: ["gnupg"] }
-    - { role: sysmon, tags: ["sysmon"] }
+    - { role: archive, tags: ["archive"] }
     - { role: cron, tags: ["cron"] }
-    - { role: system, tags: ["system"] }
+    - { role: gnupg, tags: ["gnupg"] }
     - { role: shell, tags: ["shell"] }
     - { role: ssh, tags: ["ssh"] }
-    - { role: archive, tags: ["archive"] }
+    - { role: sysmon, tags: ["sysmon"] }
+    - { role: system, tags: ["system"] }
     # -------------------------------------------------------------------------
     # Package Management
     # -------------------------------------------------------------------------
-    - { role: ansible-role-packages, tags: ["packages"] }
     - { role: ansible-role-asdf, tags: ["asdf"] }
+    - { role: ansible-role-binaries, tags: ["binaries"], when: not _is_arch }
+    - { role: ansible-role-packages, tags: ["packages"] }
+    - { role: aur, tags: ["aur"], when: _is_arch }
     - { role: flatpak, tags: ["flatpak"] }
     - { role: golang, tags: ["golang"], when: not _is_arch }
     - { role: homebrew, tags: ["homebrew"], when: not _is_arch }
-    - { role: ansible-role-binaries, tags: ["binaries"], when: not _is_arch }
-    - { role: aur, tags: ["aur"], when: _is_arch }
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
+    - { role: ai, tags: ["ai"], when: ai_enabled | default(false) | bool }
+    - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
+    - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: editors, tags: ["editors"] }
     - { role: filesystem, tags: ["filesystem"] }
+    - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
     - { role: python, tags: ["python"] }
     - { role: rust, tags: ["rust"] }
-    - { role: docker, tags: ["docker"], when: _is_arch }
-    - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
-    - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
-    - { role: ai, tags: ["ai"] }
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: nmtrust, tags: ["nmtrust"], when: _is_arch and _has_display }
-    - { role: networkmanager, tags: ["networkmanager"], when: _is_arch and _has_display }
-    - { role: nettools, tags: ["nettools"], when: _is_arch }
-    - { role: mirrorlist, tags: ["mirrorlist"], when: _is_arch }
     - { role: filesharing, tags: ["filesharing"], when: _is_arch }
+    - { role: mirrorlist, tags: ["mirrorlist"], when: _is_arch }
+    - { role: nettools, tags: ["nettools"], when: _is_arch }
+    - { role: networkmanager, tags: ["networkmanager"], when: _is_arch and _has_display }
+    - { role: nmtrust, tags: ["nmtrust"], when: _is_arch and _has_display }
     # -------------------------------------------------------------------------
     # Productivity & Utilities
     # -------------------------------------------------------------------------
-    - { role: taskwarrior, tags: ["taskwarrior"], when: _is_arch }
-    - { role: pass, tags: ["pass"], when: _is_arch }
-    - { role: spell, tags: ["spell"] }
     - { role: clipboard, tags: ["clipboard"], when: _is_arch }
     - { role: clouddrive, tags: ["clouddrive"], when: _is_arch }
+    - { role: pass, tags: ["pass"], when: _is_arch }
+    - { role: spell, tags: ["spell"] }
     - { role: syncthing, tags: ["syncthing"] }
+    - { role: taskwarrior, tags: ["taskwarrior"], when: _is_arch }
     # -------------------------------------------------------------------------
     # Display Manager
     # -------------------------------------------------------------------------
     - { role: lightdm, tags: ["lightdm"], when: _has_display and _dm == 'lightdm' }
     - { role: gdm, tags: ["gdm"], when: _has_display and _dm == 'gdm' }
+    - { role: sddm, tags: ["sddm"], when: _has_display and _dm == 'sddm' }
     # -------------------------------------------------------------------------
     # Profile: i3 (X11 tiling window manager)
     # -------------------------------------------------------------------------
@@ -140,14 +141,14 @@
     # -------------------------------------------------------------------------
     # Profile: Hyprland (Wayland compositor)
     # -------------------------------------------------------------------------
-    - { role: wayland, tags: ["wayland"], when: _is_hyprland }
     - { role: hyprland, tags: ["hyprland"], when: _is_hyprland }
-    - { role: qt_gtk_toolkit, tags: ["qt_gtk_toolkit"], when: _is_hyprland }
-    - { role: widgets, tags: ["widgets"], when: _is_hyprland }
-    - { role: uv_python_packages, tags: ["uv_python_packages"], when: _is_hyprland }
     - { role: microtex, tags: ["microtex"], when: _is_hyprland }
     - { role: oneui4_icons, tags: ["oneui4_icons"], when: _is_hyprland }
+    - { role: qt_gtk_toolkit, tags: ["qt_gtk_toolkit"], when: _is_hyprland }
     - { role: screencapture, tags: ["screencapture"], when: _is_hyprland }
+    - { role: uv_python_packages, tags: ["uv_python_packages"], when: _is_hyprland }
+    - { role: wayland, tags: ["wayland"], when: _is_hyprland }
+    - { role: widgets, tags: ["widgets"], when: _is_hyprland }
     # -------------------------------------------------------------------------
     # Profile: GNOME
     # -------------------------------------------------------------------------
@@ -163,31 +164,31 @@
     # -------------------------------------------------------------------------
     # Fonts & Theming (any desktop profile)
     # -------------------------------------------------------------------------
+    - { role: cursor-theme, tags: ["cursor-theme"], when: _has_display and cursor_theme.enabled }
     - { role: fonts, tags: ["fonts"], when: _is_arch and _has_display }
     - { role: nerd-fonts, tags: ["fonts"], when: _has_display }
-    - { role: cursor-theme, tags: ["cursor-theme"], when: _has_display and cursor_theme.enabled }
     # -------------------------------------------------------------------------
     # Desktop Applications (any desktop profile)
     # -------------------------------------------------------------------------
-    - { role: terminal, tags: ["terminal"], when: _has_display }
-    - { role: notes, tags: ["notes"], when: _has_display }
-    - { role: browsers, tags: ["browsers"], when: _has_display }
-    - { role: filemanager, tags: ["filemanager"], when: _has_display }
-    - { role: screensaver, tags: ["screensaver"], when: _has_display }
-    - { role: mpv, tags: ["mpv"], when: _has_display }
-    - { role: media, tags: ["media"], when: _has_display }
-    - { role: sound, tags: ["sound"], when: _has_display }
-    - { role: proton, tags: ["proton"], when: _has_display }
     - { role: android, tags: ["android"], when: _has_display }
     - { role: backlight, tags: ["backlight"], when: _has_display }
-    - { role: mpd, tags: ["mpd"], when: _has_display }
-    - { role: twitch, tags: ["twitch"], when: _has_display }
+    - { role: browsers, tags: ["browsers"], when: _has_display }
     - { role: cups, tags: ["cups"], when: _is_arch and _has_display }
+    - { role: filemanager, tags: ["filemanager"], when: _has_display }
+    - { role: media, tags: ["media"], when: _has_display }
+    - { role: mpd, tags: ["mpd"], when: _has_display }
+    - { role: mpv, tags: ["mpv"], when: _has_display }
+    - { role: notes, tags: ["notes"], when: _has_display }
+    - { role: proton, tags: ["proton"], when: _has_display }
+    - { role: screensaver, tags: ["screensaver"], when: _has_display }
+    - { role: sound, tags: ["sound"], when: _has_display }
+    - { role: terminal, tags: ["terminal"], when: _has_display }
+    - { role: twitch, tags: ["twitch"], when: _has_display }
     - { role: udisks, tags: ["udisks"], when: _is_arch and _has_display }
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------
-    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles is defined }
+    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles_config is defined }
     - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: _overlay_bluetooth }

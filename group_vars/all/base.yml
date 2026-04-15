@@ -57,7 +57,7 @@ goesimage:
   run_on: all
   flags: -w -e
 
-ssh:
+ssh_config:
   port: 22
   enable_sshd: true
 
@@ -73,7 +73,7 @@ gitconfig:
   meld: true
 
 
-kernel_parameters: "quiet consoleblank=60"
+grub_kernel_parameters: "quiet consoleblank=60"
 
 # GPU configuration
 # Options: auto, amd, nvidia, intel
@@ -437,10 +437,10 @@ uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/ra
 uv_python_packages_venv_path: "/home/dnewman/.local/state/quickshell/.venv"
 uv_python_packages_enabled: true
 
-power_management: "tuned"
+laptop_power_management: "tuned"
 
 # You have to look up these values https://github.com/mikhail-m1/illuminanced
-illuminanced:
+backlight_illuminanced:
   max_backlight_file: /sys/class/backlight/amdgpu_bl1/max_brightness
   backlight_file: /sys/class/backlight/amdgpu_bl1/brightness
   illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_input

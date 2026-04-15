@@ -1,6 +1,6 @@
 ---
 # SSH daemon and client configuration.
-ssh:
+ssh_config:
   # Port the SSH daemon listens on.
   port: 22
 

@@ -28,7 +28,7 @@
     name: sshd.service
     enabled: true
     state: started
-  when: ssh.enable_sshd and ansible_facts["os_family"] == "Archlinux"
+  when: ssh_config.enable_sshd and ansible_facts["os_family"] == "Archlinux"
 
 - name: Disable and stop OpenSSH
   become: true
@@ -36,7 +36,7 @@
     name: sshd.service
     enabled: false
     state: stopped
-  when: not ssh.enable_sshd and ansible_facts["os_family"] == "Archlinux"
+  when: not ssh_config.enable_sshd and ansible_facts["os_family"] == "Archlinux"
 
 - name: Install sshfs
   become: true
@@ -90,12 +90,12 @@
 - name: Install user SSH key
   become: true
   ansible.builtin.copy:
-    src: "{{ ssh.user_key }}"
+    src: "{{ ssh_config.user_key }}"
     dest: /home/{{ user.name }}/.ssh/id_rsa
     mode: '0600'
     owner: "{{ user.name }}"
     group: "{{ user.group }}"
-  when: ssh.user_key is defined
+  when: ssh_config.user_key is defined
 
 - name: Install Mosh
   become: true

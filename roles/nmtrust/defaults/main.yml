@@ -1,5 +1,5 @@
 ---
 # List of NetworkManager connection UUIDs to mark as trusted.
 # Set to an empty list (or omit from group_vars) to skip configuring trusted UUIDs.
-network:
+nmtrust_config:
   trusted_uuid: []

@@ -23,10 +23,10 @@
   ansible.builtin.command: >
     chezmoi init
     --apply
-    --source="{{ dotfiles.repo_url }}"
-    --branch="{{ dotfiles.branch | default('main') }}"
+    --source="{{ dotfiles_config.repo_url }}"
+    --branch="{{ dotfiles_config.branch | default('main') }}"
   changed_when: true
-  when: dotfiles is defined
+  when: dotfiles_config is defined
   become_user: "{{ user.name }}"
   environment:
     HOME: "/home/{{ user.name }}"

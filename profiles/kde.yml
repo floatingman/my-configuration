@@ -15,40 +15,45 @@ requires:
 
 roles:
   # Display Server (KDE supports both X11 and Wayland, default to X11)
-  - { role: x,             tags: [x] }
+  - { role: x, tags: [x] }
 
   # KDE Plasma
-  - { role: kde,           tags: [kde] }
+  - { role: kde, tags: [kde] }
 
-  # Display Manager (SDDM is standard for KDE, but lightdm works too)
+  # Display Manager (sddm is default; lightdm also supported)
+  - role: sddm
+    tags: [sddm]
+    requires_config:
+      display_manager: sddm
+
   - role: lightdm
     tags: [lightdm]
     requires_config:
       display_manager: lightdm
 
   # Fonts & Theming
-  - { role: fonts,         tags: [fonts],         os: archlinux,  requires_display: true }
-  - { role: nerd-fonts,    tags: [fonts],          requires_display: true }
+  - { role: fonts, tags: [fonts], os: archlinux, requires_display: true }
+  - { role: nerd-fonts, tags: [fonts], requires_display: true }
   - role: cursor-theme
     tags: [cursor-theme]
     requires_display: true
     config_check: "cursor_theme.enabled"
 
   # Desktop Applications
-  - { role: terminal,      tags: [terminal],       requires_display: true }
-  - { role: notes,         tags: [notes],          requires_display: true }
-  - { role: browsers,      tags: [browsers],       requires_display: true }
-  - { role: filemanager,   tags: [filemanager],    requires_display: true }
-  - { role: screensaver,   tags: [screensaver],    requires_display: true }
-  - { role: mpv,           tags: [mpv],            requires_display: true }
-  - { role: media,         tags: [media],          requires_display: true }
-  - { role: sound,         tags: [sound],          requires_display: true }
-  - { role: proton,        tags: [proton],         requires_display: true }
-  - { role: android,       tags: [android],        requires_display: true }
-  - { role: backlight,     tags: [backlight],      requires_display: true }
-  - { role: mpd,           tags: [mpd],            requires_display: true }
-  - { role: twitch,        tags: [twitch],         requires_display: true }
+  - { role: terminal, tags: [terminal], requires_display: true }
+  - { role: notes, tags: [notes], requires_display: true }
+  - { role: browsers, tags: [browsers], requires_display: true }
+  - { role: filemanager, tags: [filemanager], requires_display: true }
+  - { role: screensaver, tags: [screensaver], requires_display: true }
+  - { role: mpv, tags: [mpv], requires_display: true }
+  - { role: media, tags: [media], requires_display: true }
+  - { role: sound, tags: [sound], requires_display: true }
+  - { role: proton, tags: [proton], requires_display: true }
+  - { role: android, tags: [android], requires_display: true }
+  - { role: backlight, tags: [backlight], requires_display: true }
+  - { role: mpd, tags: [mpd], requires_display: true }
+  - { role: twitch, tags: [twitch], requires_display: true }
 
   # Arch-specific (display-dependent)
-  - { role: cups,          tags: [cups],           os: archlinux,  requires_display: true }
-  - { role: udisks,        tags: [udisks],         os: archlinux,  requires_display: true }
+  - { role: cups, tags: [cups], os: archlinux, requires_display: true }
+  - { role: udisks, tags: [udisks], os: archlinux, requires_display: true }

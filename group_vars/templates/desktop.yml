@@ -19,7 +19,7 @@ user:
 
 # Hardware
 laptop: true                # true for laptops (enables power mgmt, trackpad config)
-power_management: tuned     # tuned | tlp  (only used when laptop: true)
+laptop_power_management: tuned     # tuned | tlp  (only used when laptop: true)
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Display
@@ -34,7 +34,7 @@ display_manager: lightdm    # lightdm | gdm | sddm
 # Boot
 # kernel_parameters: "quiet consoleblank=60"   # Kernel cmdline for GRUB (overrides default GRUB_CMDLINE_LINUX_DEFAULT)
 
-dotfiles:
+dotfiles_config:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
   branch: main              # Git branch for dotfiles
   # chezmoi applies all files by default; use chezmoi's tags system for conditional files
@@ -42,27 +42,29 @@ dotfiles:
 # Backlight / ambient light sensor
 # Run: ls /sys/class/backlight/   to find your backlight device
 # Run: ls /sys/bus/iio/devices/   to find your illuminance device (if present)
-illuminanced:
+backlight_illuminanced:
   max_backlight_file: /sys/class/backlight/DEVICE/max_brightness
   backlight_file: /sys/class/backlight/DEVICE/brightness
   illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_input
   min_backlight: 60
 
 # SSH
-ssh:
+ssh_config:
   port: 22                  # SSH daemon listen port
   enable_sshd: true
   # user_key: files/id_rsa  # Optional: local SSH private key to install for the user
 
 # Network
 # Run: nmcli connection show   to find your trusted connection UUIDs
-network:
+networkmanager_config:
   spoof_mac: true
   conn_check:
-    url: http://connectivitycheck.gstatic.com/generate_204
+    uri: http://connectivitycheck.gstatic.com/generate_204
     interval: 5
     response: 204
   wifi_wired_exclusive: true   # Disable WiFi when wired link is up
+
+nmtrust_config:
   trusted_uuid:
     - REPLACE-WITH-YOUR-UUID   # Run: nmcli connection show | grep UUID
 
@@ -71,9 +73,10 @@ bluetooth:
   disable: false            # true to disable bluetooth entirely
 
 # AI Development Tools
-ai:
-  claude_code_enabled: true      # Install Claude Code (AI CLI tool)
-  claude_config_enabled: true    # Apply Claude Code config from chezmoi
-  ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
-  rtk_enabled: true              # Install rtk (token optimization proxy)
-  claudectx_enabled: true        # Install claudectx (context management tool)
+# Set ai_enabled: true to install AI tooling
+# ai_enabled: true
+ai_claude_code_enabled: true      # Install Claude Code (AI CLI tool)
+ai_claude_config_enabled: true    # Apply Claude Code config from chezmoi
+ai_ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
+ai_rtk_enabled: true              # Install rtk (token optimization proxy)
+ai_claudectx_enabled: true        # Install claudectx (context management tool)
