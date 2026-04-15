@@ -532,6 +532,52 @@ class ResolvedManifest:
     roles: Tuple[RoleCondition, ...]
 
 
+class PlaybookGenerator:
+    """
+    Generates and resolves role manifests from profile definitions.
+
+    Wraps resolve_role_manifest() in a class-based API suitable for
+    CLI commands and programmatic use.
+    """
+
+    def __init__(
+        self,
+        profiles_dir: str = _DEFAULT_PROFILES_DIR,
+    ):
+        self._profiles_dir = profiles_dir
+
+    def resolve(
+        self,
+        profile: Optional[str] = None,
+        display_manager: Optional[str] = None,
+        desktop_environment: Optional[str] = None,
+        disable_i3: bool = False,
+        disable_hyprland: bool = False,
+        disable_gnome: bool = False,
+        disable_awesomewm: bool = False,
+        disable_kde: bool = False,
+        host_vars: Optional[dict] = None,
+        os_family: str = "Archlinux",
+        evaluator: Any = None,
+        preserve_config_check: bool = False,
+    ) -> ResolvedManifest:
+        return resolve_role_manifest(
+            profile=profile,
+            display_manager=display_manager,
+            desktop_environment=desktop_environment,
+            disable_i3=disable_i3,
+            disable_hyprland=disable_hyprland,
+            disable_gnome=disable_gnome,
+            disable_awesomewm=disable_awesomewm,
+            disable_kde=disable_kde,
+            host_vars=host_vars,
+            os_family=os_family,
+            profiles_dir=self._profiles_dir,
+            evaluator=evaluator,
+            preserve_config_check=preserve_config_check,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Overlay Data Model (Slice 2)
 # ---------------------------------------------------------------------------
@@ -2672,7 +2718,8 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
                 print(f"Invalid JSON in --host-vars: {exc}", file=sys.stderr)
                 return 1
 
-        result = resolve_role_manifest(
+        generator = PlaybookGenerator(profiles_dir=args.profiles_dir)
+        result = generator.resolve(
             profile=args.profile,
             display_manager=args.display_manager,
             desktop_environment=args.desktop_environment,
@@ -2683,7 +2730,6 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
             disable_kde=args.disable_kde,
             host_vars=host_vars,
             os_family=args.os_family,
-            profiles_dir=args.profiles_dir,
             evaluator=Jinja2Evaluator(),
         )
     except ValueError as exc:

@@ -37,6 +37,7 @@ from profile_dispatcher import (
     generate_host_vars_template,
     generate_overlay_facts_task,
     _section_sort_key,
+    PlaybookGenerator,
     OverlayDefinition,
     ResolvedOverlay,
     ResolvedOverlayRole,
@@ -55,7 +56,6 @@ from profile_dispatcher import (
     DefaultTranslator,
     PlaybookRole,
     SyncResult,
-    PlaybookGenerator,
 )
 
 # Path to the real profiles directory used in integration-style tests
@@ -1981,6 +1981,39 @@ class TestCLIResolveRoleManifest:
         err = capsys.readouterr().err
         assert rc == 1
         assert "Unknown profile" in err
+
+
+class TestPlaybookGenerator:
+    """Tests for PlaybookGenerator class."""
+
+    def test_resolve_delegates_to_resolve_role_manifest(self):
+        """PlaybookGenerator.resolve() produces same output as resolve_role_manifest()."""
+        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        result = gen.resolve(profile="i3", host_vars={}, os_family="Archlinux")
+
+        direct = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux",
+                                       profiles_dir=_PROFILES_DIR)
+        assert result == direct
+
+    def test_resolve_with_host_vars(self):
+        """PlaybookGenerator.resolve() passes host_vars through."""
+        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        result = gen.resolve(profile="i3", host_vars={"laptop": True}, os_family="Archlinux")
+        assert "_overlay_laptop" in result.overlay_flags
+        assert result.overlay_flags["_overlay_laptop"] is True
+
+    def test_resolve_headless(self):
+        """PlaybookGenerator.resolve() works for headless profile."""
+        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        result = gen.resolve(profile="headless", host_vars={}, os_family="Archlinux")
+        assert result.profile == "headless"
+        assert result.has_display is False
+
+    def test_resolve_unknown_profile_raises(self):
+        """PlaybookGenerator.resolve() raises ValueError for unknown profile."""
+        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        with pytest.raises(ValueError, match="Unknown profile"):
+            gen.resolve(profile="nonexistent", host_vars={})
 
 
 class TestNormalizeCondition:
