@@ -10,7 +10,6 @@ from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     resolve_manifest,
     resolve_role_manifest,
-    translate_condition,
     _normalize_condition,
     Manifest,
     RoleEntry,
@@ -75,73 +74,6 @@ class TestManifest:
 
 
 
-class TestTranslateConditionExtended:
-    """Extended tests for translate_condition() function."""
-
-    def test_no_annotation_returns_empty_condition(self):
-        """Role without annotations returns empty condition."""
-        role_entry = {"role": "base", "tags": ["base"]}
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == ""
-
-    def test_role_string_returns_empty_condition(self):
-        """Simple string role returns empty condition."""
-        condition = translate_condition("base", {}, "Archlinux")
-        assert condition == ""
-
-    def test_os_archlinux_translates_to_is_arch(self):
-        """os: archlinux translates to _is_arch."""
-        role_entry = {"role": "aur", "tags": ["aur"], "os": "archlinux"}
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_is_arch"
-
-    def test_os_debian_translates_to_not_is_arch(self):
-        """os: debian translates to not _is_arch."""
-        role_entry = {"role": "homebrew", "tags": ["homebrew"], "os": "debian"}
-        condition = translate_condition(role_entry, {}, "Debian")
-        assert condition == "not _is_arch"
-
-    def test_requires_display_translates_to_has_display(self):
-        """requires_display: true translates to _has_display."""
-        role_entry = {"role": "fonts", "tags": ["fonts"], "requires_display": True}
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_has_display"
-
-    def test_combined_annotations_are_anded(self):
-        """Multiple annotations are combined with AND."""
-        role_entry = {
-            "role": "cups",
-            "tags": ["cups"],
-            "os": "archlinux",
-            "requires_display": True,
-        }
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_is_arch and _has_display"
-
-    def test_config_check_enabled_returns_true(self):
-        """config_check for enabled flag returns true when enabled."""
-        role_entry = {
-            "role": "cursor-theme",
-            "tags": ["cursor-theme"],
-            "requires_display": True,
-            "config_check": "cursor_theme.enabled",
-        }
-        host_vars = {"cursor_theme": {"enabled": True}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
-        assert condition == "_has_display and true"
-
-    def test_config_check_disabled_returns_false(self):
-        """config_check for enabled flag returns false when disabled."""
-        role_entry = {
-            "role": "cursor-theme",
-            "tags": ["cursor-theme"],
-            "config_check": "cursor_theme.enabled",
-        }
-        host_vars = {"cursor_theme": {"enabled": False}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
-        assert condition == "false"
-
-
 
 class TestResolveRoleManifestFunction:
     """Test resolve_role_manifest() function."""
@@ -197,7 +129,7 @@ class TestResolveRoleManifestFunction:
     def test_evaluates_config_check_correctly(self):
         """config_check expressions are evaluated against host_vars."""
         host_vars = {
-            "dotfiles": {"repo_url": "https://github.com/example/dotfiles"}
+            "dotfiles_config": True,
         }
         manifest = resolve_role_manifest(
             profile="hyprland",
