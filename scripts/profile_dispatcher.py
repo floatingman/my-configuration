@@ -164,9 +164,9 @@ class ConditionTranslator(Protocol):
 
 
 class AnsibleConditionTranslator:
-    """Concrete implementation of ConditionTranslator that wraps translate_condition().
+    """Concrete implementation of ConditionTranslator that wraps _translate_condition().
 
-    This class wraps the existing translate_condition() function to implement
+    This class wraps the module-private _translate_condition() function to implement
     the ConditionTranslator protocol, preserving proven behavior while enabling
     test injection and future extensibility.
     """
