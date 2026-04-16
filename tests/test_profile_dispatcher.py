@@ -46,7 +46,6 @@ from profile_dispatcher import (
     Manifest,
     RoleCondition,
     ResolvedManifest,
-    _translate_condition as translate_condition,
     DictEvaluator,
     EvaluationError,
     ConditionTranslator,
@@ -1322,35 +1321,40 @@ class TestManifest:
 
 
 class TestTranslateConditionExtended:
-    """Extended tests for translate_condition() function."""
+    """Extended tests for AnsibleConditionTranslator.translate_annotation()."""
 
     def test_no_annotation_returns_empty_condition(self):
         """Role without annotations returns empty condition."""
         role_entry = {"role": "base", "tags": ["base"]}
-        condition = translate_condition(role_entry, {}, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation(role_entry, {})
         assert condition == ""
 
     def test_role_string_returns_empty_condition(self):
         """Simple string role returns empty condition."""
-        condition = translate_condition("base", {}, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation("base", {})
         assert condition == ""
 
     def test_os_archlinux_translates_to_is_arch(self):
         """os: archlinux translates to _is_arch."""
         role_entry = {"role": "aur", "tags": ["aur"], "os": "archlinux"}
-        condition = translate_condition(role_entry, {}, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation(role_entry, {})
         assert condition == "_is_arch"
 
     def test_os_debian_translates_to_not_is_arch(self):
         """os: debian translates to not _is_arch."""
         role_entry = {"role": "homebrew", "tags": ["homebrew"], "os": "debian"}
-        condition = translate_condition(role_entry, {}, "Debian")
+        translator = AnsibleConditionTranslator(os_family="Debian")
+        condition = translator.translate_annotation(role_entry, {})
         assert condition == "not _is_arch"
 
     def test_requires_display_translates_to_has_display(self):
         """requires_display: true translates to _has_display."""
         role_entry = {"role": "fonts", "tags": ["fonts"], "requires_display": True}
-        condition = translate_condition(role_entry, {}, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation(role_entry, {})
         assert condition == "_has_display"
 
     def test_combined_annotations_are_anded(self):
@@ -1361,7 +1365,8 @@ class TestTranslateConditionExtended:
             "os": "archlinux",
             "requires_display": True,
         }
-        condition = translate_condition(role_entry, {}, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation(role_entry, {})
         assert condition == "_is_arch and _has_display"
 
     def test_config_check_enabled_returns_true(self):
@@ -1373,7 +1378,8 @@ class TestTranslateConditionExtended:
             "config_check": "cursor_theme.enabled",
         }
         host_vars = {"cursor_theme": {"enabled": True}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation(role_entry, host_vars)
         assert condition == "_has_display and true"
 
     def test_config_check_disabled_returns_false(self):
@@ -1384,7 +1390,8 @@ class TestTranslateConditionExtended:
             "config_check": "cursor_theme.enabled",
         }
         host_vars = {"cursor_theme": {"enabled": False}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        condition = translator.translate_annotation(role_entry, host_vars)
         assert condition == "false"
 
 

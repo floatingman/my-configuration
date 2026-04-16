@@ -91,8 +91,8 @@ class ConditionTranslator(Protocol):
 
     This protocol enables test doubles and alternative implementations
     for condition translation. The default implementation is
-    AnsibleConditionTranslator which wraps the module-private _translate_condition()
-    logic.
+    AnsibleConditionTranslator which implements condition translation logic
+    directly.
 
     Methods:
         translate_annotation: Convert role annotations to Jinja2 condition
@@ -164,11 +164,12 @@ class ConditionTranslator(Protocol):
 
 
 class AnsibleConditionTranslator:
-    """Concrete implementation of ConditionTranslator that wraps _translate_condition().
+    """Concrete implementation of ConditionTranslator.
 
-    This class wraps the module-private _translate_condition() function to implement
-    the ConditionTranslator protocol, preserving proven behavior while enabling
-    test injection and future extensibility.
+    Implements condition translation logic directly, converting role annotations
+    (os, requires_display, requires_config, config_check) into Jinja2 expressions.
+    Supports test injection and alternative implementations via the
+    ConditionTranslator protocol.
     """
 
     def __init__(
@@ -193,14 +194,101 @@ class AnsibleConditionTranslator:
         annotation: str | dict[str, Any],
         host_vars: dict,
     ) -> str:
-        """Translate role annotations to a Jinja2 condition string."""
-        return _translate_condition(
-            role_entry=annotation,
-            host_vars=host_vars,
-            os_family=self._os_family,
-            evaluator=self._evaluator,
-            preserve_config_check=self._preserve_config_check,
-        )
+        """Translate role annotations into a Jinja2 when: condition string.
+
+        Maps role annotations (os, requires_display, requires_config, config_check)
+        into Jinja2 expressions using facts like _is_arch, _has_display, _dm, etc.
+
+        Args:
+            annotation: Role name string or dict with annotations (role, tags, os,
+                        requires_display, requires_config, config_check)
+            host_vars: Host variables dict for config_check evaluation
+
+        Returns:
+            Jinja2 condition string (empty string if no condition)
+        """
+        conditions: List[str] = []
+
+        # Normalize annotation: handle both string "role" and dict {"role": "..."}
+        if isinstance(annotation, str):
+            role_dict: dict = {}
+        else:
+            role_dict = annotation
+
+        # OS condition: os: archlinux → _is_arch, os: debian → not _is_arch
+        os_spec = role_dict.get("os")
+        if os_spec:
+            if os_spec == "archlinux":
+                conditions.append("_is_arch")
+            elif os_spec == "debian":
+                conditions.append("not _is_arch")
+
+        # Display condition: requires_display: true → _has_display
+        if role_dict.get("requires_display"):
+            conditions.append("_has_display")
+
+        # Config condition: requires_config: {display_manager: lightdm} → _has_display and _dm == 'lightdm'
+        requires_config = role_dict.get("requires_config")
+        if requires_config and isinstance(requires_config, dict):
+            if "display_manager" in requires_config:
+                dm_value = requires_config["display_manager"]
+                conditions.append("_has_display")
+                conditions.append(f"_dm == '{dm_value}'")
+
+        # config_check: evaluate the expression and return boolean result
+        config_check = role_dict.get("config_check")
+        if config_check:
+            if self._preserve_config_check:
+                # Keep as-is for static comparison (sync-playbook); don't evaluate
+                conditions.append(config_check)
+            elif self._evaluator:
+                # Evaluate config_check against host_vars using the evaluator
+                try:
+                    result = self._evaluator.evaluate(config_check, host_vars)
+                    # config_check becomes a boolean in the condition
+                    conditions.append("true" if result else "false")
+                except Exception:
+                    # If evaluation fails, use false to be safe
+                    conditions.append("false")
+            else:
+                # No evaluator provided - fall back to string evaluation
+                # This is a simplified path for basic cases
+                try:
+                    # Handle simple "dotfiles is defined" style checks
+                    if " is defined" in config_check:
+                        var_name = config_check.split()[0]
+                        is_defined = var_name in host_vars and host_vars[var_name] is not None
+                        conditions.append("true" if is_defined else "false")
+                    elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check and " | " not in config_check:
+                        # Simple boolean check
+                        var_path = config_check.split(".")
+                        value = host_vars
+                        exists = True
+                        for key in var_path:
+                            if isinstance(value, dict) and key in value:
+                                value = value[key]
+                            else:
+                                exists = False
+                                break
+                        # For enabled flags like cursor_theme.enabled
+                        if isinstance(value, bool):
+                            conditions.append("true" if value else "false")
+                        elif isinstance(value, dict) and "enabled" in value:
+                            conditions.append("true" if value["enabled"] else "false")
+                        else:
+                            conditions.append("true" if exists and value else "false")
+                    else:
+                        # Complex expression - keep as-is for Jinja2 to evaluate
+                        conditions.append(config_check)
+                except Exception:
+                    # On any error, be conservative and include the role
+                    conditions.append("true")
+
+        # Join all conditions with AND (implicit in Jinja2 when: list)
+        if conditions:
+            return " and ".join(conditions)
+
+        return ""
 
     def translate_profile_gate(
         self,
@@ -598,116 +686,6 @@ def discover_overlays(profiles_dir: str) -> List[str]:
     return sorted(overlays)
 
 
-def _translate_condition(
-    role_entry: str | dict[str, Any],
-    host_vars: dict,
-    os_family: str,
-    evaluator: Any = None,
-    preserve_config_check: bool = False,
-) -> str:
-    """
-    Translate role annotations into a Jinja2 when: condition string.
-
-    Maps role annotations (os, requires_display, requires_config, config_check)
-    into Jinja2 expressions using facts like _is_arch, _has_display, _dm, etc.
-
-    Args:
-        role_entry: Role name string or dict with annotations (role, tags, os, requires_display, etc.)
-        host_vars: Host variables dict for config_check evaluation
-        os_family: OS family ('Archlinux' or 'Debian')
-        evaluator: Optional evaluator protocol for config_check expressions
-        preserve_config_check: When True, keep config_check as a raw Jinja2
-            expression instead of evaluating it.  Use this for static comparison
-            (e.g., sync-playbook) where host_vars are not available.
-
-    Returns:
-        Jinja2 condition string (empty string if no condition)
-    """
-    conditions: List[str] = []
-
-    # Normalize role_entry: handle both string "role" and dict {"role": "..."}
-    if isinstance(role_entry, str):
-        role_name = role_entry
-        role_dict = {}
-    else:
-        role_name = role_entry.get("role", "")
-        role_dict = role_entry
-
-    # OS condition: os: archlinux → _is_arch, os: debian → not _is_arch
-    os_spec = role_dict.get("os")
-    if os_spec:
-        if os_spec == "archlinux":
-            conditions.append("_is_arch")
-        elif os_spec == "debian":
-            conditions.append("not _is_arch")
-
-    # Display condition: requires_display: true → _has_display
-    if role_dict.get("requires_display"):
-        conditions.append("_has_display")
-
-    # Config condition: requires_config: {display_manager: lightdm} → _has_display and _dm == 'lightdm'
-    requires_config = role_dict.get("requires_config")
-    if requires_config and isinstance(requires_config, dict):
-        if "display_manager" in requires_config:
-            dm_value = requires_config["display_manager"]
-            conditions.append("_has_display")
-            conditions.append(f"_dm == '{dm_value}'")
-
-    # config_check: evaluate the expression and return boolean result
-    config_check = role_dict.get("config_check")
-    if config_check:
-        if preserve_config_check:
-            # Keep as-is for static comparison (sync-playbook); don't evaluate
-            conditions.append(config_check)
-        elif evaluator:
-            # Evaluate config_check against host_vars using the evaluator
-            try:
-                result = evaluator.evaluate(config_check, host_vars)
-                # config_check becomes a boolean in the condition
-                conditions.append("true" if result else "false")
-            except Exception:
-                # If evaluation fails, use false to be safe
-                conditions.append("false")
-        else:
-            # No evaluator provided - fall back to string evaluation
-            # This is a simplified path for basic cases
-            try:
-                # Handle simple "dotfiles is defined" style checks
-                if " is defined" in config_check:
-                    var_name = config_check.split()[0]
-                    is_defined = var_name in host_vars and host_vars[var_name] is not None
-                    conditions.append("true" if is_defined else "false")
-                elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check and " | " not in config_check:
-                    # Simple boolean check
-                    var_path = config_check.split(".")
-                    value = host_vars
-                    exists = True
-                    for key in var_path:
-                        if isinstance(value, dict) and key in value:
-                            value = value[key]
-                        else:
-                            exists = False
-                            break
-                    # For enabled flags like cursor_theme.enabled
-                    if isinstance(value, bool):
-                        conditions.append("true" if value else "false")
-                    elif isinstance(value, dict) and "enabled" in value:
-                        conditions.append("true" if value["enabled"] else "false")
-                    else:
-                        conditions.append("true" if exists and value else "false")
-                else:
-                    # Complex expression - keep as-is for Jinja2 to evaluate
-                    conditions.append(config_check)
-            except Exception:
-                # On any error, be conservative and include the role
-                conditions.append("true")
-
-    # Join all conditions with AND (implicit in Jinja2 when: list)
-    if conditions:
-        return " and ".join(conditions)
-
-    return ""
-
 
 def _normalize_condition(cond: Optional[str]) -> str:
     """Normalize a condition string for comparison.
@@ -771,6 +749,13 @@ def resolve_role_manifest(
     """
     if host_vars is None:
         host_vars = {}
+
+    # Create condition translator for this resolution context
+    translator = AnsibleConditionTranslator(
+        os_family=os_family,
+        evaluator=evaluator,
+        preserve_config_check=preserve_config_check,
+    )
 
     # Resolve profile to get flags
     resolved = resolve(
@@ -906,7 +891,7 @@ def resolve_role_manifest(
         # TODO: Track source during role collection
 
         # Translate condition
-        condition = _translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
+        condition = translator.translate_annotation(role_entry, host_vars)
 
         # Deduplicate: merge conditions and union tags if role already exists
         norm_cond = _normalize_condition(condition)
