@@ -91,7 +91,7 @@ class ConditionTranslator(Protocol):
 
     This protocol enables test doubles and alternative implementations
     for condition translation. The default implementation is
-    AnsibleConditionTranslator which wraps the existing translate_condition()
+    AnsibleConditionTranslator which wraps the existing _translate_condition()
     logic.
 
     Methods:
