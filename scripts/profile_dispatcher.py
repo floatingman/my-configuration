@@ -599,7 +599,7 @@ def discover_overlays(profiles_dir: str) -> List[str]:
 
 
 def _translate_condition(
-    role_entry: dict,
+    role_entry: str | dict[str, Any],
     host_vars: dict,
     os_family: str,
     evaluator: Any = None,
@@ -612,7 +612,7 @@ def _translate_condition(
     into Jinja2 expressions using facts like _is_arch, _has_display, _dm, etc.
 
     Args:
-        role_entry: Role dict with annotations (role, tags, os, requires_display, etc.)
+        role_entry: Role name string or dict with annotations (role, tags, os, requires_display, etc.)
         host_vars: Host variables dict for config_check evaluation
         os_family: OS family ('Archlinux' or 'Debian')
         evaluator: Optional evaluator protocol for config_check expressions
