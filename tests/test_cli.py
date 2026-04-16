@@ -2,10 +2,12 @@
 """Tests for CLI subcommand integration."""
 
 import json
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import main  # noqa: E402
@@ -332,6 +334,92 @@ class TestCLIResolveRoleManifest:
         err = capsys.readouterr().err
         assert rc == 1
         assert "Unknown profile" in err
+
+
+class TestCLIGeneratePlaybook:
+    """Tests for the 'generate-playbook' CLI subcommand."""
+
+    def test_generate_playbook_outputs_valid_yaml(self, capsys):
+        """generate-playbook should write a valid playbook YAML file."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                parsed = yaml.safe_load(f)
+            assert isinstance(parsed, list)
+            play = parsed[0]
+            assert "roles" in play
+            assert isinstance(play["roles"], list)
+            assert any(
+                (
+                    isinstance(role, dict) and role.get("role") in {"shell", "base"}
+                )
+                for role in play["roles"]
+            )
+        finally:
+            os.unlink(tmpfile)
+
+    def test_generate_playbook_stdout_mode(self, capsys):
+        """generate-playbook without --write should output role manifest JSON to stdout."""
+        rc = main(["generate-playbook"])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert captured.err == ""
+        # Verify output is valid JSON
+        output = json.loads(captured.out)
+        assert "os_family" in output
+        assert "profiles" in output
+        assert "roles" in output
+        # Verify roles structure
+        assert isinstance(output["roles"], list)
+        if len(output["roles"]) > 0:
+            role = output["roles"][0]
+            assert "role" in role
+            assert "tags" in role
+            assert "condition" in role
+            assert "source" in role
+
+    def test_generate_playbook_output_includes_tags(self, capsys):
+        """generate-playbook output should include tags for each role."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            main(["generate-playbook", "--write", tmpfile])
+            with open(tmpfile) as f:
+                parsed = yaml.safe_load(f)
+            play = parsed[0]
+            dict_roles = [r for r in play["roles"] if isinstance(r, dict)]
+            # Most roles should have tags
+            with_tags = [r for r in dict_roles if "tags" in r]
+            assert len(with_tags) > 0, "Expected at least one role with tags"
+            # Tags should be lists of strings
+            for role in with_tags:
+                assert isinstance(role["tags"], list)
+                assert all(isinstance(t, str) for t in role["tags"])
+        finally:
+            os.unlink(tmpfile)
+
+    def test_generate_playbook_custom_dir(self, capsys):
+        """generate-playbook respects --profiles-dir."""
+        valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "myprofile.yml").write_text(valid)
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 0
+            with open(outfile) as f:
+                parsed = yaml.safe_load(f)
+            assert "roles" in parsed[0]
+
+    def test_generate_playbook_bad_dir_exits_1(self, capsys):
+        """generate-playbook with nonexistent profiles-dir exits 1."""
+        rc = main(["generate-playbook", "--profiles-dir", "/nonexistent/path"])
+        captured = capsys.readouterr()
+        assert rc == 1
+        assert captured.out == ""
+        assert "does not exist" in captured.err
 
 
 
