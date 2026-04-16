@@ -288,8 +288,8 @@ class TestSyncPlaybook:
             real_play = f.read()
         # Replace a condition with equivalent but reordered terms
         modified = real_play.replace(
-            "goesimage is defined and _has_display",
             "_has_display and goesimage is defined",
+            "goesimage is defined and _has_display",
         )
         if modified == real_play:
             # Condition not found with exact text — skip test gracefully
