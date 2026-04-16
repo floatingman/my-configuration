@@ -12,7 +12,6 @@ CLI subcommands:
   resolve              Resolve a profile to JSON (for Ansible script module)
   resolve-manifest     Resolve profile to manifest JSON with OS detection (for Ansible)
   resolve-role-manifest Resolve a complete role manifest with computed conditions
-  resolve-overlays     Resolve overlays against host facts and output JSON
   sync-playbook        Compare play.yml roles with profile-derived expected roles
   generate-playbook    Generate play.yml from profile definitions
   validate             Validate all profiles and overlays in a directory (for CI)
@@ -29,8 +28,6 @@ from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
-
-import jinja2
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
@@ -324,6 +321,21 @@ class EvaluationError(Exception):
     pass
 
 
+class DictEvaluator:
+    """Evaluates conditions by looking them up in a dictionary.
+
+    Returns the mapped boolean value if the expression is a key in the dict,
+    otherwise returns False. This is useful in tests that want to isolate
+    resolution logic from expression evaluation semantics.
+    """
+
+    def __init__(self, mapping: dict[str, bool]) -> None:
+        self._mapping = dict(mapping)
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        return self._mapping.get(expression, False)
+
+
 class ConditionEvaluator(Protocol):
     """Protocol for condition expression evaluation.
 
@@ -345,94 +357,6 @@ class ConditionEvaluator(Protocol):
             EvaluationError: If the expression cannot be parsed or evaluated
         """
         ...
-
-
-class Jinja2Evaluator:
-    """Evaluates conditions using Jinja2 template syntax.
-
-    Supports the full range of Jinja2 expressions:
-    - Variable existence: "laptop", "bluetooth is defined"
-    - Default values: "laptop | default(false)"
-    - Boolean operators: "laptop and not (desktop | default(false))"
-    - Nested dict access: "bluetooth.disable", "laptop.hardware.trackpad"
-    - Parenthesized expressions: "(laptop or desktop) and gui"
-
-    This evaluator is used in production to evaluate overlay conditions.
-    """
-
-    def __init__(self) -> None:
-        # Use StrictUndefined to catch missing variables explicitly
-        # (rather than rendering them as empty strings)
-        self._env = jinja2.Environment(
-            undefined=jinja2.StrictUndefined,
-            autoescape=False,
-        )
-
-    def evaluate(self, expression: str, context: dict) -> bool:
-        """Evaluate a Jinja2 condition expression.
-
-        Wraps the expression in an if-else template to extract a boolean result.
-
-        Args:
-            expression: Jinja2 condition expression
-            context: Variables available to the expression
-
-        Returns:
-            True if the expression is truthy, False otherwise
-
-        Raises:
-            EvaluationError: If the expression cannot be parsed or contains
-                            undefined variables (without default filters)
-        """
-        # Wrap expression in a template that outputs __TRUE__ or __FALSE__
-        template_str = (
-            "{% if " + expression + " %}__TRUE__{% else %}__FALSE__{% endif %}"
-        )
-
-        try:
-            template = self._env.from_string(template_str)
-            result = template.render(**context)
-        except (jinja2.TemplateError, jinja2.UndefinedError) as exc:
-            raise EvaluationError(
-                f"Failed to evaluate expression '{expression}': {exc}"
-            ) from exc
-
-        return result.strip() == "__TRUE__"
-
-
-class DictEvaluator:
-    """Evaluates conditions by looking them up in a dictionary.
-
-    Returns the mapped boolean value if the expression is a key in the dict,
-    otherwise returns False. This is useful in tests that want to isolate
-    resolution logic from expression evaluation semantics.
-
-    Example:
-        evaluator = DictEvaluator({"laptop": True, "desktop": False})
-        evaluator.evaluate("laptop", {})  # Returns True
-        evaluator.evaluate("desktop", {})  # Returns False
-        evaluator.evaluate("unknown", {})  # Returns False
-    """
-
-    def __init__(self, mapping: dict[str, bool]) -> None:
-        """Initialize with a mapping of expression strings to boolean results.
-
-        Args:
-            mapping: Dictionary mapping expression strings to their evaluation results
-        """
-        self._mapping = dict(mapping)
-
-    def evaluate(self, expression: str, context: dict) -> bool:
-        """Evaluate an expression by looking it up in the mapping.
-
-        Args:
-            expression: Expression string to look up
-            context: Ignored (kept for protocol compatibility)
-
-        Returns:
-            The mapped boolean value, or False if the expression is not in the mapping
-        """
-        return self._mapping.get(expression, False)
 
 
 @dataclass(frozen=True)
@@ -749,7 +673,7 @@ def translate_condition(
                     var_name = config_check.split()[0]
                     is_defined = var_name in host_vars and host_vars[var_name] is not None
                     conditions.append("true" if is_defined else "false")
-                elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check:
+                elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check and " | " not in config_check:
                     # Simple boolean check
                     var_path = config_check.split(".")
                     value = host_vars
@@ -925,7 +849,7 @@ def resolve_role_manifest(
 
             if applies:
                 overlay_flags[f"_overlay_{overlay_name}"] = True
-                # Also emit per-role flags for consistency with resolve-overlays
+                # Also emit per-role overlay flags
                 for overlay_role in overlay_roles_list:
                     if isinstance(overlay_role, str):
                         rname = overlay_role
@@ -1256,77 +1180,6 @@ def _load_overlay(path: Path) -> Overlay:
 # ---------------------------------------------------------------------------
 # Overlay Resolution and Validation (Slice 3)
 # ---------------------------------------------------------------------------
-
-def resolve_overlays(
-    facts: dict,
-    has_display: bool,
-    is_arch: bool,
-    profiles_dir: str = _DEFAULT_PROFILES_DIR,
-    evaluator: Optional[ConditionEvaluator] = None,
-) -> list[ResolvedOverlay]:
-    """
-    Discover and resolve overlays against host facts.
-
-    Args:
-        facts: Dictionary of host facts (e.g., from group_vars/all/local.yml)
-        has_display: Whether this machine has a display server
-        is_arch: Whether this is an Arch Linux system
-        profiles_dir: Directory containing profiles/ subdirectory
-        evaluator: ConditionEvaluator instance (defaults to Jinja2Evaluator)
-
-    Returns:
-        Sorted list of ResolvedOverlay instances with per-role applies status
-
-    Raises:
-        ValueError: If an overlay fails to load or contains invalid expressions
-    """
-    if evaluator is None:
-        evaluator = Jinja2Evaluator()
-
-    overlay_paths = _discover_overlays(profiles_dir)
-    results = []
-
-    for path in overlay_paths:
-        overlay = _load_overlay(path)
-
-        # Evaluate overlay-level applies_when
-        try:
-            overlay_applies = evaluator.evaluate(overlay.applies_when, facts)
-        except (ValueError, EvaluationError) as exc:
-            raise ValueError(
-                f"Overlay '{overlay.name}': failed to evaluate applies_when: {exc}"
-            )
-
-        # Resolve each role with per-role conditions
-        resolved_roles = []
-        for role_entry in overlay.roles:
-            # Per-role applies = AND of:
-            # 1. Overlay-level applies result
-            # 2. OS constraint (if specified)
-            # 3. requires_display constraint (if specified)
-            role_applies = overlay_applies
-
-            # Check OS constraint
-            if role_entry.os is not None:
-                expected_os = "archlinux" if is_arch else "debian"
-                if role_entry.os != expected_os:
-                    role_applies = False
-
-            # Check requires_display constraint
-            if role_entry.requires_display and not has_display:
-                role_applies = False
-
-            resolved_roles.append((role_entry, role_applies))
-
-        results.append(ResolvedOverlay(
-            overlay=overlay,
-            applies=overlay_applies,
-            resolved_roles=tuple(resolved_roles),
-        ))
-
-    results.sort(key=lambda resolved: resolved.overlay.name)
-    return results
-
 
 def validate_overlays(
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
@@ -2634,69 +2487,6 @@ def _cmd_make_args(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
-    """Resolve overlays and output JSON with overlays list and flat facts dict; exit 1 on error."""
-    try:
-        facts = json.loads(args.facts_json) if args.facts_json else {}
-    except json.JSONDecodeError as exc:
-        print(f"Invalid JSON in --facts-json: {exc}", file=sys.stderr)
-        return 1
-
-    if not isinstance(facts, dict):
-        print(
-            "Invalid --facts-json: top-level JSON value must be an object (mapping).",
-            file=sys.stderr,
-        )
-        return 1
-
-    try:
-        resolved_list = resolve_overlays(
-            facts=facts,
-            has_display=args.has_display,
-            is_arch=args.is_arch,
-            profiles_dir=args.profiles_dir,
-        )
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-
-    # Convert ResolvedOverlay objects to dict format
-    overlays_output = []
-    flat_facts = {}
-
-    for resolved in resolved_list:
-        overlay_dict = {
-            "name": resolved.overlay.name,
-            "description": resolved.overlay.description,
-            "applies": resolved.applies,
-            "roles": []
-        }
-
-        for role_entry, applies in resolved.resolved_roles:
-            role_dict = {
-                "role": role_entry.role,
-                "tags": list(role_entry.tags),
-                "applies": applies,
-                "os": role_entry.os,
-                "requires_display": role_entry.requires_display,
-            }
-            overlay_dict["roles"].append(role_dict)
-
-            # Add to flat facts with _overlay_ prefix
-            fact_key = f"_overlay_{role_entry.role}"
-            flat_facts[fact_key] = applies
-
-        overlays_output.append(overlay_dict)
-
-    output = {
-        "overlays": overlays_output,
-        "facts": flat_facts,
-    }
-
-    print(json.dumps(output, indent=2))
-    return 0
-
-
 def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     """Output ResolvedManifest as JSON to stdout; exit 1 on error."""
     try:
@@ -2721,7 +2511,6 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
             disable_kde=args.disable_kde,
             host_vars=host_vars,
             os_family=args.os_family,
-            evaluator=Jinja2Evaluator(),
         )
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
@@ -3495,44 +3284,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
-    # --- resolve-overlays ---
-    p_resolve_overlays = subparsers.add_parser(
-        "resolve-overlays",
-        help="Resolve overlays against host facts and output JSON.",
-    )
-    p_resolve_overlays.add_argument(
-        "--facts-json",
-        default="{}",
-        help='JSON string of host facts (e.g., \'{"laptop": true}\')',
-    )
-    p_resolve_overlays.add_argument(
-        "--has-display",
-        action="store_true",
-        default=True,
-        help="Whether this machine has a display server (default: True)",
-    )
-    p_resolve_overlays.add_argument(
-        "--no-has-display",
-        dest="has_display",
-        action="store_false",
-        help="This machine does not have a display server",
-    )
-    p_resolve_overlays.add_argument(
-        "--is-arch",
-        action="store_true",
-        default=True,
-        help="Whether this is an Arch Linux system (default: True)",
-    )
-    p_resolve_overlays.add_argument(
-        "--no-is-arch",
-        dest="is_arch",
-        action="store_false",
-        help="This is not an Arch Linux system (e.g., Debian)",
-    )
-    p_resolve_overlays.add_argument(
-        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
-    )
-
     # --- resolve-role-manifest ---
     p_manifest = subparsers.add_parser(
         "resolve-role-manifest",
@@ -3624,7 +3375,6 @@ def main(argv: Optional[list] = None) -> int:
         "resolve": _cmd_resolve,
         "resolve-manifest": _cmd_resolve_manifest,
         "resolve-role-manifest": _cmd_resolve_role_manifest,
-        "resolve-overlays": _cmd_resolve_overlays,
         "sync-playbook": _cmd_sync_playbook,
         "generate-playbook": _cmd_generate_playbook,
         "validate": _cmd_validate,
