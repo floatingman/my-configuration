@@ -39,7 +39,7 @@ SHFMT_BIN      = $(shell command -v shfmt 2>/dev/null)
 
 
 .PHONY: test
-test: lint syntax-check validate-profiles check-sync ## Run all tests (lint + syntax check + profile validation + sync check)
+test: lint syntax-check validate-profiles check-sync pytest ## Run all tests (lint + syntax check + profile validation + sync check + pytest)
 
 .PHONY: lint
 lint: ## Run yamllint and ansible-lint
@@ -110,6 +110,12 @@ validate-deps: pip-deps ## Validate role dependency graph (no cycles, no missing
 check-sync: pip-deps ## Check play.yml sync with profile definitions (CI gate)
 	@echo 'Checking play.yml sync with profile definitions...'
 	@$(SCRIPT_PYTHON) scripts/profile_dispatcher.py sync-playbook --check
+
+.PHONY: pytest
+pytest: pip-deps ## Run Python test suite with pytest
+	@$(SCRIPT_PYTHON) -c "import pytest" 2>/dev/null || pipx inject ansible pytest
+	@echo 'Running pytest...'
+	@$(SCRIPT_PYTHON) -m pytest tests/ -v
 
 .PHONY: sync-playbook
 sync-playbook: pip-deps ## Show drift between play.yml and profile definitions
