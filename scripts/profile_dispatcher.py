@@ -673,7 +673,7 @@ def translate_condition(
                     var_name = config_check.split()[0]
                     is_defined = var_name in host_vars and host_vars[var_name] is not None
                     conditions.append("true" if is_defined else "false")
-                elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check:
+                elif " is defined" not in config_check and " or " not in config_check and " and " not in config_check and " | " not in config_check:
                     # Simple boolean check
                     var_path = config_check.split(".")
                     value = host_vars

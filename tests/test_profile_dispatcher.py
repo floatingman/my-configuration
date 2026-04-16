@@ -1972,6 +1972,13 @@ class TestConditionTranslatorProtocol:
         result = translator.translate_annotation(annotation, host_vars)
         assert result == "false"
 
+    def test_config_check_jinja_filter_passed_through(self):
+        """config_check with Jinja filters (e.g. | default(false) | bool) is passed through as-is."""
+        translator = AnsibleConditionTranslator(preserve_config_check=False)
+        annotation = {"role": "ai", "tags": ["ai"], "config_check": "ai_enabled | default(false) | bool"}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "ai_enabled | default(false) | bool"
+
     def test_requires_config_display_manager(self):
         """requires_config: {display_manager: lightdm} translates to _has_display and _dm == 'lightdm'."""
         translator = AnsibleConditionTranslator()
