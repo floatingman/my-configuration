@@ -900,10 +900,8 @@ def resolve_role_manifest(
         # Determine source
         source = resolved.profile  # Default to profile
 
-        # Check if this role is from an overlay
-        # (In a full implementation, we'd track source during collection)
-        # For now, assume all roles are from profile
-        # TODO: Track source during role collection
+        # Source tracking: roles from overlays get "profile+overlay" source
+        # when merged in deduplication below (see line ~928)
 
         # Translate condition
         condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
