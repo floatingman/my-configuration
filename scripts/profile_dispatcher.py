@@ -194,7 +194,7 @@ class AnsibleConditionTranslator:
         host_vars: dict,
     ) -> str:
         """Translate role annotations to a Jinja2 condition string."""
-        return translate_condition(
+        return _translate_condition(
             role_entry=annotation,
             host_vars=host_vars,
             os_family=self._os_family,
@@ -598,7 +598,7 @@ def discover_overlays(profiles_dir: str) -> List[str]:
     return sorted(overlays)
 
 
-def translate_condition(
+def _translate_condition(
     role_entry: dict,
     host_vars: dict,
     os_family: str,
@@ -906,7 +906,7 @@ def resolve_role_manifest(
         # TODO: Track source during role collection
 
         # Translate condition
-        condition = translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
+        condition = _translate_condition(role_entry, host_vars, os_family, evaluator, preserve_config_check)
 
         # Deduplicate: merge conditions and union tags if role already exists
         norm_cond = _normalize_condition(condition)

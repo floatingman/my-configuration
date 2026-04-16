@@ -46,7 +46,7 @@ from profile_dispatcher import (
     Manifest,
     RoleCondition,
     ResolvedManifest,
-    translate_condition,
+    _translate_condition as translate_condition,
     DictEvaluator,
     EvaluationError,
     ConditionTranslator,
