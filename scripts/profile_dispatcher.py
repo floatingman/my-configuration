@@ -8,6 +8,10 @@ Supports both profile mode (profile name) and manual mode (explicit variables).
 This is a standalone Python module with no Ansible dependency,
 making the dispatch logic unit-testable.
 
+All role resolution logic delegates to the PlaybookGenerator class,
+which is the single source of truth for deriving role lists from
+profile definitions.
+
 CLI subcommands:
   resolve              Resolve a profile to JSON (for Ansible script module)
   resolve-manifest     Resolve profile to manifest JSON with OS detection (for Ansible)
@@ -738,6 +742,10 @@ def resolve_role_manifest(
 ) -> ResolvedManifest:
     """
     Resolve a complete role manifest from profile configuration.
+
+    Note: PlaybookGenerator.resolve_manifest() is the preferred entry point
+    for most callers. This function is retained for backward compatibility
+    and direct use by PlaybookGenerator.
 
     Combines profile roles and overlay roles into a deduplicated list
     with pre-computed Jinja2 when: conditions.
@@ -2488,7 +2496,10 @@ def _cmd_make_args(args: argparse.Namespace) -> int:
 
 
 def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
-    """Output ResolvedManifest as JSON to stdout; exit 1 on error."""
+    """Output ResolvedManifest as JSON to stdout; exit 1 on error.
+
+    Delegates to PlaybookGenerator.resolve_manifest().
+    """
     try:
         # Parse host_vars JSON
         host_vars = {}

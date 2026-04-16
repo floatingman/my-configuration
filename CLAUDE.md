@@ -43,7 +43,7 @@ This is an Ansible configuration management repository that automates the comple
 - **requirements.yml** - Defines Ansible roles and collections (all Git-based)
 - **Makefile** - Build automation with validation and help system
 - **group_vars/all.yml** - Main configuration file with all system variables
-- **scripts/profile_dispatcher.py** - Profile resolver and CLI (no Ansible dependency)
+- **scripts/profile_dispatcher.py** - Profile resolver, PlaybookGenerator engine, and CLI (no Ansible dependency)
 - **profiles/*.yml** - Profile definitions with role annotations (single source of truth)
 - **profiles/overlays/*.yml** - Overlay definitions (laptop, bluetooth, etc.)
 - **.github/workflows/ci.yml** - CI: pytest + validate + sync-playbook --check
@@ -58,6 +58,19 @@ Profiles are the single source of truth for which roles run and under what condi
 - **`play.yml` pre_tasks** calls `resolve-role-manifest` once to compute all flags
 - **Profile-gating inference**: roles exclusive to a DE profile automatically get `_is_<de>` conditions
 - **Tests**: `python -m pytest tests/ -v` — pure Python (no Ansible needed)
+
+### Profile Resolution Architecture
+
+- **PlaybookGenerator** - Core role resolution engine (in profile_dispatcher.py)
+  - Generates role lists from profile definitions
+  - Handles condition translation via `ConditionTranslator` protocol (`AnsibleConditionTranslator`)
+  - Supports sync checking, single-profile resolution, and playbook generation
+
+- **CLI Subcommands** - All delegate to PlaybookGenerator:
+  - `sync-playbook` → `PlaybookGenerator.sync_check()`
+  - `resolve-role-manifest` → `PlaybookGenerator.resolve_manifest()`
+  - `generate-playbook` → `PlaybookGenerator.write_playbook()`
+  - `resolve` / `resolve-manifest` — standalone resolvers for backward compatibility
 
 Key CLI commands:
 ```bash
