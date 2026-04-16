@@ -2523,7 +2523,7 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
             host_vars=host_vars,
             os_family=args.os_family,
         )
-    except ValueError as exc:
+    except (ValueError, yaml.YAMLError, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
