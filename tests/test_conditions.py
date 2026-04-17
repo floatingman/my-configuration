@@ -9,8 +9,7 @@ import pytest
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     validate_overlays,
-    DictEvaluator,
-    EvaluationError,
+    _DictEvaluator,
     AnsibleConditionTranslator,
     DefaultTranslator,
 )
@@ -161,37 +160,37 @@ roles:
                 assert len(errors) > 0
 
 
-class TestDictEvaluator:
-    """Test DictEvaluator expression evaluation."""
+class TestPrivateDictEvaluator:
+    """Test _DictEvaluator expression evaluation."""
 
     def test_mapped_expression_returns_correct_bool(self):
         """An expression in the mapping should return its mapped boolean value."""
-        evaluator = DictEvaluator({"laptop": True, "desktop": False})
+        evaluator = _DictEvaluator({"laptop": True, "desktop": False})
         assert evaluator.evaluate("laptop", {}) is True
         assert evaluator.evaluate("desktop", {}) is False
 
     def test_unmapped_expression_returns_false(self):
         """An expression not in the mapping should return False."""
-        evaluator = DictEvaluator({"laptop": True})
+        evaluator = _DictEvaluator({"laptop": True})
         assert evaluator.evaluate("desktop", {}) is False
         assert evaluator.evaluate("unknown", {}) is False
 
     def test_context_parameter_is_ignored(self):
         """The context parameter should be ignored (for protocol compatibility)."""
-        evaluator = DictEvaluator({"laptop": True})
+        evaluator = _DictEvaluator({"laptop": True})
         # Context dict should not affect the result
         assert evaluator.evaluate("laptop", {"laptop": False}) is True
         assert evaluator.evaluate("laptop", {}) is True
 
     def test_empty_mapping_returns_false_for_all(self):
         """An empty mapping should return False for all expressions."""
-        evaluator = DictEvaluator({})
+        evaluator = _DictEvaluator({})
         assert evaluator.evaluate("anything", {}) is False
         assert evaluator.evaluate("laptop", {}) is False
 
     def test_multiple_expressions(self):
         """Multiple expressions should all resolve correctly."""
-        evaluator = DictEvaluator({
+        evaluator = _DictEvaluator({
             "laptop": True,
             "desktop": False,
             "server": True,
@@ -369,11 +368,11 @@ class TestConditionTranslatorProtocol:
 
     def test_default_translator_with_evaluator(self):
         """DefaultTranslator factory passes evaluator through."""
-        evaluator = DictEvaluator({"dotfiles is defined": True})
+        evaluator = _DictEvaluator({"dotfiles is defined": True})
         translator = DefaultTranslator(evaluator=evaluator)
         annotation = {"role": "dotfiles", "tags": ["dotfiles"], "config_check": "dotfiles is defined"}
         result = translator.translate_annotation(annotation, {})
-        # DictEvaluator returns True for the expression
+        # _DictEvaluator returns True for the expression
         assert result == "true"
 
     def test_default_translator_with_preserve_config_check(self):

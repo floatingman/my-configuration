@@ -13,7 +13,7 @@ from profile_dispatcher import (  # noqa: E402
     load_profile,
     list_profiles,
     load_overlay,
-    OverlayDefinition,
+    _OverlayDefinition,
 )
 
 
@@ -549,7 +549,7 @@ class TestLoadOverlay:
     def test_load_laptop_overlay(self):
         """load_overlay correctly parses laptop.yml."""
         overlay = load_overlay(_PROFILES_DIR, "laptop")
-        assert isinstance(overlay, OverlayDefinition)
+        assert isinstance(overlay, _OverlayDefinition)
         assert overlay.name == "Laptop Features Overlay"
         assert overlay.applies_when == "laptop | default(false)"
         assert isinstance(overlay.roles, list)
@@ -565,7 +565,7 @@ class TestLoadOverlay:
     def test_load_bluetooth_overlay(self):
         """load_overlay correctly parses bluetooth.yml."""
         overlay = load_overlay(_PROFILES_DIR, "bluetooth")
-        assert isinstance(overlay, OverlayDefinition)
+        assert isinstance(overlay, _OverlayDefinition)
         assert overlay.name == "Bluetooth Support Overlay"
         assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
         assert isinstance(overlay.roles, list)
