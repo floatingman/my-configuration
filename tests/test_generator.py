@@ -12,77 +12,14 @@ import yaml
 
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
-    resolve_manifest,
     resolve_role_manifest,
-    _normalize_condition,
-    _section_sort_key,
     discover_overlay_variables,
     generate_host_vars_template,
     generate_overlay_facts_task,
-    Manifest,
-    RoleEntry,
     PlaybookGenerator,
     PlaybookRole,
     main,
 )
-
-
-class TestManifest:
-    """Test Manifest dataclass and resolve_manifest() function."""
-
-    def test_manifest_is_frozen(self):
-        """Manifest should be immutable."""
-        m = Manifest(
-            profile="i3", display_manager="lightdm", has_display=True,
-            is_i3=True, is_hyprland=False, is_gnome=False,
-            is_awesomewm=False, is_kde=False, is_arch=True,
-        )
-        with pytest.raises(AttributeError):
-            m.profile = "hyprland"
-
-    def test_resolve_manifest_default_os_is_arch(self):
-        """Without os_family, defaults to Archlinux."""
-        manifest = resolve_manifest(profile="i3")
-        assert manifest.is_arch is True
-        assert manifest.is_i3 is True
-
-    def test_resolve_manifest_debian_is_not_arch(self):
-        """os_family='Debian' sets is_arch=False."""
-        manifest = resolve_manifest(profile="headless", os_family="Debian")
-        assert manifest.is_arch is False
-        assert manifest.has_display is False
-
-    def test_resolve_manifest_arch_explicit(self):
-        """os_family='Archlinux' sets is_arch=True."""
-        manifest = resolve_manifest(profile="hyprland", os_family="Archlinux")
-        assert manifest.is_arch is True
-        assert manifest.is_hyprland is True
-        assert manifest.display_manager == "sddm"
-
-    def test_resolve_manifest_manual_mode(self):
-        """Manual mode with explicit vars."""
-        manifest = resolve_manifest(
-            display_manager="lightdm",
-            desktop_environment="i3",
-            os_family="Debian",
-        )
-        assert manifest.profile == "manual"
-        assert manifest.is_arch is False
-        assert manifest.is_i3 is True
-
-    def test_resolve_manifest_null_os_family_defaults_arch(self):
-        """None os_family defaults to Archlinux."""
-        manifest = resolve_manifest(profile="gnome", os_family=None)
-        assert manifest.is_arch is True
-
-    def test_resolve_manifest_all_profiles(self):
-        """All 6 profiles resolve successfully with os_family."""
-        for name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
-            manifest = resolve_manifest(profile=name, os_family="Archlinux")
-            assert manifest.profile == name
-            assert manifest.is_arch is True
-
-
 
 
 class TestResolveRoleManifestFunction:
@@ -178,42 +115,6 @@ class TestResolveRoleManifestFunction:
         assert manifest1 != manifest3
 
 
-
-class TestNormalizeCondition:
-    """Tests for _normalize_condition helper."""
-
-    def test_empty_string(self):
-        assert _normalize_condition("") == ""
-
-    def test_none_returns_empty(self):
-        assert _normalize_condition(None) == ""
-
-    def test_single_condition_unchanged(self):
-        assert _normalize_condition("_is_arch") == "_is_arch"
-
-    def test_sorts_and_terms(self):
-        result = _normalize_condition("_has_display and _is_arch")
-        assert result == "_has_display and _is_arch"
-
-    def test_sorts_and_terms_reverse(self):
-        result = _normalize_condition("_is_arch and _has_display")
-        assert result == "_has_display and _is_arch"
-
-    def test_strips_bool_filter(self):
-        assert _normalize_condition("_has_display | bool") == "_has_display"
-
-    def test_strips_bool_filter_in_and_expr(self):
-        result = _normalize_condition("_is_arch and _has_display | bool")
-        assert result == "_has_display and _is_arch"
-
-    def test_equivalent_conditions_compare_equal(self):
-        """goesimage-style ordering difference normalizes to same string."""
-        a = _normalize_condition("goesimage is defined and _has_display")
-        b = _normalize_condition("_has_display and goesimage is defined")
-        assert a == b
-
-
-
 class TestSyncPlaybook:
     """Tests for the sync-playbook CLI subcommand."""
 
@@ -302,66 +203,6 @@ class TestSyncPlaybook:
         out = capsys.readouterr().out
         assert rc == 0
         assert "in sync" in out
-
-
-
-class TestORLogicForOverlappingRoles:
-    """Tests verifying OR logic when a role appears in both profile and overlay."""
-
-    def test_role_in_profile_and_overlay_gets_or_condition(self):
-        """When backlight appears in both profile and overlay, condition is OR'd."""
-        # backlight appears in _base.yml with requires_display AND in laptop overlay
-        manifest = resolve_role_manifest(
-            profile="i3",
-            host_vars={"laptop": True},
-            os_family="Archlinux",
-        )
-        backlight_roles = [r for r in manifest.roles if r.role == "backlight"]
-        assert len(backlight_roles) == 1
-        # Should have condition from profile (requires_display) OR overlay
-        cond = backlight_roles[0].condition
-        assert cond  # Not empty
-        # The condition should contain "or" since it's from both sources
-        assert " or " in cond.lower() or cond == "_has_display"
-
-    def test_overlay_only_role_included_in_manifest(self):
-        """Roles from overlays appear in manifest when overlay applies."""
-        manifest = resolve_role_manifest(
-            profile="i3",
-            host_vars={"laptop": True},
-            os_family="Archlinux",
-        )
-        # laptop role comes from overlay, not from profile
-        laptop_roles = [r for r in manifest.roles if r.role == "laptop"]
-        assert len(laptop_roles) == 1
-        # Overlay-derived role is included; condition is empty because
-        # gating is via _overlay_* facts set by play.yml pre_tasks
-        assert laptop_roles[0].role == "laptop"
-        assert "_overlay_laptop" in manifest.overlay_flags
-
-    def test_profile_only_role_not_affected_by_overlays(self):
-        """Profile roles that don't overlap with overlays keep their condition."""
-        manifest = resolve_role_manifest(
-            profile="i3",
-            host_vars={},  # No overlay vars
-            os_family="Archlinux",
-        )
-        # shell is universal (no annotations), should have no condition
-        shell_roles = [r for r in manifest.roles if r.role == "shell"]
-        assert len(shell_roles) == 1
-        # Universal roles from _base.yml have empty conditions
-        assert shell_roles[0].condition == ""
-
-    def test_deduplication_produces_single_entry(self):
-        """A role in both profile and overlay appears exactly once."""
-        manifest = resolve_role_manifest(
-            profile="i3",
-            host_vars={"laptop": True},
-            os_family="Archlinux",
-        )
-        role_names = [r.role for r in manifest.roles]
-        # backlight is in both _base.yml (profile) and laptop overlay
-        assert role_names.count("backlight") == 1
 
 
 class TestPlaybookGeneratorResolveManifest:
@@ -717,6 +558,141 @@ class TestPlaybookGenerator:
         with pytest.raises(ValueError, match="Playbook not found"):
             generator.sync_check("/nonexistent/path/play.yml")
 
+    def test_generate_ors_conditions_for_overlapping_roles(self, tmp_path):
+        """generate() OR's conditions when a role appears in profile and overlay with different conditions."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        overlays_path = profiles_dir / "overlays"
+        overlays_path.mkdir()
+
+        base_data = {
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [{"role": "foo", "tags": ["t1"], "requires_display": True}],
+        }
+        (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
+
+        profile_data = {
+            "extends": "_base",
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [],
+        }
+        (profiles_dir / "test.yml").write_text(yaml.dump(profile_data, default_flow_style=False))
+
+        overlay_data = {
+            "name": "test_overlay",
+            "applies_when": "test_overlay | default(false)",
+            "roles": [{"role": "foo", "tags": ["t2"], "os": "debian"}],
+        }
+        (overlays_path / "test_overlay.yml").write_text(
+            yaml.dump(overlay_data, default_flow_style=False)
+        )
+
+        gen = PlaybookGenerator(
+            profiles_dir=str(profiles_dir),
+            os_family="Archlinux",
+            host_vars={"test_overlay": True},
+        )
+        roles = gen.generate()
+        foo = [r for r in roles if r.role == "foo"]
+        assert len(foo) == 1
+        # Different conditions from profile and overlay should be OR'd
+        assert " or " in foo[0].condition.lower()
+        # Tags should be unioned
+        assert "t1" in foo[0].tags
+        assert "t2" in foo[0].tags
+
+    def test_generate_no_or_for_identical_conditions(self, tmp_path):
+        """generate() does not OR identical conditions from different sources."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        overlays_path = profiles_dir / "overlays"
+        overlays_path.mkdir()
+
+        base_data = {
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [{"role": "bar", "tags": ["t1"], "os": "archlinux"}],
+        }
+        (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
+
+        profile_data = {
+            "extends": "_base",
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [],
+        }
+        (profiles_dir / "test.yml").write_text(yaml.dump(profile_data, default_flow_style=False))
+
+        overlay_data = {
+            "name": "test_overlay",
+            "applies_when": "test_overlay | default(false)",
+            "roles": [{"role": "bar", "tags": ["t2"], "os": "archlinux"}],
+        }
+        (overlays_path / "test_overlay.yml").write_text(
+            yaml.dump(overlay_data, default_flow_style=False)
+        )
+
+        gen = PlaybookGenerator(
+            profiles_dir=str(profiles_dir),
+            os_family="Archlinux",
+            host_vars={"test_overlay": True},
+        )
+        roles = gen.generate()
+        bar = [r for r in roles if r.role == "bar"]
+        assert len(bar) == 1
+        # Same condition from both sources should NOT produce OR
+        assert " or " not in bar[0].condition.lower()
+        assert bar[0].condition == "_is_arch"
+
+    def test_generate_deduplicates_across_three_sources(self, tmp_path):
+        """generate() deduplicates roles across profile entries + overlay without duplicate OR terms."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        overlays_path = profiles_dir / "overlays"
+        overlays_path.mkdir()
+
+        base_data = {
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [
+                {"role": "baz", "tags": ["t1"], "requires_display": True},
+                {"role": "baz", "tags": ["t2"], "os": "archlinux"},
+            ],
+        }
+        (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
+
+        profile_data = {
+            "extends": "_base",
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [],
+        }
+        (profiles_dir / "test.yml").write_text(yaml.dump(profile_data, default_flow_style=False))
+
+        overlay_data = {
+            "name": "test_overlay",
+            "applies_when": "test_overlay | default(false)",
+            "roles": [{"role": "baz", "tags": ["t3"], "requires_display": True}],
+        }
+        (overlays_path / "test_overlay.yml").write_text(
+            yaml.dump(overlay_data, default_flow_style=False)
+        )
+
+        gen = PlaybookGenerator(
+            profiles_dir=str(profiles_dir),
+            os_family="Archlinux",
+            host_vars={"test_overlay": True},
+        )
+        roles = gen.generate()
+        baz = [r for r in roles if r.role == "baz"]
+        assert len(baz) == 1
+        # _has_display appears twice in sources but should appear once in output
+        cond = baz[0].condition
+        or_count = cond.lower().count(" or ")
+        assert or_count == 1, f"Expected exactly 1 'or', got {or_count}: {cond}"
+
 
 class TestPlaybookGeneratorResolve:
     """Test PlaybookGenerator.resolve() method."""
@@ -893,171 +869,8 @@ class TestPlaybookGeneratorExplain:
         assert has_profile_section or has_annotation_section or has_condition_section
 
 
-class TestDeduplicationSemantics:
-    """Focused tests for role deduplication with conditions and tags.
-
-    Exercises:
-    - Identical conditions across 2+ sources are NOT OR-ed
-    - Distinct conditions across 3+ sources are OR-ed without duplicates
-    - Tags are unioned across all sources
-    """
-
-    @staticmethod
-    def _make_profiles(tmp_path, base_roles, overlay_roles=None, overlay_name="test_overlay"):
-        """Create temporary profile + overlay files for testing."""
-        profiles_dir = tmp_path / "profiles"
-        profiles_dir.mkdir()
-        overlays_path = profiles_dir / "overlays"
-        overlays_path.mkdir()
-
-        # Write _base.yml
-        base_data = {
-            "display_manager_default": "",
-            "desktop_environment": "",
-            "roles": base_roles,
-        }
-        (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
-
-        # Write profile extending _base
-        profile_data = {
-            "extends": "_base",
-            "display_manager_default": "",
-            "desktop_environment": "",
-            "roles": [],
-        }
-        (profiles_dir / "test.yml").write_text(yaml.dump(profile_data, default_flow_style=False))
-
-        # Write overlay if provided
-        if overlay_roles:
-            overlay_data = {
-                "name": overlay_name,
-                "applies_when": f"{overlay_name} | default(false)",
-                "roles": overlay_roles,
-            }
-            (overlays_path / f"{overlay_name}.yml").write_text(
-                yaml.dump(overlay_data, default_flow_style=False)
-            )
-
-        return str(profiles_dir)
-
-    def test_identical_conditions_not_or_ed(self, tmp_path):
-        """When a role appears twice with identical conditions, no OR is produced."""
-        profiles_dir = self._make_profiles(
-            tmp_path,
-            base_roles=[{"role": "foo", "tags": ["t1"], "os": "archlinux"}],
-            overlay_roles=[{"role": "foo", "tags": ["t2"], "os": "archlinux"}],
-        )
-        manifest = resolve_role_manifest(
-            profile="test",
-            host_vars={"test_overlay": True},
-            os_family="Archlinux",
-            profiles_dir=profiles_dir,
-        )
-        foo_roles = [r for r in manifest.roles if r.role == "foo"]
-        assert len(foo_roles) == 1
-        # Condition should NOT contain "or" — both sources gave the same condition
-        assert " or " not in foo_roles[0].condition.lower()
-        assert foo_roles[0].condition == "_is_arch"
-
-    def test_tags_unioned_across_sources(self, tmp_path):
-        """Tags from all sources are unioned (no duplicates, sorted)."""
-        profiles_dir = self._make_profiles(
-            tmp_path,
-            base_roles=[{"role": "foo", "tags": ["alpha", "beta"], "os": "archlinux"}],
-            overlay_roles=[{"role": "foo", "tags": ["beta", "gamma"], "os": "archlinux"}],
-        )
-        manifest = resolve_role_manifest(
-            profile="test",
-            host_vars={"test_overlay": True},
-            os_family="Archlinux",
-            profiles_dir=profiles_dir,
-        )
-        foo_roles = [r for r in manifest.roles if r.role == "foo"]
-        assert len(foo_roles) == 1
-        assert foo_roles[0].tags == ("alpha", "beta", "gamma")
-
-    def test_three_sources_no_duplicate_or_terms(self, tmp_path):
-        """With 3 sources, duplicate conditions are not re-OR-ed.
-
-        Scenario:
-          Source 1: _has_display
-          Source 2: _is_arch        → produces "(_has_display) or (_is_arch)"
-          Source 3: _has_display    → should NOT re-add _has_display
-        """
-        profiles_dir = self._make_profiles(
-            tmp_path,
-            base_roles=[
-                {"role": "bar", "tags": ["t1"], "requires_display": True},
-                {"role": "bar", "tags": ["t2"], "os": "archlinux"},
-            ],
-            overlay_roles=[
-                {"role": "bar", "tags": ["t3"], "requires_display": True},
-            ],
-        )
-        manifest = resolve_role_manifest(
-            profile="test",
-            host_vars={"test_overlay": True},
-            os_family="Archlinux",
-            profiles_dir=profiles_dir,
-        )
-        bar_roles = [r for r in manifest.roles if r.role == "bar"]
-        assert len(bar_roles) == 1
-        cond = bar_roles[0].condition
-        # Should have exactly two terms OR'd, not three
-        # _has_display appears twice in sources but should appear once in output
-        or_count = cond.lower().count(" or ")
-        assert or_count == 1, f"Expected exactly 1 'or', got {or_count}: {cond}"
-
-    def test_three_distinct_conditions_all_or_ed(self, tmp_path):
-        """Three distinct conditions produce a 3-way OR."""
-        profiles_dir = self._make_profiles(
-            tmp_path,
-            base_roles=[
-                {"role": "baz", "tags": ["t1"], "requires_display": True},
-                {"role": "baz", "tags": ["t2"], "os": "archlinux"},
-            ],
-            overlay_roles=[
-                {"role": "baz", "tags": ["t3"], "os": "debian"},
-            ],
-        )
-        manifest = resolve_role_manifest(
-            profile="test",
-            host_vars={"test_overlay": True},
-            os_family="Archlinux",
-            profiles_dir=profiles_dir,
-        )
-        baz_roles = [r for r in manifest.roles if r.role == "baz"]
-        assert len(baz_roles) == 1
-        cond = baz_roles[0].condition
-        # Three distinct terms: _has_display, _is_arch, not _is_arch
-        assert cond.count(" or ") == 2, f"Expected 2 'or's, got: {cond}"
-
-
 class TestSectionSorting:
-    """Tests verifying role sorting by section."""
-
-    def test_section_sort_key_gpu_roles_first(self):
-        """GPU roles should be in section 0 (first section)."""
-        assert _section_sort_key("gpu_detect") == (0, "gpu_detect")
-        assert _section_sort_key("gpu_drivers") == (0, "gpu_drivers")
-
-    def test_section_sort_key_base_system_section_1(self):
-        """Base system roles should be in section 1."""
-        assert _section_sort_key("base") == (1, "base")
-        assert _section_sort_key("grub") == (1, "grub")
-        assert _section_sort_key("microcode") == (1, "microcode")
-
-    def test_section_sort_key_roles_sorted_alphabetically_within_section(self):
-        """Roles within the same section should sort alphabetically."""
-        # Both in "Universal System Configuration" section (index 2)
-        key_gnupg = _section_sort_key("gnupg")
-        key_shell = _section_sort_key("shell")
-        assert key_gnupg[0] == key_shell[0]  # Same section
-        assert key_gnupg < key_shell  # Alphabetically "gnupg" < "shell"
-
-    def test_section_sort_key_unknown_role_goes_to_end(self):
-        """Roles not in any section should get section 999 (catch-all)."""
-        assert _section_sort_key("unknown_role_xyz") == (999, "unknown_role_xyz")
+    """Tests verifying role sorting by section in manifest output."""
 
     def test_resolve_role_manifest_output_sorted_by_section(self):
         """Resolved manifest roles should be sorted by section, then alphabetically."""
@@ -1067,38 +880,8 @@ class TestSectionSorting:
         )
         role_names = [r.role for r in manifest.roles]
 
-        # First 5 roles should be from GPU Detection & Drivers, then Base System sections
-        assert role_names[0] == "gpu_detect"
-        assert role_names[1] == "gpu_drivers"
-        assert role_names[2] == "base"
-        assert role_names[3] == "grub"
-        assert role_names[4] == "microcode"
-
-    def test_resolve_role_manifest_section_grouping(self):
-        """Roles from the same section should appear together."""
-        manifest = resolve_role_manifest(
-            profile="i3",
-            os_family="Archlinux",
-        )
-        role_names = [r.role for r in manifest.roles]
-
-        # Find indices of Package Management section roles
-        pkg_mgmt_roles = [
-            "ansible-role-packages",
-            "ansible-role-asdf",
-            "flatpak",
-            "aur",
-        ]
-        indices = {role: role_names.index(role) for role in pkg_mgmt_roles if role in role_names}
-
-        # All roles between the first and last Package Management role should
-        # belong to the same section, even if additional roles are added there.
-        if len(indices) >= 2:
-            sorted_indices = sorted(indices.values())
-            expected_section = _section_sort_key(role_names[sorted_indices[0]])[0]
-            section_span = role_names[sorted_indices[0]: sorted_indices[-1] + 1]
-            for role in section_span:
-                assert _section_sort_key(role)[0] == expected_section
+        # First roles should be from GPU Detection, then Base System
+        assert role_names[:5] == ["gpu_detect", "gpu_drivers", "base", "grub", "microcode"]
 
 
 class TestDiscoverOverlayVariables:

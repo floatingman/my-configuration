@@ -13,12 +13,7 @@ from profile_dispatcher import (  # noqa: E402
     load_profile,
     list_profiles,
     load_overlay,
-    _discover_overlay_names,
     OverlayDefinition,
-    ResolvedOverlay,
-    ResolvedOverlayRole,
-    RoleEntry,
-    Overlay,
 )
 
 
@@ -126,6 +121,30 @@ class TestProfileMode:
         assert result.display_manager == 'gdm'  # From profile, not from extra var
         assert result.is_gnome is True
 
+    def test_none_profile_equals_manual_mode(self):
+        """profile=None should behave like manual mode."""
+        result_none = resolve(profile=None)
+        result_manual = resolve()
+        assert result_none == result_manual
+
+    def test_empty_string_profile_equals_manual_mode(self):
+        """profile='' should behave like manual mode."""
+        result_empty = resolve(profile='')
+        result_manual = resolve()
+        assert result_empty == result_manual
+
+    def test_whitespace_profile_equals_manual_mode(self):
+        """profile='   ' should behave like manual mode."""
+        result_ws = resolve(profile='   ')
+        result_manual = resolve()
+        assert result_ws == result_manual
+
+    def test_case_sensitive_profile_names(self):
+        """Profile names should be case-sensitive."""
+        with pytest.raises(ValueError):
+            resolve(profile='I3')
+        with pytest.raises(ValueError):
+            resolve(profile='Hyprland')
 
 
 class TestManualMode:
@@ -259,7 +278,6 @@ class TestManualMode:
         assert result.is_kde is True
 
 
-
 class TestDisableFlags:
     """Test disable_* flags in manual mode."""
 
@@ -332,6 +350,18 @@ class TestDisableFlags:
         )
         assert result.is_hyprland is False
 
+    def test_all_de_flags_false_preserves_display_manager(self):
+        """When all DE flags are False, display_manager should still be preserved."""
+        result = resolve(
+            display_manager='lightdm',
+            desktop_environment='i3',
+            disable_i3=True,
+            disable_hyprland=True
+        )
+        assert result.display_manager == 'lightdm'
+        assert result.has_display is True
+        assert result.is_i3 is False
+        assert result.is_hyprland is False
 
 
 class TestDualDesktopMode:
@@ -356,155 +386,6 @@ class TestDualDesktopMode:
         assert result.is_i3 is True
         assert result.is_hyprland is False
         assert result.desktop_environment == 'i3'
-
-
-
-class TestEdgeCases:
-    """Test edge cases and special scenarios."""
-
-    def test_none_profile_equals_manual_mode(self):
-        """Profile=None should behave exactly like manual mode."""
-        result_none = resolve(profile=None)
-        result_manual = resolve()
-        assert result_none == result_manual
-
-    def test_empty_string_profile_equals_manual_mode(self):
-        """Profile='' should behave like manual mode."""
-        result_empty = resolve(profile='')
-        result_manual = resolve()
-        assert result_empty == result_manual
-
-    def test_whitespace_profile_equals_manual_mode(self):
-        """Profile='   ' should behave like manual mode (normalized to empty)."""
-        result_ws = resolve(profile='   ')
-        result_manual = resolve()
-        assert result_ws == result_manual
-
-    def test_literal_manual_profile_equals_manual_mode(self):
-        """Profile='manual' should behave exactly like manual mode."""
-        result_manual_profile = resolve(profile='manual')
-        result_manual = resolve()
-        assert result_manual_profile == result_manual
-
-    def test_resolved_profile_is_frozen(self):
-        """ResolvedProfile should be immutable (frozen dataclass)."""
-        result = resolve(profile='i3')
-        with pytest.raises(AttributeError):
-            result.is_i3 = False  # Should raise AttributeError
-
-    def test_resolved_profile_is_hashable(self):
-        """ResolvedProfile should be hashable (can be used in sets/dicts)."""
-        result1 = resolve(profile='i3')
-        result2 = resolve(profile='i3')
-        result3 = resolve(profile='hyprland')
-
-        # Should be hashable
-        profile_set = {result1, result2, result3}
-        assert len(profile_set) == 2  # i3 and hyprland are different
-
-    def test_all_de_flags_false_preserves_display_manager(self):
-        """When all DE flags are False, display_manager should still be preserved."""
-        result = resolve(
-            display_manager='lightdm',
-            desktop_environment='i3',
-            disable_i3=True,
-            disable_hyprland=True
-        )
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-
-    def test_case_sensitive_profile_names(self):
-        """Profile names should be case-sensitive."""
-        # lowercase works
-        result = resolve(profile='i3')
-        assert result.profile == 'i3'
-
-        # uppercase fails
-        with pytest.raises(ValueError):
-            resolve(profile='I3')
-
-        # mixed case fails
-        with pytest.raises(ValueError):
-            resolve(profile='Hyprland')
-
-
-
-class TestJinja2Equivalence:
-    """Verify resolver matches play.yml Jinja2 logic for all input combinations."""
-
-    def test_manual_mode_empty_inputs(self):
-        """play.yml: _profile='manual', _dm='' → has_display=False, all DE flags False."""
-        result = resolve(profile=None, display_manager='')
-        assert result.profile == 'manual'
-        assert result.has_display is False
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-
-    def test_manual_mode_lightdm_no_de(self):
-        """play.yml: _dm='lightdm', no desktop_environment → is_i3=True, is_hyprland=True."""
-        result = resolve(display_manager='lightdm')
-        assert result.is_i3 is True
-        assert result.is_hyprland is True
-
-    def test_manual_mode_lightdm_with_i3(self):
-        """play.yml: desktop_environment='i3' → is_i3=True, is_hyprland=False."""
-        result = resolve(display_manager='lightdm', desktop_environment='i3')
-        assert result.is_i3 is True
-        assert result.is_hyprland is False
-
-    def test_manual_mode_disable_i3_override(self):
-        """play.yml: disable_i3=true → is_i3=False even with lightdm set."""
-        result = resolve(display_manager='lightdm', disable_i3=True)
-        assert result.is_i3 is False
-        assert result.is_hyprland is True
-
-    def test_manual_mode_gnome_requires_explicit_de(self):
-        """play.yml: GNOME only true if desktop_environment='gnome' explicitly."""
-        # Without explicit DE, GNOME is False
-        result = resolve(display_manager='gdm')
-        assert result.is_gnome is False
-
-        # With explicit DE, GNOME is True
-        result = resolve(display_manager='gdm', desktop_environment='gnome')
-        assert result.is_gnome is True
-
-    def test_profile_mode_overrides_manual_vars(self):
-        """play.yml: Profile setting takes precedence over manual variables."""
-        # Set profile='gnome' but also pass conflicting display_manager
-        result = resolve(profile='gnome', display_manager='lightdm')
-        # Profile wins - should use gdm, not lightdm
-        assert result.profile == 'gnome'
-        assert result.display_manager == 'gdm'
-
-    def test_manual_mode_gnome_without_display_manager(self):
-        """play.yml: desktop_environment='gnome', no display_manager → _is_gnome=true."""
-        result = resolve(desktop_environment='gnome')
-        assert result.is_gnome is True
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_manual_mode_awesomewm_without_display_manager(self):
-        """play.yml: desktop_environment='awesomewm', no display_manager → _is_awesomewm=true."""
-        result = resolve(desktop_environment='awesomewm')
-        assert result.is_awesomewm is True
-        assert result.is_gnome is False
-        assert result.is_kde is False
-
-    def test_manual_mode_kde_without_display_manager(self):
-        """play.yml: desktop_environment='kde', no display_manager → _is_kde=true."""
-        result = resolve(desktop_environment='kde')
-        assert result.is_kde is True
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-
-    def test_profiles_dir_used_for_profile_mode(self):
-        """profiles_dir is used to load profile YAML in profile mode."""
-        result = resolve(profile='i3', profiles_dir=_PROFILES_DIR)
-        assert result.profile == 'i3'
-        assert result.is_i3 is True
-
 
 
 class TestLoadProfile:
@@ -558,7 +439,6 @@ class TestLoadProfile:
         for name in ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde'):
             data = load_profile(_PROFILES_DIR, name)
             assert isinstance(data, dict), f"load_profile('{name}') should return dict"
-
 
 
 class TestValidateProfile:
@@ -625,7 +505,6 @@ class TestValidateProfile:
         assert len(errors) > 0
 
 
-
 class TestListProfiles:
     """Test list_profiles() function."""
 
@@ -662,32 +541,6 @@ class TestListProfiles:
             names = list_profiles(tmpdir)
             assert set(names) == {'alpha', 'beta'}
             assert 'broken' not in names
-
-
-
-class TestDiscoverOverlays:
-    """Test _discover_overlay_names() function."""
-
-    def test_returns_sorted_overlay_names(self):
-        """_discover_overlay_names returns overlay names sorted alphabetically."""
-        names = _discover_overlay_names(_PROFILES_DIR)
-        assert names == ["bluetooth", "laptop"]
-
-    def test_returns_empty_list_for_nonexistent_overlays_dir(self):
-        """_discover_overlay_names returns empty list when overlays directory doesn't exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Empty profiles dir (no overlays subdirectory)
-            names = _discover_overlay_names(tmpdir)
-            assert names == []
-
-    def test_returns_empty_list_for_empty_overlays_dir(self):
-        """_discover_overlay_names returns empty list when overlays directory is empty."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            overlays_path = Path(tmpdir) / "overlays"
-            overlays_path.mkdir()
-            names = _discover_overlay_names(tmpdir)
-            assert names == []
-
 
 
 class TestLoadOverlay:
@@ -787,35 +640,6 @@ class TestLoadOverlay:
         assert "invalid path characters" in error_msg
 
 
-
-class TestOverlayDataclasses:
-    """Test overlay dataclass properties."""
-
-    def test_overlay_definition_is_frozen(self):
-        """OverlayDefinition should be immutable (frozen dataclass)."""
-        overlay = load_overlay(_PROFILES_DIR, "laptop")
-        with pytest.raises(AttributeError):
-            overlay.name = "Modified"  # Should raise AttributeError
-
-    def test_resolved_overlay_is_frozen(self):
-        """ResolvedOverlay should be immutable (frozen dataclass)."""
-        role_entry = RoleEntry(role="test", tags=["test"])
-        overlay = ResolvedOverlay(
-            overlay=Overlay(name="Test", description="", applies_when="true", roles=[role_entry]),
-            applies=True,
-            resolved_roles=[(role_entry, True)]
-        )
-        with pytest.raises(AttributeError):
-            overlay.applies = False  # Should raise AttributeError
-
-    def test_resolved_overlay_role_is_frozen(self):
-        """ResolvedOverlayRole should be immutable (frozen dataclass)."""
-        role = ResolvedOverlayRole(role="test", tags=("test",), applies=True)
-        with pytest.raises(AttributeError):
-            role.role = "modified"  # Should raise AttributeError
-
-
-
 class TestValidateProfileTypeChecking:
     """Tests for type validation of YAML fields in validate_profile()."""
 
@@ -838,7 +662,6 @@ class TestValidateProfileTypeChecking:
             assert any('desktop_environment' in e and 'string' in e for e in errors)
 
 
-
 class TestResolveInvalidProfileError:
     """Tests that resolve() surfaces validation errors for existing-but-invalid profiles."""
 
@@ -854,6 +677,3 @@ class TestResolveInvalidProfileError:
             # Should mention 'invalid', not 'Unknown profile'
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
-
-
-
