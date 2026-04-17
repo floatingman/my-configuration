@@ -2005,12 +2005,12 @@ class TestSyncPlaybook:
             real_play = f.read()
         # Replace a condition with equivalent but reordered terms
         modified = real_play.replace(
-            "goesimage is defined and _has_display",
-            "_has_display and goesimage is defined",
+            "_is_arch and _has_display",
+            "_has_display and _is_arch",
         )
         if modified == real_play:
             # Condition not found with exact text — skip test gracefully
-            pytest.skip("goesimage condition not found with expected text")
+            pytest.skip("_is_arch and _has_display condition not found in play.yml")
 
         playbook = tmp_path / "play.yml"
         playbook.write_text(modified)
