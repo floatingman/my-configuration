@@ -57,9 +57,9 @@ Profiles are the single source of truth for which roles run and under what condi
 - **2 overlays**: laptop, bluetooth — add optional roles gated by host vars
 - **`play.yml` pre_tasks** calls `resolve-role-manifest` once to compute all flags
 - **Profile-gating inference**: roles exclusive to a DE profile automatically get `_is_<de>` conditions
-- **Module**: `scripts/profile_dispatcher.py` (~2100 lines, 15 classes)
-- **Tests**: `tests/test_profile_dispatcher.py` (~2100 lines, 199 tests) — pure Python (no Ansible needed)
-- **Public API surface** (18 symbols): `resolve`, `resolve_manifest`, `resolve_role_manifest`, `resolve_overlays`, `validate_profile`, `validate_overlays`, `load_profile`, `load_overlay`, `list_profiles`, `discover_overlays`, `translate_condition`, `main`, `ConditionEvaluator`, `Jinja2Evaluator`, `DictEvaluator`, `EvaluationError`, plus 8 dataclasses (`ResolvedProfile`, `OverlayDefinition`, `Overlay`, `ResolvedOverlay`, `ResolvedOverlayRole`, `RoleEntry`, `RoleCondition`, `ResolvedManifest`, `Manifest`)
+- **Module**: `scripts/profile_dispatcher.py` — profile resolver, playbook generation engine, and CLI entrypoint
+- **Tests**: `tests/` — pure Python pytest suite covering the profile dispatcher and related CLI/generator/conditions/profile behavior (no Ansible needed)
+- **Public API surface** (22 symbols): `resolve`, `resolve_manifest`, `resolve_role_manifest`, `resolve_overlays`, `validate_profile`, `validate_overlays`, `load_profile`, `load_overlay`, `list_profiles`, `discover_overlays`, `discover_overlay_variables`, `generate_host_vars_template`, `generate_overlay_facts_task`, `write_playbook`, `main`, `ConditionTranslator`, `AnsibleConditionTranslator`, `DefaultTranslator`, `ConditionEvaluator`, `Jinja2Evaluator`, `PlaybookGenerator`, `PlaybookRole`, `SyncResult`
 
 ### Profile Resolution Architecture
 
