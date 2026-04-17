@@ -28,7 +28,7 @@ from profile_dispatcher import (
     resolve_overlays,
     validate_overlays,
     load_overlay,
-    _discover_overlay_names,
+    discover_overlays,
     _normalize_condition,
     _OverlayDefinition,
     _ResolvedOverlay,
@@ -39,7 +39,6 @@ from profile_dispatcher import (
     _Manifest,
     _RoleCondition,
     _ResolvedManifest,
-    translate_condition,
     Jinja2Evaluator,
     _DictEvaluator,
     _EvaluationError,
@@ -684,26 +683,26 @@ class TestListProfiles:
 
 
 class TestDiscoverOverlays:
-    """Test _discover_overlay_names() function."""
+    """Test discover_overlays() function."""
 
     def test_returns_sorted_overlay_names(self):
-        """_discover_overlay_names returns overlay names sorted alphabetically."""
-        names = _discover_overlay_names(_PROFILES_DIR)
+        """discover_overlays returns overlay names sorted alphabetically."""
+        names = discover_overlays(_PROFILES_DIR)
         assert names == ["bluetooth", "laptop"]
 
     def test_returns_empty_list_for_nonexistent_overlays_dir(self):
-        """_discover_overlay_names returns empty list when overlays directory doesn't exist."""
+        """discover_overlays returns empty list when overlays directory doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Empty profiles dir (no overlays subdirectory)
-            names = _discover_overlay_names(tmpdir)
+            names = discover_overlays(tmpdir)
             assert names == []
 
     def test_returns_empty_list_for_empty_overlays_dir(self):
-        """_discover_overlay_names returns empty list when overlays directory is empty."""
+        """discover_overlays returns empty list when overlays directory is empty."""
         with tempfile.TemporaryDirectory() as tmpdir:
             overlays_path = Path(tmpdir) / "overlays"
             overlays_path.mkdir()
-            names = _discover_overlay_names(tmpdir)
+            names = discover_overlays(tmpdir)
             assert names == []
 
 
@@ -817,7 +816,7 @@ class TestOverlayDataclasses:
         """_ResolvedOverlay should be immutable (frozen dataclass)."""
         role_entry = _RoleEntry(role="test", tags=["test"])
         overlay = _ResolvedOverlay(
-            overlay=_Overlay(name="Test", description="", applies_when="true", roles=(role_entry,)),
+            overlay=_Overlay(stem="test", name="Test", description="", applies_when="true", roles=(role_entry,)),
             applies=True,
             resolved_roles=[(role_entry, True)]
         )
@@ -1734,73 +1733,6 @@ class TestManifest:
             assert manifest.is_arch is True
 
 
-class TestTranslateConditionExtended:
-    """Extended tests for translate_condition() function."""
-
-    def test_no_annotation_returns_empty_condition(self):
-        """Role without annotations returns empty condition."""
-        role_entry = {"role": "base", "tags": ["base"]}
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == ""
-
-    def test_role_string_returns_empty_condition(self):
-        """Simple string role returns empty condition."""
-        condition = translate_condition("base", {}, "Archlinux")
-        assert condition == ""
-
-    def test_os_archlinux_translates_to_is_arch(self):
-        """os: archlinux translates to _is_arch."""
-        role_entry = {"role": "aur", "tags": ["aur"], "os": "archlinux"}
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_is_arch"
-
-    def test_os_debian_translates_to_not_is_arch(self):
-        """os: debian translates to not _is_arch."""
-        role_entry = {"role": "homebrew", "tags": ["homebrew"], "os": "debian"}
-        condition = translate_condition(role_entry, {}, "Debian")
-        assert condition == "not _is_arch"
-
-    def test_requires_display_translates_to_has_display(self):
-        """requires_display: true translates to _has_display."""
-        role_entry = {"role": "fonts", "tags": ["fonts"], "requires_display": True}
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_has_display"
-
-    def test_combined_annotations_are_anded(self):
-        """Multiple annotations are combined with AND."""
-        role_entry = {
-            "role": "cups",
-            "tags": ["cups"],
-            "os": "archlinux",
-            "requires_display": True,
-        }
-        condition = translate_condition(role_entry, {}, "Archlinux")
-        assert condition == "_is_arch and _has_display"
-
-    def test_config_check_enabled_returns_true(self):
-        """config_check for enabled flag returns true when enabled."""
-        role_entry = {
-            "role": "cursor-theme",
-            "tags": ["cursor-theme"],
-            "requires_display": True,
-            "config_check": "cursor_theme.enabled",
-        }
-        host_vars = {"cursor_theme": {"enabled": True}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
-        assert condition == "_has_display and true"
-
-    def test_config_check_disabled_returns_false(self):
-        """config_check for enabled flag returns false when disabled."""
-        role_entry = {
-            "role": "cursor-theme",
-            "tags": ["cursor-theme"],
-            "config_check": "cursor_theme.enabled",
-        }
-        host_vars = {"cursor_theme": {"enabled": False}}
-        condition = translate_condition(role_entry, host_vars, "Archlinux")
-        assert condition == "false"
-
-
 class TestResolveRoleManifestFunction:
     """Test resolve_role_manifest() function."""
 
@@ -1853,9 +1785,9 @@ class TestResolveRoleManifestFunction:
         assert terminal_count == 1
 
     def test_evaluates_config_check_correctly(self):
-        """config_check expressions are evaluated against host_vars."""
+        """config_check 'is defined' expressions are evaluated against host_vars."""
         host_vars = {
-            "dotfiles": {"repo_url": "https://github.com/example/dotfiles"}
+            "dotfiles_config": {"repo_url": "https://github.com/example/dotfiles"}
         }
         manifest = resolve_role_manifest(
             profile="hyprland",

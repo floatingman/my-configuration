@@ -27,11 +27,13 @@ import argparse
 import json
 import re
 import sys
-import yaml
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
+
+import jinja2
+import yaml
 
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
@@ -633,11 +635,13 @@ class _Overlay:
     An overlay loaded from a YAML file.
 
     Attributes:
+        stem: File stem (e.g. 'laptop' from laptop.yml)
         name: Human-readable name for the overlay
         description: Free-form description
         applies_when: Jinja2 expression string to evaluate against facts
         roles: Tuple of role entries with their annotations
     """
+    stem: str
     name: str
     description: str
     applies_when: str
@@ -1199,6 +1203,7 @@ def _load_overlay(path: Path) -> _Overlay:
         ))
 
     return _Overlay(
+        stem=path.stem,
         name=data["name"],
         description=data.get("description", ""),
         applies_when=applies_when,
@@ -1236,11 +1241,12 @@ def resolve_overlays(
     if evaluator is None:
         evaluator = Jinja2Evaluator()
 
-    overlay_paths = _discover_overlays(profiles_dir)
+    overlay_names = discover_overlays(profiles_dir)
+    overlays_root = Path(profiles_dir) / "overlays"
     results = []
 
-    for path in overlay_paths:
-        overlay = _load_overlay(path)
+    for name in overlay_names:
+        overlay = _load_overlay(overlays_root / f"{name}.yml")
 
         # Evaluate overlay-level applies_when
         try:
@@ -1314,35 +1320,6 @@ def validate_overlays(
         results.append((overlay_name, errors))
 
     return results
-
-
-# ---------------------------------------------------------------------------
-# Overlay name-based discovery and loading (from main)
-# ---------------------------------------------------------------------------
-
-def _discover_overlay_names(profiles_dir: str) -> List[str]:
-    """
-    Discover all overlay names in profiles_dir/overlays/.
-
-    Scans for *.yml files in the overlays subdirectory,
-    excludes files starting with '_', and returns sorted stem names.
-
-    Args:
-        profiles_dir: Directory containing profile YAML files
-
-    Returns:
-        Sorted list of overlay names (without .yml extension)
-    """
-    overlays_path = Path(profiles_dir) / "overlays"
-    if not overlays_path.exists():
-        return []
-
-    overlay_names = [
-        p.stem
-        for p in overlays_path.glob("*.yml")
-        if not p.stem.startswith("_")
-    ]
-    return sorted(overlay_names)
 
 
 def load_overlay(profiles_dir: str, name: str) -> "_OverlayDefinition":
@@ -2633,11 +2610,10 @@ def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
             }
             overlay_dict["roles"].append(role_dict)
 
-            # Add to flat facts with _overlay_ prefix
-            fact_key = f"_overlay_{role_entry.role}"
-            flat_facts[fact_key] = applies
-
         overlays_output.append(overlay_dict)
+
+        # One fact per overlay (matching _overlay_<file_stem> convention)
+        flat_facts[f"_overlay_{resolved.overlay.stem}"] = resolved.applies
 
     output = {
         "overlays": overlays_output,
@@ -3388,6 +3364,35 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
+    # --- resolve-overlays ---
+    p_overlays = subparsers.add_parser(
+        "resolve-overlays",
+        help="Resolve overlays against host facts and output JSON.",
+    )
+    p_overlays.add_argument(
+        "--facts-json",
+        dest="facts_json",
+        default=None,
+        help="Host facts as JSON string",
+    )
+    p_overlays.add_argument(
+        "--has-display",
+        dest="has_display",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether this machine has a display server",
+    )
+    p_overlays.add_argument(
+        "--is-arch",
+        dest="is_arch",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether this is an Arch Linux system",
+    )
+    p_overlays.add_argument(
+        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
+    )
+
     # --- generate-playbook ---
     p_generate = subparsers.add_parser(
         "generate-playbook",
@@ -3449,6 +3454,7 @@ def main(argv: Optional[list] = None) -> int:
         "resolve": _cmd_resolve,
         "resolve-manifest": _cmd_resolve_manifest,
         "resolve-role-manifest": _cmd_resolve_role_manifest,
+        "resolve-overlays": _cmd_resolve_overlays,
         "sync-playbook": _cmd_sync_playbook,
         "generate-playbook": _cmd_generate_playbook,
         "validate": _cmd_validate,
