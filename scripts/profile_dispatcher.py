@@ -428,29 +428,6 @@ class DictEvaluator:
         return self._mapping.get(expression, False)
 
 
-class ConditionEvaluator(Protocol):
-    """Protocol for condition expression evaluation.
-
-    Any class implementing evaluate() can be used as a condition evaluator,
-    enabling test injection and zero-dependency mocks.
-    """
-
-    def evaluate(self, expression: str, context: dict) -> bool:
-        """Evaluate a condition expression against a context dict.
-
-        Args:
-            expression: A condition expression (e.g., "laptop", "x is defined", "x.enabled")
-            context: Dictionary of variables available to the expression
-
-        Returns:
-            True if the expression evaluates to truthy, False otherwise
-
-        Raises:
-            EvaluationError: If the expression cannot be parsed or evaluated
-        """
-        ...
-
-
 @dataclass(frozen=True)
 class ResolvedProfile:
     """
@@ -645,13 +622,9 @@ def _load_profile_inner(profiles_dir: str, name: str, visited: frozenset) -> dic
 
     parent_name = str(extends).removesuffix(".yml")
     parent_data = _load_profile_inner(profiles_dir, parent_name, visited | {name})
-    return _merge_profile_data(parent_data, data)
-
-
-def _merge_profile_data(parent: dict, child: dict) -> dict:
-    """Merge two profile dicts. Child scalars override parent; role lists are concatenated."""
-    result = dict(parent)
-    for key, value in child.items():
+    # Merge child over parent: role lists concatenate, other keys override
+    result = dict(parent_data)
+    for key, value in data.items():
         if key == "extends":
             continue
         if key == "roles" and isinstance(result.get("roles"), list) and isinstance(value, list):
@@ -1031,24 +1004,6 @@ def list_profiles(profiles_dir: str) -> list:
 # Overlay Discovery and Loading (Slice 2)
 # ---------------------------------------------------------------------------
 
-def _discover_overlays(profiles_dir: str) -> list[Path]:
-    """
-    Discover all overlay YAML files in profiles/overlays/ subdirectory.
-
-    Args:
-        profiles_dir: Root profiles directory
-
-    Returns:
-        List of overlay file paths, sorted alphabetically
-    """
-    overlays_root = Path(profiles_dir) / "overlays"
-    if not overlays_root.exists():
-        return []
-
-    return sorted(
-        p for p in overlays_root.glob("*.yml") if not p.stem.startswith("_")
-    )
-
 
 def _load_overlay(path: Path) -> Overlay:
     """
@@ -1193,16 +1148,16 @@ def validate_overlays(
     Returns:
         List of (overlay_name, errors) tuples. Empty error list means valid.
     """
-    overlay_paths = _discover_overlays(profiles_dir)
+    overlay_names = discover_overlays(profiles_dir)
     results = []
+    overlays_root = Path(profiles_dir) / "overlays"
 
-    for path in overlay_paths:
-        overlay_name = path.stem  # filename without .yml
+    for overlay_name in overlay_names:
         errors = []
 
         try:
             # Attempt to load the overlay - this validates all fields
-            _load_overlay(path)
+            _load_overlay(overlays_root / f"{overlay_name}.yml")
         except ValueError as exc:
             errors.append(str(exc))
 
@@ -1214,31 +1169,6 @@ def validate_overlays(
 # ---------------------------------------------------------------------------
 # Overlay name-based discovery and loading (from main)
 # ---------------------------------------------------------------------------
-
-def _discover_overlay_names(profiles_dir: str) -> List[str]:
-    """
-    Discover all overlay names in profiles_dir/overlays/.
-
-    Scans for *.yml files in the overlays subdirectory,
-    excludes files starting with '_', and returns sorted stem names.
-
-    Args:
-        profiles_dir: Directory containing profile YAML files
-
-    Returns:
-        Sorted list of overlay names (without .yml extension)
-    """
-    overlays_path = Path(profiles_dir) / "overlays"
-    if not overlays_path.exists():
-        return []
-
-    overlay_names = [
-        p.stem
-        for p in overlays_path.glob("*.yml")
-        if not p.stem.startswith("_")
-    ]
-    return sorted(overlay_names)
-
 
 def load_overlay(profiles_dir: str, name: str) -> "OverlayDefinition":
     """
@@ -1992,7 +1922,7 @@ class PlaybookGenerator:
         disable_kde: bool = False,
         host_vars: Optional[Dict[str, Any]] = None,
         os_family: Optional[str] = None,
-        evaluator: Optional[ConditionEvaluator] = None,
+        evaluator: Any = None,
         preserve_config_check: bool = False,
     ) -> ResolvedManifest:
         """Resolve a single profile manifest with full parameter control.
@@ -2447,7 +2377,7 @@ def _cmd_list_profiles(args: argparse.Namespace) -> int:
         )
 
     # Also list overlays in pretty format
-    overlay_names = _discover_overlay_names(args.profiles_dir)
+    overlay_names = discover_overlays(args.profiles_dir)
     if overlay_names:
         print()
         print("Available overlays:")
@@ -2735,52 +2665,6 @@ _SECTION_DEFINITIONS: List[Dict[str, Any]] = [
 ]
 
 
-def _discover_overlay_variables(profiles_dir: str) -> List[str]:
-    """Discover overlay variable names from overlay definitions.
-
-    Parses overlay YAML files to extract variable names referenced in
-    applies_when conditions. These variables need to be included in
-    _host_vars_json for resolve-role-manifest.
-
-    Args:
-        profiles_dir: Path to profiles directory
-
-    Returns:
-        Sorted list of overlay variable names (without 'is defined' checks)
-    """
-    overlay_vars = set()
-    overlays_dir = Path(profiles_dir) / "overlays"
-
-    if not overlays_dir.exists():
-        return []
-
-    for overlay_path in overlays_dir.glob("*.yml"):
-        try:
-            with open(overlay_path) as f:
-                overlay_data = yaml.safe_load(f)
-
-            applies_when = overlay_data.get("applies_when", "")
-            if not applies_when:
-                continue
-
-            # Extract variable name from applies_when
-            # Format 1: "bluetooth is defined and not (bluetooth.disable | default(false))"
-            #   → extract "bluetooth" (before " is defined")
-            # Format 2: "laptop | default(false)"
-            #   → extract "laptop" (before " | default")
-            if " is defined" in applies_when:
-                var_match = applies_when.split(" is defined")[0].strip()
-                overlay_vars.add(var_match)
-            elif " | default" in applies_when:
-                var_match = applies_when.split(" | default")[0].strip()
-                overlay_vars.add(var_match)
-        except Exception:
-            # Skip malformed overlay files
-            continue
-
-    return sorted(overlay_vars)
-
-
 def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     """Generate _host_vars_json Jinja2 template with overlay variables.
 
@@ -2816,53 +2700,15 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     return "\n".join(lines)
 
 
-def _apply_profile_gating(
-    role_to_profiles: Dict[str, set],
-    expected_role_map: Dict[str, Optional[str]],
-    profile_names: list,
-) -> None:
-    """Apply profile-gating conditions for roles without annotation conditions.
-
-    Roles that appear only in DE-specific profiles get automatic conditions
-    (e.g. ``_is_i3``, ``_has_display``) so play.yml matches sync-check output.
-    """
-    de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
-    profile_to_flag = {
-        "i3": "_is_i3",
-        "hyprland": "_is_hyprland",
-        "gnome": "_is_gnome",
-        "awesomewm": "_is_awesomewm",
-        "kde": "_is_kde",
-    }
-
-    all_profile_set = set(profile_names)
-    for role_name, profiles in role_to_profiles.items():
-        existing = expected_role_map.get(role_name)
-        if existing is not None:
-            continue
-
-        if profiles >= all_profile_set:
-            continue
-
-        de_members = profiles & de_profiles
-        if not de_members:
-            continue
-
-        if de_members == de_profiles:
-            gate = "_has_display"
-        elif len(de_members) == 1:
-            gate = profile_to_flag[next(iter(de_members))]
-        else:
-            gate = " or ".join(
-                profile_to_flag[p] for p in sorted(de_members)
-            )
-
-        expected_role_map[role_name] = gate
-
-
 _OVERLAY_ROLES = {
     "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
     "laptop": ("_overlay_laptop", ["laptop"]),
+}
+
+_DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
+_PROFILE_TO_FLAG = {
+    "i3": "_is_i3", "hyprland": "_is_hyprland", "gnome": "_is_gnome",
+    "awesomewm": "_is_awesomewm", "kde": "_is_kde",
 }
 
 
@@ -2870,23 +2716,8 @@ def _merge_all_profile_manifests(
     profiles_dir: str,
     os_family: str,
 ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
-    """Merge role manifests from all profiles and apply profile-gating.
-
-    Produces the same final expected_role_map that would be written to
-    play.yml, including automatic profile-gating conditions and overlay
-    roles.  Both ``write_playbook()`` and stdout mode consume this so
-    their output is consistent.
-
-    Args:
-        profiles_dir: Path to profiles directory
-        os_family: OS family for role resolution
-
-    Returns:
-        Tuple of (role_to_profiles, expected_role_map, role_tags, profile_names)
-    """
+    """Merge role manifests from all profiles and apply profile-gating."""
     profile_names = list_profiles(profiles_dir)
-
-    # Track which profiles include each role AND build annotation conditions
     role_to_profiles: Dict[str, set] = {}
     expected_role_map: Dict[str, Optional[str]] = {}
     role_tags: Dict[str, set] = {}
@@ -2902,24 +2733,16 @@ def _merge_all_profile_manifests(
             )
         except ValueError:
             continue
-
         for role_cond in manifest.roles:
             role_name = role_cond.role
             condition = role_cond.condition or None
-
-            # Track profile membership
             role_to_profiles.setdefault(role_name, set()).add(profile_name)
-
-            # Union tags across profiles
             if role_name not in role_tags:
                 role_tags[role_name] = set()
             role_tags[role_name].update(role_cond.tags)
-
-            # Merge conditions across profiles (OR differing ones)
             if role_name not in expected_role_map:
                 expected_role_map[role_name] = condition
                 continue
-
             existing_condition = expected_role_map[role_name]
             if existing_condition is None or condition is None:
                 expected_role_map[role_name] = None
@@ -2928,10 +2751,24 @@ def _merge_all_profile_manifests(
                     f"({existing_condition}) or ({condition})"
                 )
 
-    # Apply profile-gating for roles with empty annotation conditions
-    _apply_profile_gating(role_to_profiles, expected_role_map, profile_names)
+    all_profile_set = set(profile_names)
+    for role_name, profiles in role_to_profiles.items():
+        existing = expected_role_map.get(role_name)
+        if existing is not None:
+            continue
+        if profiles >= all_profile_set:
+            continue
+        de_members = profiles & _DE_PROFILES
+        if not de_members:
+            continue
+        if de_members == _DE_PROFILES:
+            gate = "_has_display"
+        elif len(de_members) == 1:
+            gate = _PROFILE_TO_FLAG[next(iter(de_members))]
+        else:
+            gate = " or ".join(_PROFILE_TO_FLAG[p] for p in sorted(de_members))
+        expected_role_map[role_name] = gate
 
-    # Add overlay-based roles (not in profiles but referenced in play.yml)
     for role_name, (condition, tags) in _OVERLAY_ROLES.items():
         expected_role_map[role_name] = condition
         role_to_profiles.setdefault(role_name, set())
@@ -2974,7 +2811,10 @@ def write_playbook(
         return 1
 
     # Discover overlay variables for _host_vars_json template
-    overlay_vars = _discover_overlay_variables(profiles_dir)
+    try:
+        overlay_vars = discover_overlay_variables(profiles_dir)
+    except ValueError:
+        overlay_vars = []
     host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
     # Merge all profile manifests (includes profile-gating and overlay roles)
