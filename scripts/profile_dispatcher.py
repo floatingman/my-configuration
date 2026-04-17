@@ -2811,9 +2811,11 @@ def write_playbook(
         return 1
 
     # Discover overlay variables for _host_vars_json template
-    try:
+    # Only treat a missing overlays/ directory as non-fatal; let parse errors surface.
+    overlays_path = Path(profiles_dir) / "overlays"
+    if overlays_path.exists():
         overlay_vars = discover_overlay_variables(profiles_dir)
-    except ValueError:
+    else:
         overlay_vars = []
     host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
