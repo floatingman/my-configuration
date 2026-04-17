@@ -10,7 +10,6 @@ from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     validate_overlays,
     _DictEvaluator,
-    _EvaluationError,
     AnsibleConditionTranslator,
     DefaultTranslator,
 )

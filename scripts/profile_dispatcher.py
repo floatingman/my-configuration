@@ -1254,7 +1254,7 @@ def resolve_overlays(
         except (ValueError, _EvaluationError) as exc:
             raise ValueError(
                 f"Overlay '{overlay.name}': failed to evaluate applies_when: {exc}"
-            )
+            ) from exc
 
         # Resolve each role with per-role conditions
         resolved_roles = []
@@ -3386,8 +3386,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "--is-arch",
         dest="is_arch",
         action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Whether this is an Arch Linux system",
+        default=True,
+        help="Whether this is an Arch Linux system (default: true)",
     )
     p_overlays.add_argument(
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR

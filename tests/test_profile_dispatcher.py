@@ -6,14 +6,12 @@ Comprehensive unit tests covering all input combinations and edge cases.
 No Ansible dependency - pure Python tests.
 """
 
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-# Add scripts directory to path so profile_dispatcher can be imported
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+from conftest import _PROFILES_DIR  # noqa: E402
 
 import json
 
@@ -43,9 +41,6 @@ from profile_dispatcher import (
     _DictEvaluator,
     _EvaluationError,
 )
-
-# Path to the real profiles directory used in integration-style tests
-_PROFILES_DIR = str(Path(__file__).resolve().parent.parent / "profiles")
 
 
 class TestProfileMode:
@@ -814,7 +809,7 @@ class TestOverlayDataclasses:
 
     def test_resolved_overlay_is_frozen(self):
         """_ResolvedOverlay should be immutable (frozen dataclass)."""
-        role_entry = _RoleEntry(role="test", tags=["test"])
+        role_entry = _RoleEntry(role="test", tags=("test",))
         overlay = _ResolvedOverlay(
             overlay=_Overlay(stem="test", name="Test", description="", applies_when="true", roles=(role_entry,)),
             applies=True,
