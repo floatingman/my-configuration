@@ -1,0 +1,62 @@
+---
+# ForgeCode — AI coding harness (https://forgecode.dev)
+# Install via official installer script, optionally configure ZSH plugin.
+
+- name: Check if ForgeCode is already installed
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/bin/forge"
+  register: ai_forgecode_stat
+
+- name: Install ForgeCode via official installer
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://forgecode.dev/cli | sh
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+  register: ai_forgecode_install
+  changed_when: ai_forgecode_install.rc == 0
+  when:
+    - ai_forgecode_enabled | default(true)
+    - not ai_forgecode_stat.stat.exists
+
+- name: Verify ForgeCode installation
+  ansible.builtin.command: forge --help
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+  register: ai_forgecode_verify
+  changed_when: false
+  failed_when: false
+  when: ai_forgecode_enabled | default(true)
+
+# -------------------------------------------------------------------------
+# ZSH Plugin Integration
+# -------------------------------------------------------------------------
+- name: Check if ForgeCode ZSH plugin is already configured
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.forge/zsh/forge.plugin.zsh"
+  register: ai_forgecode_zsh_plugin_stat
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+
+- name: Configure ForgeCode ZSH plugin
+  ansible.builtin.command:
+    cmd: forge zsh setup --yes
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+  register: ai_forgecode_zsh_setup
+  changed_when: ai_forgecode_zsh_setup.rc == 0
+  failed_when: false
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+    - not ai_forgecode_zsh_plugin_stat.stat.exists
+
+- name: Display ForgeCode installation status
+  ansible.builtin.debug:
+    msg: >-
+      ForgeCode {{ 'installed' if ai_forgecode_verify.rc == 0 else 'installation failed or not available' }}
+      {{ 'with ZSH plugin' if ai_forgecode_zsh_enabled | default(true) else '' }}
+  when: ai_forgecode_enabled | default(true)

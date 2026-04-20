@@ -2,7 +2,7 @@
 # meta file for ai
 galaxy_info:
   author: floatingman
-  description: Install AI development tools (Claude Code, rtk, claudectx)
+  description: Install AI development tools (Claude Code, ForgeCode, rtk, claudectx)
   company: your company
   license: MIT
   min_ansible_version: "2.9"

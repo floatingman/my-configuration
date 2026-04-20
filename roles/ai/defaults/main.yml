@@ -10,6 +10,10 @@ ai_ccometixline_enabled: true
 ai_rtk_enabled: true
 ai_claudectx_enabled: true
 
+# ForgeCode (AI coding harness)
+ai_forgecode_enabled: true
+ai_forgecode_zsh_enabled: true
+
 # Claude Code Plugins
 ai_claude_code_plugins_enabled: true
 ai_everything_claude_code_enabled: true

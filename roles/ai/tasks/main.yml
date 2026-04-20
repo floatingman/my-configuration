@@ -9,6 +9,9 @@
   ansible.builtin.set_fact:
     ai_homebrew_available: "{{ ai_homebrew_stat.stat.exists }}"
 
+- name: Include ForgeCode tasks
+  ansible.builtin.include_tasks: forgecode.yml
+
 # -------------------------------------------------------------------------
 # Claude Code (native installer)
 # -------------------------------------------------------------------------

@@ -67,3 +67,5 @@ ai_claude_config_enabled: true    # Apply Claude Code config from chezmoi
 ai_ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
 ai_rtk_enabled: true              # Install rtk (token optimization proxy)
 ai_claudectx_enabled: true        # Install claudectx (context management tool)
+ai_forgecode_enabled: true          # Install ForgeCode (AI coding harness)
+ai_forgecode_zsh_enabled: true      # Enable ForgeCode ZSH plugin integration
