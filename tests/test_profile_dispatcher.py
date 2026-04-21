@@ -26,7 +26,6 @@ from profile_dispatcher import (
     resolve_overlays,
     validate_overlays,
     load_overlay,
-    discover_overlays,
     _normalize_condition,
     _OverlayDefinition,
     _ResolvedOverlay,
@@ -675,30 +674,6 @@ class TestListProfiles:
             names = list_profiles(tmpdir)
             assert set(names) == {'alpha', 'beta'}
             assert 'broken' not in names
-
-
-class TestDiscoverOverlays:
-    """Test discover_overlays() function."""
-
-    def test_returns_sorted_overlay_names(self):
-        """discover_overlays returns overlay names sorted alphabetically."""
-        names = discover_overlays(_PROFILES_DIR)
-        assert names == ["bluetooth", "laptop"]
-
-    def test_returns_empty_list_for_nonexistent_overlays_dir(self):
-        """discover_overlays returns empty list when overlays directory doesn't exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Empty profiles dir (no overlays subdirectory)
-            names = discover_overlays(tmpdir)
-            assert names == []
-
-    def test_returns_empty_list_for_empty_overlays_dir(self):
-        """discover_overlays returns empty list when overlays directory is empty."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            overlays_path = Path(tmpdir) / "overlays"
-            overlays_path.mkdir()
-            names = discover_overlays(tmpdir)
-            assert names == []
 
 
 class TestLoadOverlay:

@@ -719,7 +719,7 @@ def _load_profile_inner(profiles_dir: str, name: str, visited: frozenset) -> dic
     return result
 
 
-def discover_overlays(profiles_dir: str) -> List[str]:
+def _discover_overlay_names(profiles_dir: str) -> List[str]:
     """
     Discover all available overlay names in profiles/overlays/.
 
@@ -850,7 +850,7 @@ def resolve_role_manifest(
     overlay_flags: Dict[str, bool] = {}
     overlay_roles: List[dict] = []
 
-    overlays = discover_overlays(profiles_dir)
+    overlays = _discover_overlay_names(profiles_dir)
     for overlay_name in overlays:
         try:
             overlay_data = load_overlay(profiles_dir, overlay_name)
@@ -1241,7 +1241,7 @@ def resolve_overlays(
     if evaluator is None:
         evaluator = Jinja2Evaluator()
 
-    overlay_names = discover_overlays(profiles_dir)
+    overlay_names = _discover_overlay_names(profiles_dir)
     overlays_root = Path(profiles_dir) / "overlays"
     results = []
 
@@ -1304,7 +1304,7 @@ def validate_overlays(
     Returns:
         List of (overlay_name, errors) tuples. Empty error list means valid.
     """
-    overlay_names = discover_overlays(profiles_dir)
+    overlay_names = _discover_overlay_names(profiles_dir)
     results = []
     overlays_root = Path(profiles_dir) / "overlays"
 
@@ -2529,7 +2529,7 @@ def _cmd_list_profiles(args: argparse.Namespace) -> int:
         )
 
     # Also list overlays in pretty format
-    overlay_names = discover_overlays(args.profiles_dir)
+    overlay_names = _discover_overlay_names(args.profiles_dir)
     if overlay_names:
         print()
         print("Available overlays:")
