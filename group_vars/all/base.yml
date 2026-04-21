@@ -72,7 +72,6 @@ gitconfig:
   neovim_remote: true
   meld: true
 
-
 grub_kernel_parameters: "quiet consoleblank=60"
 
 # GPU configuration
@@ -570,7 +569,7 @@ homebrew_tap_packages:
 # Binaries to install via direct download (not available in Homebrew)
 binaries:
   - name: hey
-    url: "https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64"
+    url: "https://storage.googleapis.com/hey-releases/hey_linux_amd64"
     bin_name: hey_linux_amd64
 
   - name: awless
