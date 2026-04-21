@@ -850,7 +850,7 @@ def resolve_role_manifest(
     overlay_flags: Dict[str, bool] = {}
     overlay_roles: List[dict] = []
 
-    overlays = _discover_overlay_names(profiles_dir)
+    overlays = discover_overlays(profiles_dir)
     for overlay_name in overlays:
         try:
             overlay_data = load_overlay(profiles_dir, overlay_name)
