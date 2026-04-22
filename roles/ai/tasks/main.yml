@@ -78,14 +78,15 @@
   ignore_errors: true
   register: ai_rtk_homebrew_result
 
-- name: Install rtk via cargo (fallback)
-  ansible.builtin.command:
-    cmd: cargo install rtk
+- name: Install rtk-bin via AUR (Arch Linux only)
+  kewlfft.aur.aur:
+    name: rtk-bin
+    state: present
   when:
     - ai_rtk_enabled | default(true)
+    - ansible_facts['os_family'] == 'Archlinux'
     - not ai_homebrew_available or ai_rtk_homebrew_result is failed
-  register: ai_rtk_cargo_result
-  changed_when: ai_rtk_cargo_result.rc == 0
+  register: ai_rtk_aur_result
   failed_when: false
 
 # -------------------------------------------------------------------------
