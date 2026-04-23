@@ -49,11 +49,14 @@
 # CCometixLine (npm)
 # -------------------------------------------------------------------------
 - name: Install CCometixLine via npm
-  community.general.npm:
-    name: "@cometix/ccline"
-    global: true
-    state: present
+  ansible.builtin.command:
+    cmd: npm install -g @cometix/ccline
+  environment:
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.asdf/shims"
   when: ai_ccometixline_enabled | default(true)
+  register: ai_ccometixline_result
+  changed_when: ai_ccometixline_result.rc == 0
+  failed_when: false
 
 # -------------------------------------------------------------------------
 # rtk (Rust tool - prefer Homebrew, fallback to cargo)
@@ -149,34 +152,6 @@
     - ai_claude_code_plugins_enabled | default(true)
     - ai_claude_code_for_plugins.stat.exists
 
-- name: Install cc-skills marketplace plugins
-  ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install {{ item }}
-  environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  loop: "{{ ai_claude_cc_skills_plugins | default(ai_claude_cc_skills_plugins_default) }}"
-  register: ai_plugin_cc_skills_result
-  changed_when: ai_plugin_cc_skills_result.rc == 0
-  failed_when: false
-  when:
-    - ai_claude_code_plugins_enabled | default(true)
-    - ai_claude_code_for_plugins.stat.exists
-
-- name: Install everything-claude-code plugin
-  ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install everything-claude-code@everything-claude-code
-  environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
-  register: ai_plugin_everything_result
-  changed_when: ai_plugin_everything_result.rc == 0
-  failed_when: false
-  when:
-    - ai_claude_code_plugins_enabled | default(true)
-    - ai_everything_claude_code_enabled | default(true)
-    - ai_claude_code_for_plugins.stat.exists
-
 - name: Add caveman custom marketplace
   ansible.builtin.shell: |
     {{ lookup('env', 'HOME') }}/.local/bin/claude plugin marketplace add caveman github://JuliusBrussee/caveman
@@ -203,4 +178,32 @@
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_caveman_enabled | default(true)
+    - ai_claude_code_for_plugins.stat.exists
+
+- name: Add addy-skills custom marketplace
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin marketplace add addyosmani/agent-skills
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  register: ai_addyskills_marketplace_result
+  changed_when: ai_addyskills_marketplace_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - ai_addyskills_enabled | default(true)
+    - ai_claude_code_for_plugins.stat.exists
+
+- name: Install addy-skills plugin
+  ansible.builtin.shell: |
+    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install agent-skills@addy-agent-skills
+  environment:
+    HOME: "{{ lookup('env', 'HOME') }}"
+    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  register: ai_addyskills_plugin_result
+  changed_when: ai_addyskills_plugin_result.rc == 0
+  failed_when: false
+  when:
+    - ai_claude_code_plugins_enabled | default(true)
+    - ai_addyskills_enabled | default(true)
     - ai_claude_code_for_plugins.stat.exists
