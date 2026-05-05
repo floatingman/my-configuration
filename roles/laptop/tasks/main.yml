@@ -18,6 +18,13 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
+- name: Copy touchpad resume fix script
+  become: true
+  ansible.builtin.copy:
+    src: touchpad-resume.sh
+    dest: /lib/systemd/system-sleep/touchpad-resume.sh
+    mode: '0755'
+
 - name: Copy touchpad configuration file
   become: true
   ansible.builtin.copy:
