@@ -1,5 +1,14 @@
 ---
 # tasks file for homebrew
+# Homebrew is installed to /home/linuxbrew/.linuxbrew (a system path).
+# We make it accessible to all users via the linuxbrew group and /etc/profile.d/.
+
+- name: Create linuxbrew group
+  ansible.builtin.group:
+    name: linuxbrew
+    state: present
+  become: true
+
 - name: Check if Homebrew is already installed
   ansible.builtin.stat:
     path: /home/linuxbrew/.linuxbrew/bin/brew
@@ -37,8 +46,8 @@
   ansible.builtin.file:
     path: "/home/linuxbrew/.linuxbrew"
     state: directory
-    owner: "{{ user.name }}"
-    group: "{{ user.group }}"
+    owner: root
+    group: linuxbrew
     mode: '0755'
   become: true
   when:
@@ -60,8 +69,8 @@
     remote_src: true
     extra_opts:
       - --strip-components=1
-    owner: "{{ user.name }}"
-    group: "{{ user.group }}"
+    owner: root
+    group: linuxbrew
   become: true
   when:
     - not homebrew_check.stat.exists
@@ -73,6 +82,30 @@
   become: true
   when:
     - not homebrew_check.stat.exists
+
+- name: Fix Homebrew directory ownership recursively
+  ansible.builtin.file:
+    path: /home/linuxbrew/.linuxbrew
+    owner: root
+    group: linuxbrew
+    recurse: true
+  become: true
+
+- name: Create /etc/profile.d/linuxbrew.sh for system-wide PATH
+  ansible.builtin.copy:
+    dest: /etc/profile.d/linuxbrew.sh
+    content: |
+      # Add Linuxbrew to PATH for all users
+      if [ -d /home/linuxbrew/.linuxbrew/bin ]; then
+          export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+      fi
+      if [ -d /home/linuxbrew/.linuxbrew/sbin ]; then
+          export PATH="/home/linuxbrew/.linuxbrew/sbin:$PATH"
+      fi
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
 
 - name: Install Homebrew tap packages
   community.general.homebrew_tap:

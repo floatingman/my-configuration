@@ -24,7 +24,7 @@ uv_python_packages_requirements_file: ""
 # uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/raw/main/scriptdata/requirements.txt"
 
 # Virtual environment path (for pip mode)
-uv_python_packages_venv_path: "~/.local/share/uv-python-packages"
+uv_python_packages_venv_path: "/opt/quickshell/.venv"
 
 # Global uv tool install options (for tool mode)
 uv_python_packages_tool_options:

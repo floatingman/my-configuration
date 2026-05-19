@@ -1,4 +1,12 @@
 ---
+- name: Create devtools group
+  ansible.builtin.group:
+    name: devtools
+    state: present
+  become: true
+  tags:
+    - user
+
 - name: Create user group
   ansible.builtin.group:
     name: "{{ user.group }}"
@@ -16,7 +24,7 @@
     shell: "{{ user.shell }}"
     update_password: on_create
     uid: "{{ user.uid }}"
-    groups: uucp
+    groups: "uucp,devtools,linuxbrew"
     append: true
   become: true
   tags:

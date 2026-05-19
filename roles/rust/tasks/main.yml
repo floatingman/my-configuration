@@ -1,11 +1,17 @@
 ---
-- name: Check if rustup is installed
+# Install Rust system-wide to /opt/rust so all users can access cargo binaries.
+# RUSTUP_HOME and CARGO_HOME control the installation location.
+# /etc/profile.d/rust.sh makes the tools available on PATH for all users.
+
+- name: Set system-wide Rust paths
+  ansible.builtin.set_fact:
+    rust_rustup_home: /opt/rust
+    rust_cargo_home: /opt/rust/cargo
+
+- name: Check if rustup is installed (system-wide)
   ansible.builtin.stat:
-    path: "{{ user_home }}/.cargo/bin/rustup"
+    path: "{{ rust_rustup_home }}/bin/rustup"
   register: rust_rustup_installed
-  check_mode: false
-  vars:
-    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Download rustup installer
   ansible.builtin.get_url:
@@ -14,55 +20,56 @@
     mode: '0755'
   when: not rust_rustup_installed.stat.exists
 
-- name: Install Rust via rustup
+- name: Install Rust via rustup (system-wide)
   ansible.builtin.command:
-    cmd: /tmp/rustup-init.sh -y --default-toolchain stable
+    cmd: /tmp/rustup-init.sh -y --default-toolchain stable --no-modify-path
+  environment:
+    RUSTUP_HOME: "{{ rust_rustup_home }}"
+    CARGO_HOME: "{{ rust_cargo_home }}"
+  become: true
   when: not rust_rustup_installed.stat.exists
   changed_when: true
 
-- name: Add cargo to PATH in bashrc
-  ansible.builtin.lineinfile:
-    path: "{{ user_home }}/.bashrc"
-    line: 'source "$HOME/.cargo/env"'
-    create: true
-    mode: '0644'
-  vars:
-    user_home: "{{ ansible_facts['env'].HOME }}"
+- name: Set ownership of Rust installation
+  ansible.builtin.file:
+    path: "{{ rust_rustup_home }}"
+    owner: root
+    group: devtools
+    mode: "0775"
+    state: directory
+    recurse: true
+  become: true
 
-- name: Check if fish shell config directory exists
-  ansible.builtin.stat:
-    path: "{{ user_home }}/.config/fish"
-  register: rust_fish_config
-  check_mode: false
-  vars:
-    user_home: "{{ ansible_facts['env'].HOME }}"
-
-- name: Add cargo to PATH in fish config
-  ansible.builtin.lineinfile:
-    path: "{{ user_home }}/.config/fish/config.fish"
-    line: 'set -gx PATH $HOME/.cargo/bin $PATH'
-    create: true
-    mode: '0644'
-  when: rust_fish_config.stat.exists
-  vars:
-    user_home: "{{ ansible_facts['env'].HOME }}"
+- name: Create /etc/profile.d/rust.sh for system-wide PATH
+  ansible.builtin.copy:
+    dest: /etc/profile.d/rust.sh
+    content: |
+      export RUSTUP_HOME=/opt/rust
+      export CARGO_HOME=/opt/rust/cargo
+      if [ -d "$CARGO_HOME/bin" ]; then
+          export PATH="$CARGO_HOME/bin:$PATH"
+      fi
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
 
 - name: Check which cargo packages are already installed
   ansible.builtin.command:
-    cmd: "{{ user_home }}/.cargo/bin/cargo install --list"
+    cmd: "{{ rust_cargo_home }}/bin/cargo install --list"
   register: rust_installed_rust_cargo_packages
   changed_when: false
   failed_when: false
   check_mode: false
-  vars:
-    user_home: "{{ ansible_facts['env'].HOME }}"
 
 - name: Install cargo packages
   ansible.builtin.command:
-    cmd: "{{ user_home }}/.cargo/bin/cargo install {{ item }}"
+    cmd: "{{ rust_cargo_home }}/bin/cargo install {{ item }}"
+  environment:
+    RUSTUP_HOME: "{{ rust_rustup_home }}"
+    CARGO_HOME: "{{ rust_cargo_home }}"
   loop: "{{ rust_cargo_packages | default([]) }}"
   when: item not in rust_installed_rust_cargo_packages.stdout
   register: rust_cargo_install
   changed_when: rust_cargo_install.rc == 0
-  vars:
-    user_home: "{{ ansible_facts['env'].HOME }}"
+  become: true

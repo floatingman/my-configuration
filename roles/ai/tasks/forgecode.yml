@@ -1,40 +1,49 @@
 ---
 # ForgeCode — AI coding harness (https://forgecode.dev)
-# Install via official installer script, optionally configure ZSH plugin.
+# Install via official installer script to /usr/local/bin for system-wide access.
+# ZSH plugin setup remains per-user.
 
 - name: Check if ForgeCode is already installed
   ansible.builtin.stat:
-    path: "{{ lookup('env', 'HOME') }}/.local/bin/forge"
+    path: "{{ ai_system_bin_dir }}/forge"
   register: ai_forgecode_stat
 
-- name: Install ForgeCode via official installer
+- name: Install ForgeCode via official installer (system-wide)
   ansible.builtin.shell:
     cmd: set -o pipefail && curl -fsSL https://forgecode.dev/cli | sh
-    executable: /bin/bash
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH', default='/usr/local/bin:/usr/bin:/bin') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: /root
+    PATH: "/usr/local/bin:/usr/bin:/bin"
   register: ai_forgecode_install
   changed_when: ai_forgecode_install.rc == 0
+  become: true
   when:
     - ai_forgecode_enabled | default(true)
     - not ai_forgecode_stat.stat.exists
 
+- name: Symlink forge to system bin dir
+  ansible.builtin.file:
+    src: /root/.local/bin/forge
+    dest: "{{ ai_system_bin_dir }}/forge"
+    state: link
+    force: true
+  become: true
+  when:
+    - ai_forgecode_enabled | default(true)
+
 - name: Verify ForgeCode installation
-  ansible.builtin.command: forge --help
-  environment:
-    PATH: "{{ lookup('env', 'PATH', default='/usr/local/bin:/usr/bin:/bin') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+  ansible.builtin.command: "{{ ai_system_bin_dir }}/forge --help"
   register: ai_forgecode_verify
   changed_when: false
   failed_when: false
   when: ai_forgecode_enabled | default(true)
 
 # -------------------------------------------------------------------------
-# ZSH Plugin Integration
+# ZSH Plugin Integration (per-user)
 # -------------------------------------------------------------------------
 - name: Check if ForgeCode ZSH plugin is already configured
   ansible.builtin.stat:
-    path: "{{ lookup('env', 'HOME') }}/.forge/zsh/forge.plugin.zsh"
+    path: "/home/{{ user.name }}/.forge/zsh/forge.plugin.zsh"
   register: ai_forgecode_zsh_plugin_stat
   when:
     - ai_forgecode_enabled | default(true)
@@ -44,11 +53,13 @@
   ansible.builtin.command:
     cmd: forge zsh setup --yes
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH', default='/usr/local/bin:/usr/bin:/bin') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
   register: ai_forgecode_zsh_setup
   changed_when: ai_forgecode_zsh_setup.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_zsh_enabled | default(true)

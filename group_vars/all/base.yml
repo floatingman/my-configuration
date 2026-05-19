@@ -97,8 +97,9 @@ lang:
     - python-pip
     - go
 
-asdf_user: "{{ user.name }}"
-asdf_group: "{{ user.group }}"
+asdf_dir: "/opt/asdf"
+asdf_user: "root"
+asdf_group: "devtools"
 asdf_plugins:
   - name: "aws-vault"
     versions:
@@ -433,7 +434,7 @@ cursor_theme:
 
 uv_python_packages_mode: "pip"
 uv_python_packages_requirements_file: "https://github.com/end-4/dots-hyprland/raw/main/sdata/uv/requirements.txt"
-uv_python_packages_venv_path: "/home/dnewman/.local/state/quickshell/.venv"
+uv_python_packages_venv_path: "/opt/quickshell/.venv"
 uv_python_packages_enabled: true
 
 laptop_power_management: "tuned"
