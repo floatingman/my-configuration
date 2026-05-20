@@ -7,6 +7,14 @@
   tags:
     - user
 
+- name: Create linuxbrew group
+  ansible.builtin.group:
+    name: linuxbrew
+    state: present
+  become: true
+  tags:
+    - user
+
 - name: Create user group
   ansible.builtin.group:
     name: "{{ user.group }}"
