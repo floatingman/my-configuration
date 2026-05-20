@@ -1,0 +1,18 @@
+---
+name: User Environment
+description: |
+  Per-user personalization: shell plugins, dotfiles, AI tool config,
+  and other settings that live in the user's home directory.
+  These roles must run AFTER the system-wide tool installation so that
+  tools like chezmoi, claude, and forge are available.
+
+  Applies when user_environment is not explicitly disabled.
+  Set user_environment: false in group_vars/all/local.yml to skip.
+
+applies_when: "user_environment | default(true)"
+
+roles:
+  - { role: shell, tags: [shell] }
+  - { role: dotfiles, tags: [dotfiles], config_check: "dotfiles_config is defined" }
+  - { role: gnupg, tags: [gnupg] }
+  - { role: ai, tags: [ai], config_check: "ai_enabled | default(false) | bool" }
