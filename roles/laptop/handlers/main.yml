@@ -1,17 +1,17 @@
 ---
-- name: Restart tlp
+- name: restart tlp
   become: true
   ansible.builtin.service:
     name: tlp.service
     state: restarted
 
-- name: Restart power monitor
+- name: restart power monitor
   become: true
   ansible.builtin.service:
     name: power_monitor.service
     state: restarted
 
-- name: Restart charge control
+- name: restart charge control
   become: true
   ansible.builtin.service:
     name: charge_control.service

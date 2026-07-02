@@ -1,6 +1,0 @@
----
-- name: Restart cron
-  ansible.builtin.service:
-    name: cronie.service
-    state: restarted
-  become: true

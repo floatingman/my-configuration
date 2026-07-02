@@ -3,9 +3,3 @@
   become: true
   ansible.builtin.command: systemctl daemon-reload
 
-- name: reload user systemd config
-  ansible.builtin.command: systemctl --user daemon-reload
-  become: true
-  become_user: "{{ user.name }}"
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
