@@ -5,7 +5,7 @@
     state: restarted
   become: true
 
-- name: Stop systemd per-user instance
+- name: stop systemd per-user instance
   ansible.builtin.service:
     name: "user@{{ user.uid }}"
     state: stopped

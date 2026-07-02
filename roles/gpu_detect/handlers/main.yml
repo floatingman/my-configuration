@@ -1,6 +1,0 @@
----
-- name: Display fallback message
-  ansible.builtin.debug:
-    msg: "GPU detection failed, assuming no GPU detected"
-  tags:
-    - gpu_detect

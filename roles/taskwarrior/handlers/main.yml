@@ -1,5 +1,5 @@
 ---
-- name: Refresh holidays
+- name: refresh holidays
   become: true
   ansible.builtin.command: /usr/share/doc/timew/doc/holidays/refresh
   changed_when: true

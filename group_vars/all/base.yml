@@ -443,12 +443,13 @@ uv_python_packages_enabled: true
 
 laptop_power_management: "tuned"
 
-# You have to look up these values https://github.com/mikhail-m1/illuminanced
-backlight_illuminanced:
-  max_backlight_file: /sys/class/backlight/amdgpu_bl1/max_brightness
-  backlight_file: /sys/class/backlight/amdgpu_bl1/brightness
-  illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_input
-  min_backlight: 60
+# illuminanced (ambient backlight daemon) config is machine-specific.
+# See group_vars/templates/desktop.yml for the schema and set it in local.yml.
+# backlight_illuminanced:
+#   max_backlight_file: /sys/class/backlight/DEVICE/max_brightness
+#   backlight_file:     /sys/class/backlight/DEVICE/brightness
+#   illuminance_file:   /sys/bus/iio/devices/iio:device0/in_illuminance_raw
+#   min_backlight: 60
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
