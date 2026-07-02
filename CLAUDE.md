@@ -20,7 +20,8 @@ This is an Ansible configuration management repository that automates the comple
 ### Special Features
 - **Dual Boot**: Automatic GRUB configuration (see INSTALL_DUAL_BOOT.md)
 - **Package Migration**: Homebrew-based package management for cross-distribution consistency
-- **ASDF Integration**: Version management for programming languages
+- **ASDF Integration**: Version management for programming languages, installed system-wide
+- **Multi-User Support**: All development tools installed system-wide via `/etc/profile.d/`, accessible to every user on the machine
 - **Multi-Desktop**: Support for multiple DEs with opt-out options
 
 ## Common Development Commands
@@ -45,7 +46,7 @@ This is an Ansible configuration management repository that automates the comple
 - **group_vars/all.yml** - Main configuration file with all system variables
 - **scripts/profile_dispatcher.py** - Profile resolver, PlaybookGenerator engine, and CLI (no Ansible dependency)
 - **profiles/*.yml** - Profile definitions with role annotations (single source of truth)
-- **profiles/overlays/*.yml** - Overlay definitions (laptop, bluetooth, etc.)
+- **profiles/overlays/*.yml** - Overlay definitions (laptop, bluetooth, user_environment, etc.)
 - **.github/workflows/ci.yml** - CI: pytest + validate + sync-playbook --check
 
 ### Profile Dispatcher
@@ -54,7 +55,7 @@ Profiles are the single source of truth for which roles run and under what condi
 
 - **6 profiles**: headless, i3, hyprland, gnome, awesomewm, kde (all extend `_base.yml`)
 - **Role annotations** in profile YAML: `os`, `requires_display`, `config_check`, `requires_config`
-- **2 overlays**: laptop, bluetooth — add optional roles gated by host vars
+- **3 overlays**: laptop, bluetooth, user_environment — add optional roles gated by host vars
 - **`play.yml` pre_tasks** calls `resolve-role-manifest` once to compute all flags
 - **Profile-gating inference**: roles exclusive to a DE profile automatically get `_is_<de>` conditions
 - **Module**: `scripts/profile_dispatcher.py` — profile resolver, playbook generation engine, and CLI entrypoint
@@ -66,6 +67,7 @@ Profiles are the single source of truth for which roles run and under what condi
 - **PlaybookGenerator** - Core role resolution engine (in profile_dispatcher.py)
   - Generates role lists from profile definitions
   - Handles condition translation via `ConditionTranslator` protocol (`AnsibleConditionTranslator`)
+  - Dynamically discovers overlay roles (no hardcoded overlay lists)
   - Supports sync checking, single-profile resolution, and playbook generation
 
 - **CLI Subcommands** - All delegate to PlaybookGenerator:
@@ -93,11 +95,15 @@ python scripts/profile_dispatcher.py list-profiles --format pretty     # Show al
 1. **Base System**: base, grub, microcode, system configuration
 2. **Development**: asdf, editors (neovim, vscode), devtools, kubernetes
 3. **Desktop**: i3, hyprland, gnome, awesomewm, kde with dual-desktop support
-4. **Utilities**: shell, ssh, dotfiles, cron, networking
+4. **Utilities**: ssh, cron, networking
 5. **Applications**: browsers, media, editors, productivity
 6. **Services**: docker, cups, bluetooth, printing
+7. **User Environment** (overlay): shell, dotfiles, gnupg, ai — per-user personalization gated by `user_environment` variable
 
 ### Important Patterns
+- **System-wide tool installation**: Development tools (asdf, Linuxbrew, Rust/Cargo, binaries, Go) are installed to system paths (`/opt/asdf`, `/home/linuxbrew`, `/opt/rust`, `/usr/local/bin`) and made available to all users via `/etc/profile.d/` scripts. See `docs/adr/0001-system-wide-tool-installation.md`.
+- **User environment overlay**: Per-user personalization (shell plugins, dotfiles, AI tool config, GPG agent) is separated into the `user_environment` overlay. Set `user_environment: false` in `local.yml` to skip. System tools and user personalization can be run independently via tags.
+- **`devtools` and `linuxbrew` groups**: Users who need to install/update tools should be members of these groups. The primary user is added automatically.
 - **`group_vars/all/local.yml` is gitignored** — machine-specific vars go there; templates in `group_vars/templates/`
 - **Tagging System**: All roles are tagged for selective execution
 - **OS-Specific**: Conditional execution using `ansible_facts['os_family']`
@@ -114,7 +120,29 @@ The playbook uses several key configuration variables:
 - `disable_i3`: Disable i3 window manager (opt-out)
 - `disable_hyprland`: Disable Hyprland Wayland compositor (opt-out)
 - `laptop`: Enable laptop-specific configurations
+- `user_environment`: Enable per-user personalization (shell plugins, dotfiles, AI config). Default: `true`. Set `false` to skip.
+- `ai_enabled`: Enable AI tooling (claude, forge, etc.)
 - Variables are set in group_vars/all.yml and can be customized per environment
+
+### System-Wide Tool Installation Paths
+
+All development tools are installed to system-wide locations accessible to every user:
+
+| Tool | Location | PATH mechanism |
+|------|----------|---------------|
+| asdf (languages, kubectl, etc.) | `/opt/asdf` | `/etc/profile.d/asdf.sh` |
+| Linuxbrew (bat, fd, ripgrep, etc.) | `/home/linuxbrew/.linuxbrew` | `/etc/profile.d/linuxbrew.sh` |
+| Rust/Cargo | `/opt/rust` | `/etc/profile.d/rust.sh` |
+| Go | `/usr/local/go` | Already on PATH |
+| Direct binaries | `/usr/local/bin` | Already on PATH |
+| AI tools (claude, forge) | `/usr/local/bin` (symlinks) | Already on PATH |
+| Go install fallbacks | `/opt/go-tools` → `/usr/local/bin` | Already on PATH |
+
+Adding a new user to the system:
+```bash
+sudo usermod -aG devtools,linuxbrew <username>
+# User gets all tools on next login
+```
 
 ## Package Management Strategy
 

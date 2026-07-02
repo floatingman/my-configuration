@@ -23,11 +23,11 @@ class TestValidateOverlays:
         results = validate_overlays(profiles_dir=_PROFILES_DIR)
 
         # Should return results for both overlays
-        assert len(results) == 2
+        assert len(results) == 3
 
         # Each should have empty error list
         for overlay_name, errors in results:
-            assert overlay_name in {"laptop", "bluetooth"}
+            assert overlay_name in {"laptop", "bluetooth", "user_environment"}
             assert errors == []
 
     def test_catches_missing_applies_when(self):

@@ -890,8 +890,8 @@ class TestDiscoverOverlayVariables:
     def test_discovers_current_overlays(self):
         """Returns all overlay variables from current overlays directory."""
         variables = discover_overlay_variables(_PROFILES_DIR)
-        # Current overlays: laptop and bluetooth
-        expected = ["bluetooth", "laptop"]
+        # Current overlays: laptop, bluetooth, user_environment
+        expected = ["bluetooth", "laptop", "user_environment"]
         assert variables == expected
 
     def test_returns_sorted_list(self):

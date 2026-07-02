@@ -18,11 +18,9 @@ roles:
   - { role: microcode, tags: [microcode], os: archlinux }
 
   # Universal System Configuration
-  - { role: gnupg, tags: [gnupg] }
   - { role: sysmon, tags: [sysmon] }
   - { role: cron, tags: [cron] }
   - { role: system, tags: [system] }
-  - { role: shell, tags: [shell] }
   - { role: ssh, tags: [ssh] }
   - { role: archive, tags: [archive] }
 
@@ -48,8 +46,7 @@ roles:
   # Display-gated Development (Arch-only, filtered out for headless)
   - { role: devtools, tags: [devtools], os: archlinux, requires_display: true }
 
-  # AI Development Tools
-  - { role: ai, tags: [ai], config_check: "ai_enabled | default(false) | bool" }
+  # AI Development Tools (moved to user overlay — roles/overlays/user.yml)
 
   # Networking (Arch-only)
   - { role: nmtrust, tags: [nmtrust], os: archlinux, requires_display: true }
@@ -67,6 +64,5 @@ roles:
   - { role: syncthing, tags: [syncthing] }
 
   # Optional / Feature-gated
-  - { role: dotfiles, tags: [dotfiles], config_check: "dotfiles_config is defined" }
   - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined", requires_display: true }
   - { role: regdomain, tags: [regdomain], config_check: "regdomain is defined" }

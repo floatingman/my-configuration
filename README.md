@@ -30,7 +30,27 @@ Starting from this version, the playbook uses **Homebrew** as the primary packag
 - **Up-to-date packages**: Homebrew often has newer versions than distribution repositories
 - **Easy management**: Simple installation and updates with `brew install` and `brew upgrade`
 
-For packages not available in Homebrew, the `ansible-role-binaries` role is still used to download and install binaries directly.
+For packages not available in Homebrew, the `ansible-role-binaries` role downloads and installs binaries to `/usr/local/bin`.
+
+### Multi-User Support
+
+All development tools are installed system-wide, making them available to every user on the machine:
+
+| Tool | Location | PATH mechanism |
+|------|----------|---------------|
+| asdf (languages, kubectl, etc.) | `/opt/asdf` | `/etc/profile.d/asdf.sh` |
+| Linuxbrew (bat, fd, ripgrep, etc.) | `/home/linuxbrew/.linuxbrew` | `/etc/profile.d/linuxbrew.sh` |
+| Rust/Cargo | `/opt/rust` | `/etc/profile.d/rust.sh` |
+| Go | `/usr/local/go` | Already on PATH |
+| Direct binaries | `/usr/local/bin` | Already on PATH |
+| AI tools (claude, forge) | `/usr/local/bin` (symlinks) | Already on PATH |
+
+New users get access automatically when added to the `devtools` and `linuxbrew` groups:
+```bash
+sudo usermod -aG devtools,linuxbrew <username>
+```
+
+Per-user personalization (shell plugins, dotfiles, AI tool config) is separated into the `user_environment` overlay. Set `user_environment: false` in `local.yml` to skip user-specific setup entirely.
 
 ### Configuration Profiles
 

@@ -1171,7 +1171,7 @@ class TestResolveOverlays:
         )
 
         # Should return both overlays
-        assert len(results) == 2
+        assert len(results) == 3
         laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
 
         # Overlay applies
@@ -1210,7 +1210,7 @@ class TestResolveOverlays:
         assert backlight_role[1] is False  # does NOT apply (requires_display=True, has_display=False)
 
     def test_empty_facts_no_overlays_apply(self):
-        """With empty facts, no overlays should apply."""
+        """With empty facts, only default-true overlays should apply."""
         results = resolve_overlays(
             facts={},
             has_display=True,
@@ -1218,10 +1218,14 @@ class TestResolveOverlays:
             profiles_dir=_PROFILES_DIR,
         )
 
-        # Both overlays should be present but not apply
-        assert len(results) == 2
+        # Three overlays present
+        assert len(results) == 3
+        # laptop and bluetooth should not apply (default(false))
         for result in results:
-            assert result.applies is False
+            if result.overlay.name == "User Environment":
+                assert result.applies is True  # default(true)
+            else:
+                assert result.applies is False
 
     def test_bluetooth_with_disable_false_applies(self):
         """Bluetooth overlay with disable=False should apply on Arch."""
@@ -1291,7 +1295,7 @@ class TestResolveOverlays:
         )
 
         # Should work with _DictEvaluator
-        assert len(results) == 2
+        assert len(results) == 3
         laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
         assert laptop_overlay.applies is True
 
@@ -1306,7 +1310,7 @@ class TestResolveOverlays:
         )
 
         # Should work with default Jinja2Evaluator
-        assert len(results) == 2
+        assert len(results) == 3
 
     def test_raises_error_for_unknown_expression_patterns(self):
         """resolve_overlays raises clear error for unknown expression patterns."""
@@ -1354,11 +1358,11 @@ class TestValidateOverlays:
         results = validate_overlays(profiles_dir=_PROFILES_DIR)
 
         # Should return results for both overlays
-        assert len(results) == 2
+        assert len(results) == 3
 
         # Each should have empty error list
         for overlay_name, errors in results:
-            assert overlay_name in {"laptop", "bluetooth"}
+            assert overlay_name in {"laptop", "bluetooth", "user_environment"}
             assert errors == []
 
     def test_catches_missing_applies_when(self):

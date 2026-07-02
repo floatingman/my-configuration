@@ -894,6 +894,13 @@ def resolve_role_manifest(
                     applies = True
                 else:
                     applies = False
+            elif " default(true)" in applies_when:
+                # Handle "var | default(true)" pattern
+                # Applies by default unless explicitly set to False/false
+                if overlay_var is False or overlay_var == "false":
+                    applies = False
+                else:
+                    applies = True
             else:
                 # Fallback: check if overlay variable is truthy
                 applies = bool(overlay_var)
@@ -2912,10 +2919,36 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     return "\n".join(lines)
 
 
-_OVERLAY_ROLES = {
-    "bluetooth": ("_overlay_bluetooth", ["bluetooth"]),
-    "laptop": ("_overlay_laptop", ["laptop"]),
-}
+def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str, List[str]]]:
+    """Discover all overlay roles and their gating conditions dynamically."""
+    result: Dict[str, Tuple[str, List[str]]] = {}
+    overlays_path = Path(profiles_dir) / "overlays"
+    if not overlays_path.exists():
+        return result
+    for overlay_file in sorted(overlays_path.glob("*.yml")):
+        overlay_name = overlay_file.stem
+        overlay_flag = f"_overlay_{overlay_name}"
+        try:
+            overlay_data = load_overlay(profiles_dir, overlay_name)
+            if isinstance(overlay_data, dict):
+                roles_list = overlay_data.get("roles", [])
+            else:
+                roles_list = overlay_data.roles
+            for role_entry in roles_list:
+                if isinstance(role_entry, str):
+                    rname = role_entry
+                    tags = [rname]
+                elif isinstance(role_entry, dict):
+                    rname = role_entry.get("role", "")
+                    tags = role_entry.get("tags", [rname])
+                else:
+                    rname = getattr(role_entry, "role", "")
+                    tags = getattr(role_entry, "tags", [rname])
+                if rname:
+                    result[rname] = (overlay_flag, tags if isinstance(tags, list) else [tags])
+        except (ValueError, yaml.YAMLError):
+            continue
+    return result
 
 _DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
 _PROFILE_TO_FLAG = {
@@ -2981,7 +3014,7 @@ def _merge_all_profile_manifests(
             gate = " or ".join(_PROFILE_TO_FLAG[p] for p in sorted(de_members))
         expected_role_map[role_name] = gate
 
-    for role_name, (condition, tags) in _OVERLAY_ROLES.items():
+    for role_name, (condition, tags) in _discover_overlay_role_conditions(profiles_dir).items():
         expected_role_map[role_name] = condition
         role_to_profiles.setdefault(role_name, set())
         role_tags.setdefault(role_name, set()).update(tags)
@@ -3114,12 +3147,34 @@ def write_playbook(
         f.write("        _manifest: \"{{ _manifest_result.stdout | from_json }}\"\n")
         f.write("        _of: \"{{ _manifest.overlay_flags }}\"\n")
         f.write("      ansible.builtin.set_fact:\n")
-        f.write("        _overlay_laptop: \"{{ _of._overlay_laptop | default(false) }}\"\n")
-        f.write("        _overlay_backlight: \"{{ _of._overlay_backlight | default(false) }}\"\n")
-        f.write("        _overlay_bluetooth: \"{{ _of._overlay_bluetooth | default(false) }}\"\n")
-        f.write("        _overlay_dotfiles: \"{{ _of._overlay_dotfiles | default(false) }}\"\n")
-        f.write("        _overlay_goesimage: \"{{ _of._overlay_goesimage | default(false) }}\"\n")
-        f.write("        _overlay_regdomain: \"{{ _of._overlay_regdomain | default(false) }}\"\n")
+        for var_name in sorted(overlay_vars):
+            f.write(f"        _overlay_{var_name}: \"{{{{ _of._overlay_{var_name} | default(false) }}}}\"\n")
+        # Also emit per-role overlay flags from all discovered overlays
+        # These are derived from the overlay roles themselves
+        all_overlay_role_flags = set()
+        for pname in profile_names:
+            try:
+                p = load_profile(profiles_dir, pname)
+                # Profile roles don't contribute overlay flags
+            except (ValueError, yaml.YAMLError):
+                pass
+        for overlay_name in _discover_overlay_names(profiles_dir):
+            try:
+                od = load_overlay(profiles_dir, overlay_name)
+                if isinstance(od, dict):
+                    roles_list = od.get("roles", [])
+                else:
+                    roles_list = od.roles
+                for r in roles_list:
+                    rname = r if isinstance(r, str) else r.get("role", "")
+                    if rname:
+                        flag = f"_overlay_{rname}"
+                        if flag not in {f"_overlay_{v}" for v in overlay_vars}:
+                            all_overlay_role_flags.add((rname, flag))
+            except (ValueError, yaml.YAMLError):
+                pass
+        for rname, flag in sorted(all_overlay_role_flags):
+            f.write(f"        {flag}: \"{{{{ _of.{flag} | default(false) }}}}\"\n")
         f.write("      tags: always\n\n")
 
         # Write roles

@@ -26,6 +26,13 @@ UNAME_S  := $(shell uname -s)
 PIPX_VENVS    := $(shell pipx environment 2>/dev/null | grep -o 'PIPX_LOCAL_VENVS=[^[:space:]]*' | cut -d= -f2)
 SCRIPT_PYTHON := $(or $(wildcard $(PIPX_VENVS)/ansible/bin/python3),python3)
 
+# Ansible runs via pipx under a mode-0700 home directory. Non-root become users
+# (e.g. aur_builder) cannot traverse the home dir to reach the pipx venv python,
+# so pin module execution to the system interpreter that every user can execute.
+# (env var / ansible.cfg do not override the local-connection controller interpreter;
+# only an extra var has high enough precedence.)
+ANSIBLE_PYTHON_FLAGS := -e ansible_python_interpreter=/usr/bin/python3
+
 ANSIBLE_BIN      = $(shell ansible --version 2>&1 | head -1 | grep -q 'ansible 2' && command -v ansible)
 ANSIBLE_LINT_BIN = $(shell command -v ansible-lint 2>/dev/null)
 YAMLLINT_BIN     = $(shell command -v yamllint 2>/dev/null)
@@ -92,14 +99,15 @@ ifdef TAGS
 		echo "Run 'make list-tags' to see all available tags."; \
 		exit 1; \
 	fi
-	ansible-playbook -i localhost play.yml --ask-become-pass --tags "$(TAGS)"
+	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) --tags "$(TAGS)"
 else
-	ansible-playbook -i localhost play.yml --ask-become-pass
+	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS)
 endif
 
 .PHONY: pip-deps
-pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
+pip-deps: ## Ensure pyyaml and passlib are available (injects into pipx ansible environment)
 	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
+	@$(SCRIPT_PYTHON) -c "import passlib" 2>/dev/null || pipx inject ansible passlib
 
 .PHONY: validate-deps
 validate-deps: pip-deps ## Validate role dependency graph (no cycles, no missing roles)
@@ -161,7 +169,7 @@ profile-$(1): req-playbook pip-deps ## Run $(1) profile
 		  echo "" >&2; \
 		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
 		  exit 1; }; \
-		ansible-playbook -i localhost play.yml --ask-become-pass $$$$ARGS
+		ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) $$$$ARGS
 endef
 
 # Generate a target for each profile
@@ -176,7 +184,7 @@ profile-%: req-playbook pip-deps ## Run arbitrary profile (with validation)
 		  echo "" >&2; \
 		  echo "Available profiles: $$(echo "$(PROFILES)" | sed 's/ /, /g')" >&2; \
 		  exit 1; }; \
-	ansible-playbook -i localhost play.yml --ask-become-pass $$ARGS
+	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) $$ARGS
 
 .PHONY: validate-profiles
 validate-profiles: pip-deps check-sync ## Validate all profiles for correctness and check play.yml sync

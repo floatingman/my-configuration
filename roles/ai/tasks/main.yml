@@ -1,5 +1,9 @@
 ---
 # tasks file for ai
+# AI tools (claude, forge) are installed system-wide to /usr/local/bin
+# so all users on the machine can access them.
+# Per-user config (~/.claude/) remains in each user's home.
+
 - name: Check if Homebrew is available
   ansible.builtin.stat:
     path: /home/linuxbrew/.linuxbrew/bin/brew
@@ -13,34 +17,46 @@
   ansible.builtin.include_tasks: forgecode.yml
 
 # -------------------------------------------------------------------------
-# Claude Code (native installer)
+# Claude Code (native installer — system-wide)
 # -------------------------------------------------------------------------
 - name: Check if Claude Code is already installed
   ansible.builtin.stat:
-    path: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
+    path: "{{ ai_system_bin_dir }}/claude"
   register: ai_claude_code_stat
 
-- name: Install Claude Code via native installer
+- name: Install Claude Code via native installer (system-wide)
   ansible.builtin.shell:
     cmd: set -o pipefail && curl -fsSL https://claude.ai/install.sh | sh
-    executable: /bin/bash
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: /root
+    PATH: "/usr/local/bin:/usr/bin:/bin"
   register: ai_claude_code_install
   changed_when: ai_claude_code_install.rc == 0
+  become: true
   when:
     - ai_claude_code_enabled | default(true)
     - not ai_claude_code_stat.stat.exists
+
+- name: Symlink claude to system bin dir
+  ansible.builtin.file:
+    src: /root/.local/bin/claude
+    dest: "{{ ai_system_bin_dir }}/claude"
+    state: link
+    force: true
+  become: true
+  when:
+    - ai_claude_code_enabled | default(true)
 
 - name: Apply Claude Code configuration from chezmoi
   ansible.builtin.command: >
     chezmoi apply ~/.claude
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
+    HOME: "/home/{{ user.name }}"
   register: ai_chezmoi_claude_result
   changed_when: ai_chezmoi_claude_result.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_claude_code_enabled | default(true)
     - ai_claude_config_enabled | default(true)
@@ -52,7 +68,7 @@
   ansible.builtin.command:
     cmd: npm install -g @cometix/ccline
   environment:
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.asdf/shims"
+    PATH: "/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
   when: ai_ccometixline_enabled | default(true)
   register: ai_ccometixline_result
   changed_when: ai_ccometixline_result.rc == 0
@@ -115,52 +131,69 @@
   ignore_errors: true
   register: ai_claudectx_homebrew_result
 
-- name: Install claudectx via go install (fallback)
+- name: Install claudectx via go install (system-wide fallback)
   ansible.builtin.command:
     cmd: go install github.com/foxj77/claudectx@latest
   environment:
-    GOPATH: "{{ lookup('env', 'HOME') }}/.local/go"
-    PATH: "{{ lookup('env', 'PATH', default='/usr/local/bin:/usr/bin:/bin') }}:{{ lookup('env', 'HOME') }}/.local/go/bin"
+    GOPATH: /opt/go-tools
+    PATH: "/usr/local/go/bin:{{ ansible_facts['env']['PATH'] }}"
   when:
     - ai_claudectx_enabled | default(true)
     - not ai_homebrew_available or ai_claudectx_homebrew_result is failed
   register: ai_claudectx_go_result
   changed_when: ai_claudectx_go_result.rc == 0
   failed_when: false
+  become: true
+
+- name: Symlink claudectx to system bin dir
+  ansible.builtin.file:
+    src: /opt/go-tools/bin/claudectx
+    dest: "{{ ai_system_bin_dir }}/claudectx"
+    state: link
+    force: true
+  become: true
+  when:
+    - ai_claudectx_enabled | default(true)
+    - ai_claudectx_go_result is defined
+    - ai_claudectx_go_result.rc == 0
 
 # -------------------------------------------------------------------------
-# Claude Code Plugins
+# Claude Code Plugins (per-user — runs as the primary user)
 # -------------------------------------------------------------------------
 - name: Ensure Claude Code is installed before plugin installation
   ansible.builtin.stat:
-    path: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
+    path: "{{ ai_system_bin_dir }}/claude"
   register: ai_claude_code_for_plugins
   when:
     - ai_claude_code_plugins_enabled | default(true)
 
 - name: Install claude-plugins-official marketplace plugins
   ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install {{ item }}
+    {{ ai_system_bin_dir }}/claude plugin install {{ item }}
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
   loop: "{{ ai_claude_official_plugins | default(ai_claude_official_plugins_default) }}"
   register: ai_plugin_official_result
   changed_when: ai_plugin_official_result.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_claude_code_for_plugins.stat.exists
 
 - name: Add caveman custom marketplace
   ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin marketplace add caveman github://JuliusBrussee/caveman
+    {{ ai_system_bin_dir }}/claude plugin marketplace add caveman github://JuliusBrussee/caveman
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
   register: ai_caveman_marketplace_result
   changed_when: ai_caveman_marketplace_result.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_caveman_enabled | default(true)
@@ -168,13 +201,15 @@
 
 - name: Install caveman plugin
   ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install caveman@caveman
+    {{ ai_system_bin_dir }}/claude plugin install caveman@caveman
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
   register: ai_caveman_plugin_result
   changed_when: ai_caveman_plugin_result.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_caveman_enabled | default(true)
@@ -182,13 +217,15 @@
 
 - name: Add addy-skills custom marketplace
   ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin marketplace add addyosmani/agent-skills
+    {{ ai_system_bin_dir }}/claude plugin marketplace add addyosmani/agent-skills
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
   register: ai_addyskills_marketplace_result
   changed_when: ai_addyskills_marketplace_result.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_addyskills_enabled | default(true)
@@ -196,13 +233,15 @@
 
 - name: Install addy-skills plugin
   ansible.builtin.shell: |
-    {{ lookup('env', 'HOME') }}/.local/bin/claude plugin install agent-skills@addy-agent-skills
+    {{ ai_system_bin_dir }}/claude plugin install agent-skills@addy-agent-skills
   environment:
-    HOME: "{{ lookup('env', 'HOME') }}"
-    PATH: "{{ lookup('env', 'PATH') }}:{{ lookup('env', 'HOME') }}/.local/bin"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
   register: ai_addyskills_plugin_result
   changed_when: ai_addyskills_plugin_result.rc == 0
   failed_when: false
+  become: true
+  become_user: "{{ user.name }}"
   when:
     - ai_claude_code_plugins_enabled | default(true)
     - ai_addyskills_enabled | default(true)

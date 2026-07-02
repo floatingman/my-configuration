@@ -19,6 +19,9 @@ ai_claude_code_plugins_enabled: true
 ai_everything_claude_code_enabled: true
 ai_caveman_enabled: true
 
+# System-wide binary directory for AI tools
+ai_system_bin_dir: /usr/local/bin
+
 # Default plugins to install from claude-plugins-official marketplace
 ai_claude_official_plugins_default:
   - superpowers@claude-plugins-official

@@ -31,6 +31,7 @@
             {}
             | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
             | combine({"laptop": laptop} if laptop is defined else {})
+            | combine({"user_environment": user_environment} if user_environment is defined else {})
             | to_json
           }}
       register: _manifest_result
@@ -59,12 +60,14 @@
         _manifest: "{{ _manifest_result.stdout | from_json }}"
         _of: "{{ _manifest.overlay_flags }}"
       ansible.builtin.set_fact:
-        _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
-        _overlay_backlight: "{{ _of._overlay_backlight | default(false) }}"
         _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"
+        _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
+        _overlay_user_environment: "{{ _of._overlay_user_environment | default(false) }}"
+        _overlay_ai: "{{ _of._overlay_ai | default(false) }}"
+        _overlay_backlight: "{{ _of._overlay_backlight | default(false) }}"
         _overlay_dotfiles: "{{ _of._overlay_dotfiles | default(false) }}"
-        _overlay_goesimage: "{{ _of._overlay_goesimage | default(false) }}"
-        _overlay_regdomain: "{{ _of._overlay_regdomain | default(false) }}"
+        _overlay_gnupg: "{{ _of._overlay_gnupg | default(false) }}"
+        _overlay_shell: "{{ _of._overlay_shell | default(false) }}"
       tags: always
 
   roles:
@@ -84,8 +87,8 @@
     # -------------------------------------------------------------------------
     - { role: archive, tags: ["archive"] }
     - { role: cron, tags: ["cron"] }
-    - { role: gnupg, tags: ["gnupg"] }
-    - { role: shell, tags: ["shell"] }
+    - { role: gnupg, tags: ["gnupg"], when: _overlay_user_environment }
+    - { role: shell, tags: ["shell"], when: _overlay_user_environment }
     - { role: ssh, tags: ["ssh"] }
     - { role: sysmon, tags: ["sysmon"] }
     - { role: system, tags: ["system"] }
@@ -102,7 +105,7 @@
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
-    - { role: ai, tags: ["ai"], when: ai_enabled | default(false) | bool }
+    - { role: ai, tags: ["ai"], when: _overlay_user_environment }
     - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
     - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: editors, tags: ["editors"] }
@@ -171,7 +174,7 @@
     # Desktop Applications (any desktop profile)
     # -------------------------------------------------------------------------
     - { role: android, tags: ["android"], when: _has_display }
-    - { role: backlight, tags: ["backlight"], when: _has_display }
+    - { role: backlight, tags: ["backlight"], when: _overlay_laptop }
     - { role: browsers, tags: ["browsers"], when: _has_display }
     - { role: cups, tags: ["cups"], when: _is_arch and _has_display }
     - { role: filemanager, tags: ["filemanager"], when: _has_display }
@@ -188,7 +191,7 @@
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------
-    - { role: dotfiles, tags: ["dotfiles"], when: dotfiles_config is defined }
+    - { role: dotfiles, tags: ["dotfiles"], when: _overlay_user_environment }
     - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: _overlay_bluetooth }
