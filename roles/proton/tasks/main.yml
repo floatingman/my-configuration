@@ -14,11 +14,9 @@
 
 - name: Install Proton VPN
   become: true
-  kewlfft.aur.aur:
-    name: protonvpn
-    use: auto
+  ansible.builtin.package:
+    name: proton-vpn-gtk-app
     state: present
-  become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur

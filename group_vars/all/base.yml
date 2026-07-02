@@ -3,6 +3,12 @@
 # These are the defaults shared between desktop and server configurations.
 # Machine-specific overrides (laptop, hostname, display_manager, etc.) live in group_vars/all/local.yml.
 
+# Ansible is installed via pipx under a home directory that is mode 0700.
+# Non-root become users (e.g. aur_builder) cannot traverse the home dir to reach
+# the pipx venv python, so pin module execution to the system interpreter that
+# every user can execute.
+ansible_python_interpreter: /usr/bin/python3
+
 user:
   name: dnewman
   uid: 1000
@@ -341,11 +347,10 @@ aur:
     - caffeinate
     - dive
     - dyff-bin
-    - fluxctl
     - git-quick-stats
     - gita
     - glow
-    - google-cloud-sdk
+    - google-cloud-cli
     - hey-bin
     - highlight-pointer-git
     - k6
@@ -355,10 +360,9 @@ aur:
     - lf
     - masterpdfeditor
     - nova
-    - oranchello-icon-theme
     - pet-bin
     - polaris-bin
-    - postman
+    - postman-bin
     - python-grip
     - scc
     - slack-term-bin
@@ -464,7 +468,6 @@ dust_version: 0.8.1-alpha.2
 dyff_version: 1.5.1
 exa_version: 0.10.1
 fd_version: v8.3.2
-fluxctl_version: 1.24.3
 githubcli_version: 2.76.1
 gitui_version: 0.20.1
 glab_version: 1.22.0
