@@ -2,7 +2,7 @@
 - name: Install Pycharm
   become: true
   kewlfft.aur.aur:
-    name: pycharm-professional
+    name: pycharm
     use: auto
     state: present
   become_user: aur_builder
@@ -112,7 +112,7 @@
 - name: Install Windsurf
   become: true
   kewlfft.aur.aur:
-    name: windsurf
+    name: windsurf-next
     use: auto
     state: present
   become_user: aur_builder

@@ -20,18 +20,8 @@
   ansible.builtin.copy:
     src: play.sh
     dest: /usr/local/bin/play
-    mode: '0755'
+    mode: "0755"
   become: true
-
-# - name: Install Subliminal for sub download
-#  kewlfft.aur.aur:
-#    name: subliminal
-#    use: auto
-#    state: present
-#  become_user: aur_builder
-#  when: ansible_facts["os_family"] == "Archlinux"
-#  tags:
-#    - aur
 
 - name: Install Vapoursynth
   become: true
@@ -40,31 +30,10 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-# - name: Install vapoursynth-plugin-rife-ncnn-vulkan-git
-#   kewlfft.aur.aur:
-#     name: vapoursynth-plugin-rife-ncnn-vulkan-git
-#     use: auto
-#     state: present
-#   become_user: aur_builder
-#   when: ansible_facts["os_family"] == "Archlinux"
-#   tags:
-#     - aur
-
 - name: Install vapoursynth-plugin-vmaf-git
   become: true
   kewlfft.aur.aur:
     name: vapoursynth-plugin-vmaf-git
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
-
-- name: Install vapoursynth-miscfilters-obsolete-git
-  become: true
-  kewlfft.aur.aur:
-    name: vapoursynth-miscfilters-obsolete-git
     use: auto
     state: present
   become_user: aur_builder
@@ -93,43 +62,3 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
-
-# - name: Install ffsubsync for sub sync
-#   kewlfft.aur.aur:
-#     name: python-ffsubsync
-#     use: auto
-#     state: present
-#   become_user: aur_builder
-#   when: ansible_facts["os_family"] == "Archlinux"
-#   tags:
-#     - aur
-
-# - name: Install alass for sub sync
-#   kewlfft.aur.aur:
-#     name: alass-git
-#     use: auto
-#     state: present
-#   become_user: aur_builder
-#   when: ansible_facts["os_family"] == "Archlinux"
-#   tags:
-#     - aur
-
-# - name: Install mpv-file-browser
-#   git:
-#     clone: true
-#     repo: https://github.com/CogentRedTester/mpv-file-browser.git
-#     dest: ~/.config/mpv/scripts/file-browser
-#
-# - name: Install mpv sockets plugin
-#   ansible.builtin.get_url:
-#     url: https://raw.githubusercontent.com/wis/mpvSockets/master/mpvSockets.lua
-#     dest: ~/.config/mpv/scripts/mpvSockets.lua
-#     mode: "755"
-#   become_user: "{{user.name}}"
-#
-# - name: Install mpv-reload script
-#   ansible.builtin.get_url:
-#     url: https://raw.githubusercontent.com/4e6/mpv-reload/master/reload.lua
-#     dest: ~/.config/mpv/scripts/reload.lua
-#     mode: "755"
-#   become_user: "{{user.name}}"

@@ -23,6 +23,42 @@
     line: "COMPRESSXZ=(xz -c -z - --threads=0)"
   become: true
 
+# Arch's default makepkg.conf enables the `debug` option, so every AUR build
+# emits a companion `*-debug` symbol package that nobody needs. Disable it so
+# debug packages are no longer produced on future builds.
+- name: Disable debug symbol packages in makepkg.conf
+  ansible.builtin.replace:
+    dest: /etc/makepkg.conf
+    regexp: '(^OPTIONS=\([^)]*\s)debug(\s[^)]*\))'
+    replace: '\1!debug\2'
+  become: true
+  when: ansible_facts['os_family'] == "Archlinux"
+  tags:
+    - packages
+
+# One-time sweep: remove any `*-debug` symbol packages left over from previous
+# AUR builds that ran while the `debug` option was still enabled.
+- name: Discover installed debug symbol packages
+  ansible.builtin.shell: set -o pipefail; pacman -Qq | grep -E -- '-debug$' || true
+  args:
+    executable: /bin/bash
+  register: base_debug_packages
+  changed_when: false
+  become: true
+  when: ansible_facts['os_family'] == "Archlinux"
+  tags:
+    - packages
+
+- name: Remove installed debug symbol packages
+  ansible.builtin.command: "pacman -R --noconfirm {{ base_debug_packages.stdout_lines | join(' ') }}"
+  become: true
+  changed_when: true
+  when:
+    - ansible_facts['os_family'] == "Archlinux"
+    - base_debug_packages.stdout | length > 0
+  tags:
+    - packages
+
 - name: Push pacman cache cleanup service
   ansible.builtin.copy:
     src: paccache.service
