@@ -158,3 +158,10 @@
   ansible.builtin.package:
     name: axel
     state: present
+
+- name: Install BIND (full DNS server)
+  become: true
+  ansible.builtin.package:
+    name: bind
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"

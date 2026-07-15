@@ -119,3 +119,25 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+- name: Install development CLI tools
+  become: true
+  ansible.builtin.package:
+    name:
+      - golangci-lint
+      - python-lsp-server
+      - meld
+      - kdiff3
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install DevPod from AUR
+  become: true
+  kewlfft.aur.aur:
+    name: devpod-bin
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

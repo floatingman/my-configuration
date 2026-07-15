@@ -291,6 +291,7 @@ cli:
     - logcli
     - mdbook
     - meson
+    - ncdu
     - newsboat
     - nnn
     - popeye
@@ -299,18 +300,22 @@ cli:
     - prettyping
     - python-gitlabber
     - rclone
+    - rdfind
     - ripgrep
     - ripgrep-all
+    - s3cmd
     - sd
     - stern
     - tectonic
     - texlab
+    - texlive-basic
     - texlive-core
     - tflint
     - timew
     - the_silver_searcher
     - tokei
     - xsv
+    - xmlstarlet
     - yq
 
 pip_packages:

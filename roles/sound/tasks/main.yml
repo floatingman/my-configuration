@@ -28,3 +28,17 @@
     name: pasystray
     state: present
   become: true
+
+- name: Install EasyEffects preset packs from AUR
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name:
+      - easyeffects-bundy01-presets
+      - easyeffects-digitalone1-presets-git
+      - easyeffects-jtrv-presets-git
+    use: auto
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

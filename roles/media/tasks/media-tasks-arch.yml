@@ -24,3 +24,25 @@
   ansible.builtin.package:
     name: svgcleaner
     state: present
+
+- name: Install media players
+  become: true
+  ansible.builtin.package:
+    name:
+      - vlc
+      - vlc-plugins-all
+      - gammastep
+    state: present
+
+- name: Install VapourSynth plugins from AUR
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name:
+      - vapoursynth-plugin-mvtools-git
+      - vapoursynth-plugin-vmaf-git
+    use: auto
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur

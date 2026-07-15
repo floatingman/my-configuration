@@ -38,6 +38,14 @@
   tags:
     - tor-browser
 
+- name: Install Chromium
+  become: true
+  ansible.builtin.package:
+    name: chromium
+    state: present
+  tags:
+    - chromium
+
 - name: Push rofi browser chooser
   become: true
   ansible.builtin.template:

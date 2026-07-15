@@ -21,6 +21,9 @@
       - upower
       - wtype
       - ydotool
+      - fcitx5-breeze
+      - qt5ct
+      - qt6ct
     state: present
 
 - name: Install Qt6 AVIF plugin from AUR
@@ -31,3 +34,14 @@
   become: true
   become_user: aur_builder
   when: ansible_facts['os_family'] == "Archlinux"
+
+- name: Install Adwaita GTK theme from AUR
+  kewlfft.aur.aur:
+    name: adw-gtk-theme-git
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts['os_family'] == "Archlinux"
+  tags:
+    - aur

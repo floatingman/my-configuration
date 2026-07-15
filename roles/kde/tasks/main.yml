@@ -34,3 +34,23 @@
     name: kate
     state: present
   become: true
+- name: Install KDE Connect
+  ansible.builtin.package:
+    name: kdeconnect
+    state: present
+  become: true
+- name: Install Konsole
+  ansible.builtin.package:
+    name: konsole
+    state: present
+  become: true
+- name: Install Plasma browser integration
+  ansible.builtin.package:
+    name: plasma-browser-integration
+    state: present
+  become: true
+- name: Install Plasma system monitor
+  ansible.builtin.package:
+    name: plasma-systemmonitor
+    state: present
+  become: true

@@ -82,3 +82,6 @@ ai_rtk_enabled: true              # Install rtk (token optimization proxy)
 ai_claudectx_enabled: true        # Install claudectx (context management tool)
 ai_forgecode_enabled: true          # Install ForgeCode (AI coding harness)
 ai_forgecode_zsh_enabled: true      # Enable ForgeCode ZSH plugin integration
+ai_local_llm_enabled: true          # Install Ollama (+ GPU backends) and llm-manager
+ai_lmstudio_enabled: true           # Install LM Studio (local LLM GUI)
+ai_llmfit_enabled: true             # Install llmfit (local LLM hardware-fit tool)

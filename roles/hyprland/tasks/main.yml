@@ -25,6 +25,11 @@
       - xdg-desktop-portal-kde
       - xdg-desktop-portal-gtk
       - fcitx5
+      - waybar
+      - wofi
+      - swaylock
+      - hyprpaper
+      - uwsm
     state: present
   become: true
 
@@ -41,3 +46,13 @@
     src: hyprland.desktop
     dest: /usr/share/wayland-sessions/hyprland.desktop
     mode: '0644'
+
+- name: Install Quickshell from AUR
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name: quickshell-git
+    use: auto
+    state: present
+  tags:
+    - aur

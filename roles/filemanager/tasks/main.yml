@@ -45,3 +45,12 @@
   tags:
     - filemanager
     - aur
+
+- name: Install Krusader
+  become: true
+  ansible.builtin.package:
+    name: krusader
+    state: present
+  when: ansible_facts["os_family"] == "Archlinux" and (_has_display | default(false))
+  tags:
+    - filemanager

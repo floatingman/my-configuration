@@ -246,3 +246,45 @@
     - ai_claude_code_plugins_enabled | default(true)
     - ai_addyskills_enabled | default(true)
     - ai_claude_code_for_plugins.stat.exists
+
+# -------------------------------------------------------------------------
+# Local LLM runtime (Ollama + helpers)
+# -------------------------------------------------------------------------
+- name: Install Ollama and GPU acceleration backends
+  become: true
+  ansible.builtin.package:
+    name:
+      - ollama
+      - ollama-rocm
+      - ollama-vulkan
+      - llm-manager
+    state: present
+  when:
+    - ai_local_llm_enabled | default(true)
+    - ansible_facts['os_family'] == "Archlinux"
+
+- name: Install LM Studio from AUR
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name: lmstudio-bin
+    use: auto
+    state: present
+  when:
+    - ai_lmstudio_enabled | default(true)
+    - ansible_facts['os_family'] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install llmfit from AUR
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name: llmfit-bin
+    use: auto
+    state: present
+  when:
+    - ai_llmfit_enabled | default(true)
+    - ansible_facts['os_family'] == "Archlinux"
+  tags:
+    - aur

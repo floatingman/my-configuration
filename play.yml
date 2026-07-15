@@ -188,6 +188,7 @@
     - { role: terminal, tags: ["terminal"], when: _has_display }
     - { role: twitch, tags: ["twitch"], when: _has_display }
     - { role: udisks, tags: ["udisks"], when: _is_arch and _has_display }
+    - { role: communication, tags: ["communication"], when: _is_arch and _has_display }
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------

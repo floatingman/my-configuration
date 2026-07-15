@@ -10,3 +10,13 @@
   community.general.pacman:
     name: kubectl
     state: present
+
+- name: Install kubecm
+  become: true
+  become_user: aur_builder
+  kewlfft.aur.aur:
+    name: kubecm-git
+    use: auto
+    state: present
+  tags:
+    - aur

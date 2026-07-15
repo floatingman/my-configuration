@@ -93,3 +93,52 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+# -------------------------------------------------------------------------
+# Laptop input & power utilities (Arch-only)
+# -------------------------------------------------------------------------
+- name: Install keyd (key remapping daemon) from AUR
+  kewlfft.aur.aur:
+    name: keyd-git
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install pep (keep-awake tray tool) from AUR
+  kewlfft.aur.aur:
+    name: pep
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install battery-stats from AUR
+  kewlfft.aur.aur:
+    name: battery-stats-git
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install HP vendor DKMS driver from AUR (HP laptops only)
+  kewlfft.aur.aur:
+    name: hp-vendor-dkms-git
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when:
+    - ansible_facts["os_family"] == "Archlinux"
+    - ansible_facts['system_vendor'] in ["HP", "Hewlett-Packard"]
+  tags:
+    - aur

@@ -55,6 +55,9 @@ roles:
   - { role: mirrorlist, tags: [mirrorlist], os: archlinux }
   - { role: filesharing, tags: [filesharing], os: archlinux }
 
+  # Communication (Arch-only, requires display)
+  - { role: communication, tags: [communication], os: archlinux, requires_display: true }
+
   # Productivity & Utilities
   - { role: taskwarrior, tags: [taskwarrior], os: archlinux }
   - { role: pass, tags: [pass], os: archlinux }

@@ -2778,6 +2778,7 @@ _ROLE_TO_SECTION: Dict[str, str] = {
     "terminal": "desktop_apps",
     "notes": "desktop_apps",
     "browsers": "desktop_apps",
+    "communication": "desktop_apps",
     "filemanager": "desktop_apps",
     "screensaver": "desktop_apps",
     "mpv": "desktop_apps",

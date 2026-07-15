@@ -14,6 +14,11 @@ ai_claudectx_enabled: true
 ai_forgecode_enabled: true
 ai_forgecode_zsh_enabled: true
 
+# Local LLM runtime (Ollama + helpers)
+ai_local_llm_enabled: true
+ai_lmstudio_enabled: true
+ai_llmfit_enabled: true
+
 # Claude Code Plugins
 ai_claude_code_plugins_enabled: true
 ai_everything_claude_code_enabled: true
