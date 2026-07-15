@@ -1,0 +1,16 @@
+---
+- name: Install Telegram Desktop
+  become: true
+  ansible.builtin.package:
+    name: telegram-desktop
+    state: present
+  tags:
+    - communication
+
+- name: Install Thunderbird
+  become: true
+  ansible.builtin.package:
+    name: thunderbird
+    state: present
+  tags:
+    - communication
