@@ -40,34 +40,101 @@
 
 # -------------------------------------------------------------------------
 # ZSH Plugin Integration (per-user)
+#
+# We deliberately do NOT use `forge zsh setup` here:
+#   - it accepts no flags (an earlier `--yes` was rejected silently), and
+#   - it edits ~/.zshrc directly, which is chezmoi-managed and would be wiped
+#     by the next `chezmoi apply`.
+# Instead we generate the plugin/theme scripts into ~/.forge/zsh/ (forge's own
+# directory, not managed by chezmoi) and source them from ~/.zshrc via an
+# idempotent block. The ai role runs after the dotfiles role, so the block is
+# re-added cleanly on every playbook run even if chezmoi rewrites ~/.zshrc.
 # -------------------------------------------------------------------------
-- name: Check if ForgeCode ZSH plugin is already configured
-  ansible.builtin.stat:
-    path: "/home/{{ user.name }}/.forge/zsh/forge.plugin.zsh"
-  register: ai_forgecode_zsh_plugin_stat
+- name: Ensure ForgeCode zsh script directory exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.forge/zsh"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0755'
+  become: true
   when:
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_zsh_enabled | default(true)
 
-- name: Configure ForgeCode ZSH plugin
-  ansible.builtin.command:
-    cmd: forge zsh setup --yes
+- name: Generate ForgeCode zsh plugin script
+  ansible.builtin.command: forge zsh plugin
   environment:
     HOME: "/home/{{ user.name }}"
     PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
-  register: ai_forgecode_zsh_setup
-  changed_when: ai_forgecode_zsh_setup.rc == 0
-  failed_when: false
+  register: ai_forgecode_plugin_out
+  changed_when: false
   become: true
   become_user: "{{ user.name }}"
   when:
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_zsh_enabled | default(true)
-    - not ai_forgecode_zsh_plugin_stat.stat.exists
+
+- name: Write ForgeCode zsh plugin script
+  ansible.builtin.copy:
+    dest: "/home/{{ user.name }}/.forge/zsh/forge.plugin.zsh"
+    content: "{{ ai_forgecode_plugin_out.stdout }}"
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0644'
+  become: true
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+
+- name: Generate ForgeCode zsh theme script
+  ansible.builtin.command: forge zsh theme
+  environment:
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_system_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
+  register: ai_forgecode_theme_out
+  changed_when: false
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+
+- name: Write ForgeCode zsh theme script
+  ansible.builtin.copy:
+    dest: "/home/{{ user.name }}/.forge/zsh/forge.theme.zsh"
+    content: "{{ ai_forgecode_theme_out.stdout }}"
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0644'
+  become: true
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+
+- name: Source ForgeCode zsh integration from .zshrc
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user.name }}/.zshrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: forgecode zsh integration"
+    block: |
+      # ForgeCode zsh integration (plugin + theme)
+      if command -v forge >/dev/null 2>&1; then
+        [ -f "$HOME/.forge/zsh/forge.plugin.zsh" ] && source "$HOME/.forge/zsh/forge.plugin.zsh"
+        [ -f "$HOME/.forge/zsh/forge.theme.zsh" ] && source "$HOME/.forge/zsh/forge.theme.zsh"
+      fi
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0644'
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
 
 - name: Display ForgeCode installation status
   ansible.builtin.debug:
     msg: >-
-      ForgeCode {{ 'installed' if ai_forgecode_verify.rc == 0 else 'installation failed or not available' }}
-      {{ 'with ZSH plugin' if ai_forgecode_zsh_enabled | default(true) else '' }}
+      ForgeCode {{ 'installed' if (ai_forgecode_verify.rc | default(1)) == 0 else 'installation failed or not available' }}
+      {{ 'with ZSH plugin sourced from ~/.zshrc' if (ai_forgecode_zsh_enabled | default(true)) else '' }}
   when: ai_forgecode_enabled | default(true)
