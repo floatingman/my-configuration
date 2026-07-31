@@ -4,7 +4,7 @@ description: |
   Per-user personalization: shell plugins, dotfiles, AI tool config,
   and other settings that live in the user's home directory.
   These roles must run AFTER the system-wide tool installation so that
-  tools like chezmoi, claude, and forge are available.
+  tools like chezmoi, pi, and forge are available.
 
   Applies when user_environment is not explicitly disabled.
   Set user_environment: false in group_vars/all/local.yml to skip.

@@ -121,7 +121,7 @@ The playbook uses several key configuration variables:
 - `disable_hyprland`: Disable Hyprland Wayland compositor (opt-out)
 - `laptop`: Enable laptop-specific configurations
 - `user_environment`: Enable per-user personalization (shell plugins, dotfiles, AI config). Default: `true`. Set `false` to skip.
-- `ai_enabled`: Enable AI tooling (claude, forge, etc.)
+- `ai_enabled`: Enable AI tooling (pi, forge, etc.)
 - Variables are set in group_vars/all.yml and can be customized per environment
 
 ### System-Wide Tool Installation Paths
@@ -135,7 +135,7 @@ All development tools are installed to system-wide locations accessible to every
 | Rust/Cargo | `/opt/rust` | `/etc/profile.d/rust.sh` |
 | Go | `/usr/local/go` | Already on PATH |
 | Direct binaries | `/usr/local/bin` | Already on PATH |
-| AI tools (claude, forge) | `/usr/local/bin` (symlinks) | Already on PATH |
+| AI tools (pi, forge) | asdf shims / `/usr/local/bin` | `/etc/profile.d/asdf.sh` |
 | Go install fallbacks | `/opt/go-tools` → `/usr/local/bin` | Already on PATH |
 
 Adding a new user to the system:

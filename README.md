@@ -43,7 +43,7 @@ All development tools are installed system-wide, making them available to every 
 | Rust/Cargo | `/opt/rust` | `/etc/profile.d/rust.sh` |
 | Go | `/usr/local/go` | Already on PATH |
 | Direct binaries | `/usr/local/bin` | Already on PATH |
-| AI tools (claude, forge) | `/usr/local/bin` (symlinks) | Already on PATH |
+| AI tools (pi, forge) | asdf shims / `/usr/local/bin` | `/etc/profile.d/asdf.sh` |
 
 New users get access automatically when added to the `devtools` and `linuxbrew` groups:
 ```bash

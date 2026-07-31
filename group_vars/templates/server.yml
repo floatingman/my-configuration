@@ -62,10 +62,8 @@ bluetooth:
 # AI Development Tools
 # Set ai_enabled: true to install AI tooling
 # ai_enabled: true
-ai_claude_code_enabled: true      # Install Claude Code (AI CLI tool)
-ai_claude_config_enabled: true    # Apply Claude Code config from chezmoi
-ai_ccometixline_enabled: true     # Install CCometixLine (Claude context manager)
+ai_pi_agent_enabled: true         # Install pi-agent (AI coding agent, @earendil-works/pi-coding-agent)
+ai_pi_config_enabled: true        # Apply pi config (~/.pi) from chezmoi
 ai_rtk_enabled: true              # Install rtk (token optimization proxy)
-ai_claudectx_enabled: true        # Install claudectx (context management tool)
-ai_forgecode_enabled: true          # Install ForgeCode (AI coding harness)
-ai_forgecode_zsh_enabled: true      # Enable ForgeCode ZSH plugin integration
+ai_forgecode_enabled: true        # Install ForgeCode (AI coding harness)
+ai_forgecode_zsh_enabled: true    # Enable ForgeCode ZSH plugin integration
