@@ -9,7 +9,7 @@
       - blueman
     state: present
   notify:
-    - restart pulse as user
+    - Restart pulse as user
 
 # - name: Do not auto power on the bluetooth device
 #   ansible.builtin.command: gsettings set org.blueman.plugins.powermanager auto-power-on false

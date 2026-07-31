@@ -17,7 +17,7 @@
     dest: /etc/tlp.d/
     mode: '0644'
   notify:
-    - restart tlp
+    - Restart tlp
   tags:
     - tlp
 
@@ -28,7 +28,7 @@
     dest: /etc/tlp.d/
     mode: '0644'
   notify:
-    - restart tlp
+    - Restart tlp
   tags:
     - tlp
 
@@ -39,7 +39,7 @@
     dest: /etc/tlp.d/
     mode: '0644'
   notify:
-    - restart tlp
+    - Restart tlp
   tags:
     - tlp
 

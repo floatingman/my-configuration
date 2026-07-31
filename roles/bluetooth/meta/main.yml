@@ -1,4 +1,4 @@
 ---
 dependencies:
-  - role: sound  # bluetooth notifies 'restart pulse as user' handler defined in the sound role
+  - role: sound  # bluetooth notifies 'Restart pulse as user' handler defined in the sound role
 allow_duplicates: false

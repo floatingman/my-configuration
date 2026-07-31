@@ -81,6 +81,6 @@
     name: "user@{{ user.uid }}"
     state: started
   become: true
-  notify: stop systemd per-user instance
+  notify: Stop systemd per-user instance
   tags:
     - user

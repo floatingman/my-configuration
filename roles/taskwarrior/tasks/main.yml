@@ -10,7 +10,7 @@
     name: timew
     state: present
   notify:
-    - refresh holidays
+    - Refresh holidays
   become: true
 
 - name: Install taskopen

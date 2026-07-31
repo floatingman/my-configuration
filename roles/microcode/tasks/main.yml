@@ -18,7 +18,7 @@
     state: present
   when: microcode_is_intel.rc == 0
   notify:
-    - rebuild grub
+    - Rebuild grub
 
 - name: Install AMD microcode
   become: true
@@ -27,4 +27,4 @@
     state: present
   when: microcode_is_amd.rc == 0
   notify:
-    - rebuild grub
+    - Rebuild grub

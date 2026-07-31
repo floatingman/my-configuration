@@ -25,7 +25,7 @@
     state: present
     line: "SystemGroup sys root printadmin"
   notify:
-    - restart cups
+    - Restart cups
 
 - name: Add the user to the print and print admin groups
   become: true

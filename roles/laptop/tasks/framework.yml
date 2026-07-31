@@ -19,7 +19,7 @@
     mode: '0644'
   notify:
     - reload systemd config
-    - restart charge control
+    - Restart charge control
   tags:
     - framework
 

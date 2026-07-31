@@ -8,7 +8,7 @@
   when: grub_kernel_parameters is not none
   become: true
   notify:
-    - rebuild grub
+    - Rebuild grub
 
 - name: Disable Grub submenus
   ansible.builtin.lineinfile:
@@ -18,7 +18,7 @@
     line: "GRUB_DISABLE_SUBMENU=y"
   become: true
   notify:
-    - rebuild grub
+    - Rebuild grub
 
 - name: Install Grub Pacman hook
   kewlfft.aur.aur:

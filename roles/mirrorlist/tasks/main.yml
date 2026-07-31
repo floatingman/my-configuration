@@ -36,4 +36,4 @@
     mode: '0644'
   notify:
     - reload systemd config
-    - restart reflector update
+    - Restart reflector update
