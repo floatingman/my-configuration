@@ -46,9 +46,12 @@
 #   - it edits ~/.zshrc directly, which is chezmoi-managed and would be wiped
 #     by the next `chezmoi apply`.
 # Instead we generate the plugin/theme scripts into ~/.forge/zsh/ (forge's own
-# directory, not managed by chezmoi) and source them from ~/.zshrc via an
-# idempotent block. The ai role runs after the dotfiles role, so the block is
-# re-added cleanly on every playbook run even if chezmoi rewrites ~/.zshrc.
+# directory, not managed by chezmoi) and source them from
+# ~/.config/zsh/env.zsh. That file is NOT chezmoi-managed, but the
+# chezmoi-managed ~/.zshrc already sources it on the last line:
+#   [ -f "$HOME/.config/zsh/env.zsh" ] && source "$HOME/.config/zsh/env.zsh"
+# This keeps the forge integration out of chezmoi's managed surface entirely,
+# so it survives `chezmoi apply` without depending on playbook role ordering.
 # -------------------------------------------------------------------------
 - name: Ensure ForgeCode zsh script directory exists
   ansible.builtin.file:
@@ -112,9 +115,22 @@
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_zsh_enabled | default(true)
 
-- name: Source ForgeCode zsh integration from .zshrc
+- name: Ensure zsh env drop-in directory exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/zsh"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+
+- name: Source ForgeCode zsh integration from env.zsh
   ansible.builtin.blockinfile:
-    path: "/home/{{ user.name }}/.zshrc"
+    path: "/home/{{ user.name }}/.config/zsh/env.zsh"
     create: true
     marker: "# {mark} ANSIBLE MANAGED BLOCK: forgecode zsh integration"
     block: |
@@ -132,9 +148,23 @@
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_zsh_enabled | default(true)
 
+# Migration: remove the old forge block that used to be injected directly into
+# the chezmoi-managed ~/.zshrc. That block was wiped on every `chezmoi apply`,
+# causing drift. The integration now lives in ~/.config/zsh/env.zsh instead.
+- name: Remove legacy forge block from chezmoi-managed .zshrc
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user.name }}/.zshrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: forgecode zsh integration"
+    state: absent
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_zsh_enabled | default(true)
+
 - name: Display ForgeCode installation status
   ansible.builtin.debug:
     msg: >-
       ForgeCode {{ 'installed' if (ai_forgecode_verify.rc | default(1)) == 0 else 'installation failed or not available' }}
-      {{ 'with ZSH plugin sourced from ~/.zshrc' if (ai_forgecode_zsh_enabled | default(true)) else '' }}
+      {{ 'with ZSH plugin sourced from ~/.config/zsh/env.zsh' if (ai_forgecode_zsh_enabled | default(true)) else '' }}
   when: ai_forgecode_enabled | default(true)
