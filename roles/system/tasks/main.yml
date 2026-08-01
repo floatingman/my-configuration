@@ -1,4 +1,26 @@
 ---
+# System-wide tool groups
+#
+# The `devtools` and `linuxbrew` groups make system-wide tool installations
+# (asdf -> /opt/asdf, Linuxbrew -> /home/linuxbrew, Rust -> /opt/rust, etc.)
+# usable by every user on the machine. They are also created by the Arch-only
+# `base` role (roles/base/tasks/user.yml), but that role is skipped on Debian,
+# so we ensure them here unconditionally. This role runs before asdf, homebrew,
+# and rust in play.yml, and the tasks are idempotent.
+# See docs/adr/0001-system-wide-tool-installation.md.
+
+- name: Ensure devtools group exists
+  ansible.builtin.group:
+    name: devtools
+    state: present
+  become: true
+
+- name: Ensure linuxbrew group exists
+  ansible.builtin.group:
+    name: linuxbrew
+    state: present
+  become: true
+
 - name: Install hdparm
   become: true
   ansible.builtin.package:

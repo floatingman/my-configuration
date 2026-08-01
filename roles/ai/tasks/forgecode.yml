@@ -3,14 +3,22 @@
 # Install via official installer script to /usr/local/bin for system-wide access.
 # ZSH plugin setup remains per-user.
 
-- name: Check if ForgeCode is already installed
+- name: Check if ForgeCode source binary is installed (root home)
+  ansible.builtin.stat:
+    path: /root/.local/bin/forge
+  register: ai_forgecode_src_stat
+  become: true
+
+- name: Check for stale forge entry in system bin dir
   ansible.builtin.stat:
     path: "{{ ai_system_bin_dir }}/forge"
-  register: ai_forgecode_stat
+    follow: false
+  register: ai_forgecode_link_stat
 
-- name: Install ForgeCode via official installer (system-wide)
+- name: Install ForgeCode via official installer (into /root/.local/bin)
   ansible.builtin.shell:
     cmd: set -o pipefail && curl -fsSL https://forgecode.dev/cli | sh
+    executable: /bin/bash
   environment:
     HOME: /root
     PATH: "/usr/local/bin:/usr/bin:/bin"
@@ -19,13 +27,31 @@
   become: true
   when:
     - ai_forgecode_enabled | default(true)
-    - not ai_forgecode_stat.stat.exists
+    - not ai_forgecode_src_stat.stat.exists
 
-- name: Symlink forge to system bin dir
+# The Linux installer hardcodes $HOME/.local/bin, so with HOME=/root the
+# binary lands in /root/.local/bin/forge. Because /root is mode 0700, that
+# target is unreachable by any non-root user — a symlink from
+# /usr/local/bin/forge into /root therefore raises EACCES (Errno 13) for the
+# per-user zsh tasks below. We COPY the binary into the system bin dir as a
+# real, world-executable file instead of symlinking.
+- name: Remove stale forge symlink from system bin dir
   ansible.builtin.file:
+    path: "{{ ai_system_bin_dir }}/forge"
+    state: absent
+  become: true
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_link_stat.stat.islnk | default(false)
+
+- name: Install forge binary into system bin dir (world-executable copy)
+  ansible.builtin.copy:
     src: /root/.local/bin/forge
     dest: "{{ ai_system_bin_dir }}/forge"
-    state: link
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0755'
     force: true
   become: true
   when:

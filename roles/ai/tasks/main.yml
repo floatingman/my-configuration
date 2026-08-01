@@ -76,27 +76,96 @@
     - ai_pi_config_enabled | default(true)
 
 # -------------------------------------------------------------------------
-# rtk (Rust tool - prefer Homebrew, fallback to cargo)
+# rtk (Rust tool - prefer Homebrew, fallback to AUR/cargo)
+#
+# Homebrew refuses to run as root ("extremely dangerous and no longer
+# supported"), so taps/installs MUST run as an unprivileged user. The
+# linuxbrew tree (/home/linuxbrew/.linuxbrew) was installed root-owned, which
+# blocks every non-root user. We transfer ownership to the primary user
+# (keeping the linuxbrew group + group-writable setgid bits so other members
+# retain access) as a one-time migration guarded by a stat check, then run
+# brew as that user. Owning the tree directly sidesteps the supplementary-
+# group session timing issue that affects `become_user`.
 # -------------------------------------------------------------------------
-- name: Tap rtk-ai/rtk
+- name: Detect linuxbrew tree ownership
+  ansible.builtin.stat:
+    path: /home/linuxbrew/.linuxbrew
+  register: ai_linuxbrew_tree_stat
+  when:
+    - ai_rtk_enabled | default(true)
+    - ai_homebrew_available
+
+- name: Ensure linuxbrew group exists
+  ansible.builtin.group:
+    name: linuxbrew
+    state: present
+  become: true
+  when:
+    - ai_rtk_enabled | default(true)
+    - ai_homebrew_available
+
+- name: Add primary user to the linuxbrew group
+  ansible.builtin.user:
+    name: "{{ user.name }}"
+    groups: linuxbrew
+    append: true
+  become: true
+  when:
+    - ai_rtk_enabled | default(true)
+    - ai_homebrew_available
+
+# One-time migration: transfer the tree to the primary user (group linuxbrew,
+# group-writable, setgid) so brew can run as that user while staying usable
+# by other linuxbrew members. Skipped once the primary user already owns it.
+- name: Transfer linuxbrew tree to primary user (multi-user, one-time)
+  ansible.builtin.shell:
+    cmd: >
+      chown -R {{ user.name }}:linuxbrew /home/linuxbrew/.linuxbrew &&
+      chmod -R g+rwX /home/linuxbrew/.linuxbrew &&
+      find /home/linuxbrew/.linuxbrew -type d -exec chmod g+s {} +
+    executable: /bin/bash
+  become: true
+  changed_when: false
+  when:
+    - ai_rtk_enabled | default(true)
+    - ai_homebrew_available
+    - ai_linuxbrew_tree_stat.stat.pw_name != user.name
+
+# Homebrew expands tap `<user>/<name>` to repo `<user>/homebrew-<name>`.
+# The repo is rtk-ai/homebrew-tap (public), so the tap name is rtk-ai/tap.
+- name: Tap rtk-ai/tap
   community.general.homebrew_tap:
-    name: rtk-ai/rtk
+    name: rtk-ai/tap
     state: present
     path: /home/linuxbrew/.linuxbrew/bin
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    HOME: "/home/{{ user.name }}"
   when:
     - ai_rtk_enabled | default(true)
     - ai_homebrew_available
 
 - name: Install rtk via Homebrew
   community.general.homebrew:
-    name: rtk-ai/rtk/rtk
+    name: rtk-ai/tap/rtk
     state: present
     path: /home/linuxbrew/.linuxbrew/bin
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    HOME: "/home/{{ user.name }}"
+    # Homebrew sandboxes builds with bubblewrap, whose user namespace maps only
+    # the caller's primary gid. The multi-user linuxbrew group (gid != primary)
+    # is unmapped there, so the staging dir's group chown fails with
+    # Errno::EINVAL and the install aborts. Disable the sandbox (the supported
+    # escape hatch) so the brew group resolves and non-bottle formulae install.
+    HOMEBREW_NO_SANDBOX_LINUX: "1"
+  ignore_errors: true
+  register: ai_rtk_homebrew_result
   when:
     - ai_rtk_enabled | default(true)
     - ai_homebrew_available
-  ignore_errors: true
-  register: ai_rtk_homebrew_result
 
 - name: Install rtk-bin via AUR (Arch Linux only)
   kewlfft.aur.aur:

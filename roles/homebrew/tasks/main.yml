@@ -2,7 +2,8 @@
 # tasks file for homebrew
 # Homebrew is installed to /home/linuxbrew/.linuxbrew (a system path).
 # We make it accessible to all users via the linuxbrew group and /etc/profile.d/.
-# Note: the linuxbrew group is created in the base role (roles/base/tasks/user.yml)
+# Note: the linuxbrew group is ensured by the system role (roles/system/tasks/main.yml),
+# which runs on all OSes (the base role that also creates it is Arch-only).
 # to ensure it exists before the user is added to it.
 
 - name: Check if Homebrew is already installed
