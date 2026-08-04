@@ -1,10 +1,5 @@
 ---
 roles:
-  - name: ansible-role-shell
-    src: https://github.com/floatingman/ansible-role-shell.git
-    scm: git
-    version: master
-
   - name: ansible-role-binaries
     src: https://github.com/floatingman/ansible-role-binaries.git
     scm: git

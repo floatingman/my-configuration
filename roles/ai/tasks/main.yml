@@ -19,34 +19,131 @@
 - name: Include ForgeCode tasks
   ansible.builtin.include_tasks: forgecode.yml
 
+# asdf 0.16+ (Go) ships BOTH the Go binary (/opt/asdf/asdf) and a legacy bash
+# wrapper (/opt/asdf/bin/asdf) that prints the "upgrade to 0.16" migration
+# notice on EVERY invocation. The shims under /opt/asdf/shims exec bin/asdf, so
+# without this every node/npm/... call prints the notice and runs through the
+# legacy bash path. Point bin/asdf at the Go binary so shims use it: no notice,
+# and the (working) Go exec path. asdf 0.18 writes fresh shims as
+# `exec asdf exec ...` (bare asdf on PATH -> /usr/local/bin/asdf -> Go), so this
+# also keeps those correct. The asdf role re-clones the repo each run (restoring
+# the legacy bin/asdf), so this must run after asdf and is idempotent.
+- name: Point asdf bin/asdf at the Go binary (silence legacy migration notice)
+  ansible.builtin.file:
+    src: /opt/asdf/asdf
+    dest: /opt/asdf/bin/asdf
+    state: link
+    force: true
+    owner: root
+    group: devtools
+  become: true
+
 # -------------------------------------------------------------------------
 # pi-agent (npm — system-wide via asdf-managed Node)
 # -------------------------------------------------------------------------
+# Remove the stale per-user pi install from ~/.local. pi used to be installed
+# manually there; with it present, ~/.local/bin/pi (shebang #!/usr/bin/env
+# node) can resolve ahead of the asdf shim and run under the system Node
+# (e.g. v18.19.1), which is too old for pi's `import ... with { type: "json" }`
+# import attributes. Removing it ensures the asdf-managed pi (Node 25) is used.
+- name: Remove stale per-user pi install from ~/.local
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  become: true
+  become_user: "{{ user.name }}"
+  loop:
+    - "/home/{{ user.name }}/.local/bin/pi"
+    - "/home/{{ user.name }}/.local/lib/node_modules/@earendil-works/pi-coding-agent"
+  when: ai_pi_agent_enabled | default(true)
+  failed_when: false
+
+# Run as root because:
+#   1. The asdf nodejs install dir (/opt/asdf/installs/nodejs) is root:devtools.
+#      The primary user is added to `devtools` by the asdf/system role, but group
+#      membership only takes effect on the NEXT login — the running ansible
+#      process doesn't have it yet, so a non-root install fails with EACCES.
+#   2. The `npm` shim is `exec asdf exec "npm" "$@"`, which needs ASDF_DIR /
+#      ASDF_DATA_DIR to locate the /opt/asdf data dir; without them asdf looks in
+#      the default ~/.asdf and the shim fails (rc=126). sudo's env_reset wipes
+#      inherited vars, so we set them explicitly here.
 - name: Install pi-agent via npm (system-wide)
   ansible.builtin.command:
-    cmd: npm install -g @earendil-works/pi-coding-agent
+    cmd: npm install -g --unsafe-perm @earendil-works/pi-coding-agent
   environment:
-    PATH: "/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    ASDF_DIR: "/opt/asdf"
+    ASDF_DATA_DIR: "/opt/asdf"
+  become: true
   when: ai_pi_agent_enabled | default(true)
   register: ai_pi_agent_result
   changed_when: ai_pi_agent_result.rc == 0
   failed_when: false
 
-- name: Reshim asdf nodejs so the pi shim is available system-wide
+- name: Reshim asdf nodejs (keeps node/npm shims current)
   ansible.builtin.command:
     cmd: asdf reshim nodejs
   environment:
     PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
     ASDF_DIR: "/opt/asdf"
     ASDF_DATA_DIR: "/opt/asdf"
+  become: true
   when: ai_pi_agent_enabled | default(true)
   changed_when: false
   failed_when: false
 
+# asdf 0.16+ (Go rewrite) only shims the executables a plugin DECLARES
+# (node, npm, npx, ...) — NOT arbitrary npm-global binaries like `pi`. The old
+# bash asdf shimmed everything in bin/, so the asdf-shim approach for pi broke
+# under 0.18 ("unknown command: pi. Perhaps you have to reshim?"). Expose pi via
+# a stable symlink in /usr/local/bin instead. Its #!/usr/bin/env node shebang
+# resolves to the asdf node shim on PATH, so it runs under the managed Node.
+# This mirrors how ForgeCode is symlinked below.
+- name: Locate the asdf-installed pi binary
+  ansible.builtin.shell: "ls /opt/asdf/installs/nodejs/*/bin/pi 2>/dev/null | sort -V | tail -1"
+  register: ai_pi_asdf_binary
+  changed_when: false
+  failed_when: false
+  when: ai_pi_agent_enabled | default(true)
+
+- name: Symlink pi into /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ ai_pi_asdf_binary.stdout }}"
+    dest: "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi"
+    state: link
+    force: true
+    owner: root
+    group: root
+  become: true
+  when:
+    - ai_pi_agent_enabled | default(true)
+    - ai_pi_asdf_binary.stdout | default('') | length > 0
+  failed_when: false
+
+# asdf 0.16+ (Go rewrite) removed the static completion files (completions are
+# now dynamic via `asdf completion`). Older dotfiles source
+# $ASDF_DIR/completions/asdf.bash, which no longer exists, causing a
+# "no such file or directory" error on every zsh startup. Generate the legacy
+# files so those dotfiles keep working. Delete the file to force regeneration
+# after an asdf upgrade.
+- name: Generate legacy asdf completion files for older dotfiles
+  ansible.builtin.shell: |
+    set -e
+    install -d -m 0755 /opt/asdf/completions
+    /opt/asdf/asdf completion bash > /opt/asdf/completions/asdf.bash
+    /opt/asdf/asdf completion zsh > /opt/asdf/completions/asdf.zsh
+    chmod 0644 /opt/asdf/completions/asdf.bash /opt/asdf/completions/asdf.zsh
+  args:
+    creates: /opt/asdf/completions/asdf.bash
+  become: true
+
 - name: Verify pi-agent installation
-  ansible.builtin.command: pi --version
+  ansible.builtin.command: "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi --version"
   environment:
-    PATH: "/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    ASDF_DIR: "/opt/asdf"
+    ASDF_DATA_DIR: "/opt/asdf"
+  become: true
   register: ai_pi_agent_verify
   changed_when: false
   failed_when: false
@@ -61,11 +158,14 @@
          else 'installation failed or not available' }}
   when: ai_pi_agent_enabled | default(true)
 
+# `become_user` resets PATH to a minimal secure path that does NOT include
+# /home/linuxbrew/.linuxbrew/bin (where chezmoi lives on Debian), so add it.
 - name: Apply pi configuration from chezmoi
   ansible.builtin.command: >
-    chezmoi apply ~/.pi
+    chezmoi apply --force ~/.pi
   environment:
     HOME: "/home/{{ user.name }}"
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
   register: ai_chezmoi_pi_result
   changed_when: ai_chezmoi_pi_result.rc == 0
   failed_when: false

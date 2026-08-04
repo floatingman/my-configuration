@@ -1,0 +1,58 @@
+---
+# Ranger (CLI file manager) and its plugins.
+#
+# This used to live in the `filemanager` role, but that role is gated
+# `when: _has_display`, so ranger (a CLI tool) was never installed on headless
+# machines. It is moved here (the `shell` role, which runs on the
+# user_environment overlay = every machine by default) so ranger is available on
+# headless and desktop alike.
+#
+# Plugins:
+#   - ranger_devicons : file icons
+#   - ranger-archives : archive preview/extraction
+#   - zoxide          : directory jumping (requires the `zoxide` binary at runtime)
+
+- name: Install ranger
+  ansible.builtin.package:
+    name: ranger
+    state: present
+  become: true
+  tags:
+    - shell
+
+- name: Ensure ~/.config/ranger/plugins exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/ranger/plugins"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+  tags:
+    - shell
+
+- name: Clone ranger plugins
+  ansible.builtin.git:  # noqa: latest[git]
+    clone: true
+    version: HEAD
+    repo: "{{ item.repo }}"
+    dest: "/home/{{ user.name }}/.config/ranger/plugins/{{ item.dest }}"
+  become: true
+  become_user: "{{ user.name }}"
+  register: shell_ranger_plugin_clones
+  failed_when: false
+  loop:
+    - { repo: "https://github.com/alexanderjeurissen/ranger_devicons.git", dest: "ranger_devicons" }
+    - { repo: "https://github.com/maximtrp/ranger-archives.git", dest: "ranger-archives" }
+    - { repo: "https://github.com/jchook/ranger-zoxide.git", dest: "zoxide" }
+  tags:
+    - shell
+
+- name: Report ranger plugins that failed to clone
+  ansible.builtin.debug:
+    msg: "WARNING: failed to clone '{{ item.item.dest }}' from {{ item.item.repo }} (rc={{ item.rc }}): {{ item.msg | default('') }}"
+  loop: "{{ shell_ranger_plugin_clones.results | default([]) }}"
+  when: (item.rc | default(0)) | int != 0
+  tags:
+    - shell

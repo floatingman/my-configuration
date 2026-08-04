@@ -68,10 +68,28 @@ syntax-check: req-playbook ## Check playbook syntax
 	@echo 'Checking playbook syntax...'
 	ansible-playbook --syntax-check play.yml
 
+.PHONY: bootstrap-pipx
+bootstrap-pipx: ## Install pipx and add ~/.local/bin to PATH (run FIRST on a fresh system)
+	@bash scripts/bootstrap-pipx.sh
+
 .PHONY: bootstrap
 bootstrap: req-pipx ## Install ansible (pipx required)
 	@echo 'Bootstraping your system for ansible'
 	pipx install --include-deps ansible
+
+.PHONY: setup
+setup: ## One-shot fresh-system setup: install pipx + PATH, then ansible
+	@bash scripts/bootstrap-pipx.sh
+	@export PATH="$$HOME/.local/bin:$$PATH"; \
+		if command -v ansible >/dev/null 2>&1; then \
+			echo 'ansible already installed'; \
+		else \
+			echo 'Installing ansible via pipx...'; \
+			pipx install --include-deps ansible; \
+		fi
+	@echo ''
+	@echo 'Setup complete. Open a new shell (or: exec $$SHELL -l), then run:'
+	@echo '  make install && make configure'
 
 .PHONY: install
 install: req-galaxy ## Install roles via ansible-galaxy

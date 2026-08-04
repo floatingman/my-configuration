@@ -1,12 +1,26 @@
 # Homebrew Role
 
-This role installs Homebrew (also known as Linuxbrew on Linux) on Arch and Debian-based Linux systems and manages Homebrew packages.
+This role installs Homebrew (Linuxbrew) on Arch and Debian-based Linux systems and manages Homebrew packages. It installs Homebrew in a **multi-user, system-wide** layout so that every member of the `linuxbrew` group can use `brew`, while keeping a single non-root owner for the tree (the model Homebrew itself recommends on Linux).
 
 ## Requirements
 
 - Arch Linux or Debian/Ubuntu-based Linux distribution
-- Internet connection to download Homebrew installer and packages
-- Ansible `community.general` collection (for Homebrew modules)
+- Internet connection to download Homebrew and packages
+- Ansible `community.general` collection (for the Homebrew modules)
+- A `user` variable (defined in `group_vars/all/base.yml`) whose `user.name` will own the Homebrew tree
+
+## Installation Layout
+
+| Path | Owner | Purpose |
+|------|-------|---------|
+| `/home/linuxbrew` | `{{ user.name }}:linuxbrew` (mode `2775`) | Base directory |
+| `/home/linuxbrew/.linuxbrew` | `{{ user.name }}:linuxbrew` (setgid tree) | Homebrew installation |
+| `/home/linuxbrew/.linuxbrew/bin/brew` | — | The brew executable |
+| `/etc/profile.d/linuxbrew.sh` | `root:root` | Adds Homebrew to PATH for **all** login shells |
+
+The whole tree is normalized to be **group-writable with the setgid bit** on directories, so files created by one `linuxbrew` member (taps, Cellar installs, downloads) are writable by the others. The primary user (`{{ user.name }}`) is the owner; add other users to the `linuxbrew` group to grant them access.
+
+> Homebrew refuses to run as root ("extremely dangerous and no longer supported"). This role therefore installs and normalizes the tree up front so that brew can always run as an unprivileged user. The `ai` role performs the same normalization as a one-time migration safety net for trees created by older versions of this role.
 
 ## Role Variables
 
@@ -16,7 +30,7 @@ Available variables are listed below, along with default values (see `defaults/m
 homebrew_packages: []
 ```
 
-List of Homebrew packages to install. Each package should be specified by its formula name or tap/formula format.
+List of Homebrew packages to install. Each package is specified by its formula name or `tap/formula` format.
 
 ```yaml
 homebrew_update: true
@@ -24,9 +38,15 @@ homebrew_update: true
 
 Whether to update Homebrew before installing packages.
 
+```yaml
+homebrew_tap_packages: []
+```
+
+List of taps to add before installing packages.
+
 ## Dependencies
 
-None.
+None. The `linuxbrew` group is created by this role and also by the `system` role (which runs earlier in `play.yml`).
 
 ## Example Playbook
 
@@ -45,12 +65,13 @@ None.
 
 ## What This Role Does
 
-1. **Checks for existing Homebrew installation** - Skips installation if already present
-2. **Installs dependencies** - Installs required build tools for your OS (build-essential for Debian, base-devel for Arch)
-3. **Installs Homebrew** - Downloads and runs the official Homebrew installation script (the script handles sudo internally)
-4. **Configures shell** - Adds Homebrew to PATH in ~/.bashrc
-5. **Updates Homebrew** - Updates package definitions using `community.general.homebrew` module (can be disabled)
-6. **Installs packages** - Installs all packages specified in `homebrew_packages` using `community.general.homebrew` module
+1. **Checks for an existing Homebrew installation** — skips installation if `/home/linuxbrew/.linuxbrew/bin/brew` already exists.
+2. **Installs OS dependencies** — `build-essential`, `procps`, `curl`, `file`, `git` on Debian; `base-devel`, `curl`, `file`, `git` on Arch.
+3. **Creates the directory tree** — `/home/linuxbrew` and `/home/linuxbrew/.linuxbrew`, owned by `{{ user.name }}:linuxbrew` with mode `2775`.
+4. **Downloads and extracts** the Homebrew master tarball into the tree, owned by the primary user.
+5. **Normalizes ownership** — recursively `chown`s to `{{ user.name }}:linuxbrew`, sets `g+rwX`, and applies the setgid bit to every directory so the tree stays multi-user friendly.
+6. **Configures PATH system-wide** — writes `/etc/profile.d/linuxbrew.sh` so every login shell gets `brew` on PATH.
+7. **Adds taps and installs packages** from `homebrew_tap_packages` and `homebrew_packages` using the `community.general.homebrew` module (run as the primary user).
 
 ## Supported Packages
 
@@ -59,9 +80,9 @@ This role works with any Homebrew formula available on Linux. Common packages in
 - Development tools: `gh`, `glab`, `git-delta`
 - Kubernetes tools: `kubectl`, `helm`, `k9s`, `kind`, `kubectx`, `kustomize`
 - System utilities: `bat`, `fd`, `ripgrep`, `eza`, `dust`, `duf`
-- And many more from the Homebrew ecosystem
 
 For packages from custom taps, use the full tap/formula notation:
+
 ```yaml
 homebrew_packages:
   - fairwindsops/tap/polaris
@@ -70,12 +91,16 @@ homebrew_packages:
 
 ## Notes
 
-- Homebrew is installed to `/home/linuxbrew/.linuxbrew` (standard location for Linux)
-- The brew executable is located at `/home/linuxbrew/.linuxbrew/bin/brew`
-- PATH configuration is added to `~/.bashrc` automatically
-- The Homebrew installer script handles sudo permissions internally (do not run with `become: true`)
-- This role uses the `community.general.homebrew` module for package management
-- For packages not available in Homebrew, use the `ansible-role-binaries` role instead
+- Homebrew is installed to `/home/linuxbrew/.linuxbrew` (the standard Linux location).
+- PATH is configured globally via `/etc/profile.d/linuxbrew.sh` (not per-user `~/.bashrc`), so it is available to every user on the machine.
+- Grant additional users access by adding them to the `linuxbrew` group: `sudo usermod -aG linuxbrew <user>`.
+- This role uses the `community.general.homebrew` module for package management.
+- For packages not available in Homebrew, use the `ansible-role-binaries` role instead.
+
+## Troubleshooting
+
+- **"`/home/linuxbrew/.linuxbrew` is not writable"** — the tree lost its group-writable/setgid bits. Re-run `make configure TAGS="homebrew"` to re-normalize ownership, or run the role's normalization step manually.
+- **brew refuses to run as root** — never invoke `brew` with `become: true` (root). The role runs brew as the primary user; the `ai` role does the same for its taps.
 
 ## License
 

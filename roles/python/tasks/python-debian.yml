@@ -1,0 +1,51 @@
+---
+# Ensure pipx and the standard Python tooling are present on Debian/Ubuntu.
+# Arch has its own task file (python-arch.yml); this is the Debian equivalent.
+# pipx is required to bootstrap ansible on a fresh machine, and keeping it
+# installed here makes the system self-healing for future users.
+
+- name: Install pipx and Python build tooling (Debian/Ubuntu)
+  become: true
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-pip
+      - pipx
+      - python3-venv
+      - python3-dev
+      - build-essential
+    state: present
+    update_cache: true
+
+- name: Ensure ~/.local/bin is on PATH for all login shells
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/profile.d/user_local_bin.sh
+    content: |
+      # Add per-user pipx/pip installs to PATH
+      if [ -d "$HOME/.local/bin" ]; then
+          case ":$PATH:" in
+              *":$HOME/.local/bin:"*) ;;
+              *) export PATH="$HOME/.local/bin:$PATH" ;;
+          esac
+      fi
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure ~/.local/bin exists for the primary user
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.local/bin"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0755'
+
+- name: Run pipx ensurepath for the primary user
+  ansible.builtin.command: pipx ensurepath
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    PATH: "/home/{{ user.name }}/.local/bin:{{ ansible_facts['env']['PATH'] }}"
+  changed_when: false
+  failed_when: false

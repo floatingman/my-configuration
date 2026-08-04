@@ -1,4 +1,16 @@
 ---
+# The `shell` role runs early in play.yml — before `packages`/`homebrew` on
+# Debian — so git may not be installed yet when the plugin/TPM/fzf clones below
+# run. Ensure it here once for Debian (the Arch `base` role already installs it).
+- name: Ensure git is present (Debian/Ubuntu)
+  ansible.builtin.package:
+    name: git
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+  tags:
+    - shell
+
 - name: Install Bash
   ansible.builtin.package:
     name:
@@ -14,6 +26,28 @@
     name:
       - zsh
     state: present
+  become: true
+  tags:
+    - shell
+
+# asdf is installed system-wide to /opt/asdf, but the external asdf role only
+# writes /etc/profile.d/asdf.sh — which (a) is bash-only
+# (`[ -n "$BASH_VERSION" ] || return 0`) and (b) zsh never sources
+# /etc/profile.d anyway. Without this block, no asdf-managed language (node,
+# etc.) is on PATH in zsh, and `pi` falls back to the system Node (too old).
+# Source asdf.sh in /etc/zsh/zshrc so every interactive zsh gets asdf. ASDF_DIR
+# is set first (asdf.sh can only auto-detect it under bash/zsh/ksh).
+- name: Initialize asdf for interactive zsh shells
+  ansible.builtin.blockinfile:
+    path: /etc/zsh/zshrc
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK (asdf)"
+    block: |
+      export ASDF_DIR="${ASDF_DIR:-/opt/asdf}"
+      export ASDF_DATA_DIR="${ASDF_DATA_DIR:-/opt/asdf}"
+      if [ -f "$ASDF_DIR/asdf.sh" ]; then
+          . "$ASDF_DIR/asdf.sh"
+      fi
   become: true
   tags:
     - shell
@@ -38,6 +72,38 @@
     - shell
   when: ansible_facts['os_family'] == "Archlinux"
 
+# On Debian/Ubuntu the `shell` role runs BEFORE the `homebrew` role in play.yml,
+# so Homebrew is not available yet. Use starship's official installer instead;
+# it is self-contained and installs to /usr/local/bin (already on PATH).
+- name: Download Starship installer (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: https://starship.rs/install.sh
+    dest: /tmp/starship-install.sh
+    mode: '0755'
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+  tags:
+    - shell
+
+- name: Install Starship (Debian/Ubuntu)
+  ansible.builtin.command:
+    cmd: /tmp/starship-install.sh -y
+  args:
+    creates: /usr/local/bin/starship
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+  tags:
+    - shell
+
+- name: Remove Starship installer (Debian/Ubuntu)
+  ansible.builtin.file:
+    path: /tmp/starship-install.sh
+    state: absent
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+  tags:
+    - shell
+
 - name: Install blesh
   kewlfft.aur.aur:
     name: blesh
@@ -48,3 +114,28 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+# kubectl aliases (ahmetb/kubectl-alias) sourced from ~/.shell/kubectl_aliases.
+- name: Ensure ~/.shell exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.shell"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+  tags:
+    - shell
+
+- name: Download kubectl aliases
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/ahmetb/kubectl-alias/master/.kubectl_aliases
+    dest: "/home/{{ user.name }}/.shell/kubectl_aliases"
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0644'
+  become: true
+  become_user: "{{ user.name }}"
+  tags:
+    - shell

@@ -1,0 +1,51 @@
+---
+# Zsh plugins cloned into ~/.shell for the primary user. Your dotfiles decide
+# which of these are sourced.
+#
+# Clones are deliberately NON-FATAL (failed_when: false + a warning): these are
+# optional enhancements, and a single unavailable/renamed upstream repo must not
+# abort the entire `make configure`. Failures are reported at the end of the run.
+#
+# Note: powerlevel10k is intentionally NOT included — the upstream repo moved
+# (romkatr -> romkatv) and this machine uses starship as its prompt. If you want
+# it, add { repo: "https://github.com/romkatv/powerlevel10k.git", dest: "powerlevel10k" }.
+
+- name: Ensure ~/.shell exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.shell"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+  tags:
+    - shell
+
+# dest names match the legacy external role exactly so existing dotfile
+# references keep working (note the original `fast-syntax-Highlighting` casing).
+- name: Clone zsh plugins into ~/.shell
+  ansible.builtin.git:
+    clone: true
+    repo: "{{ item.repo }}"
+    dest: "/home/{{ user.name }}/.shell/{{ item.dest }}"
+  become: true
+  become_user: "{{ user.name }}"
+  register: shell_zsh_plugin_clones
+  failed_when: false
+  loop:
+    - { repo: "https://github.com/wfxr/forgit.git", dest: "forgit" }
+    - { repo: "https://github.com/zsh-users/zsh-autosuggestions", dest: "zsh-autosuggestions" }
+    - { repo: "https://github.com/zdharma-continuum/fast-syntax-highlighting", dest: "fast-syntax-Highlighting" }
+    - { repo: "https://github.com/zsh-users/zsh-history-substring-search", dest: "zsh-history-substring-search" }
+    - { repo: "https://github.com/zsh-users/zsh-completions", dest: "zsh-completions" }
+  tags:
+    - shell
+
+- name: Report zsh plugins that failed to clone
+  ansible.builtin.debug:
+    msg: "WARNING: failed to clone '{{ item.item.dest }}' from {{ item.item.repo }} (rc={{ item.rc }}): {{ item.msg | default('') }}"
+  loop: "{{ shell_zsh_plugin_clones.results | default([]) }}"
+  when: (item.rc | default(0)) | int != 0
+  tags:
+    - shell

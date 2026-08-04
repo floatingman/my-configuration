@@ -2,3 +2,7 @@
 - name: Install python tools for Arch
   ansible.builtin.include_tasks: python-arch.yml
   when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install python tools for Debian/Ubuntu
+  ansible.builtin.include_tasks: python-debian.yml
+  when: ansible_facts["os_family"] == "Debian"

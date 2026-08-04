@@ -18,18 +18,29 @@
   environment:
     PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
 
+# `become_user` resets PATH to a minimal secure_path that does NOT include
+# /home/linuxbrew/.linuxbrew/bin (where chezmoi is installed on Debian), so we
+# must add it explicitly or the `chezmoi` binary is not found.
+# The repo must be a POSITIONAL argument to `chezmoi init` — `--source` sets
+# the source *directory*, not the repo URL, so passing the URL to --source
+# silently initialized an empty repo and never applied any dotfiles.
+# `--force` makes the apply non-interactive: a drifted managed file (e.g. nvim's
+# lazy-lock.json, which changes whenever plugins update) would otherwise prompt
+# "overwrite?" on a TTY and fail under Ansible (no /dev/tty).
 - name: Initialize user dotfiles with chezmoi
   become: true
   ansible.builtin.command: >
     chezmoi init
     --apply
-    --source="{{ dotfiles_config.repo_url }}"
+    --force
     --branch="{{ dotfiles_config.branch | default('main') }}"
+    -- "{{ dotfiles_config.repo_url }}"
   changed_when: true
   when: dotfiles_config is defined
   become_user: "{{ user.name }}"
   environment:
     HOME: "/home/{{ user.name }}"
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Create global gitconfig
   ansible.builtin.template:

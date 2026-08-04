@@ -1,7 +1,4 @@
 ---
-- name: Include ranger tasks
-  ansible.builtin.include_tasks: ranger.yml
-
 - name: Include thunar tasks
   ansible.builtin.include_tasks: thunar.yml
   when: _has_display | default(false)

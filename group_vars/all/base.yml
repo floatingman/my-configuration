@@ -557,7 +557,6 @@ homebrew_packages:
   - stern
   - tectonic
   - texlab
-  - tflint
   - tokei
   - viddy
   - xsv

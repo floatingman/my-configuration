@@ -1,6 +1,8 @@
 ---
 # Install Rust system-wide to /opt/rust so all users can access cargo binaries.
-# RUSTUP_HOME and CARGO_HOME control the installation location.
+# RUSTUP_HOME (/opt/rust) holds rustup data + toolchains.
+# CARGO_HOME (/opt/rust/cargo) holds cargo's registry/cache + the rustup-managed
+# proxy binaries (cargo, rustc, rustup itself).
 # /etc/profile.d/rust.sh makes the tools available on PATH for all users.
 
 - name: Set system-wide Rust paths
@@ -8,21 +10,63 @@
     rust_rustup_home: /opt/rust
     rust_cargo_home: /opt/rust/cargo
 
+- name: Install Rust build dependencies (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+      - curl
+      - ca-certificates
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Rust build dependencies (Arch)
+  community.general.pacman:
+    name:
+      - base-devel
+      - openssl
+      - pkgconf
+      - ca-certificates
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == "Archlinux"
+
+# rustup installs its OWN binary to $CARGO_HOME/bin/rustup (NOT
+# $RUSTUP_HOME/bin/rustup). Checking the wrong path made this role believe
+# rustup was never installed and re-run rustup-init on every run, which fails
+# on a second run ("it appears you already have rustup").
 - name: Check if rustup is installed (system-wide)
   ansible.builtin.stat:
-    path: "{{ rust_rustup_home }}/bin/rustup"
+    path: "{{ rust_cargo_home }}/bin/rustup"
   register: rust_rustup_installed
+
+- name: Ensure Rust install directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: devtools
+    mode: "2775"
+  become: true
+  loop:
+    - "{{ rust_rustup_home }}"
+    - "{{ rust_cargo_home }}"
+    - "{{ rust_cargo_home }}/bin"
 
 - name: Download rustup installer
   ansible.builtin.get_url:
     url: https://sh.rustup.rs
     dest: /tmp/rustup-init.sh
     mode: '0755'
+  become: true
   when: not rust_rustup_installed.stat.exists
 
 - name: Install Rust via rustup (system-wide)
   ansible.builtin.command:
-    cmd: /tmp/rustup-init.sh -y --default-toolchain stable --no-modify-path
+    cmd: /tmp/rustup-init.sh -y --default-toolchain stable --no-modify-path --profile minimal
   environment:
     RUSTUP_HOME: "{{ rust_rustup_home }}"
     CARGO_HOME: "{{ rust_cargo_home }}"
@@ -30,12 +74,19 @@
   when: not rust_rustup_installed.stat.exists
   changed_when: true
 
+- name: Remove temporary rustup installer
+  ansible.builtin.file:
+    path: /tmp/rustup-init.sh
+    state: absent
+  become: true
+  when: not rust_rustup_installed.stat.exists
+
 - name: Set ownership of Rust installation
   ansible.builtin.file:
     path: "{{ rust_rustup_home }}"
     owner: root
     group: devtools
-    mode: "0775"
+    mode: "2775"
     state: directory
     recurse: true
   become: true
@@ -54,14 +105,55 @@
     mode: '0755'
   become: true
 
+# Compatibility shim: the primary user's dotfiles (~/.zshenv, ~/.profile)
+# source ~/.cargo/env to get cargo on PATH in non-login shells. Rust is
+# installed system-wide to /opt/rust (NOT ~/.cargo), so without this shim every
+# shell startup errors with "no such file or directory: ~/.cargo/env". The shim
+# points those references at the system-wide paths. (Login shells already get
+# the same from /etc/profile.d/rust.sh; this covers non-login shells.)
+- name: Ensure ~/.cargo exists for the primary user
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.cargo"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+
+- name: Create ~/.cargo/env compatibility shim for system-wide Rust
+  ansible.builtin.copy:
+    dest: "/home/{{ user.name }}/.cargo/env"
+    content: |
+      # Compatibility shim: Rust is installed system-wide to /opt/rust.
+      export RUSTUP_HOME=/opt/rust
+      export CARGO_HOME=/opt/rust/cargo
+      case ":${PATH}:" in
+          *":${CARGO_HOME}/bin:"*) ;;
+          *) export PATH="${CARGO_HOME}/bin:${PATH}" ;;
+      esac
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0644'
+  become: true
+  become_user: "{{ user.name }}"
+
+# The check MUST run with the same RUSTUP_HOME/CARGO_HOME as the install,
+# otherwise cargo reads the default ~/.cargo and reports nothing installed,
+# forcing every package to rebuild on every run.
 - name: Check which cargo packages are already installed
   ansible.builtin.command:
     cmd: "{{ rust_cargo_home }}/bin/cargo install --list"
+  environment:
+    RUSTUP_HOME: "{{ rust_rustup_home }}"
+    CARGO_HOME: "{{ rust_cargo_home }}"
   register: rust_installed_rust_cargo_packages
   changed_when: false
   failed_when: false
   check_mode: false
 
+# A single failing crate must not abort the whole server configuration.
+# We collect per-package results and warn about failures at the end.
 - name: Install cargo packages
   ansible.builtin.command:
     cmd: "{{ rust_cargo_home }}/bin/cargo install {{ item }}"
@@ -69,7 +161,14 @@
     RUSTUP_HOME: "{{ rust_rustup_home }}"
     CARGO_HOME: "{{ rust_cargo_home }}"
   loop: "{{ rust_cargo_packages | default([]) }}"
-  when: item not in rust_installed_rust_cargo_packages.stdout
+  when: item not in (rust_installed_rust_cargo_packages.stdout | default(''))
   register: rust_cargo_install
-  changed_when: rust_cargo_install.rc == 0
+  failed_when: false
+  changed_when: rust_cargo_install.rc | default(0) == 0
   become: true
+
+- name: Report cargo packages that failed to install
+  ansible.builtin.debug:
+    msg: "WARNING: cargo package '{{ item.item }}' failed to install (rc={{ item.rc }}): {{ item.stderr | default('') | trim }}"
+  loop: "{{ rust_cargo_install.results | default([]) }}"
+  when: item is defined and (item.rc | default(0)) != 0

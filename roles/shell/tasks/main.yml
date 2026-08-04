@@ -1,6 +1,12 @@
 ---
 - name: Include shell tasks
   ansible.builtin.include_tasks: shell.yml
+- name: Include zsh plugin tasks
+  ansible.builtin.include_tasks: zsh-plugins.yml
+- name: Include ranger tasks
+  ansible.builtin.include_tasks: ranger.yml
+- name: Include tmux tasks
+  ansible.builtin.include_tasks: tmux.yml
 - name: Include fzf tasks
   ansible.builtin.include_tasks: fzf.yml
 - name: Include warp tasks

@@ -1,0 +1,36 @@
+---
+# Tmux Plugin Manager (TPM). The user's tmux config references plugins managed
+# by TPM, which must be cloned to ~/.tmux/plugins/tpm before `prefix + I` can
+# install the rest. Previously cloned by the (now-removed, shadowed) external
+# ansible-role-shell; ported here so it is actually installed.
+
+- name: Ensure ~/.tmux/plugins exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.tmux/plugins"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+  tags:
+    - shell
+
+- name: Clone Tmux Plugin Manager (TPM)
+  ansible.builtin.git:
+    clone: true
+    repo: https://github.com/tmux-plugins/tpm
+    dest: "/home/{{ user.name }}/.tmux/plugins/tpm"
+  become: true
+  become_user: "{{ user.name }}"
+  register: shell_tpm_clone
+  failed_when: false
+  tags:
+    - shell
+
+- name: Report TPM clone failure
+  ansible.builtin.debug:
+    msg: "WARNING: failed to clone TPM (rc={{ shell_tpm_clone.rc }}): {{ shell_tpm_clone.msg | default('') }}"
+  when: (shell_tpm_clone.rc | default(0)) | int != 0
+  tags:
+    - shell

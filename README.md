@@ -171,8 +171,12 @@ make gpu-info
 ## Requirements
 
 - Python 3
-- pipx (for bootstrapping Ansible)
 - A non-superuser account with sudo privileges (the playbook will prompt for the sudo password when needed)
+
+> **Fresh machine?** You no longer need to install `pipx` by hand. Run `make setup`
+> first — it installs pipx (and puts `~/.local/bin` on PATH) and then installs
+> Ansible via pipx, all in one shot. (See [Quick start](#running-the-playbook)
+> below.)
 
 ## Use
 
@@ -181,6 +185,7 @@ The playbook is designed to be run by a non-superuser account. It will automatic
 ```sh
 > make
 all                           Run all goals
+bootstrap-pipx               Install pipx and add ~/.local/bin to PATH (run FIRST on a fresh system)
 bootstrap                     Install ansible (pipx required)
 configure                     Run ansible (optionally with TAGS="tag1,tag2")
 gpu-info                      Display detected GPU information
@@ -194,14 +199,17 @@ profile-headless              Run headless profile (CLI-only, no display)
 profile-hyprland              Run Hyprland Wayland compositor profile
 profile-i3                    Run i3 window manager profile
 profile-kde                   Run KDE Plasma desktop profile
+setup                         One-shot fresh-system setup: install pipx + PATH, then ansible
 ```
 
 ### Running the playbook
 
-1. **Bootstrap**: Install Ansible as a regular user
+1. **Bootstrap** (first time on a fresh machine): install pipx + PATH + Ansible
    ```sh
-   make bootstrap
+   make setup           # installs pipx, ~/.local/bin on PATH, and ansible
+   exec $SHELL -l       # reload the shell so the new PATH takes effect
    ```
+   If `pipx` is already installed and only Ansible is missing, use `make bootstrap` instead.
 
 2. **Install roles**: Install required Ansible roles and collections
    ```sh

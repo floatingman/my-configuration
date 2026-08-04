@@ -39,13 +39,32 @@
     - ansible_facts['os_family'] == "Archlinux"
     - not homebrew_check.stat.exists
 
+- name: Ensure linuxbrew group exists
+  ansible.builtin.group:
+    name: linuxbrew
+    state: present
+  become: true
+
+# Create BOTH the base dir and the .linuxbrew dir owned by the primary user.
+# Ansible's file module auto-creates intermediate parents as root, so we must
+# create /home/linuxbrew explicitly with the correct owner or it ends up
+# root-owned (which is what causes brew to misbehave on a fresh install).
+- name: Create Homebrew base directory (/home/linuxbrew)
+  ansible.builtin.file:
+    path: "/home/linuxbrew"
+    state: directory
+    owner: "{{ user.name }}"
+    group: linuxbrew
+    mode: '2775'
+  become: true
+
 - name: Create Homebrew directory
   ansible.builtin.file:
     path: "/home/linuxbrew/.linuxbrew"
     state: directory
-    owner: root
+    owner: "{{ user.name }}"
     group: linuxbrew
-    mode: '0755'
+    mode: '2775'
   become: true
   when:
     - not homebrew_check.stat.exists
@@ -66,7 +85,7 @@
     remote_src: true
     extra_opts:
       - --strip-components=1
-    owner: root
+    owner: "{{ user.name }}"
     group: linuxbrew
   become: true
   when:
@@ -80,13 +99,20 @@
   when:
     - not homebrew_check.stat.exists
 
-- name: Fix Homebrew directory ownership recursively
-  ansible.builtin.file:
-    path: /home/linuxbrew/.linuxbrew
-    owner: root
-    group: linuxbrew
-    recurse: true
+# Normalize the whole tree (parent + .linuxbrew) so brew can run as the
+# primary user while remaining usable by every linuxbrew group member.
+# group-writable + setgid bits ensure newly-created files (taps, Cellar,
+# downloads) inherit the linuxbrew group. This matches the ownership model
+# the `ai` role expects, making its one-time migration a no-op.
+- name: Normalize Homebrew ownership for multi-user access
+  ansible.builtin.shell:
+    cmd: >
+      chown -R {{ user.name }}:linuxbrew /home/linuxbrew &&
+      chmod -R g+rwX /home/linuxbrew &&
+      find /home/linuxbrew -type d -exec chmod g+s {} +
+    executable: /bin/bash
   become: true
+  changed_when: false
 
 - name: Create /etc/profile.d/linuxbrew.sh for system-wide PATH
   ansible.builtin.copy:
@@ -122,3 +148,19 @@
   when:
     - homebrew_packages is defined and homebrew_packages | length > 0
     - ansible_facts['os_family'] == "Debian"
+
+# Homebrew's zsh completion dir (share/zsh/site-functions) lives under the
+# group-writable multi-user tree, so zsh's compinit flags it as an "insecure
+# directory" and prompts "Ignore insecure directories and continue?" on every
+# shell startup. Remove group-write from the completion tree so compinit is
+# happy. brew runs as the tree owner, so this does not affect its ability to
+# update completions — it only stops other group members from writing them
+# (which they never need to). Run after package install so freshly-created
+# completion dirs are covered.
+- name: Make Homebrew zsh completions non-group-writable (fix compinit prompt)  # noqa: command-instead-of-file
+  ansible.builtin.command:
+    cmd: chmod -R g-w /home/linuxbrew/.linuxbrew/share/zsh
+  become: true
+  become_user: "{{ user.name }}"
+  changed_when: false
+  when: ansible_facts['os_family'] == "Debian"

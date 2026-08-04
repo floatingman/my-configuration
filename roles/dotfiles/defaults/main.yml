@@ -1,7 +1,13 @@
 ---
-# Dotfiles management with chezmoi
-# Set to enable dotfiles installation on this machine
-# Example:
+# Dotfiles management with chezmoi.
+#
+# This role is gated by the `user_environment` overlay; it only runs when
+# `user_environment` is true (the default). Set `dotfiles_config` to enable
+# chezmoi-based dotfile management on this machine. Leave it unset to skip.
+#
+# Schema:
 #   dotfiles_config:
-#     repo_url: "https://github.com/user/dotfiles.git"
-#     branch: main
+#     repo_url: "https://github.com/user/dotfiles.git"  # required (full URL or user/repo)
+#     branch: main                                        # optional, defaults to main
+
+# dotfiles_config: null

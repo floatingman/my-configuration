@@ -134,10 +134,12 @@ The playbook is designed to be run by a non-superuser account with sudo privileg
    $ cd my-configuration
    ```
 
-2. Install Ansible:
+2. Install pipx and Ansible (first time on a fresh machine):
    ```bash
-   $ make bootstrap
+   $ make setup          # installs pipx + ~/.local/bin on PATH + ansible
+   $ exec $SHELL -l      # reload shell so PATH takes effect
    ```
+   If `pipx` is already installed and only Ansible is missing, use `make bootstrap` instead.
 
 3. Install required Ansible roles:
    ```bash
