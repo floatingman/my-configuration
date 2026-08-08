@@ -11,6 +11,12 @@
     name: kubectl
     state: present
 
+- name: Install kubeadm
+  become: true
+  community.general.pacman:
+    name: kubeadm
+    state: present
+
 - name: Install kubecm
   become: true
   become_user: aur_builder
