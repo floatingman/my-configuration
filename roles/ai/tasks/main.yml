@@ -307,15 +307,12 @@
   tags:
     - aur
 
-- name: Install llmfit from AUR
+- name: Install llmfit
   become: true
   become_user: aur_builder
-  kewlfft.aur.aur:
-    name: llmfit-bin
-    use: auto
+  ansible.builtin.package:
+    name: llmfit
     state: present
   when:
     - ai_llmfit_enabled | default(true)
     - ansible_facts['os_family'] == "Archlinux"
-  tags:
-    - aur
