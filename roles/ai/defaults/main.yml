@@ -12,6 +12,9 @@ ai_rtk_enabled: true
 ai_forgecode_enabled: true
 ai_forgecode_zsh_enabled: true
 
+# Oh My Pi (omp — AI coding agent with IDE-grade tooling)
+ai_omp_enabled: true
+
 # Local LLM runtime (Ollama + helpers)
 ai_local_llm_enabled: true
 ai_lmstudio_enabled: true

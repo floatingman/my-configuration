@@ -1,0 +1,63 @@
+---
+# Oh My Pi (omp) — AI coding agent (https://omp.sh)
+# Install via official installer script, which downloads the prebuilt native
+# binary (Rust core, no Node/Bun runtime needed) to $HOME/.local/bin/omp.
+# We run it as root so the binary lands in /root/.local/bin, then copy it into
+# the system bin dir — mirroring the ForgeCode approach below, since /root is
+# mode 0700 and a symlink from /usr/local/bin into /root is unreachable by
+# non-root users.
+
+- name: Check if omp source binary is installed (root home)
+  ansible.builtin.stat:
+    path: /root/.local/bin/omp
+  register: ai_omp_src_stat
+  become: true
+
+- name: Install omp via official installer (into /root/.local/bin)
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://omp.sh/install | sh
+    executable: /bin/bash
+  environment:
+    HOME: /root
+    PATH: "/usr/local/bin:/usr/bin:/bin"
+  register: ai_omp_install
+  changed_when: ai_omp_install.rc == 0
+  become: true
+  when:
+    - ai_omp_enabled | default(true)
+    - not ai_omp_src_stat.stat.exists
+
+# The installer hardcodes $HOME/.local/bin, so with HOME=/root the binary
+# lands in /root/.local/bin/omp. Because /root is mode 0700, that target is
+# unreachable by any non-root user — a symlink from /usr/local/bin/omp into
+# /root therefore raises EACCES (Errno 13) for non-root callers. We COPY the
+# binary into the system bin dir as a real, world-executable file instead,
+# matching the ForgeCode binary handling above.
+- name: Install omp binary into system bin dir (world-executable copy)
+  ansible.builtin.copy:
+    src: /root/.local/bin/omp
+    dest: "{{ ai_system_bin_dir }}/omp"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0755'
+    force: true
+  become: true
+  when:
+    - ai_omp_enabled | default(true)
+
+- name: Verify omp installation
+  ansible.builtin.command: "{{ ai_system_bin_dir }}/omp --version"
+  register: ai_omp_verify
+  changed_when: false
+  failed_when: false
+  when: ai_omp_enabled | default(true)
+
+- name: Display omp installation status
+  ansible.builtin.debug:
+    msg: >-
+      omp
+      {{ 'installed (' ~ (ai_omp_verify.stdout | default('') | trim) ~ ')'
+         if (ai_omp_verify.rc | default(1)) == 0
+         else 'installation failed or not available' }}
+  when: ai_omp_enabled | default(true)

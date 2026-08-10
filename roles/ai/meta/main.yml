@@ -2,7 +2,7 @@
 # meta file for ai
 galaxy_info:
   author: floatingman
-  description: Install AI development tools (pi-agent, ForgeCode, rtk)
+  description: Install AI development tools (pi-agent, omp, ForgeCode, rtk)
   company: your company
   license: MIT
   min_ansible_version: "2.9"

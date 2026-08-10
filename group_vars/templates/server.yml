@@ -67,3 +67,4 @@ ai_pi_config_enabled: true        # Apply pi config (~/.pi) from chezmoi
 ai_rtk_enabled: true              # Install rtk (token optimization proxy)
 ai_forgecode_enabled: true        # Install ForgeCode (AI coding harness)
 ai_forgecode_zsh_enabled: true    # Enable ForgeCode ZSH plugin integration
+ai_omp_enabled: true             # Install omp (oh-my-pi, AI coding agent with LSP/DAP/subagents)
