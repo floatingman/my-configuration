@@ -3074,14 +3074,33 @@ def write_playbook(
     sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
     section_map = {section["name"]: section for section in sections}
 
+    unmapped_roles = []
     for role_name, condition in expected_role_map.items():
         section_name = _ROLE_TO_SECTION.get(role_name)
-        if section_name and section_name in section_map:
-            # Use tags unioned from profile definitions (preserves [fonts], etc.)
-            tags = sorted(role_tags.get(role_name, {role_name}))
-            section_map[section_name]["roles"].append(
-                (role_name, condition, tags)
-            )
+        if not section_name:
+            unmapped_roles.append(role_name)
+            continue
+        if section_name not in section_map:
+            unmapped_roles.append(f"{role_name} (unknown section {section_name!r})")
+            continue
+        # Use tags unioned from profile definitions (preserves [fonts], etc.)
+        tags = sorted(role_tags.get(role_name, {role_name}))
+        section_map[section_name]["roles"].append(
+            (role_name, condition, tags)
+        )
+
+    # Fail loud rather than silently dropping profile roles that have no
+    # section mapping. Without this guard, adding a role to profiles/ but
+    # forgetting _ROLE_TO_SECTION yields a playbook silently missing the role
+    # (only caught later by sync-playbook). The full profile-driven migration
+    # that removes this hardcoded mapping is tracked in the RFD issue.
+    if unmapped_roles:
+        raise ValueError(
+            f"Cannot generate playbook: {len(unmapped_roles)} profile role(s) "
+            f"have no section mapping in _ROLE_TO_SECTION: "
+            f"{', '.join(sorted(unmapped_roles))}. Add each to _ROLE_TO_SECTION "
+            f"(and _ROLE_SECTIONS) in scripts/profile_dispatcher.py."
+        )
 
     # Write playbook to file with manual YAML formatting
     playbook_file = Path(playbook_path)
@@ -3222,14 +3241,17 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
         return 1
 
     os_family = args.os_family or "Archlinux"
-
     if args.write_path:
         # Write mode: generate complete playbook
-        return write_playbook(
-            profiles_dir=args.profiles_dir,
-            playbook_path=args.write_path,
-            os_family=os_family,
-        )
+        try:
+            return write_playbook(
+                profiles_dir=args.profiles_dir,
+                playbook_path=args.write_path,
+                os_family=os_family,
+            )
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
     else:
         # Stdout mode: output merged role manifest JSON
         role_to_profiles, expected_role_map, role_tags, profile_names = \

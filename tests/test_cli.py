@@ -421,5 +421,29 @@ class TestCLIGeneratePlaybook:
         assert captured.out == ""
         assert "does not exist" in captured.err
 
+    def test_generate_playbook_fails_loud_on_unmapped_role(self, capsys):
+        """generate-playbook must fail (not silently drop) a role missing from _ROLE_TO_SECTION.
+
+        Regression: a role added to profiles/ but absent from the section
+        mapping was previously omitted from play.yml without any error.
+        """
+        profile_yaml = (
+            "name: Test Profile\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            "  - { role: nonexistent_role_xyz, tags: [nonexistent_role_xyz] }\n"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "testprof.yml").write_text(profile_yaml)
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 1
+            captured = capsys.readouterr()
+            assert "nonexistent_role_xyz" in captured.err
+            assert "section mapping" in captured.err
+            # Guard fires before the output file is created.
+            assert not Path(outfile).exists()
+
 
 
