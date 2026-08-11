@@ -1,0 +1,61 @@
+---
+# Proton Pass CLI — installed system-wide via the official installer script.
+# Docs: https://protonpass.github.io/pass-cli/get-started/installation/
+#
+# The installer downloads the channel-specific binary (beta or stable), verifies
+# its SHA256 hash against the version manifest, and copies it into
+# PROTON_PASS_CLI_INSTALL_DIR. Beta-channel support requires this installer;
+# the Homebrew tap and AUR package cannot switch release tracks.
+
+# curl + jq are required by the installer (it parses the version manifest with
+# jq). Ensure they are present on both Arch and Debian.
+- name: Ensure installer dependencies are present (curl, jq)
+  ansible.builtin.package:
+    name:
+      - curl
+      - jq
+    state: present
+  become: true
+
+- name: Check if pass-cli is already installed
+  ansible.builtin.stat:
+    path: "{{ pass_cli_install_dir }}/pass-cli"
+  register: pass_cli_binary
+
+# The installer is not idempotent (it re-downloads and overwrites on every run),
+# so we only fetch and execute it when the binary is absent.
+- name: Download Proton Pass CLI installer
+  ansible.builtin.get_url:
+    url: "{{ pass_cli_install_script_url }}"
+    dest: /tmp/pass-cli-install.sh
+    mode: '0755'
+  become: true
+  when: not pass_cli_binary.stat.exists
+
+- name: Install Proton Pass CLI - {{ pass_cli_channel }}
+  ansible.builtin.command:
+    cmd: bash /tmp/pass-cli-install.sh
+  environment:
+    PROTON_PASS_CLI_INSTALL_CHANNEL: "{{ pass_cli_channel }}"
+    PROTON_PASS_CLI_INSTALL_DIR: "{{ pass_cli_install_dir }}"
+  become: true
+  changed_when: true
+  when: not pass_cli_binary.stat.exists
+
+# The installer's non-sudo branch (used when installing as root into a writable
+# /usr/local/bin) leaves the binary mode 711. Normalize to 0755 so every user
+# can read and execute it, matching the other system-wide binaries here.
+- name: Ensure pass-cli binary has standard permissions
+  ansible.builtin.file:
+    path: "{{ pass_cli_install_dir }}/pass-cli"
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Remove temporary installer
+  ansible.builtin.file:
+    path: /tmp/pass-cli-install.sh
+    state: absent
+  become: true
+  when: not pass_cli_binary.stat.exists

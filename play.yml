@@ -127,6 +127,7 @@
     - { role: clipboard, tags: ["clipboard"], when: _is_arch }
     - { role: clouddrive, tags: ["clouddrive"], when: _is_arch }
     - { role: pass, tags: ["pass"], when: _is_arch }
+    - { role: pass_cli, tags: ["pass_cli"] }
     - { role: spell, tags: ["spell"] }
     - { role: syncthing, tags: ["syncthing"] }
     - { role: taskwarrior, tags: ["taskwarrior"], when: _is_arch }

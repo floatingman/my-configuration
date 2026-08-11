@@ -51,7 +51,7 @@ _ROLE_SECTIONS = OrderedDict([
     ("Package Management", {"ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"}),
     ("Development Tools", {"editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools", "ai"}),
     ("Networking (Arch-only)", {"nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"}),
-    ("Productivity & Utilities", {"taskwarrior", "pass", "spell", "clipboard", "clouddrive", "syncthing"}),
+    ("Productivity & Utilities", {"taskwarrior", "pass", "pass_cli", "spell", "clipboard", "clouddrive", "syncthing"}),
     ("Display Manager", {"lightdm", "gdm", "sddm"}),
     ("Profile: i3 (X11 tiling window manager)", {"x", "i3"}),
     ("Profile: Hyprland (Wayland compositor)", {"wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"}),
@@ -2736,6 +2736,7 @@ _ROLE_TO_SECTION: Dict[str, str] = {
     # Productivity & Utilities
     "taskwarrior": "productivity",
     "pass": "productivity",
+    "pass_cli": "productivity",
     "spell": "productivity",
     "clipboard": "productivity",
     "clouddrive": "productivity",

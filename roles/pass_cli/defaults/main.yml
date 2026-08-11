@@ -1,0 +1,16 @@
+---
+# Proton Pass CLI — https://protonpass.github.io/pass-cli/
+#
+# Installed system-wide via the official installer script. The beta channel
+# (and release-track switching) is only available through the official
+# installer; the Homebrew tap and AUR package cannot switch tracks.
+
+# Release channel: "beta" or "stable".
+pass_cli_channel: beta
+
+# Directory the `pass-cli` binary is installed into. /usr/local/bin is on PATH
+# for every user; set to another directory to install elsewhere.
+pass_cli_install_dir: /usr/local/bin
+
+# Official installer script URL.
+pass_cli_install_script_url: https://proton.me/download/pass-cli/install.sh

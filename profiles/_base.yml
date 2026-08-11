@@ -61,6 +61,7 @@ roles:
   # Productivity & Utilities
   - { role: taskwarrior, tags: [taskwarrior], os: archlinux }
   - { role: pass, tags: [pass], os: archlinux }
+  - { role: pass_cli, tags: [pass_cli] }
   - { role: spell, tags: [spell] }
   - { role: clipboard, tags: [clipboard], os: archlinux }
   - { role: clouddrive, tags: [clouddrive], os: archlinux }
