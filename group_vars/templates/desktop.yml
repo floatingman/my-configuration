@@ -85,6 +85,6 @@ ai_local_llm_enabled: true        # Install Ollama (+ GPU backends) and llm-mana
 ai_lmstudio_enabled: true         # Install LM Studio (local LLM GUI)
 ai_llmfit_enabled: true           # Install llmfit (local LLM hardware-fit tool)
 
-# Proton Pass CLI (installed system-wide via the official installer script)
+# Proton Pass CLI (installed per-user via the official installer script)
 # pass_cli_channel: beta      # beta | stable  (beta enables release-track switching)
-# pass_cli_install_dir: /usr/local/bin
+# pass_cli_install_dir: "{{ lookup('env','HOME') }}/.local/bin"   # user-writable; required for self-update & track switching (facts aren't gathered, so use the HOME lookup)

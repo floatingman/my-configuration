@@ -1,11 +1,14 @@
 ---
-# Proton Pass CLI — installed system-wide via the official installer script.
+# Proton Pass CLI — installed per-user via the official installer script.
 # Docs: https://protonpass.github.io/pass-cli/get-started/installation/
 #
 # The installer downloads the channel-specific binary (beta or stable), verifies
 # its SHA256 hash against the version manifest, and copies it into
-# PROTON_PASS_CLI_INSTALL_DIR. Beta-channel support requires this installer;
-# the Homebrew tap and AUR package cannot switch release tracks.
+# PROTON_PASS_CLI_INSTALL_DIR. It runs as the invoking user so the binary is
+# user-owned: `pass-cli update` and release-track switching (`pass-cli update
+# --set-track beta`) rewrite the binary in place and only work when the user can
+# replace it. A root-owned system install breaks both; the AUR package disables
+# track switching entirely.
 
 # curl + jq are required by the installer (it parses the version manifest with
 # jq). Ensure they are present on both Arch and Debian.
@@ -17,45 +20,98 @@
     state: present
   become: true
 
-- name: Check if pass-cli is already installed
-  ansible.builtin.stat:
-    path: "{{ pass_cli_install_dir }}/pass-cli"
-  register: pass_cli_binary
+# --- Migration: clear install sources that shadow the per-user binary. -------
+# Both sit earlier than ~/.local/bin on PATH, so the user install would never
+# resolve while either remains.
 
-# The installer is not idempotent (it re-downloads and overwrites on every run),
-# so we only fetch and execute it when the binary is absent.
+# Previous versions of this role installed a root-owned binary here. Non-root
+# users could not self-update or track-switch it (they cannot overwrite a
+# root-owned file). Remove it; the file module keeps this idempotent.
+- name: Remove legacy system-wide pass-cli binary (root install)
+  ansible.builtin.file:
+    path: /usr/local/bin/pass-cli
+    state: absent
+  become: true
+
+# The AUR package installs /usr/bin/pass-cli, which shadows the per-user binary
+# on PATH and — being a package-manager install — cannot switch release tracks.
+- name: Remove conflicting AUR pass-cli package (Arch only)
+  ansible.builtin.package:
+    name: proton-pass-cli-bin
+    state: absent
+  become: true
+  when: _is_arch
+
+# --- Per-user install --------------------------------------------------------
+
+- name: Ensure per-user install directory exists
+  ansible.builtin.file:
+    path: "{{ pass_cli_install_dir }}"
+    state: directory
+    mode: '0755'
+
+# Probe the installed version (empty when the binary is absent or unparseable).
+# Used to decide whether an install/upgrade is needed, so the ~48 MB download
+# only happens on a real change — not on every playbook run.
+- name: Detect installed pass-cli version
+  ansible.builtin.command: "{{ pass_cli_install_dir }}/pass-cli --version"
+  register: pass_cli_installed_raw
+  changed_when: false
+  failed_when: false
+
+# `pass-cli --version` prints "Proton Pass CLI <version> (<commit>)"; the
+# version is the 4th whitespace-separated token. Out-of-range index yields an
+# empty string (binary absent), which forces a (re)install below.
+- name: Set installed pass-cli version (or empty)
+  ansible.builtin.set_fact:
+    pass_cli_installed_version: "{{ pass_cli_installed_raw.stdout.split()[3] | default('') }}"
+
+# Fetch the channel manifest to learn the latest version. This makes the role
+# idempotent: skip when current, upgrade or migrate when stale/absent.
+- name: Fetch latest {{ pass_cli_channel }} manifest
+  ansible.builtin.uri:
+    url: "{{ pass_cli_manifest_url }}"
+    return_content: true
+  register: pass_cli_manifest
+  changed_when: false
+
+- name: Set target pass-cli version
+  ansible.builtin.set_fact:
+    pass_cli_target_version: "{{ (pass_cli_manifest.content | from_json).passCliVersions.version }}"
+
+# (Re)install only when the installed version differs from the channel's latest.
+# This also migrates a stale binary already sitting in the install dir (e.g. an
+# older manual install). The installer re-downloads on every run, so the version
+# guard avoids needless downloads. For non-stable channels it also runs
+# `pass-cli update --set-track <channel>`, setting the release track at install.
 - name: Download Proton Pass CLI installer
   ansible.builtin.get_url:
     url: "{{ pass_cli_install_script_url }}"
     dest: /tmp/pass-cli-install.sh
     mode: '0755'
-  become: true
-  when: not pass_cli_binary.stat.exists
+  when: pass_cli_installed_version != pass_cli_target_version
 
-- name: Install Proton Pass CLI - {{ pass_cli_channel }}
+- name: Install/upgrade Proton Pass CLI - {{ pass_cli_channel }} (per-user)
   ansible.builtin.command:
     cmd: bash /tmp/pass-cli-install.sh
   environment:
     PROTON_PASS_CLI_INSTALL_CHANNEL: "{{ pass_cli_channel }}"
     PROTON_PASS_CLI_INSTALL_DIR: "{{ pass_cli_install_dir }}"
-  become: true
   changed_when: true
-  when: not pass_cli_binary.stat.exists
+  when: pass_cli_installed_version != pass_cli_target_version
+  # No become: the binary must be owned by the invoking user so that
+  # `pass-cli update` / `--set-track` can replace it later.
 
-# The installer's non-sudo branch (used when installing as root into a writable
-# /usr/local/bin) leaves the binary mode 711. Normalize to 0755 so every user
-# can read and execute it, matching the other system-wide binaries here.
+# The installer's non-sudo branch copies the binary with the temp file's mode,
+# which can land as 0711. Normalize to 0755 (already user-owned, no become).
 - name: Ensure pass-cli binary has standard permissions
   ansible.builtin.file:
     path: "{{ pass_cli_install_dir }}/pass-cli"
-    owner: root
-    group: root
     mode: '0755'
-  become: true
+  when: pass_cli_installed_version != pass_cli_target_version
 
 - name: Remove temporary installer
   ansible.builtin.file:
     path: /tmp/pass-cli-install.sh
     state: absent
-  become: true
-  when: not pass_cli_binary.stat.exists
+  when: pass_cli_installed_version != pass_cli_target_version

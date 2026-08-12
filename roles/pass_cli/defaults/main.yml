@@ -1,16 +1,31 @@
 ---
 # Proton Pass CLI — https://protonpass.github.io/pass-cli/
 #
-# Installed system-wide via the official installer script. The beta channel
+# Installed per-user via the official installer script. The beta channel
 # (and release-track switching) is only available through the official
 # installer; the Homebrew tap and AUR package cannot switch tracks.
+#
+# IMPORTANT: the binary must live in a directory the target user owns.
+# `pass-cli update` and `pass-cli update --set-track` rewrite the binary in
+# place, so they only work when the user can replace it. A system-wide root
+# install (e.g. /usr/local/bin) silently breaks both for non-root users, and
+# the AUR package disables track switching entirely.
 
 # Release channel: "beta" or "stable".
 pass_cli_channel: beta
 
-# Directory the `pass-cli` binary is installed into. /usr/local/bin is on PATH
-# for every user; set to another directory to install elsewhere.
-pass_cli_install_dir: /usr/local/bin
+# Directory the `pass-cli` binary is installed into. Must be user-writable so
+# that `pass-cli update` and release-track switching can replace the binary.
+# Defaults to the target user's ~/.local/bin (which is on PATH). This playbook
+# does not gather facts (ansible_user_dir is undefined), so the home directory
+# is read from the controller environment — correct for the local connection
+# (`-i localhost`) this playbook always runs under.
+pass_cli_install_dir: "{{ lookup('env', 'HOME') }}/.local/bin"
 
 # Official installer script URL.
 pass_cli_install_script_url: https://proton.me/download/pass-cli/install.sh
+
+# Channel version manifest, used to detect the latest version so the role only
+# re-downloads when an upgrade is actually needed. Stable reads versions.json;
+# other channels read versions.<channel>.json.
+pass_cli_manifest_url: "{{ (pass_cli_channel in ('', 'stable')) | ternary('https://proton.me/download/pass-cli/versions.json', 'https://proton.me/download/pass-cli/versions.' ~ pass_cli_channel ~ '.json') }}"

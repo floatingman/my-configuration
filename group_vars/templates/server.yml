@@ -69,6 +69,6 @@ ai_forgecode_enabled: true        # Install ForgeCode (AI coding harness)
 ai_forgecode_zsh_enabled: true    # Enable ForgeCode ZSH plugin integration
 ai_omp_enabled: true             # Install omp (oh-my-pi, AI coding agent with LSP/DAP/subagents)
 
-# Proton Pass CLI (installed system-wide via the official installer script)
+# Proton Pass CLI (installed per-user via the official installer script)
 # pass_cli_channel: beta      # beta | stable  (beta enables release-track switching)
-# pass_cli_install_dir: /usr/local/bin
+# pass_cli_install_dir: "{{ lookup('env','HOME') }}/.local/bin"   # user-writable; required for self-update & track switching (facts aren't gathered, so use the HOME lookup)
