@@ -115,3 +115,36 @@
     path: /tmp/pass-cli-install.sh
     state: absent
   when: pass_cli_installed_version != pass_cli_target_version
+
+# --- Release track (enforce after install) ----------------------------------
+# The installer only sets the release track for non-stable channels; for stable
+# it leaves any pre-existing track untouched. Run this AFTER install so the
+# binary is guaranteed present and the configured channel always wins — clearing
+# a stale beta track on a stable install, or setting beta on a current stable
+# binary whose install was skipped. The track lives in the user's session dir,
+# so no become is needed.
+
+- name: Stat pass-cli binary (post-install)
+  ansible.builtin.stat:
+    path: "{{ pass_cli_install_dir }}/pass-cli"
+  register: pass_cli_binary_present
+
+- name: Read current pass-cli release track (if present)
+  ansible.builtin.slurp:
+    path: "{{ lookup('env', 'HOME') }}/.local/share/proton-pass-cli/.session/update_track"
+  register: pass_cli_track_file
+  failed_when: false
+  changed_when: false
+
+# Treat a missing/empty track file as the default "stable", so the task only
+# acts when the effective track differs from the configured channel.
+- name: Normalize current pass-cli release track (default stable)
+  ansible.builtin.set_fact:
+    pass_cli_current_track: "{{ (pass_cli_track_file.content | default('') | b64decode | trim) or 'stable' }}"
+
+- name: Enforce pass-cli release track ({{ pass_cli_channel }})
+  ansible.builtin.command: "{{ pass_cli_install_dir }}/pass-cli update --set-track {{ pass_cli_channel }}"
+  when:
+    - pass_cli_binary_present.stat.exists
+    - pass_cli_current_track != pass_cli_channel
+  changed_when: true
