@@ -57,11 +57,24 @@
     dest: /etc/fuse.conf
     mode: '0644'
 
-- name: Install keychain
+- name: Install keychain (Arch)
   become: true
   ansible.builtin.package:
     name: keychain
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+
+# Debian/Ubuntu repositories ship keychain 2.8.x, whose startup flags differ
+# from the 3.x line the shell configs use. On Debian it is installed via
+# Homebrew instead (see homebrew_packages in group_vars/all/base.yml; the
+# homebrew role runs after this one). Remove the distro package so the stale
+# /usr/bin/keychain cannot shadow the Homebrew binary on PATH.
+- name: Remove distro keychain package (Debian/Ubuntu)
+  become: true
+  ansible.builtin.package:
+    name: keychain
+    state: absent
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install x11-ask-pass
   become: true

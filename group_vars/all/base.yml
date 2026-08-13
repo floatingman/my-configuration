@@ -212,7 +212,6 @@ cli:
     - iftop
     - iotop
     - ipcalc
-    - keychain
     - lsof
     - mdp
     - moreutils
@@ -536,6 +535,7 @@ homebrew_packages:
   - jq
   - k6
   - k9s
+  - keychain
   - kind
   - knqyf263/pet/pet
   - kops
