@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# After goesimage writes latest.jpg, re-render the betterlockscreen cache
+# from it so the lock screen shows the current satellite image.
+# Only the "dim" effect is rendered to keep the per-run CPU cost low.
+[Service]
+ExecStartPost=/usr/bin/betterlockscreen -u /home/{{ user.name }}/.cache/goesimage/latest.jpg --fx dim

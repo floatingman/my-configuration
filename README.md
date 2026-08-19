@@ -168,6 +168,48 @@ make configure TAGS="gpu_drivers"
 make gpu-info
 ```
 
+## Fingerprint Unlock
+
+i3 + betterlockscreen supports unlocking with the fingerprint sensor (fprintd).
+The lock wrapper (`~/.local/bin/lock-fingerprint`, managed by chezmoi in the
+dotfiles repo) runs `fprintd-verify` alongside i3lock and unlocks on a
+successful scan; typing your password still works. It is bound to
+`$mod+Shift+x` and is used by the idle auto-lock (xidlehook).
+
+> Why a wrapper instead of PAM: i3lock only starts its PAM conversation after
+> you press Enter, so `pam_fprintd` never runs. The wrapper performs the
+> equivalent authentication itself.
+
+The goesimage role deploys a systemd drop-in
+(`~/.config/systemd/user/goesimage.service.d/override.conf`) that re-renders
+the betterlockscreen cache from the current satellite wallpaper every time
+goesimage updates it.
+
+### Adding a new fingerprint
+
+Enrollment requires an **active graphical session** and a running polkit
+authentication agent (the i3 config autostarts
+`/usr/lib/polkit-kde-authentication-agent-1`); a password prompt appears
+before enrollment begins.
+
+```sh
+# List enrolled fingers
+fprintd-list "$USER"
+
+# Enroll a finger (touch the sensor repeatedly until "enroll-completed")
+fprintd-enroll                       # defaults to right-index-finger
+fprintd-enroll -f left-thumb         # or name any other finger
+
+# Delete one and re-enroll
+fprintd-delete "$USER" right-index-finger
+
+# Verify a scan without locking
+fprintd-verify
+```
+
+If enrollment fails with `PermissionDenied: Not Authorized`, your session is
+not active or no polkit agent is running — start the agent and retry.
+
 ## Requirements
 
 - Python 3

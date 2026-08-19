@@ -29,6 +29,16 @@
     - reload systemd config
     - Restart GOESImage
 
+- name: Push betterlockscreen cache-refresh drop-in
+  ansible.builtin.template:
+    src: goesimage-betterlockscreen.conf.j2
+    dest: "/home/{{ user.name }}/.config/systemd/user/goesimage.service.d/override.conf"
+    mode: '0644'
+  become: true
+  become_user: "{{ user.name }}"
+  notify:
+    - Reload user systemd config
+
 - name: Enable and start goesimage.timer for user
   ansible.builtin.systemd:
     name: goesimage.timer

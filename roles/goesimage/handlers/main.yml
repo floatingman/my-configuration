@@ -5,3 +5,13 @@
     name: "goesimage@{{ user.name }}.timer"
     state: restarted
   when: goesimage.run_on == "all"
+
+- name: Reload user systemd config
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.systemd:
+    scope: user
+    daemon_reload: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: goesimage.run_on == "all"
