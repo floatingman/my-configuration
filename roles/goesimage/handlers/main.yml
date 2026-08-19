@@ -14,4 +14,3 @@
     daemon_reload: true
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: goesimage.run_on == "all"

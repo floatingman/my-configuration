@@ -29,6 +29,14 @@
     - reload systemd config
     - Restart GOESImage
 
+- name: Ensure user systemd drop-in directory exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/systemd/user/goesimage.service.d"
+    state: directory
+    mode: '0755'
+  become: true
+  become_user: "{{ user.name }}"
+
 - name: Push betterlockscreen cache-refresh drop-in
   ansible.builtin.template:
     src: goesimage-betterlockscreen.conf.j2
