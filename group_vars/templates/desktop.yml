@@ -40,13 +40,15 @@ dotfiles_config:
   # chezmoi applies all files by default; use chezmoi's tags system for conditional files
 
 # Backlight / ambient light sensor
-# Run: ls /sys/class/backlight/   to find your backlight device
-# Run: ls /sys/bus/iio/devices/   to find your illuminance device (if present)
-backlight_illuminanced:
-  max_backlight_file: /sys/class/backlight/DEVICE/max_brightness
-  backlight_file: /sys/class/backlight/DEVICE/brightness
-  illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_input
-  min_backlight: 60
+# Leave null to skip illuminanced (recommended: it dynamically rewrites the
+# backlight and conflicts with the power_monitor.sh brightness policy in the
+# laptop role). To enable ambient-light dimming, uncomment and fill in:
+#   backlight_illuminanced:
+#     max_backlight_file: /sys/class/backlight/DEVICE/max_brightness
+#     backlight_file: /sys/class/backlight/DEVICE/brightness
+#     illuminance_file: /sys/bus/iio/devices/iio:device0/in_illuminance_raw
+#     min_backlight: 60
+backlight_illuminanced: null
 
 # SSH
 ssh_config:

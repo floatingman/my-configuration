@@ -5,6 +5,38 @@
     name: brightnessctl
     state: present
 
+# illuminanced is disabled by default: it continuously rewrites the backlight
+# from the ambient light sensor and conflicts with the deterministic brightness
+# policy enforced by power_monitor.sh (laptop role). Remove leftovers from
+# earlier provisioning runs.
+- name: Gather package facts for illuminanced removal
+  ansible.builtin.package_facts:
+  when: backlight_illuminanced is none
+
+- name: Disable and stop illuminanced
+  become: true
+  ansible.builtin.service:
+    name: illuminanced.service
+    enabled: false
+    state: stopped
+  when:
+    - backlight_illuminanced is none
+    - "'illuminanced' in ansible_facts.packages"
+
+- name: Remove illuminanced
+  become: true
+  ansible.builtin.package:
+    name: illuminanced
+    state: absent
+  when: backlight_illuminanced is none
+
+- name: Remove illuminanced configuration
+  become: true
+  ansible.builtin.file:
+    path: /etc/illuminanced.toml
+    state: absent
+  when: backlight_illuminanced is none
+
 - name: Install illuminanced
   become: true
   ansible.builtin.package:
