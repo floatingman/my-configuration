@@ -596,9 +596,6 @@ binaries:
   - name: git-quick-stats
     url: "https://raw.githubusercontent.com/arzzen/git-quick-stats/master/git-quick-stats"
 
-  - name: mgitstatus
-    url: "https://raw.githubusercontent.com/fboender/multi-git-status/master/mgitstatus"
-
   - name: prettyping
     url: "https://raw.githubusercontent.com/denilsonsa/prettyping/master/prettyping"
 
