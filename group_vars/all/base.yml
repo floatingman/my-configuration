@@ -109,8 +109,8 @@ asdf_group: "devtools"
 asdf_plugins:
   - name: "aws-vault"
     versions:
-      - 7.2.0
-    global: 7.2.0
+      - 7.13.5
+    global: 7.13.5
   - name: "awscli"
     versions:
       - 2.34.9
