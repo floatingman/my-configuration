@@ -30,6 +30,18 @@
   tags:
     - shell
 
+# The user's login shell is only set by the Arch-only `base` role's user task
+# (play.yml gates it on _is_arch), so on Debian/Ubuntu it never changed even
+# though local.yml specifies user.shell. Set it here, after zsh is installed,
+# on every system — the user module is idempotent (plain usermod under the hood).
+- name: Set user login shell
+  ansible.builtin.user:
+    name: "{{ user.name }}"
+    shell: "{{ user.shell }}"
+  become: true
+  tags:
+    - shell
+    - user
 # asdf is installed system-wide to /opt/asdf, but the external asdf role only
 # writes /etc/profile.d/asdf.sh — which (a) is bash-only
 # (`[ -n "$BASH_VERSION" ] || return 0`) and (b) zsh never sources
@@ -37,6 +49,7 @@
 # etc.) is on PATH in zsh, and `pi` falls back to the system Node (too old).
 # Source asdf.sh in /etc/zsh/zshrc so every interactive zsh gets asdf. ASDF_DIR
 # is set first (asdf.sh can only auto-detect it under bash/zsh/ksh).
+
 - name: Initialize asdf for interactive zsh shells
   ansible.builtin.blockinfile:
     path: /etc/zsh/zshrc
