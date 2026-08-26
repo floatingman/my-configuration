@@ -24,6 +24,15 @@
 # data without prompting, so pre-seed ~/.config/chezmoi/chezmoi.toml from
 # dotfiles_config.data before init. force: false preserves the config that a
 # previous successful init generated from the repo's template.
+- name: Create chezmoi config directory
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/chezmoi"
+    state: directory
+    mode: '0755'
+  when: dotfiles_config is defined and dotfiles_config.data | default({}) | length > 0
+
 - name: Pre-seed chezmoi config with prompted data values
   become: true
   become_user: "{{ user.name }}"
