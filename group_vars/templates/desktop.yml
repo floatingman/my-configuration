@@ -38,6 +38,14 @@ dotfiles_config:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
   branch: main              # Git branch for dotfiles
   # chezmoi applies all files by default; use chezmoi's tags system for conditional files
+  # Answers the promptBoolOnce/promptStringOnce questions in .chezmoi.toml.tmpl
+  # ahead of time: `chezmoi init` would otherwise open /dev/tty and fail under
+  # Ansible. Every promptOnce key in the template MUST be listed here.
+  data:
+    pi:
+      enabled: true         # pi-agent skills + settings via ~/dotfiles on this machine
+      repo: "git@github.com:{{ user.githubuser }}/pi-dotfiles.git"
+      reviewerRepo: "git@github.com:{{ user.githubuser }}/pi-reviewer.git"
 
 # Backlight / ambient light sensor
 # Leave null to skip illuminanced (recommended: it dynamically rewrites the

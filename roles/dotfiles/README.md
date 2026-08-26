@@ -9,12 +9,13 @@ This role is part of the `user_environment` overlay — it only runs when `user_
 1. **Installs chezmoi**
    - On **Arch**, via the AUR (`kewlfft.aur.aur`, as `aur_builder`).
    - On **Debian/Ubuntu**, via Homebrew (`community.general.homebrew`). The linuxbrew bin dir is added to PATH explicitly because the Homebrew install runs before `/etc/profile.d` is sourced for the current shell.
-2. **Initializes and applies the user's dotfiles** with:
+2. **Pre-seeds the chezmoi config** (`~/.config/chezmoi/chezmoi.toml`) with `dotfiles_config.data` (see below), only when the file does not already exist.
+3. **Initializes and applies the user's dotfiles** with:
    ```
    chezmoi init --apply --branch=<branch> -- <repo_url>
    ```
    Run as `{{ user.name }}`, with `HOME` and the linuxbrew bin dir on PATH.
-3. **Generates the global gitconfig** from `templates/gitconfig.j2` into `/home/{{ user.name }}/.gitconfig`.
+4. **Generates the global gitconfig** from `templates/gitconfig.j2` into `/home/{{ user.name }}/.gitconfig`.
 
 ## How `chezmoi init` Works Here
 
@@ -23,6 +24,8 @@ chezmoi's `init` command takes the repo as a **positional** argument — it clon
 Because the task uses `become_user: "{{ user.name }}"`, Ansible resets PATH to a minimal secure path that does not include `/home/linuxbrew/.linuxbrew/bin`. The task therefore sets `PATH` explicitly in its `environment` so the `chezmoi` binary is found.
 
 Idempotency: on a second run, chezmoi detects the existing git repo in the source directory and skips the clone, but still runs `chezmoi apply` (which is idempotent).
+
+The dotfiles' `.chezmoi.toml.tmpl` asks machine-specific questions with `promptBoolOnce`/`promptStringOnce`, which open `/dev/tty` and fail under Ansible (no TTY). `promptOnce` functions return a value already present in the config data without prompting, so the role pre-seeds `~/.config/chezmoi/chezmoi.toml` from `dotfiles_config.data` (with `force: false`) before `init`. **Every `promptOnce` key in the template must be covered by `dotfiles_config.data`**, otherwise init still fails. A successful init regenerates the config from the template and the values persist in it.
 
 ## Variables
 
@@ -34,9 +37,16 @@ Required to enable the role. Defines the dotfiles repository.
 dotfiles_config:
   repo_url: "https://github.com/user/dotfiles.git"
   branch: main   # optional, defaults to main
+  data:          # optional; pre-seeded into ~/.config/chezmoi/chezmoi.toml
+    pi:          # before init (answers the template's promptOnce questions)
+      enabled: true
+      repo: "git@github.com:user/pi-dotfiles.git"
+      reviewerRepo: "git@github.com:user/pi-reviewer.git"
 ```
 
 `repo_url` may be a full URL or a `user/repo` shorthand (chezmoi guesses the GitHub URL for shorthands).
+
+`data` holds chezmoi template data: top-level scalars go under `[data]`, one level of nested mappings under `[data.<key>]` (deeper nesting is not supported). Leave `data` unset only if the dotfiles repo's `.chezmoi.toml.tmpl` contains no `promptOnce` calls, or init will fail under Ansible.
 
 The role also reads:
 

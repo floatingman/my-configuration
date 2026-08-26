@@ -9,5 +9,10 @@
 #   dotfiles_config:
 #     repo_url: "https://github.com/user/dotfiles.git"  # required (full URL or user/repo)
 #     branch: main                                        # optional, defaults to main
+#     data:            # optional; pre-seeded into ~/.config/chezmoi/chezmoi.toml
+#       pi:            # so the repo's .chezmoi.toml.tmpl promptOnce calls
+#         enabled: true          # don't need a TTY under Ansible
+#         repo: "git@github.com:user/pi-dotfiles.git"
+#         reviewerRepo: "git@github.com:user/pi-reviewer.git"
 
 # dotfiles_config: null

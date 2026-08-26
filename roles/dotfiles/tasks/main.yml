@@ -18,6 +18,22 @@
   environment:
     PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
 
+# The dotfiles' .chezmoi.toml.tmpl asks machine-specific questions with
+# promptBoolOnce/promptStringOnce, which open /dev/tty and fail under Ansible
+# (no TTY). promptOnce functions return a value already present in the config
+# data without prompting, so pre-seed ~/.config/chezmoi/chezmoi.toml from
+# dotfiles_config.data before init. force: false preserves the config that a
+# previous successful init generated from the repo's template.
+- name: Pre-seed chezmoi config with prompted data values
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.template:
+    src: chezmoi-config.j2
+    dest: "/home/{{ user.name }}/.config/chezmoi/chezmoi.toml"
+    mode: '0644'
+    force: false
+  when: dotfiles_config is defined and dotfiles_config.data | default({}) | length > 0
+
 # `become_user` resets PATH to a minimal secure_path that does NOT include
 # /home/linuxbrew/.linuxbrew/bin (where chezmoi is installed on Debian), so we
 # must add it explicitly or the `chezmoi` binary is not found.
@@ -27,6 +43,7 @@
 # `--force` makes the apply non-interactive: a drifted managed file (e.g. nvim's
 # lazy-lock.json, which changes whenever plugins update) would otherwise prompt
 # "overwrite?" on a TTY and fail under Ansible (no /dev/tty).
+
 - name: Initialize user dotfiles with chezmoi
   become: true
   ansible.builtin.command: >
