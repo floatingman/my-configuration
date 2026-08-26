@@ -22,9 +22,16 @@ endif
 
 UNAME_S  := $(shell uname -s)
 
-# Use pipx-managed ansible python if available; fall back to system python3
-PIPX_VENVS    := $(shell pipx environment 2>/dev/null | grep -o 'PIPX_LOCAL_VENVS=[^[:space:]]*' | cut -d= -f2)
-SCRIPT_PYTHON := $(or $(wildcard $(PIPX_VENVS)/ansible/bin/python3),python3)
+# Use pipx-managed ansible python if available; fall back to system python3.
+# pipx reports its venvs dir via `pipx environment` (grep fallback for pipx
+# too old to support --value). If that fails entirely (pipx missing from the
+# make shell PATH, or a PIPX_HOME mismatch), also probe both well-known venv
+# locations — pipx moved from ~/.local/pipx to ~/.local/share/pipx (XDG).
+# A wrong resolution silently uses system python3, which `pipx inject` can
+# never fix, producing the confusing "PyYAML not installed" validate error.
+PIPX_VENVS      := $(shell pipx environment --value PIPX_LOCAL_VENVS 2>/dev/null || pipx environment 2>/dev/null | grep -o 'PIPX_LOCAL_VENVS=[^[:space:]]*' | cut -d= -f2)
+ANSIBLE_VENV_PY := $(firstword $(wildcard $(PIPX_VENVS)/ansible/bin/python3 $(HOME)/.local/pipx/venvs/ansible/bin/python3 $(HOME)/.local/share/pipx/venvs/ansible/bin/python3))
+SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),python3)
 
 # Ansible runs via pipx under a mode-0700 home directory. Non-root become users
 # (e.g. aur_builder) cannot traverse the home dir to reach the pipx venv python,
@@ -126,6 +133,15 @@ endif
 pip-deps: ## Ensure pyyaml and passlib are available (injects into pipx ansible environment)
 	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
 	@$(SCRIPT_PYTHON) -c "import passlib" 2>/dev/null || pipx inject ansible passlib
+	@if ! $(SCRIPT_PYTHON) -c "import yaml, passlib" >/dev/null 2>&1; then \
+		echo 'ERROR: scripts interpreter cannot import pyyaml/passlib even after pipx inject.'; \
+		echo '  interpreter : $(SCRIPT_PYTHON)'; \
+		echo '  pipx venvs  : $(PIPX_VENVS)'; \
+		echo 'This usually means the pipx ansible venv was not found and the interpreter'; \
+		echo 'fell back to system python3, which pipx inject cannot fix.'; \
+		echo 'Check: pipx list   (venv "ansible" must exist)   then: make bootstrap'; \
+		exit 1; \
+	fi
 
 .PHONY: validate-deps
 validate-deps: pip-deps ## Validate role dependency graph (no cycles, no missing roles)
