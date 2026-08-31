@@ -1,23 +1,25 @@
 ---
 # Oh My Pi (omp) — AI coding agent (https://omp.sh)
-# Install via official installer script, which downloads the prebuilt native
-# binary (Rust core, no Node/Bun runtime needed) to $HOME/.local/bin/omp.
-# We run it as root so the binary lands in /root/.local/bin, then copy it into
-# the system bin dir — mirroring the ForgeCode approach below, since /root is
-# mode 0700 and a symlink from /usr/local/bin into /root is unreachable by
-# non-root users.
+# Install via the official installer script. It honors PI_INSTALL_DIR, so the
+# prebuilt native binary (Rust core, no Node/Bun runtime needed) lands directly
+# in the system bin dir — no /root intermediate, no world-executable copy (the
+# old flow installed under /root because /root is mode 0700 and a symlink from
+# /usr/local/bin into /root is unreachable by non-root users). `--binary`
+# forces the prebuilt path so a bun appearing on PATH can't redirect the
+# install into bun's global dir. The stat guard keeps runs idempotent; the
+# installer itself smoke-tests the downloaded binary before reporting success.
 
-- name: Check if omp source binary is installed (root home)
+- name: Check if omp binary is installed
   ansible.builtin.stat:
-    path: /root/.local/bin/omp
-  register: ai_omp_src_stat
-  become: true
+    path: "{{ ai_system_bin_dir }}/omp"
+  register: ai_omp_stat
 
-- name: Install omp via official installer (into /root/.local/bin)
+- name: Install omp via official installer (into system bin dir)
   ansible.builtin.shell:
-    cmd: set -o pipefail && curl -fsSL https://omp.sh/install | sh
+    cmd: set -o pipefail && curl -fsSL https://omp.sh/install | sh -s -- --binary
     executable: /bin/bash
   environment:
+    PI_INSTALL_DIR: "{{ ai_system_bin_dir }}"
     HOME: /root
     PATH: "/usr/local/bin:/usr/bin:/bin"
   register: ai_omp_install
@@ -25,26 +27,18 @@
   become: true
   when:
     - ai_omp_enabled | default(true)
-    - not ai_omp_src_stat.stat.exists
+    - not ai_omp_stat.stat.exists
 
-# The installer hardcodes $HOME/.local/bin, so with HOME=/root the binary
-# lands in /root/.local/bin/omp. Because /root is mode 0700, that target is
-# unreachable by any non-root user — a symlink from /usr/local/bin/omp into
-# /root therefore raises EACCES (Errno 13) for non-root callers. We COPY the
-# binary into the system bin dir as a real, world-executable file instead,
-# matching the ForgeCode binary handling above.
-- name: Install omp binary into system bin dir (world-executable copy)
-  ansible.builtin.copy:
-    src: /root/.local/bin/omp
-    dest: "{{ ai_system_bin_dir }}/omp"
-    remote_src: true
-    owner: root
-    group: root
-    mode: '0755'
-    force: true
+# Migration: the previous flow left its source binary under /root/.local/bin.
+# The installer's PATH export puts that directory FIRST on root's shell PATH,
+# so `sudo omp` would keep running that frozen copy long after the system bin
+# dir got a newer one. Remove it so there is exactly one omp on this machine.
+- name: Remove stale omp binary from root home (old install flow)
+  ansible.builtin.file:
+    path: /root/.local/bin/omp
+    state: absent
   become: true
-  when:
-    - ai_omp_enabled | default(true)
+  failed_when: false
 
 - name: Verify omp installation
   ansible.builtin.command: "{{ ai_system_bin_dir }}/omp --version"

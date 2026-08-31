@@ -1,0 +1,44 @@
+---
+# Herdr — terminal session manager for long-running agents (https://herdr.dev)
+# Install via the official installer script directly into the system bin dir.
+# Unlike the ForgeCode/omp installers, herdr's respects HERDR_INSTALL_DIR, so
+# there is no /root intermediate and no world-executable copy step: the binary
+# lands straight in {{ ai_system_bin_dir }} (mode 0755 — the installer chmod +x
+# under root's 022 umask). The stat guard keeps runs idempotent; updates for
+# this installer-managed install are handled by `sudo herdr update`.
+
+- name: Check if herdr binary is installed
+  ansible.builtin.stat:
+    path: "{{ ai_system_bin_dir }}/herdr"
+  register: ai_herdr_stat
+
+- name: Install herdr via official installer (into system bin dir)
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://herdr.dev/install.sh | sh
+    executable: /bin/bash
+  environment:
+    HERDR_INSTALL_DIR: "{{ ai_system_bin_dir }}"
+    HOME: /root
+    PATH: "/usr/local/bin:/usr/bin:/bin"
+  register: ai_herdr_install
+  changed_when: ai_herdr_install.rc == 0
+  become: true
+  when:
+    - ai_herdr_enabled | default(true)
+    - not ai_herdr_stat.stat.exists
+
+- name: Verify herdr installation
+  ansible.builtin.command: "{{ ai_system_bin_dir }}/herdr --version"
+  register: ai_herdr_verify
+  changed_when: false
+  failed_when: false
+  when: ai_herdr_enabled | default(true)
+
+- name: Display herdr installation status
+  ansible.builtin.debug:
+    msg: >-
+      herdr
+      {{ 'installed (' ~ (ai_herdr_verify.stdout | default('') | trim) ~ ')'
+         if (ai_herdr_verify.rc | default(1)) == 0
+         else 'installation failed or not available' }}
+  when: ai_herdr_enabled | default(true)

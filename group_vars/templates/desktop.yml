@@ -91,6 +91,7 @@ ai_rtk_enabled: true              # Install rtk (token optimization proxy)
 ai_forgecode_enabled: true        # Install ForgeCode (AI coding harness)
 ai_forgecode_zsh_enabled: true    # Enable ForgeCode ZSH plugin integration
 ai_omp_enabled: true             # Install omp (oh-my-pi, AI coding agent with LSP/DAP/subagents)
+ai_herdr_enabled: true            # Install herdr (terminal session manager for long-running agents)
 ai_local_llm_enabled: true        # Install Ollama (+ GPU backends) and llm-manager
 ai_lmstudio_enabled: true         # Install LM Studio (local LLM GUI)
 ai_llmfit_enabled: true           # Install llmfit (local LLM hardware-fit tool)

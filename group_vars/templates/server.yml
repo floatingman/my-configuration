@@ -76,6 +76,7 @@ ai_rtk_enabled: true              # Install rtk (token optimization proxy)
 ai_forgecode_enabled: true        # Install ForgeCode (AI coding harness)
 ai_forgecode_zsh_enabled: true    # Enable ForgeCode ZSH plugin integration
 ai_omp_enabled: true             # Install omp (oh-my-pi, AI coding agent with LSP/DAP/subagents)
+ai_herdr_enabled: true            # Install herdr (terminal session manager for long-running agents)
 
 # Proton Pass CLI (installed per-user via the official installer script)
 # pass_cli_channel: beta      # beta | stable  (beta enables release-track switching)

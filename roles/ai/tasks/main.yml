@@ -1,10 +1,14 @@
 ---
 # tasks file for ai
-# AI tools (pi, forge) are installed system-wide so all users on the machine
-# can access them.
+# AI tools (pi, forge, omp, herdr) are installed system-wide so all users on
+# the machine can access them.
 # - pi-agent is installed via npm under the system-wide asdf-managed Node, so
-#   the `pi` binary is exposed through the asdf shims (/etc/profile.d/asdf.sh).
-# - ForgeCode is symlinked into /usr/local/bin.
+#   the `pi` binary is exposed through the asdf shims (/etc/profile.d/asdf.sh)
+#   plus a /usr/local/bin symlink.
+# - herdr and omp install straight into /usr/local/bin via their installers'
+#   install-dir env overrides; forge's installer has no such override on
+#   Linux, so it runs under a throwaway HOME and the binary is installed out
+#   of the temp dir (see forgecode.yml / omp.yml / herdr.yml).
 # Per-user config (~/.pi/, ~/.forge/) remains in each user's home.
 
 - name: Check if Homebrew is available
@@ -21,6 +25,9 @@
 
 - name: Include omp tasks
   ansible.builtin.include_tasks: omp.yml
+
+- name: Include herdr tasks
+  ansible.builtin.include_tasks: herdr.yml
 
 # asdf 0.16+ (Go) ships BOTH the Go binary (/opt/asdf/asdf) and a legacy bash
 # wrapper (/opt/asdf/bin/asdf) that prints the "upgrade to 0.16" migration

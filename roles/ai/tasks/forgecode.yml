@@ -1,40 +1,33 @@
 ---
 # ForgeCode — AI coding harness (https://forgecode.dev)
-# Install via official installer script to /usr/local/bin for system-wide access.
+# The installer hardcodes $HOME/.local/bin on Linux (its PREFIX override is
+# Android-only), so it cannot target the system bin dir directly. Instead we
+# run it with a throwaway HOME: the forge binary, its fzf/bat/fd dependency
+# downloads, and its rc-file PATH edits all land under the temp dir, and we
+# `install` the binary out of there into the system bin dir as a real,
+# world-executable file.
+#
+# The old flow ran the installer with HOME=/root and copied the binary out of
+# /root/.local/bin. That littered /root/.local/bin with frozen fzf/bat/fd
+# copies (unreachable by non-root users) and prepended PATH exports to
+# /root/.bashrc and /root/.zshrc. The throwaway-HOME flow leaves nothing
+# behind anywhere.
+#
 # ZSH plugin setup remains per-user.
 
-- name: Check if ForgeCode source binary is installed (root home)
+- name: Check if forge binary is installed
   ansible.builtin.stat:
-    path: /root/.local/bin/forge
-  register: ai_forgecode_src_stat
-  become: true
+    path: "{{ ai_system_bin_dir }}/forge"
+  register: ai_forgecode_stat
 
+# `install` would write through a leftover symlink from the very first
+# install approach, so keep removing those once before the binary task runs.
 - name: Check for stale forge entry in system bin dir
   ansible.builtin.stat:
     path: "{{ ai_system_bin_dir }}/forge"
     follow: false
   register: ai_forgecode_link_stat
 
-- name: Install ForgeCode via official installer (into /root/.local/bin)
-  ansible.builtin.shell:
-    cmd: set -o pipefail && curl -fsSL https://forgecode.dev/cli | sh
-    executable: /bin/bash
-  environment:
-    HOME: /root
-    PATH: "/usr/local/bin:/usr/bin:/bin"
-  register: ai_forgecode_install
-  changed_when: ai_forgecode_install.rc == 0
-  become: true
-  when:
-    - ai_forgecode_enabled | default(true)
-    - not ai_forgecode_src_stat.stat.exists
-
-# The Linux installer hardcodes $HOME/.local/bin, so with HOME=/root the
-# binary lands in /root/.local/bin/forge. Because /root is mode 0700, that
-# target is unreachable by any non-root user — a symlink from
-# /usr/local/bin/forge into /root therefore raises EACCES (Errno 13) for the
-# per-user zsh tasks below. We COPY the binary into the system bin dir as a
-# real, world-executable file instead of symlinking.
 - name: Remove stale forge symlink from system bin dir
   ansible.builtin.file:
     path: "{{ ai_system_bin_dir }}/forge"
@@ -44,18 +37,40 @@
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_link_stat.stat.islnk | default(false)
 
-- name: Install forge binary into system bin dir (world-executable copy)
-  ansible.builtin.copy:
-    src: /root/.local/bin/forge
-    dest: "{{ ai_system_bin_dir }}/forge"
-    remote_src: true
-    owner: root
-    group: root
-    mode: '0755'
-    force: true
+- name: Install ForgeCode via official installer (throwaway HOME, into system bin dir)
+  ansible.builtin.shell:
+    cmd: |
+      set -eo pipefail
+      tmp="$(mktemp -d)"
+      trap 'rm -rf "$tmp"' EXIT
+      curl -fsSL https://forgecode.dev/cli | HOME="$tmp" sh
+      install -m 0755 "$tmp/.local/bin/forge" "{{ ai_system_bin_dir }}/forge"
+    executable: /bin/bash
+  environment:
+    PATH: "/usr/local/bin:/usr/bin:/bin"
+  register: ai_forgecode_install
+  changed_when: ai_forgecode_install.rc == 0
   become: true
   when:
     - ai_forgecode_enabled | default(true)
+    - not ai_forgecode_stat.stat.exists
+
+# Migration: the previous HOME=/root flow left its source binary plus the
+# fzf/bat/fd dependency downloads in /root/.local/bin. The installer's PATH
+# export puts that directory first on root's shell PATH, so `sudo forge` /
+# `sudo fzf` would keep running those frozen copies after the system bin dir
+# got newer ones. Remove them so the system bin dir is the only source.
+- name: Remove stale forge and installer-fetched deps from root home (old install flow)
+  ansible.builtin.file:
+    path: "/root/.local/bin/{{ item }}"
+    state: absent
+  become: true
+  loop:
+    - forge
+    - fzf
+    - bat
+    - fd
+  failed_when: false
 
 - name: Verify ForgeCode installation
   ansible.builtin.command: "{{ ai_system_bin_dir }}/forge --help"
