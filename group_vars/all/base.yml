@@ -107,10 +107,6 @@ asdf_dir: "/opt/asdf"
 asdf_user: "root"
 asdf_group: "devtools"
 asdf_plugins:
-  - name: "aws-vault"
-    versions:
-      - 7.13.5
-    global: 7.13.5
   - name: "awscli"
     versions:
       - 2.34.9
@@ -259,6 +255,7 @@ cli:
   arch:
     - ansible-lint
     - argocd
+    - aws-vault
     - bat
     - bind-tools
     - bottom
@@ -452,6 +449,7 @@ laptop_power_management: "tuned"
 
 argocdcli_version: 2.3.1
 awless_version: 0.1.11
+aws_vault_version: 7.13.6
 bat_version: 0.20.0
 bit_version: 1.1.2
 bottom_version: 0.6.8
@@ -580,6 +578,10 @@ binaries:
 
   - name: aws-iam-authenticator
     url: "https://amazon-eks.s3-us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/amd64/aws-iam-authenticator"
+
+  - name: aws-vault
+    url: "https://github.com/ByteNess/aws-vault/releases/download/v{{ aws_vault_version }}/aws-vault-linux-amd64"
+    bin_name: aws-vault-linux-amd64
 
   - name: bit
     url: "https://github.com/chriswalz/bit/releases/download/v{{ bit_version }}/bit_{{ bit_version }}_linux_amd64.tar.gz"
