@@ -2938,7 +2938,14 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
 
 
 def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str, List[str]]]:
-    """Discover all overlay roles and their gating conditions dynamically."""
+    """Discover all overlay roles and their gating conditions dynamically.
+
+    Raises:
+        ValueError: If any overlay file fails to load. Generation must fail
+            fast here: sync_check filters _overlay_-gated roles from both
+            sides, so silently skipping a broken overlay would produce an
+            incomplete play.yml that no CI gate can detect.
+    """
     result: Dict[str, Tuple[str, List[str]]] = {}
     overlays_path = Path(profiles_dir) / "overlays"
     if not overlays_path.exists():
@@ -2948,24 +2955,26 @@ def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str,
         overlay_flag = f"_overlay_{overlay_name}"
         try:
             overlay_data = load_overlay(profiles_dir, overlay_name)
-            if isinstance(overlay_data, dict):
-                roles_list = overlay_data.get("roles", [])
+        except yaml.YAMLError as exc:
+            raise ValueError(
+                f"Overlay '{overlay_name}' has invalid YAML: {exc}"
+            ) from exc
+        if isinstance(overlay_data, dict):
+            roles_list = overlay_data.get("roles", [])
+        else:
+            roles_list = overlay_data.roles
+        for role_entry in roles_list:
+            if isinstance(role_entry, str):
+                rname = role_entry
+                tags = [rname]
+            elif isinstance(role_entry, dict):
+                rname = role_entry.get("role", "")
+                tags = role_entry.get("tags", [rname])
             else:
-                roles_list = overlay_data.roles
-            for role_entry in roles_list:
-                if isinstance(role_entry, str):
-                    rname = role_entry
-                    tags = [rname]
-                elif isinstance(role_entry, dict):
-                    rname = role_entry.get("role", "")
-                    tags = role_entry.get("tags", [rname])
-                else:
-                    rname = getattr(role_entry, "role", "")
-                    tags = getattr(role_entry, "tags", [rname])
-                if rname:
-                    result[rname] = (overlay_flag, tags if isinstance(tags, list) else [tags])
-        except (ValueError, yaml.YAMLError):
-            continue
+                rname = getattr(role_entry, "role", "")
+                tags = getattr(role_entry, "tags", [rname])
+            if rname:
+                result[rname] = (overlay_flag, tags if isinstance(tags, list) else [tags])
     return result
 
 _DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}

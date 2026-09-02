@@ -524,5 +524,24 @@ class TestCLIGeneratePlaybook:
             # Guard fires before the output file is created.
             assert not Path(outfile).exists()
 
+    def test_generate_playbook_fails_loud_on_invalid_overlay(self, capsys):
+        """generate-playbook must fail (not silently omit) an unloadable overlay.
+
+        sync_check filters _overlay_-gated roles from comparison, so a
+        silently skipped broken overlay would yield an incomplete play.yml
+        that no CI gate can detect.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+            (overlays_dir / "broken.yml").write_text("name: [unclosed\n")
+
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir])
+            assert rc == 1
+            captured = capsys.readouterr()
+            assert captured.out == ""
+            assert "broken" in captured.err
+            assert "invalid YAML" in captured.err
+
 
 

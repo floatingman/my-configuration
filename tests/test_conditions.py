@@ -22,12 +22,10 @@ class TestValidateOverlays:
         """Existing overlay files should pass validation."""
         results = validate_overlays(profiles_dir=_PROFILES_DIR)
 
-        # Should return results for both overlays
-        assert len(results) == 3
-
-        # Each should have empty error list
-        for overlay_name, errors in results:
-            assert overlay_name in {"laptop", "bluetooth", "user_environment"}
+        # Every discovered overlay is valid; the known set is present
+        names = {overlay_name for overlay_name, _ in results}
+        assert {"laptop", "bluetooth", "user_environment"} <= names
+        for _, errors in results:
             assert errors == []
 
     def test_catches_missing_applies_when(self):

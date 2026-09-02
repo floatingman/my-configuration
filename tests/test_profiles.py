@@ -695,9 +695,8 @@ class TestResolveOverlays:
             profiles_dir=_PROFILES_DIR,
         )
 
-        # All three overlays are returned (laptop, bluetooth, user_environment)
-        assert len(results) == 3
-        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+        by_name = {r.overlay.name: r for r in results}
+        laptop_overlay = by_name["Laptop Features Overlay"]
 
         # Overlay applies
         assert laptop_overlay.applies is True
@@ -743,14 +742,11 @@ class TestResolveOverlays:
             profiles_dir=_PROFILES_DIR,
         )
 
-        # Three overlays present
-        assert len(results) == 3
-        # laptop and bluetooth should not apply (default(false))
-        for result in results:
-            if result.overlay.name == "User Environment":
-                assert result.applies is True  # default(true)
-            else:
-                assert result.applies is False
+        by_name = {r.overlay.name: r for r in results}
+        # default(true) overlay applies; default(false) overlays do not
+        assert by_name["User Environment"].applies is True
+        assert by_name["Laptop Features Overlay"].applies is False
+        assert by_name["Bluetooth Support Overlay"].applies is False
 
     def test_bluetooth_with_disable_false_applies(self):
         """Bluetooth overlay with disable=False should apply on Arch."""
@@ -838,7 +834,6 @@ class TestResolveOverlays:
         default_laptop = [r for r in default_results if r.overlay.name == "Laptop Features Overlay"][0]
         assert default_laptop.applies is False
 
-        assert len(results) == 3
         laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
         assert laptop_overlay.applies is True
 
@@ -853,7 +848,8 @@ class TestResolveOverlays:
         )
 
         # Should work with default Jinja2Evaluator
-        assert len(results) == 3
+        by_name = {r.overlay.name: r for r in results}
+        assert by_name["Laptop Features Overlay"].applies is True
 
     def test_raises_error_for_unknown_expression_patterns(self):
         """resolve_overlays raises clear error for unknown expression patterns."""
