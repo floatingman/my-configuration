@@ -29,7 +29,9 @@ jobs:
         run: python scripts/bump_plugin_versions.py | tee /tmp/bump-report.txt
 
       - name: Validate defaults still parses
-        run: python -c "import yaml; yaml.safe_load(open('roles/shell/defaults/main.yml'))"
+        run: |
+          pip install pyyaml
+          python -c "import yaml; yaml.safe_load(open('roles/shell/defaults/main.yml'))"
 
       - name: Open pull request if pins changed
         env:

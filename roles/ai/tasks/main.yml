@@ -111,6 +111,10 @@
 # This mirrors how ForgeCode is symlinked below.
 - name: Locate the asdf-installed pi binary
   ansible.builtin.shell: "set -o pipefail; ls /opt/asdf/installs/nodejs/*/bin/pi 2>/dev/null | sort -V | tail -1"
+  args:
+    # pipefail is a bash-ism; /bin/sh is dash on Debian and would abort
+    # this pipeline (silently, via failed_when) leaving stdout empty.
+    executable: /bin/bash
   register: ai_pi_asdf_binary
   changed_when: false
   failed_when: false
