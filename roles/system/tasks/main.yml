@@ -21,6 +21,31 @@
     state: present
   become: true
 
+# GitHub 401-challenges anonymous protocol-v2 git requests sent over HTTP/2,
+# which makes unattended git fetches (asdf clone as root, ansible git module
+# under become, cron jobs) prompt for credentials and die with no TTY. The
+# user-level override lives in the dotfiles gitconfig template; this system
+# file covers root and service users. HTTP/1.1 (or protocol v0/v1) works.
+- name: Configure git to use HTTP/1.1 for GitHub HTTPS remotes
+  # blockinfile, not copy: preserve any pre-existing /etc/gitconfig content
+  # (safe.directory, proxies, credential helpers) — manage only this setting.
+  ansible.builtin.blockinfile:
+    path: /etc/gitconfig
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+    marker: "# {mark} ansible: github anonymous-git 401 workaround"
+    block: |
+      # GitHub 401-challenges anonymous protocol-v2 git requests sent over
+      # HTTP/2, which makes unattended git fetches prompt for credentials.
+      # Force HTTP/1.1 for GitHub HTTPS remotes; all other combinations work.
+      [http "https://github.com/"]
+        version = HTTP/1.1
+  become: true
+  tags:
+    - asdf
+
 - name: Install hdparm
   become: true
   ansible.builtin.package:
