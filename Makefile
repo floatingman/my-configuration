@@ -40,9 +40,15 @@ SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),python3)
 # only an extra var has high enough precedence.)
 ANSIBLE_PYTHON_FLAGS := -e ansible_python_interpreter=/usr/bin/python3
 
+# Used by ifdef conditionals (make lint): MUST be := (simple expansion) —
+# ifdef tests the unexpanded text of recursive '=' variables, which is the
+# literal '$(shell ...)' string and therefore always non-empty.
+ANSIBLE_LINT_BIN := $(shell command -v ansible-lint 2>/dev/null)
+YAMLLINT_BIN     := $(shell command -v yamllint 2>/dev/null)
+# Currently unused: keep lazy '=' so the probes never run at parse time
+# (ANSIBLE_BIN/PRE_COMMIT_BIN/PYLINT_BIN spawn full interpreter startups).
+# If one gains an ifdef consumer, flip it to ':=' as above.
 ANSIBLE_BIN      = $(shell ansible --version 2>&1 | head -1 | grep -q 'ansible 2' && command -v ansible)
-ANSIBLE_LINT_BIN = $(shell command -v ansible-lint 2>/dev/null)
-YAMLLINT_BIN     = $(shell command -v yamllint 2>/dev/null)
 BREW_BIN       = $(shell command -v brew 2>/dev/null)
 GO_BIN         = $(shell command -v go 2>/dev/null)
 LYNIS_BIN      = $(shell command -v lynis 2>/dev/null)
