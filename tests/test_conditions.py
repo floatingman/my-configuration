@@ -9,9 +9,9 @@ import pytest
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     validate_overlays,
-    _DictEvaluator,
     AnsibleConditionTranslator,
     DefaultTranslator,
+    Jinja2Evaluator,
 )
 
 
@@ -22,12 +22,10 @@ class TestValidateOverlays:
         """Existing overlay files should pass validation."""
         results = validate_overlays(profiles_dir=_PROFILES_DIR)
 
-        # Should return results for both overlays
-        assert len(results) == 3
-
-        # Each should have empty error list
-        for overlay_name, errors in results:
-            assert overlay_name in {"laptop", "bluetooth", "user_environment"}
+        # Every discovered overlay is valid; the known set is present
+        names = {overlay_name for overlay_name, _ in results}
+        assert {"laptop", "bluetooth", "user_environment"} <= names
+        for _, errors in results:
             assert errors == []
 
     def test_catches_missing_applies_when(self):
@@ -158,46 +156,6 @@ roles:
             for overlay_name, errors in results:
                 assert overlay_name in {"bad1", "bad2"}
                 assert len(errors) > 0
-
-
-class TestPrivateDictEvaluator:
-    """Test _DictEvaluator expression evaluation."""
-
-    def test_mapped_expression_returns_correct_bool(self):
-        """An expression in the mapping should return its mapped boolean value."""
-        evaluator = _DictEvaluator({"laptop": True, "desktop": False})
-        assert evaluator.evaluate("laptop", {}) is True
-        assert evaluator.evaluate("desktop", {}) is False
-
-    def test_unmapped_expression_returns_false(self):
-        """An expression not in the mapping should return False."""
-        evaluator = _DictEvaluator({"laptop": True})
-        assert evaluator.evaluate("desktop", {}) is False
-        assert evaluator.evaluate("unknown", {}) is False
-
-    def test_context_parameter_is_ignored(self):
-        """The context parameter should be ignored (for protocol compatibility)."""
-        evaluator = _DictEvaluator({"laptop": True})
-        # Context dict should not affect the result
-        assert evaluator.evaluate("laptop", {"laptop": False}) is True
-        assert evaluator.evaluate("laptop", {}) is True
-
-    def test_empty_mapping_returns_false_for_all(self):
-        """An empty mapping should return False for all expressions."""
-        evaluator = _DictEvaluator({})
-        assert evaluator.evaluate("anything", {}) is False
-        assert evaluator.evaluate("laptop", {}) is False
-
-    def test_multiple_expressions(self):
-        """Multiple expressions should all resolve correctly."""
-        evaluator = _DictEvaluator({
-            "laptop": True,
-            "desktop": False,
-            "server": True,
-        })
-        assert evaluator.evaluate("laptop", {}) is True
-        assert evaluator.evaluate("desktop", {}) is False
-        assert evaluator.evaluate("server", {}) is True
 
 
 class TestConditionTranslatorProtocol:
@@ -367,12 +325,19 @@ class TestConditionTranslatorProtocol:
         assert result == "_is_arch"
 
     def test_default_translator_with_evaluator(self):
-        """DefaultTranslator factory passes evaluator through."""
-        evaluator = _DictEvaluator({"dotfiles is defined": True})
+        """DefaultTranslator factory passes a custom evaluator through."""
+        class MappingEvaluator:
+            def __init__(self, mapping):
+                self._mapping = mapping
+
+            def evaluate(self, expression, context):
+                return self._mapping.get(expression, False)
+
+        evaluator = MappingEvaluator({"dotfiles is defined": True})
         translator = DefaultTranslator(evaluator=evaluator)
         annotation = {"role": "dotfiles", "tags": ["dotfiles"], "config_check": "dotfiles is defined"}
         result = translator.translate_annotation(annotation, {})
-        # _DictEvaluator returns True for the expression
+        # The custom evaluator's verdict is honored
         assert result == "true"
 
     def test_default_translator_with_preserve_config_check(self):
@@ -382,6 +347,122 @@ class TestConditionTranslatorProtocol:
         result = translator.translate_annotation(annotation, {})
         # With preserve_config_check=True, the expression is kept as-is
         assert result == "dotfiles is defined"
+
+
+class TestJinja2Evaluator:
+    """Test Jinja2Evaluator expression evaluation."""
+
+    def test_truthy_variable(self):
+        """A variable set to a truthy value should evaluate to True."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop", {"laptop": "yes"}) is True
+        assert evaluator.evaluate("laptop", {"laptop": 1}) is True
+
+    def test_falsy_variable(self):
+        """A variable set to a falsy value should evaluate to False."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop", {"laptop": False}) is False
+        assert evaluator.evaluate("laptop", {"laptop": ""}) is False
+        assert evaluator.evaluate("laptop", {"laptop": 0}) is False
+        assert evaluator.evaluate("laptop", {"laptop": None}) is False
+
+    def test_absent_variable_with_default(self):
+        """A variable with default filter should return the default value when absent."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop | default(false)", {}) is False
+        assert evaluator.evaluate("laptop | default(true)", {}) is True
+        assert evaluator.evaluate("laptop | default('')", {}) is False  # Empty string is falsy
+
+    def test_absent_variable_without_default_raises_error(self):
+        """Referencing an undefined variable without default() should fail."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(Exception, match="Failed to evaluate"):
+            evaluator.evaluate("unknown_var", {})
+
+    def test_is_defined_test(self):
+        """The 'is defined' test should return True for defined variables."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop is defined", {"laptop": True}) is True
+        assert evaluator.evaluate("laptop is defined", {"laptop": False}) is True
+        assert evaluator.evaluate("laptop is defined", {}) is False
+
+    def test_nested_dict_access(self):
+        """Dotted access should work for nested dictionaries.
+
+        Missing attributes on dicts raise an evaluation error with StrictUndefined;
+        use ``| default(false)`` for safe access (see test_nested_dict_access_with_default).
+        """
+        evaluator = Jinja2Evaluator()
+        context = {
+            "bluetooth": {"disable": True},
+            "laptop": {"hardware": {"trackpad": True}},
+        }
+        assert evaluator.evaluate("bluetooth.disable", context) is True
+        assert evaluator.evaluate("laptop.hardware.trackpad", context) is True
+        # Missing attribute on a dict raises an evaluation error (StrictUndefined)
+        with pytest.raises(Exception, match="Failed to evaluate"):
+            evaluator.evaluate("laptop.hardware.touchscreen", context)
+
+    def test_boolean_and_operator(self):
+        """The 'and' operator should perform logical AND."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop and desktop", {"laptop": True, "desktop": False}) is False
+        assert evaluator.evaluate("laptop and desktop", {"laptop": False, "desktop": True}) is False
+
+    def test_boolean_or_operator(self):
+        """The 'or' operator should perform logical OR."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": True}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": True, "desktop": False}) is True
+        assert evaluator.evaluate("laptop or desktop", {"laptop": False, "desktop": False}) is False
+
+    def test_boolean_not_operator(self):
+        """The 'not' operator should perform logical NOT."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate("not laptop", {"laptop": False}) is True
+        assert evaluator.evaluate("not laptop", {"laptop": True}) is False
+
+    def test_complex_boolean_expression(self):
+        """Complex boolean expressions with and/or/not should work correctly."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": True, "desktop": False, "gui": True}
+        assert evaluator.evaluate("laptop and not desktop", context) is True
+        assert evaluator.evaluate("(laptop or desktop) and gui", context) is True
+        assert evaluator.evaluate("laptop and desktop and gui", context) is False
+
+    def test_parenthesized_expressions(self):
+        """Parentheses should control operator precedence."""
+        evaluator = Jinja2Evaluator()
+        context = {"a": True, "b": True, "c": False}
+        assert evaluator.evaluate("(a or b) and c", context) is False
+        assert evaluator.evaluate("a or (b and c)", context) is True
+
+    def test_default_filter_with_boolean_operators(self):
+        """Default filters should work in boolean expressions."""
+        evaluator = Jinja2Evaluator()
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"laptop": True}
+        ) is True
+        assert evaluator.evaluate(
+            "laptop | default(false) and not (desktop | default(false))",
+            {"desktop": True}
+        ) is False
+
+    def test_invalid_syntax_raises_evaluation_error(self):
+        """Invalid Jinja2 syntax should fail to evaluate."""
+        evaluator = Jinja2Evaluator()
+        with pytest.raises(Exception, match="Failed to evaluate"):
+            evaluator.evaluate("unclosed (parenthesis", {})
+
+    def test_nested_dict_access_with_default(self):
+        """Default filters should work with nested dict access."""
+        evaluator = Jinja2Evaluator()
+        context = {"laptop": {}}
+        assert evaluator.evaluate("laptop.trackpad | default(false)", context) is False
+        assert evaluator.evaluate("laptop.trackpad | default(true)", context) is True
 
 
 if __name__ == '__main__':

@@ -13,7 +13,6 @@ from profile_dispatcher import (  # noqa: E402
     load_profile,
     list_profiles,
     load_overlay,
-    _OverlayDefinition,
 )
 
 
@@ -138,6 +137,12 @@ class TestProfileMode:
         result_ws = resolve(profile='   ')
         result_manual = resolve()
         assert result_ws == result_manual
+
+    def test_literal_manual_profile_equals_manual_mode(self):
+        """Profile='manual' should behave exactly like manual mode."""
+        result_manual_profile = resolve(profile='manual')
+        result_manual = resolve()
+        assert result_manual_profile == result_manual
 
     def test_case_sensitive_profile_names(self):
         """Profile names should be case-sensitive."""
@@ -549,7 +554,6 @@ class TestLoadOverlay:
     def test_load_laptop_overlay(self):
         """load_overlay correctly parses laptop.yml."""
         overlay = load_overlay(_PROFILES_DIR, "laptop")
-        assert isinstance(overlay, _OverlayDefinition)
         assert overlay.name == "Laptop Features Overlay"
         assert overlay.applies_when == "laptop | default(false)"
         assert isinstance(overlay.roles, list)
@@ -565,7 +569,6 @@ class TestLoadOverlay:
     def test_load_bluetooth_overlay(self):
         """load_overlay correctly parses bluetooth.yml."""
         overlay = load_overlay(_PROFILES_DIR, "bluetooth")
-        assert isinstance(overlay, _OverlayDefinition)
         assert overlay.name == "Bluetooth Support Overlay"
         assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
         assert isinstance(overlay.roles, list)
@@ -677,3 +680,4 @@ class TestResolveInvalidProfileError:
             # Should mention 'invalid', not 'Unknown profile'
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
+

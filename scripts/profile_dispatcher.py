@@ -35,12 +35,41 @@ from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
 import jinja2
 import yaml
 
+# Public API surface. Everything not listed here is module-private.
+__all__ = [
+    # Primary interface
+    "PlaybookGenerator",
+    "PlaybookRole",
+    "SyncResult",
+    # Condition translation
+    "ConditionTranslator",
+    "AnsibleConditionTranslator",
+    "DefaultTranslator",
+    "Jinja2Evaluator",
+    # Profile/overlay loading and validation
+    "load_profile",
+    "load_overlay",
+    "validate_profile",
+    "validate_overlays",
+    "list_profiles",
+    # Overlay variable plumbing (resolve-role-manifest)
+    "discover_overlay_variables",
+    "generate_host_vars_template",
+    "generate_overlay_facts_task",
+    # Resolution entry points
+    "resolve",
+    "resolve_manifest",
+    "resolve_role_manifest",
+    # CLI
+    "main",
+]
+
 # Default profiles directory relative to this script's location
 _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 
-# Allowed values for profile fields
-ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
-ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
+# Allowed values for profile fields (internal to validate_profile)
+_ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
+_ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
 
 # Role-to-section mapping for playbook generation
 # Sections are ordered as they appear in the hand-maintained play.yml
@@ -415,26 +444,16 @@ class _EvaluationError(Exception):
     pass
 
 
-class ConditionEvaluator(Protocol):
-    """Protocol for condition expression evaluation.
+class _ConditionEvaluator(Protocol):
+    """Private protocol for condition expression evaluation.
 
-    Any class implementing evaluate() can be used as a condition evaluator,
-    enabling test injection and zero-dependency mocks.
+    Any object with evaluate(expression, context) -> bool can be injected
+    into resolve_overlays(). Kept module-private: the public API exposes
+    only the concrete Jinja2Evaluator.
     """
 
     def evaluate(self, expression: str, context: dict) -> bool:
-        """Evaluate a condition expression against a context dict.
-
-        Args:
-            expression: A condition expression (e.g., "laptop", "x is defined", "x.enabled")
-            context: Dictionary of variables available to the expression
-
-        Returns:
-            True if the expression evaluates to truthy, False otherwise
-
-        Raises:
-            _EvaluationError: If the expression cannot be parsed or evaluated
-        """
+        """Evaluate a condition expression against a context dict."""
         ...
 
 
@@ -489,26 +508,6 @@ class Jinja2Evaluator:
             ) from exc
 
         return result.strip() == "__TRUE__"
-
-
-class _DictEvaluator:
-    """Evaluates conditions by looking them up in a dictionary.
-
-    Returns the mapped boolean value if the expression is a key in the dict,
-    otherwise returns False. This is useful in tests that want to isolate
-    resolution logic from expression evaluation semantics.
-    Example:
-        evaluator = _DictEvaluator({"laptop": True, "desktop": False})
-        evaluator.evaluate("laptop", {})  # Returns True
-        evaluator.evaluate("desktop", {})  # Returns False
-        evaluator.evaluate("unknown", {})  # Returns False
-    """
-
-    def __init__(self, mapping: dict[str, bool]) -> None:
-        self._mapping = dict(mapping)
-
-    def evaluate(self, expression: str, context: dict) -> bool:
-        return self._mapping.get(expression, False)
 
 
 @dataclass(frozen=True)
@@ -1044,10 +1043,10 @@ def validate_profile(profiles_dir: str, name: str) -> list:
             errors.append(
                 f"Field 'display_manager_default' must be a string, got {type(dm).__name__}"
             )
-        elif dm not in ALLOWED_DISPLAY_MANAGERS:
+        elif dm not in _ALLOWED_DISPLAY_MANAGERS:
             errors.append(
                 f"display_manager_default '{dm}' not in allowed set: "
-                f"{sorted(ALLOWED_DISPLAY_MANAGERS)}"
+                f"{sorted(_ALLOWED_DISPLAY_MANAGERS)}"
             )
 
     if "desktop_environment" in profile:
@@ -1056,10 +1055,10 @@ def validate_profile(profiles_dir: str, name: str) -> list:
             errors.append(
                 f"Field 'desktop_environment' must be a string, got {type(de).__name__}"
             )
-        elif de not in ALLOWED_DESKTOP_ENVIRONMENTS:
+        elif de not in _ALLOWED_DESKTOP_ENVIRONMENTS:
             errors.append(
                 f"desktop_environment '{de}' not in known set: "
-                f"{sorted(ALLOWED_DESKTOP_ENVIRONMENTS)}"
+                f"{sorted(_ALLOWED_DESKTOP_ENVIRONMENTS)}"
             )
 
     return errors
@@ -1227,7 +1226,7 @@ def resolve_overlays(
     has_display: bool,
     is_arch: bool,
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
-    evaluator: Optional[ConditionEvaluator] = None,
+    evaluator: Optional[_ConditionEvaluator] = None,
 ) -> list[_ResolvedOverlay]:
     """
     Discover and resolve overlays against host facts.
@@ -1237,7 +1236,8 @@ def resolve_overlays(
         has_display: Whether this machine has a display server
         is_arch: Whether this is an Arch Linux system
         profiles_dir: Directory containing profiles/ subdirectory
-        evaluator: ConditionEvaluator instance (defaults to Jinja2Evaluator)
+        evaluator: Optional _ConditionEvaluator (any object implementing
+            evaluate(expression, context) -> bool); defaults to Jinja2Evaluator
 
     Returns:
         Sorted list of _ResolvedOverlay instances with per-role applies status
@@ -1818,6 +1818,118 @@ class PlaybookGenerator:
             raise ValueError(f"Profiles directory does not exist: {profiles_path}")
         if not profiles_path.is_dir():
             raise ValueError(f"Profiles path is not a directory: {profiles_path}")
+
+    @classmethod
+    def _merged_role_data(
+        cls,
+        profiles_dir: str,
+        os_family: str,
+        host_vars: Optional[Dict[str, Any]],
+        include_overlays: bool,
+    ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
+        """Merge role manifests from all profiles and apply profile-gating.
+
+        Single implementation of the cross-profile merge used by generate(),
+        _write_merged_playbook(), and the generate-playbook CLI.
+
+        Args:
+            profiles_dir: Directory containing profile YAML files
+            os_family: OS family for condition translation
+            host_vars: Host variables for config_check evaluation
+            include_overlays: Also inject overlay roles gated by _overlay_* flags
+                (the merged play.yml needs them; generate() omits them because
+                sync_check filters overlay-gated roles from both sides)
+
+        Returns:
+            (role_to_profiles, expected_role_map, role_tags, profile_names)
+
+        Raises:
+            ValueError: If any listed profile fails to resolve. list_profiles()
+                pre-validates candidates, so a failure here indicates a real
+                problem (e.g. a profile changed mid-run) and must not be
+                swallowed — silently skipping a profile would produce an
+                incomplete expected-role set.
+        """
+        profile_names = list_profiles(profiles_dir)
+        role_to_profiles: Dict[str, set] = {}
+        expected_role_map: Dict[str, Optional[str]] = {}
+        role_tags: Dict[str, set] = {}
+
+        for profile_name in profile_names:
+            manifest = resolve_role_manifest(
+                profile=profile_name,
+                os_family=os_family,
+                host_vars=host_vars,
+                profiles_dir=profiles_dir,
+                preserve_config_check=True,
+            )
+            for role_cond in manifest.roles:
+                role_name = role_cond.role
+                condition = role_cond.condition or None
+                role_to_profiles.setdefault(role_name, set()).add(profile_name)
+                role_tags.setdefault(role_name, set()).update(role_cond.tags)
+                if role_name not in expected_role_map:
+                    expected_role_map[role_name] = condition
+                    continue
+                existing_condition = expected_role_map[role_name]
+                if existing_condition is None or condition is None:
+                    expected_role_map[role_name] = None
+                elif existing_condition != condition:
+                    expected_role_map[role_name] = (
+                        f"({existing_condition}) or ({condition})"
+                    )
+
+        all_profile_set = set(profile_names)
+        for role_name, profiles in role_to_profiles.items():
+            existing = expected_role_map.get(role_name)
+            if existing is not None:
+                continue
+            if profiles >= all_profile_set:
+                continue
+            de_members = profiles & _DE_PROFILES
+            if not de_members:
+                continue
+            if de_members == _DE_PROFILES:
+                gate = "_has_display"
+            elif len(de_members) == 1:
+                gate = _PROFILE_TO_FLAG[next(iter(de_members))]
+            else:
+                gate = " or ".join(_PROFILE_TO_FLAG[p] for p in sorted(de_members))
+            expected_role_map[role_name] = gate
+
+        if include_overlays:
+            # Roles declared in profile FILES (independent of overlays).
+            # resolve_role_manifest() folds default-true overlays into every
+            # profile's manifest, so membership alone can't distinguish them.
+            profile_file_roles: set = set()
+            for profile_name in profile_names:
+                for entry in load_profile(profiles_dir, profile_name).get("roles", []):
+                    rname = entry if isinstance(entry, str) else entry.get("role", "")
+                    if rname:
+                        profile_file_roles.add(rname)
+            for role_name, (condition, tags) in _discover_overlay_role_conditions(
+                profiles_dir, os_family,
+            ).items():
+                if role_name not in profile_file_roles:
+                    # Overlay-exclusive role: annotations ∧ overlay flag is
+                    # the authoritative gate (do not OR with manifest-derived
+                    # conditions, which ignore the overlay-level applies_when).
+                    expected_role_map[role_name] = condition
+                else:
+                    existing = expected_role_map.get(role_name)
+                    if existing is None:
+                        # Universal role stays universal; overlay branch is a subset
+                        pass
+                    elif existing == condition or condition.startswith(f"({existing}) and "):
+                        # Overlay branch adds no reach beyond the profile condition
+                        pass
+                    else:
+                        expected_role_map[role_name] = f"({existing}) or ({condition})"
+                role_to_profiles.setdefault(role_name, set())
+                role_tags.setdefault(role_name, set()).update(tags)
+
+        return role_to_profiles, expected_role_map, role_tags, profile_names
+
     def generate(self) -> Tuple[PlaybookRole, ...]:
         """
         Generate the expected playbook role list.
@@ -1828,84 +1940,12 @@ class PlaybookGenerator:
         Returns:
             Tuple of PlaybookRole objects with role names and conditions
         """
-        profile_names = list_profiles(self.profiles_dir)
-
-        # DE profiles and their corresponding _is_<de> flags
-        de_profiles = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
-        profile_to_flag = {
-            "i3": "_is_i3",
-            "hyprland": "_is_hyprland",
-            "gnome": "_is_gnome",
-            "awesomewm": "_is_awesomewm",
-            "kde": "_is_kde",
-        }
-
-        # Track which profiles include each role AND build annotation conditions
-        role_to_profiles: Dict[str, set] = {}
-        role_map: Dict[str, Optional[str]] = {}
-        role_tags: Dict[str, set] = {}
-
-        for profile_name in profile_names:
-            manifest = resolve_role_manifest(
-                profile=profile_name,
-                os_family=self.os_family,
-                host_vars=self.host_vars,
-                profiles_dir=self.profiles_dir,
-                preserve_config_check=True,
-            )
-
-            for role_cond in manifest.roles:
-                role_name = role_cond.role
-                condition = role_cond.condition or None
-
-                # Track profile membership
-                role_to_profiles.setdefault(role_name, set()).add(profile_name)
-
-                # Union tags across profiles
-                if role_name not in role_tags:
-                    role_tags[role_name] = set()
-                role_tags[role_name].update(role_cond.tags)
-
-                # Merge conditions across profiles (OR differing ones)
-                if role_name not in role_map:
-                    role_map[role_name] = condition
-                    continue
-
-                existing_condition = role_map[role_name]
-                if existing_condition is None or condition is None:
-                    role_map[role_name] = None
-                elif existing_condition != condition:
-                    role_map[role_name] = (
-                        f"({existing_condition}) or ({condition})"
-                    )
-
-        # Apply profile-gating for roles with empty annotation conditions
-        all_profile_set = set(profile_names)
-        for role_name, profiles in role_to_profiles.items():
-            existing = role_map.get(role_name)
-            # Only add profile gate if annotation-based condition is empty
-            if existing is not None:
-                continue
-
-            # Universal roles (in ALL profiles including headless) need no gate
-            if profiles >= all_profile_set:
-                continue
-
-            de_members = profiles & de_profiles
-            if not de_members:
-                continue
-
-            # Determine the profile gate expression
-            if de_members == de_profiles:
-                gate = "_has_display"
-            elif len(de_members) == 1:
-                gate = profile_to_flag[next(iter(de_members))]
-            else:
-                gate = " or ".join(
-                    profile_to_flag[p] for p in sorted(de_members)
-                )
-
-            role_map[role_name] = gate
+        _, expected_role_map, role_tags, _ = self._merged_role_data(
+            profiles_dir=self.profiles_dir,
+            os_family=self.os_family,
+            host_vars=self.host_vars,
+            include_overlays=False,
+        )
 
         # Convert to PlaybookRole tuple in sorted order for determinism
         return tuple(
@@ -1914,7 +1954,7 @@ class PlaybookGenerator:
                 tags=tuple(sorted(role_tags.get(role, ()))),
                 condition=cond,
             )
-            for role, cond in sorted(role_map.items())
+            for role, cond in sorted(expected_role_map.items())
         )
 
     def sync_check(self, playbook_path: str) -> SyncResult:
@@ -2921,9 +2961,30 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     return "\n".join(lines)
 
 
-def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str, List[str]]]:
-    """Discover all overlay roles and their gating conditions dynamically."""
+def _discover_overlay_role_conditions(
+    profiles_dir: str,
+    os_family: str,
+) -> Dict[str, Tuple[str, List[str]]]:
+    """Discover all overlay roles and their gating conditions dynamically.
+
+    Each role's condition combines its declared annotations (os,
+    requires_display, config_check — translated exactly like profile
+    roles) with the overlay-level flag: ``(<annotations>) and
+    _overlay_<name>``. Dropping the annotations would run overlay roles
+    on unsupported platforms (e.g. os: archlinux on Debian) or whenever
+    the overlay applies regardless of config_check.
+
+    Raises:
+        ValueError: If any overlay file fails to load. Generation must fail
+            fast here: sync_check filters _overlay_-gated roles from both
+            sides, so silently skipping a broken overlay would produce an
+            incomplete play.yml that no CI gate can detect.
+    """
     result: Dict[str, Tuple[str, List[str]]] = {}
+    translator = AnsibleConditionTranslator(
+        os_family=os_family,
+        preserve_config_check=True,
+    )
     overlays_path = Path(profiles_dir) / "overlays"
     if not overlays_path.exists():
         return result
@@ -2932,24 +2993,32 @@ def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str,
         overlay_flag = f"_overlay_{overlay_name}"
         try:
             overlay_data = load_overlay(profiles_dir, overlay_name)
-            if isinstance(overlay_data, dict):
-                roles_list = overlay_data.get("roles", [])
+        except yaml.YAMLError as exc:
+            raise ValueError(
+                f"Overlay '{overlay_name}' has invalid YAML: {exc}"
+            ) from exc
+        if isinstance(overlay_data, dict):
+            roles_list = overlay_data.get("roles", [])
+        else:
+            roles_list = overlay_data.roles
+        for role_entry in roles_list:
+            annotation_cond = ""
+            if isinstance(role_entry, str):
+                rname = role_entry
+                tags = [rname]
+            elif isinstance(role_entry, dict):
+                rname = role_entry.get("role", "")
+                tags = role_entry.get("tags", [rname])
+                annotation_cond = translator.translate_annotation(role_entry, {})
             else:
-                roles_list = overlay_data.roles
-            for role_entry in roles_list:
-                if isinstance(role_entry, str):
-                    rname = role_entry
-                    tags = [rname]
-                elif isinstance(role_entry, dict):
-                    rname = role_entry.get("role", "")
-                    tags = role_entry.get("tags", [rname])
+                rname = getattr(role_entry, "role", "")
+                tags = getattr(role_entry, "tags", [rname])
+            if rname:
+                if annotation_cond:
+                    condition = f"({annotation_cond}) and {overlay_flag}"
                 else:
-                    rname = getattr(role_entry, "role", "")
-                    tags = getattr(role_entry, "tags", [rname])
-                if rname:
-                    result[rname] = (overlay_flag, tags if isinstance(tags, list) else [tags])
-        except (ValueError, yaml.YAMLError):
-            continue
+                    condition = overlay_flag
+                result[rname] = (condition, tags if isinstance(tags, list) else [tags])
     return result
 
 _DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
@@ -2959,72 +3028,7 @@ _PROFILE_TO_FLAG = {
 }
 
 
-def _merge_all_profile_manifests(
-    profiles_dir: str,
-    os_family: str,
-) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
-    """Merge role manifests from all profiles and apply profile-gating."""
-    profile_names = list_profiles(profiles_dir)
-    role_to_profiles: Dict[str, set] = {}
-    expected_role_map: Dict[str, Optional[str]] = {}
-    role_tags: Dict[str, set] = {}
-
-    for profile_name in profile_names:
-        try:
-            manifest = resolve_role_manifest(
-                profile=profile_name,
-                os_family=os_family,
-                host_vars={},
-                profiles_dir=profiles_dir,
-                preserve_config_check=True,
-            )
-        except ValueError:
-            continue
-        for role_cond in manifest.roles:
-            role_name = role_cond.role
-            condition = role_cond.condition or None
-            role_to_profiles.setdefault(role_name, set()).add(profile_name)
-            if role_name not in role_tags:
-                role_tags[role_name] = set()
-            role_tags[role_name].update(role_cond.tags)
-            if role_name not in expected_role_map:
-                expected_role_map[role_name] = condition
-                continue
-            existing_condition = expected_role_map[role_name]
-            if existing_condition is None or condition is None:
-                expected_role_map[role_name] = None
-            elif existing_condition != condition:
-                expected_role_map[role_name] = (
-                    f"({existing_condition}) or ({condition})"
-                )
-
-    all_profile_set = set(profile_names)
-    for role_name, profiles in role_to_profiles.items():
-        existing = expected_role_map.get(role_name)
-        if existing is not None:
-            continue
-        if profiles >= all_profile_set:
-            continue
-        de_members = profiles & _DE_PROFILES
-        if not de_members:
-            continue
-        if de_members == _DE_PROFILES:
-            gate = "_has_display"
-        elif len(de_members) == 1:
-            gate = _PROFILE_TO_FLAG[next(iter(de_members))]
-        else:
-            gate = " or ".join(_PROFILE_TO_FLAG[p] for p in sorted(de_members))
-        expected_role_map[role_name] = gate
-
-    for role_name, (condition, tags) in _discover_overlay_role_conditions(profiles_dir).items():
-        expected_role_map[role_name] = condition
-        role_to_profiles.setdefault(role_name, set())
-        role_tags.setdefault(role_name, set()).update(tags)
-
-    return role_to_profiles, expected_role_map, role_tags, profile_names
-
-
-def write_playbook(
+def _write_merged_playbook(
     profiles_dir: str,
     playbook_path: str,
     os_family: str = "Archlinux",
@@ -3067,8 +3071,9 @@ def write_playbook(
     host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
     # Merge all profile manifests (includes profile-gating and overlay roles)
-    role_to_profiles, expected_role_map, role_tags, profile_names = \
-        _merge_all_profile_manifests(profiles_dir, os_family)
+    _, expected_role_map, role_tags, _ = PlaybookGenerator._merged_role_data(
+        profiles_dir, os_family, {}, include_overlays=True,
+    )
 
     # Organize roles into sections (deep copy to avoid mutating module-level list)
     sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
@@ -3173,12 +3178,6 @@ def write_playbook(
         # Also emit per-role overlay flags from all discovered overlays
         # These are derived from the overlay roles themselves
         all_overlay_role_flags = set()
-        for pname in profile_names:
-            try:
-                p = load_profile(profiles_dir, pname)
-                # Profile roles don't contribute overlay flags
-            except (ValueError, yaml.YAMLError):
-                pass
         for overlay_name in _discover_overlay_names(profiles_dir):
             try:
                 od = load_overlay(profiles_dir, overlay_name)
@@ -3244,7 +3243,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     if args.write_path:
         # Write mode: generate complete playbook
         try:
-            return write_playbook(
+            return _write_merged_playbook(
                 profiles_dir=args.profiles_dir,
                 playbook_path=args.write_path,
                 os_family=os_family,
@@ -3254,8 +3253,14 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
             return 1
     else:
         # Stdout mode: output merged role manifest JSON
-        role_to_profiles, expected_role_map, role_tags, profile_names = \
-            _merge_all_profile_manifests(args.profiles_dir, os_family)
+        try:
+            role_to_profiles, expected_role_map, role_tags, profile_names = \
+                PlaybookGenerator._merged_role_data(
+                    args.profiles_dir, os_family, {}, include_overlays=True,
+                )
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
 
         # Build output JSON
         roles_output = []

@@ -105,7 +105,7 @@
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
-    - { role: ai, tags: ["ai"], when: _overlay_user_environment }
+    - { role: ai, tags: ["ai"], when: (ai_enabled | default(false) | bool) and _overlay_user_environment }
     - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
     - { role: docker, tags: ["docker"], when: _is_arch }
     - { role: editors, tags: ["editors"] }
@@ -175,7 +175,7 @@
     # Desktop Applications (any desktop profile)
     # -------------------------------------------------------------------------
     - { role: android, tags: ["android"], when: _has_display }
-    - { role: backlight, tags: ["backlight"], when: _overlay_laptop }
+    - { role: backlight, tags: ["backlight"], when: _has_display }
     - { role: browsers, tags: ["browsers"], when: _has_display }
     - { role: cups, tags: ["cups"], when: _is_arch and _has_display }
     - { role: filemanager, tags: ["filemanager"], when: _has_display }
@@ -193,10 +193,10 @@
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------
-    - { role: dotfiles, tags: ["dotfiles"], when: _overlay_user_environment }
+    - { role: dotfiles, tags: ["dotfiles"], when: (dotfiles_config is defined) and _overlay_user_environment }
     - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
-    - { role: bluetooth, tags: ["bluetooth"], when: _overlay_bluetooth }
+    - { role: bluetooth, tags: ["bluetooth"], when: (_is_arch) and _overlay_bluetooth }
     - { role: laptop, tags: ["laptop"], when: _overlay_laptop }
 
   vars_prompt:
