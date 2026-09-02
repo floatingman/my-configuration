@@ -22,7 +22,7 @@ make check-sync            # play.yml vs profiles drift (CI gate)
 make validate-profiles     # validate all profiles + overlays
 ```
 
-Note: bare `python` may not be on PATH and system `python3` lacks jinja2 — the make targets resolve the correct interpreter and inject missing deps. 
+Note: bare `python` may not be on PATH and system `python3` lacks jinja2 — the make targets resolve the correct interpreter and inject missing deps.
 
 ## Key paths
 

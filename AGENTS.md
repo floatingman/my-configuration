@@ -30,6 +30,7 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 | `make check-sync` | CI gate: `play.yml` vs `profiles/` drift |
 | `make generate-playbook` | Regenerate `play.yml` from profiles |
 | `make validate-deps` | Role dependency graph check (cycles, missing roles) |
+| `make gpu-info` | Show detected GPUs via `lspci` (requires pciutils) |
 | `make list-tags` / `make list-profiles` | Discovery |
 | `VERBOSE=1 make configure` | Non-silent output for troubleshooting |
 
