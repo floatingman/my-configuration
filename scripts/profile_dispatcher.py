@@ -445,6 +445,19 @@ class _EvaluationError(Exception):
     pass
 
 
+class _ConditionEvaluator(Protocol):
+    """Private protocol for condition expression evaluation.
+
+    Any object with evaluate(expression, context) -> bool can be injected
+    into resolve_overlays(). Kept module-private: the public API exposes
+    only the concrete Jinja2Evaluator.
+    """
+
+    def evaluate(self, expression: str, context: dict) -> bool:
+        """Evaluate a condition expression against a context dict."""
+        ...
+
+
 class Jinja2Evaluator:
     """Evaluates conditions using Jinja2 template syntax.
 
@@ -1214,7 +1227,7 @@ def resolve_overlays(
     has_display: bool,
     is_arch: bool,
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
-    evaluator: Any = None,
+    evaluator: Optional[_ConditionEvaluator] = None,
 ) -> list[_ResolvedOverlay]:
     """
     Discover and resolve overlays against host facts.
@@ -1224,8 +1237,8 @@ def resolve_overlays(
         has_display: Whether this machine has a display server
         is_arch: Whether this is an Arch Linux system
         profiles_dir: Directory containing profiles/ subdirectory
-        evaluator: Optional evaluator with evaluate(expression, context);
-            defaults to Jinja2Evaluator
+        evaluator: Optional _ConditionEvaluator (any object implementing
+            evaluate(expression, context) -> bool); defaults to Jinja2Evaluator
 
     Returns:
         Sorted list of _ResolvedOverlay instances with per-role applies status

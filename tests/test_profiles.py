@@ -695,7 +695,7 @@ class TestResolveOverlays:
             profiles_dir=_PROFILES_DIR,
         )
 
-        # Should return both overlays
+        # All three overlays are returned (laptop, bluetooth, user_environment)
         assert len(results) == 3
         laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
 
@@ -806,7 +806,12 @@ class TestResolveOverlays:
         assert bluetooth_role[1] is False
 
     def test_custom_evaluator_injection(self):
-        """resolve_overlays accepts any evaluator via duck typing."""
+        """resolve_overlays honors an injected evaluator's verdicts.
+
+        With empty facts the default Jinja2Evaluator would NOT apply the
+        laptop overlay; the injected mapping evaluator says it does. The
+        control run proves the injection (not the facts) flipped the verdict.
+        """
         class MappingEvaluator:
             def __init__(self, mapping):
                 self._mapping = mapping
@@ -814,19 +819,25 @@ class TestResolveOverlays:
             def evaluate(self, expression, context):
                 return self._mapping.get(expression, False)
 
-        evaluator = MappingEvaluator({
-            "laptop | default(false)": True,
-            "bluetooth.disable | default(false)": False,
-        })
+        evaluator = MappingEvaluator({"laptop | default(false)": True})
         results = resolve_overlays(
-            facts={"laptop": True},
+            facts={},  # empty: only the injected evaluator can apply laptop
             has_display=True,
             is_arch=True,
             profiles_dir=_PROFILES_DIR,
             evaluator=evaluator,
         )
 
-        # Should work with the injected evaluator
+        # Control: default evaluator + empty facts → laptop does not apply
+        default_results = resolve_overlays(
+            facts={},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+        default_laptop = [r for r in default_results if r.overlay.name == "Laptop Features Overlay"][0]
+        assert default_laptop.applies is False
+
         assert len(results) == 3
         laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
         assert laptop_overlay.applies is True
