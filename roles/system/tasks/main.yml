@@ -34,3 +34,48 @@
     name: fstrim.timer
     enabled: true
   when: ansible_facts["distribution"] == "Archlinux"
+
+# -------------------------------------------------------------------------
+# Legacy asdf aws-vault removal
+# -------------------------------------------------------------------------
+# aws-vault moved off asdf (Arch: extra package via the packages role;
+# Debian: direct binary download via ansible-role-binaries). The external
+# asdf role only installs plugins declared in `asdf_plugins` — it never
+# removes undeclared ones — so machines that had the plugin keep resolving
+# aws-vault to the stale /opt/asdf install (99designs fork, stuck at 7.2.0)
+# because /opt/asdf/shims precedes /usr/bin in PATH. Removing the plugin
+# tree and shim drops aws-vault back to the package/binary on PATH. The
+# ~/.tool-versions entry must go too, or asdf warns about the unknown
+# plugin on every shim exec. Tagged `asdf` so `make configure TAGS="asdf"`
+# repairs existing machines.
+- name: Remove legacy asdf aws-vault plugin, installs, and shim
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/asdf/plugins/aws-vault
+    - /opt/asdf/installs/aws-vault
+    - /opt/asdf/shims/aws-vault
+  become: true
+  tags:
+    - asdf
+
+- name: Remove stale aws-vault pin from user .tool-versions
+  ansible.builtin.lineinfile:
+    # ansible.cfg sets inject_facts_as_vars=false, so ansible_user_dir is
+    # undefined; read HOME from the controller env (correct for the local
+    # connection this playbook always runs under — see pass_cli defaults).
+    path: "{{ lookup('env', 'HOME') }}/.tool-versions"
+    regexp: "^aws-vault\\s"
+    state: absent
+  tags:
+    - asdf
+
+- name: Remove stale aws-vault pin from system-wide .tool-versions
+  ansible.builtin.lineinfile:
+    path: /opt/asdf/.tool-versions
+    regexp: "^aws-vault\\s"
+    state: absent
+  become: true
+  tags:
+    - asdf
