@@ -1034,7 +1034,7 @@ def validate_profile(profiles_dir: str, name: str) -> list:
         elif dm not in _ALLOWED_DISPLAY_MANAGERS:
             errors.append(
                 f"display_manager_default '{dm}' not in allowed set: "
-            f"{sorted(_ALLOWED_DISPLAY_MANAGERS)}"
+                f"{sorted(_ALLOWED_DISPLAY_MANAGERS)}"
             )
 
     if "desktop_environment" in profile:
@@ -1046,7 +1046,7 @@ def validate_profile(profiles_dir: str, name: str) -> list:
         elif de not in _ALLOWED_DESKTOP_ENVIRONMENTS:
             errors.append(
                 f"desktop_environment '{de}' not in known set: "
-            f"{sorted(_ALLOWED_DESKTOP_ENVIRONMENTS)}"
+                f"{sorted(_ALLOWED_DESKTOP_ENVIRONMENTS)}"
             )
 
     return errors
@@ -1830,6 +1830,13 @@ class PlaybookGenerator:
 
         Returns:
             (role_to_profiles, expected_role_map, role_tags, profile_names)
+
+        Raises:
+            ValueError: If any listed profile fails to resolve. list_profiles()
+                pre-validates candidates, so a failure here indicates a real
+                problem (e.g. a profile changed mid-run) and must not be
+                swallowed — silently skipping a profile would produce an
+                incomplete expected-role set.
         """
         profile_names = list_profiles(profiles_dir)
         role_to_profiles: Dict[str, set] = {}
@@ -1837,17 +1844,13 @@ class PlaybookGenerator:
         role_tags: Dict[str, set] = {}
 
         for profile_name in profile_names:
-            try:
-                manifest = resolve_role_manifest(
-                    profile=profile_name,
-                    os_family=os_family,
-                    host_vars=host_vars,
-                    profiles_dir=profiles_dir,
-                    preserve_config_check=True,
-                )
-            except ValueError:
-                # list_profiles() pre-validates; skip defensively on races
-                continue
+            manifest = resolve_role_manifest(
+                profile=profile_name,
+                os_family=os_family,
+                host_vars=host_vars,
+                profiles_dir=profiles_dir,
+                preserve_config_check=True,
+            )
             for role_cond in manifest.roles:
                 role_name = role_cond.role
                 condition = role_cond.condition or None
@@ -3184,10 +3187,14 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
             return 1
     else:
         # Stdout mode: output merged role manifest JSON
-        role_to_profiles, expected_role_map, role_tags, profile_names = \
-            PlaybookGenerator._merged_role_data(
-                args.profiles_dir, os_family, {}, include_overlays=True,
-            )
+        try:
+            role_to_profiles, expected_role_map, role_tags, profile_names = \
+                PlaybookGenerator._merged_role_data(
+                    args.profiles_dir, os_family, {}, include_overlays=True,
+                )
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
 
         # Build output JSON
         roles_output = []
