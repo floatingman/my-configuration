@@ -9,11 +9,11 @@ import pytest
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     resolve,
+    resolve_overlays,
     validate_profile,
     load_profile,
     list_profiles,
     load_overlay,
-    _OverlayDefinition,
 )
 
 
@@ -138,6 +138,12 @@ class TestProfileMode:
         result_ws = resolve(profile='   ')
         result_manual = resolve()
         assert result_ws == result_manual
+
+    def test_literal_manual_profile_equals_manual_mode(self):
+        """Profile='manual' should behave exactly like manual mode."""
+        result_manual_profile = resolve(profile='manual')
+        result_manual = resolve()
+        assert result_manual_profile == result_manual
 
     def test_case_sensitive_profile_names(self):
         """Profile names should be case-sensitive."""
@@ -549,7 +555,6 @@ class TestLoadOverlay:
     def test_load_laptop_overlay(self):
         """load_overlay correctly parses laptop.yml."""
         overlay = load_overlay(_PROFILES_DIR, "laptop")
-        assert isinstance(overlay, _OverlayDefinition)
         assert overlay.name == "Laptop Features Overlay"
         assert overlay.applies_when == "laptop | default(false)"
         assert isinstance(overlay.roles, list)
@@ -565,7 +570,6 @@ class TestLoadOverlay:
     def test_load_bluetooth_overlay(self):
         """load_overlay correctly parses bluetooth.yml."""
         overlay = load_overlay(_PROFILES_DIR, "bluetooth")
-        assert isinstance(overlay, _OverlayDefinition)
         assert overlay.name == "Bluetooth Support Overlay"
         assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
         assert isinstance(overlay.roles, list)
@@ -677,3 +681,202 @@ class TestResolveInvalidProfileError:
             # Should mention 'invalid', not 'Unknown profile'
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
+
+
+class TestResolveOverlays:
+    """Tests for resolve_overlays() function."""
+
+    def test_laptop_with_display_returns_both_roles_active(self):
+        """Laptop overlay with display=True should activate both laptop and backlight roles."""
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Should return both overlays
+        assert len(results) == 3
+        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+
+        # Overlay applies
+        assert laptop_overlay.applies is True
+
+        # Both roles should apply
+        assert len(laptop_overlay.resolved_roles) == 2
+        laptop_role, backlight_role = laptop_overlay.resolved_roles
+
+        assert laptop_role[0].role == "laptop"
+        assert laptop_role[1] is True  # applies
+
+        assert backlight_role[0].role == "backlight"
+        assert backlight_role[1] is True  # applies (has_display=True)
+
+    def test_laptop_without_display_backlight_disabled(self):
+        """Laptop overlay with display=False should activate laptop but not backlight."""
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=False,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+
+        # Overlay applies, but backlight role should not
+        assert laptop_overlay.applies is True
+
+        laptop_role, backlight_role = laptop_overlay.resolved_roles
+
+        assert laptop_role[0].role == "laptop"
+        assert laptop_role[1] is True  # applies
+
+        assert backlight_role[0].role == "backlight"
+        assert backlight_role[1] is False  # does NOT apply (requires_display=True, has_display=False)
+
+    def test_empty_facts_no_overlays_apply(self):
+        """With empty facts, only default-true overlays should apply."""
+        results = resolve_overlays(
+            facts={},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Three overlays present
+        assert len(results) == 3
+        # laptop and bluetooth should not apply (default(false))
+        for result in results:
+            if result.overlay.name == "User Environment":
+                assert result.applies is True  # default(true)
+            else:
+                assert result.applies is False
+
+    def test_bluetooth_with_disable_false_applies(self):
+        """Bluetooth overlay with disable=False should apply on Arch."""
+        results = resolve_overlays(
+            facts={"bluetooth": {"disable": False}},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        bluetooth_overlay = [r for r in results if r.overlay.name == "Bluetooth Support Overlay"][0]
+        assert bluetooth_overlay.applies is True
+
+        # Role should apply (is_arch=True, os=archlinux)
+        bluetooth_role = bluetooth_overlay.resolved_roles[0]
+        assert bluetooth_role[0].role == "bluetooth"
+        assert bluetooth_role[1] is True
+
+    def test_bluetooth_with_disable_true_does_not_apply(self):
+        """Bluetooth overlay with disable=True should not apply."""
+        results = resolve_overlays(
+            facts={"bluetooth": {"disable": True}},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        bluetooth_overlay = [r for r in results if r.overlay.name == "Bluetooth Support Overlay"][0]
+        assert bluetooth_overlay.applies is False
+
+        # Role should not apply (overlay doesn't apply)
+        bluetooth_role = bluetooth_overlay.resolved_roles[0]
+        assert bluetooth_role[0].role == "bluetooth"
+        assert bluetooth_role[1] is False
+
+    def test_bluetooth_on_debian_role_does_not_apply(self):
+        """Bluetooth overlay applies on Debian, but role has os:archlinux constraint."""
+        results = resolve_overlays(
+            facts={"bluetooth": {"disable": False}},
+            has_display=True,
+            is_arch=False,  # Debian system
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        bluetooth_overlay = [r for r in results if r.overlay.name == "Bluetooth Support Overlay"][0]
+
+        # Overlay-level applies (condition passes)
+        assert bluetooth_overlay.applies is True
+
+        # Role does NOT apply (os=archlinux, but is_arch=False)
+        bluetooth_role = bluetooth_overlay.resolved_roles[0]
+        assert bluetooth_role[0].role == "bluetooth"
+        assert bluetooth_role[1] is False
+
+    def test_custom_evaluator_injection(self):
+        """resolve_overlays accepts any evaluator via duck typing."""
+        class MappingEvaluator:
+            def __init__(self, mapping):
+                self._mapping = mapping
+
+            def evaluate(self, expression, context):
+                return self._mapping.get(expression, False)
+
+        evaluator = MappingEvaluator({
+            "laptop | default(false)": True,
+            "bluetooth.disable | default(false)": False,
+        })
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+            evaluator=evaluator,
+        )
+
+        # Should work with the injected evaluator
+        assert len(results) == 3
+        laptop_overlay = [r for r in results if r.overlay.name == "Laptop Features Overlay"][0]
+        assert laptop_overlay.applies is True
+
+    def test_jinja2_evaluator_default(self):
+        """When evaluator is None, Jinja2Evaluator is used by default."""
+        # No evaluator provided - should use Jinja2Evaluator
+        results = resolve_overlays(
+            facts={"laptop": True},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Should work with default Jinja2Evaluator
+        assert len(results) == 3
+
+    def test_raises_error_for_unknown_expression_patterns(self):
+        """resolve_overlays raises clear error for unknown expression patterns."""
+        # Create an overlay with an invalid expression
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "some_unknown_function()"
+roles:
+  - {role: test, tags: [test]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            with pytest.raises(ValueError) as exc_info:
+                resolve_overlays(
+                    facts={},
+                    has_display=True,
+                    is_arch=True,
+                    profiles_dir=tmpdir,
+                )
+
+            assert "failed to evaluate applies_when" in str(exc_info.value)
+
+    def test_returns_sorted_list(self):
+        """Results are returned in sorted order by overlay name."""
+        results = resolve_overlays(
+            facts={},
+            has_display=True,
+            is_arch=True,
+            profiles_dir=_PROFILES_DIR,
+        )
+
+        # Extract names
+        names = [r.overlay.name for r in results]
+        assert names == sorted(names)

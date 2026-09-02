@@ -13,6 +13,7 @@ import yaml
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     resolve_role_manifest,
+    resolve_manifest,
     discover_overlay_variables,
     generate_host_vars_template,
     generate_overlay_facts_task,
@@ -557,6 +558,41 @@ class TestPlaybookGenerator:
 
         with pytest.raises(ValueError, match="Playbook not found"):
             generator.sync_check("/nonexistent/path/play.yml")
+
+    def test_sync_check_treats_equivalent_conditions_as_in_sync(self):
+        """sync_check() treats '| bool' filters and AND-term reordering as equivalent."""
+        generator = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR,
+            os_family="Archlinux",
+            host_vars={},
+        )
+        expected_roles = generator.generate()
+
+        def mangle(condition: str) -> str:
+            if not condition or " and " not in condition:
+                return condition
+            terms = condition.split(" and ")
+            return " and ".join(reversed(terms)) + " | bool"
+
+        playbook_roles = []
+        for role in expected_roles:
+            if role.condition:
+                playbook_roles.append({"role": role.role, "when": mangle(role.condition)})
+            else:
+                playbook_roles.append(role.role)
+
+        playbook_data = {"hosts": "all", "roles": playbook_roles}
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(playbook_data, f)
+            temp_path = f.name
+
+        try:
+            result = generator.sync_check(temp_path)
+            assert result.in_sync is True, (
+                f"Equivalent conditions flagged: {result.condition_mismatches}"
+            )
+        finally:
+            os.unlink(temp_path)
 
     def test_generate_ors_conditions_for_overlapping_roles(self, tmp_path):
         """generate() OR's conditions when a role appears in profile and overlay with different conditions."""
@@ -1312,6 +1348,52 @@ class TestPlaybookGeneratorWritePlaybook:
                 f"stdout:\n{result.stdout}\n"
                 f"stderr:\n{result.stderr}"
             )
+
+
+class TestResolveManifestFunction:
+    """Test resolve_manifest() function (module-level convenience boundary)."""
+
+    def test_resolve_manifest_default_os_is_arch(self):
+        """Without os_family, defaults to Archlinux."""
+        manifest = resolve_manifest(profile="i3")
+        assert manifest.is_arch is True
+        assert manifest.is_i3 is True
+
+    def test_resolve_manifest_debian_is_not_arch(self):
+        """os_family='Debian' sets is_arch=False."""
+        manifest = resolve_manifest(profile="headless", os_family="Debian")
+        assert manifest.is_arch is False
+        assert manifest.has_display is False
+
+    def test_resolve_manifest_arch_explicit(self):
+        """os_family='Archlinux' sets is_arch=True."""
+        manifest = resolve_manifest(profile="hyprland", os_family="Archlinux")
+        assert manifest.is_arch is True
+        assert manifest.is_hyprland is True
+        assert manifest.display_manager == "sddm"
+
+    def test_resolve_manifest_manual_mode(self):
+        """Manual mode with explicit vars."""
+        manifest = resolve_manifest(
+            display_manager="lightdm",
+            desktop_environment="i3",
+            os_family="Debian",
+        )
+        assert manifest.profile == "manual"
+        assert manifest.is_arch is False
+        assert manifest.is_i3 is True
+
+    def test_resolve_manifest_null_os_family_defaults_arch(self):
+        """None os_family defaults to Archlinux."""
+        manifest = resolve_manifest(profile="gnome", os_family=None)
+        assert manifest.is_arch is True
+
+    def test_resolve_manifest_all_profiles(self):
+        """All 6 profiles resolve successfully with os_family."""
+        for name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
+            manifest = resolve_manifest(profile=name, os_family="Archlinux")
+            assert manifest.profile == name
+            assert manifest.is_arch is True
 
 
 if __name__ == '__main__':

@@ -45,7 +45,11 @@ python3 scripts/profile_dispatcher.py resolve-role-manifest --profile i3  # insp
 python3 scripts/profile_dispatcher.py list-profiles --format pretty
 ```
 
-Tests: `make pytest` — pure Python, no Ansible; covers the dispatcher, generator, condition translation, profiles, and CLI.
+Tests: `make pytest` — pure Python, no Ansible; split by domain under `tests/`:
+`test_generator.py` (PlaybookGenerator boundary: generate/sync_check/resolve/resolve_manifest/explain/write_playbook),
+`test_cli.py` (subcommands via `main()`), `test_profiles.py` (profile/overlay loading, resolution),
+`test_conditions.py` (condition translation + evaluators).
+Tests import only the public API (`profile_dispatcher.__all__`) — never `_`-prefixed symbols.
 
 ## Architecture
 
