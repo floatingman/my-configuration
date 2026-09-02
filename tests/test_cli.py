@@ -339,6 +339,84 @@ class TestCLIResolveOverlays:
         ])
         assert rc == 0
 
+    @staticmethod
+    def _overlays_by_name(capsys, facts, extra=()):
+        """Run resolve-overlays; return {overlay name: overlay dict}."""
+        rc = main([
+            "resolve-overlays",
+            "--facts-json", json.dumps(facts),
+            "--profiles-dir", _PROFILES_DIR,
+            *extra,
+        ])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        return {o["name"]: o for o in data["overlays"]}
+
+    def test_laptop_with_display_activates_backlight(self, capsys):
+        """laptop=true with display → laptop overlay applies with both roles active."""
+        by_name = self._overlays_by_name(capsys, {"laptop": True}, ["--has-display"])
+        laptop = by_name["Laptop Features Overlay"]
+        assert laptop["applies"] is True
+        roles = {r["role"]: r["applies"] for r in laptop["roles"]}
+        assert roles == {"laptop": True, "backlight": True}
+
+    def test_laptop_without_display_disables_backlight(self, capsys):
+        """laptop=true with --no-has-display → backlight role does not apply."""
+        by_name = self._overlays_by_name(capsys, {"laptop": True}, ["--no-has-display"])
+        laptop = by_name["Laptop Features Overlay"]
+        assert laptop["applies"] is True
+        roles = {r["role"]: r["applies"] for r in laptop["roles"]}
+        assert roles == {"laptop": True, "backlight": False}
+
+    def test_empty_facts_only_user_environment_applies(self, capsys):
+        """Empty facts → default(true) overlay applies; default(false) overlays don't."""
+        by_name = self._overlays_by_name(capsys, {})
+        assert by_name["User Environment"]["applies"] is True
+        assert by_name["Laptop Features Overlay"]["applies"] is False
+        assert by_name["Bluetooth Support Overlay"]["applies"] is False
+
+    def test_bluetooth_disable_false_applies_on_arch(self, capsys):
+        """bluetooth.disable=false → overlay and role apply on Arch."""
+        by_name = self._overlays_by_name(capsys, {"bluetooth": {"disable": False}})
+        bluetooth = by_name["Bluetooth Support Overlay"]
+        assert bluetooth["applies"] is True
+        assert {r["role"]: r["applies"] for r in bluetooth["roles"]} == {"bluetooth": True}
+
+    def test_bluetooth_disable_true_does_not_apply(self, capsys):
+        """bluetooth.disable=true → overlay does not apply."""
+        by_name = self._overlays_by_name(capsys, {"bluetooth": {"disable": True}})
+        assert by_name["Bluetooth Support Overlay"]["applies"] is False
+
+    def test_bluetooth_role_gated_off_arch(self, capsys):
+        """--no-is-arch → overlay applies but the os:archlinux role does not."""
+        by_name = self._overlays_by_name(
+            capsys, {"bluetooth": {"disable": False}}, ["--no-is-arch"],
+        )
+        bluetooth = by_name["Bluetooth Support Overlay"]
+        assert bluetooth["applies"] is True
+        assert {r["role"]: r["applies"] for r in bluetooth["roles"]} == {"bluetooth": False}
+
+    def test_overlays_returned_sorted_by_name(self, capsys):
+        """Overlays are listed in sorted order by name."""
+        rc = main(["resolve-overlays", "--facts-json", "{}", "--profiles-dir", _PROFILES_DIR])
+        assert rc == 0
+        names = [o["name"] for o in json.loads(capsys.readouterr().out)["overlays"]]
+        assert names == sorted(names)
+
+    def test_invalid_expression_exits_1(self, capsys):
+        """An overlay with an unevaluable applies_when fails loudly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+            (overlays_dir / "bad.yml").write_text(
+                'name: Bad Overlay\napplies_when: "some_unknown_function()"\n'
+                "roles:\n  - {role: test, tags: [test]}\n"
+            )
+            rc = main(["resolve-overlays", "--facts-json", "{}", "--profiles-dir", tmpdir])
+            assert rc == 1
+            assert "failed to evaluate applies_when" in capsys.readouterr().err
+
+
 class TestCLIResolveRoleManifest:
     """Tests for the 'resolve-role-manifest' CLI subcommand."""
 

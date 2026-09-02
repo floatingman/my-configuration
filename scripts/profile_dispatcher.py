@@ -60,7 +60,6 @@ __all__ = [
     "resolve",
     "resolve_manifest",
     "resolve_role_manifest",
-    "resolve_overlays",
     # CLI
     "main",
 ]
@@ -1899,8 +1898,33 @@ class PlaybookGenerator:
             expected_role_map[role_name] = gate
 
         if include_overlays:
-            for role_name, (condition, tags) in _discover_overlay_role_conditions(profiles_dir).items():
-                expected_role_map[role_name] = condition
+            # Roles declared in profile FILES (independent of overlays).
+            # resolve_role_manifest() folds default-true overlays into every
+            # profile's manifest, so membership alone can't distinguish them.
+            profile_file_roles: set = set()
+            for profile_name in profile_names:
+                for entry in load_profile(profiles_dir, profile_name).get("roles", []):
+                    rname = entry if isinstance(entry, str) else entry.get("role", "")
+                    if rname:
+                        profile_file_roles.add(rname)
+            for role_name, (condition, tags) in _discover_overlay_role_conditions(
+                profiles_dir, os_family,
+            ).items():
+                if role_name not in profile_file_roles:
+                    # Overlay-exclusive role: annotations ∧ overlay flag is
+                    # the authoritative gate (do not OR with manifest-derived
+                    # conditions, which ignore the overlay-level applies_when).
+                    expected_role_map[role_name] = condition
+                else:
+                    existing = expected_role_map.get(role_name)
+                    if existing is None:
+                        # Universal role stays universal; overlay branch is a subset
+                        pass
+                    elif existing == condition or condition.startswith(f"({existing}) and "):
+                        # Overlay branch adds no reach beyond the profile condition
+                        pass
+                    else:
+                        expected_role_map[role_name] = f"({existing}) or ({condition})"
                 role_to_profiles.setdefault(role_name, set())
                 role_tags.setdefault(role_name, set()).update(tags)
 
@@ -2937,8 +2961,18 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     return "\n".join(lines)
 
 
-def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str, List[str]]]:
+def _discover_overlay_role_conditions(
+    profiles_dir: str,
+    os_family: str,
+) -> Dict[str, Tuple[str, List[str]]]:
     """Discover all overlay roles and their gating conditions dynamically.
+
+    Each role's condition combines its declared annotations (os,
+    requires_display, config_check — translated exactly like profile
+    roles) with the overlay-level flag: ``(<annotations>) and
+    _overlay_<name>``. Dropping the annotations would run overlay roles
+    on unsupported platforms (e.g. os: archlinux on Debian) or whenever
+    the overlay applies regardless of config_check.
 
     Raises:
         ValueError: If any overlay file fails to load. Generation must fail
@@ -2947,6 +2981,10 @@ def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str,
             incomplete play.yml that no CI gate can detect.
     """
     result: Dict[str, Tuple[str, List[str]]] = {}
+    translator = AnsibleConditionTranslator(
+        os_family=os_family,
+        preserve_config_check=True,
+    )
     overlays_path = Path(profiles_dir) / "overlays"
     if not overlays_path.exists():
         return result
@@ -2964,17 +3002,23 @@ def _discover_overlay_role_conditions(profiles_dir: str) -> Dict[str, Tuple[str,
         else:
             roles_list = overlay_data.roles
         for role_entry in roles_list:
+            annotation_cond = ""
             if isinstance(role_entry, str):
                 rname = role_entry
                 tags = [rname]
             elif isinstance(role_entry, dict):
                 rname = role_entry.get("role", "")
                 tags = role_entry.get("tags", [rname])
+                annotation_cond = translator.translate_annotation(role_entry, {})
             else:
                 rname = getattr(role_entry, "role", "")
                 tags = getattr(role_entry, "tags", [rname])
             if rname:
-                result[rname] = (overlay_flag, tags if isinstance(tags, list) else [tags])
+                if annotation_cond:
+                    condition = f"({annotation_cond}) and {overlay_flag}"
+                else:
+                    condition = overlay_flag
+                result[rname] = (condition, tags if isinstance(tags, list) else [tags])
     return result
 
 _DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
