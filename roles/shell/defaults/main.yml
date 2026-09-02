@@ -1,0 +1,33 @@
+---
+# Pinned plugin versions for the shell role. The bump bot
+# (scripts/bump_plugin_versions.py, scheduled by
+# .github/workflows/bump-plugin-versions.yml) opens a PR when upstream
+# publishes newer tags, so pins only move through review.
+#
+# Pinning keeps playbook re-runs idempotent and offline-capable (the git
+# module skips the remote when dest already sits at the pinned ref) and
+# prevents a plugin update from silently changing the interactive shell.
+
+# Tmux Plugin Manager (cloned by tasks/tmux.yml).
+shell_tpm_version: "v3.1.0"
+
+# Zsh plugins cloned into ~/.shell (tasks/zsh-plugins.yml). dest names match
+# the legacy external role exactly so existing dotfile references keep
+# working (note the original `fast-syntax-Highlighting` casing). Your
+# dotfiles decide which of these are sourced.
+shell_zsh_plugins:
+  - repo: "https://github.com/wfxr/forgit.git"
+    dest: "forgit"
+    version: "26.09.0"
+  - repo: "https://github.com/zsh-users/zsh-autosuggestions"
+    dest: "zsh-autosuggestions"
+    version: "v0.7.1"
+  - repo: "https://github.com/zdharma-continuum/fast-syntax-highlighting"
+    dest: "fast-syntax-Highlighting"
+    version: "v1.56"
+  - repo: "https://github.com/zsh-users/zsh-history-substring-search"
+    dest: "zsh-history-substring-search"
+    version: "v1.1.0"
+  - repo: "https://github.com/zsh-users/zsh-completions"
+    dest: "zsh-completions"
+    version: "0.36.0"
