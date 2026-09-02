@@ -110,7 +110,7 @@
 # resolves to the asdf node shim on PATH, so it runs under the managed Node.
 # This mirrors how ForgeCode is symlinked below.
 - name: Locate the asdf-installed pi binary
-  ansible.builtin.shell: "ls /opt/asdf/installs/nodejs/*/bin/pi 2>/dev/null | sort -V | tail -1"
+  ansible.builtin.shell: "set -o pipefail; ls /opt/asdf/installs/nodejs/*/bin/pi 2>/dev/null | sort -V | tail -1"
   register: ai_pi_asdf_binary
   changed_when: false
   failed_when: false

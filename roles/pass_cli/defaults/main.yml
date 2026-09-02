@@ -28,4 +28,6 @@ pass_cli_install_script_url: https://proton.me/download/pass-cli/install.sh
 # Channel version manifest, used to detect the latest version so the role only
 # re-downloads when an upgrade is actually needed. Stable reads versions.json;
 # other channels read versions.<channel>.json.
-pass_cli_manifest_url: "{{ (pass_cli_channel in ('', 'stable')) | ternary('https://proton.me/download/pass-cli/versions.json', 'https://proton.me/download/pass-cli/versions.' ~ pass_cli_channel ~ '.json') }}"
+pass_cli_manifest_url: "{{ 'https://proton.me/download/pass-cli/versions.json'
+  if pass_cli_channel in ('', 'stable')
+  else 'https://proton.me/download/pass-cli/versions.' ~ pass_cli_channel ~ '.json' }}"

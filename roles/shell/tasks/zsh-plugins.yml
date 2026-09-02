@@ -24,7 +24,10 @@
 
 # dest names match the legacy external role exactly so existing dotfile
 # references keep working (note the original `fast-syntax-Highlighting` casing).
-- name: Clone zsh plugins into ~/.shell
+# These plugins intentionally track upstream HEAD so playbook re-runs pick up
+# updates; pinning five rapidly-moving zsh plugins would be pure maintenance
+# burden. Clones are best-effort (failed_when: false + warning below).
+- name: Clone zsh plugins into ~/.shell  # noqa: latest[git]
   ansible.builtin.git:
     clone: true
     repo: "{{ item.repo }}"

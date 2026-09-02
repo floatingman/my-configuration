@@ -68,7 +68,7 @@
 
 # Fetch the channel manifest to learn the latest version. This makes the role
 # idempotent: skip when current, upgrade or migrate when stale/absent.
-- name: Fetch latest {{ pass_cli_channel }} manifest
+- name: Fetch latest channel manifest ({{ pass_cli_channel }})
   ansible.builtin.uri:
     url: "{{ pass_cli_manifest_url }}"
     return_content: true
@@ -91,7 +91,7 @@
     mode: '0755'
   when: pass_cli_installed_version != pass_cli_target_version
 
-- name: Install/upgrade Proton Pass CLI - {{ pass_cli_channel }} (per-user)
+- name: Install/upgrade Proton Pass CLI (per-user, {{ pass_cli_channel }})
   ansible.builtin.command:
     cmd: bash /tmp/pass-cli-install.sh
   environment:
