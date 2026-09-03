@@ -51,6 +51,7 @@ __all__ = [
     "validate_profile",
     "validate_overlays",
     "list_profiles",
+    "load_sections",
     # Overlay variable plumbing (resolve-role-manifest)
     "discover_overlay_variables",
     "generate_host_vars_template",
@@ -71,7 +72,7 @@ _ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 _ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
 
 
-def _section_sort_key(role_name: str) -> Tuple[int, str]:
+def _section_sort_key(role_name: str, sections: list) -> Tuple[int, str]:
     """
     Return a sort key for a role name based on its section membership.
 
@@ -80,15 +81,16 @@ def _section_sort_key(role_name: str) -> Tuple[int, str]:
 
     Args:
         role_name: The role name to get a sort key for
+        sections: Ordered section definitions (as returned by load_sections)
 
     Returns:
         Tuple of (section_index, role_name) for sorting
     """
-    for section_index, section in enumerate(_SECTION_DEFINITIONS):
-        if role_name in section["roles"]:
+    for section_index, section in enumerate(sections):
+        if role_name in section.get("roles", []):
             return (section_index, role_name)
     # Catch-all for roles not in any section
-    return (len(_SECTION_DEFINITIONS), role_name)
+    return (len(sections), role_name)
 
 
 # ---------------------------------------------------------------------------
@@ -979,7 +981,8 @@ def resolve_role_manifest(
             role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
     # Convert to sorted tuple (by section, then alphabetically)
-    roles_tuple = tuple(sorted(role_map.values(), key=lambda r: _section_sort_key(r.role)))
+    sections = load_sections(profiles_dir)
+    roles_tuple = tuple(sorted(role_map.values(), key=lambda r: _section_sort_key(r.role, sections)))
 
     return _ResolvedManifest(
         profile=resolved.profile,
@@ -1068,6 +1071,54 @@ def list_profiles(profiles_dir: str) -> list:
         if validate_profile(profiles_dir, name) == []
     ]
     return sorted(valid)
+
+
+def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
+    """
+    Load ordered section definitions from <profiles_dir>/_sections.yml.
+
+    The file is directory-global (not a profile), so unlike load_profile()
+    there is no per-file equivalent. Fail-fast: any structural problem
+    raises ValueError with a message naming the file.
+
+    Args:
+        profiles_dir: Directory containing _sections.yml
+
+    Returns:
+        Ordered list of section dicts with keys name, comment, roles
+        (roles defaults to [] when absent)
+
+    Raises:
+        ValueError: If the file is missing, contains malformed YAML, is
+            missing the sections key, is empty, has entries missing
+            name/comment, or has duplicate section names
+    """
+    path = Path(profiles_dir) / "_sections.yml"
+    if not path.exists():
+        raise ValueError(f"profiles/_sections.yml not found in {profiles_dir}")
+    try:
+        data = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as exc:
+        raise ValueError(f"profiles/_sections.yml: invalid YAML: {exc}") from exc
+    if not isinstance(data, dict) or "sections" not in data:
+        raise ValueError("profiles/_sections.yml: missing top-level 'sections' key")
+    entries = data["sections"]
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("profiles/_sections.yml: 'sections' must be a non-empty list")
+    seen = set()
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(f"profiles/_sections.yml: section #{i + 1} is not a mapping")
+        for key in ("name", "comment"):
+            if not entry.get(key):
+                raise ValueError(
+                    f"profiles/_sections.yml: section #{i + 1} missing required field: {key}"
+                )
+        name = entry["name"]
+        if name in seen:
+            raise ValueError(f"profiles/_sections.yml: duplicate section name: {name}")
+        seen.add(name)
+    return [{**entry, "roles": entry.get("roles", [])} for entry in entries]
 
 
 # ---------------------------------------------------------------------------
@@ -2523,102 +2574,6 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# Role-to-Section Mapping for play.yml Generation
-# ---------------------------------------------------------------------------
-
-
-# Section definitions with comments and ordering
-_SECTION_DEFINITIONS: List[Dict[str, Any]] = [
-    {
-        "name": "gpu",
-        "comment": "GPU Detection & Drivers (Arch-only)",
-        "roles": ["gpu_detect", "gpu_drivers"],
-    },
-    {
-        "name": "base",
-        "comment": "Base System (Arch-only)",
-        "roles": ["base", "grub", "microcode"],
-    },
-    {
-        "name": "universal",
-        "comment": "Universal System Configuration",
-        "roles": ["gnupg", "sysmon", "cron", "system", "shell", "ssh", "archive"],
-    },
-    {
-        "name": "packages",
-        "comment": "Package Management",
-        "roles": ["ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"],
-    },
-    {
-        "name": "dev",
-        "comment": "Development Tools",
-        "roles": ["editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools", "ai"],
-    },
-    {
-        "name": "networking",
-        "comment": "Networking (Arch-only)",
-        "roles": ["nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"],
-    },
-    {
-        "name": "productivity",
-        "comment": "Productivity & Utilities",
-        "roles": ["taskwarrior", "pass", "pass_cli", "spell", "clipboard", "clouddrive", "syncthing"],
-    },
-    {
-        "name": "display_manager",
-        "comment": "Display Manager",
-        "roles": ["lightdm", "gdm", "sddm"],
-    },
-    {
-        "name": "i3_profile",
-        "comment": "Profile: i3 (X11 tiling window manager)",
-        "roles": ["x", "i3"],
-    },
-    {
-        "name": "hyprland_profile",
-        "comment": "Profile: Hyprland (Wayland compositor)",
-        "roles": ["wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"],
-    },
-    {
-        "name": "gnome_profile",
-        "comment": "Profile: GNOME",
-        "roles": ["gnome"],
-    },
-    {
-        "name": "awesomewm_profile",
-        "comment": "Profile: AwesomeWM",
-        "roles": ["awesomewm"],
-    },
-    {
-        "name": "kde_profile",
-        "comment": "Profile: KDE",
-        "roles": ["kde"],
-    },
-    {
-        "name": "fonts_theming",
-        "comment": "Fonts & Theming (any desktop profile)",
-        "roles": ["fonts", "nerd-fonts", "cursor-theme"],
-    },
-    {
-        "name": "desktop_apps",
-        "comment": "Desktop Applications (any desktop profile)",
-        "roles": ["terminal", "notes", "browsers", "communication", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"],
-    },
-    {
-        "name": "optional",
-        "comment": "Optional / Feature-gated",
-        "roles": ["dotfiles", "goesimage", "regdomain", "bluetooth", "laptop"],
-    },
-]
-
-# Derived role -> section-key mapping; _SECTION_DEFINITIONS is the single
-# source of truth for section order, comments, and role membership.
-_ROLE_TO_SECTION: Dict[str, str] = {
-    role: s["name"] for s in _SECTION_DEFINITIONS for role in s["roles"]
-}
-
-
 def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     """Generate _host_vars_json Jinja2 template with overlay variables.
 
@@ -2769,13 +2724,17 @@ def _write_merged_playbook(
     )
 
     # Organize roles into emit buckets keyed by section name; emission order
-    # follows _SECTION_DEFINITIONS (dict preserves insertion order)
-    buckets = {s["name"]: [] for s in _SECTION_DEFINITIONS}
-    comments = {s["name"]: s["comment"] for s in _SECTION_DEFINITIONS}
+    # follows profiles/_sections.yml (dict preserves insertion order)
+    sections = load_sections(profiles_dir)
+    role_to_section = {
+        role: s["name"] for s in sections for role in s.get("roles", [])
+    }
+    buckets = {s["name"]: [] for s in sections}
+    comments = {s["name"]: s["comment"] for s in sections}
 
     unmapped_roles = []
     for role_name, condition in expected_role_map.items():
-        section_name = _ROLE_TO_SECTION.get(role_name)
+        section_name = role_to_section.get(role_name)
         if not section_name:
             unmapped_roles.append(role_name)
             continue
@@ -2788,14 +2747,14 @@ def _write_merged_playbook(
 
     # Fail loud rather than silently dropping profile roles that have no
     # section mapping. Without this guard, adding a role to profiles/ but
-    # forgetting its entry in _SECTION_DEFINITIONS yields a playbook silently
-    # missing the role (only caught later by sync-playbook).
+    # forgetting its entry in profiles/_sections.yml yields a playbook
+    # silently missing the role (only caught later by sync-playbook).
     if unmapped_roles:
         raise ValueError(
             f"Cannot generate playbook: {len(unmapped_roles)} profile role(s) "
-            f"have no section mapping in _SECTION_DEFINITIONS: "
+            f"have no section mapping in profiles/_sections.yml: "
             f"{', '.join(sorted(unmapped_roles))}. Add each to the 'roles' list "
-            f"of its section in _SECTION_DEFINITIONS in scripts/profile_dispatcher.py."
+            f"of its section in profiles/_sections.yml."
         )
 
     # Write playbook to file with manual YAML formatting

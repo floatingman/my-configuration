@@ -1,0 +1,52 @@
+# Section definitions for play.yml generation (PRD-159).
+# Single source of truth for section order, comments, and role membership.
+# Files starting with '_' are excluded from profile discovery and validation.
+sections:
+  - name: gpu
+    comment: GPU Detection & Drivers (Arch-only)
+    roles: [gpu_detect, gpu_drivers]
+  - name: base
+    comment: Base System (Arch-only)
+    roles: [base, grub, microcode]
+  - name: universal
+    comment: Universal System Configuration
+    roles: [gnupg, sysmon, cron, system, shell, ssh, archive]
+  - name: packages
+    comment: Package Management
+    roles: [ansible-role-packages, ansible-role-asdf, flatpak, golang, homebrew, ansible-role-binaries, aur]
+  - name: dev
+    comment: Development Tools
+    roles: [editors, filesystem, python, rust, docker, kubernetes, devtools, ai]
+  - name: networking
+    comment: Networking (Arch-only)
+    roles: [nmtrust, networkmanager, nettools, mirrorlist, filesharing]
+  - name: productivity
+    comment: Productivity & Utilities
+    roles: [taskwarrior, pass, pass_cli, spell, clipboard, clouddrive, syncthing]
+  - name: display_manager
+    comment: Display Manager
+    roles: [lightdm, gdm, sddm]
+  - name: i3_profile
+    comment: "Profile: i3 (X11 tiling window manager)"
+    roles: [x, i3]
+  - name: hyprland_profile
+    comment: "Profile: Hyprland (Wayland compositor)"
+    roles: [wayland, hyprland, qt_gtk_toolkit, widgets, uv_python_packages, microtex, oneui4_icons, screencapture]
+  - name: gnome_profile
+    comment: "Profile: GNOME"
+    roles: [gnome]
+  - name: awesomewm_profile
+    comment: "Profile: AwesomeWM"
+    roles: [awesomewm]
+  - name: kde_profile
+    comment: "Profile: KDE"
+    roles: [kde]
+  - name: fonts_theming
+    comment: Fonts & Theming (any desktop profile)
+    roles: [fonts, nerd-fonts, cursor-theme]
+  - name: desktop_apps
+    comment: Desktop Applications (any desktop profile)
+    roles: [terminal, notes, browsers, communication, filemanager, screensaver, mpv, media, sound, proton, android, backlight, mpd, twitch, cups, udisks]
+  - name: optional
+    comment: Optional / Feature-gated
+    roles: [dotfiles, goesimage, regdomain, bluetooth, laptop]

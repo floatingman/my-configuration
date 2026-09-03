@@ -611,6 +611,9 @@ class TestPlaybookGenerator:
         profiles_dir.mkdir()
         overlays_path = profiles_dir / "overlays"
         overlays_path.mkdir()
+        (profiles_dir / "_sections.yml").write_text(
+            "sections:\n  - {name: misc, comment: Misc}\n"
+        )
 
         base_data = {
             "display_manager_default": "",
@@ -656,6 +659,9 @@ class TestPlaybookGenerator:
         profiles_dir.mkdir()
         overlays_path = profiles_dir / "overlays"
         overlays_path.mkdir()
+        (profiles_dir / "_sections.yml").write_text(
+            "sections:\n  - {name: misc, comment: Misc}\n"
+        )
 
         base_data = {
             "display_manager_default": "",
@@ -699,6 +705,9 @@ class TestPlaybookGenerator:
         profiles_dir.mkdir()
         overlays_path = profiles_dir / "overlays"
         overlays_path.mkdir()
+        (profiles_dir / "_sections.yml").write_text(
+            "sections:\n  - {name: misc, comment: Misc}\n"
+        )
 
         base_data = {
             "display_manager_default": "",
