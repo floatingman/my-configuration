@@ -1837,8 +1837,8 @@ class PlaybookGenerator:
             os_family: OS family for condition translation
             host_vars: Host variables for config_check evaluation
             include_overlays: Also inject overlay roles gated by _overlay_* flags
-                (the merged play.yml needs them; generate() omits them because
-                sync_check filters overlay-gated roles from both sides)
+                (generate() and the merged play.yml both include them so
+                sync_check compares overlay-gated roles like any other role)
 
         Returns:
             (role_to_profiles, expected_role_map, role_tags, profile_names)
@@ -1944,7 +1944,7 @@ class PlaybookGenerator:
             profiles_dir=self.profiles_dir,
             os_family=self.os_family,
             host_vars=self.host_vars,
-            include_overlays=False,
+            include_overlays=True,
         )
 
         # Convert to PlaybookRole tuple in sorted order for determinism
@@ -2016,19 +2016,11 @@ class PlaybookGenerator:
             r.role: r.condition for r in expected_roles
         }
 
-        # Filter out overlay-based roles (dynamic, not in profiles)
-        overlay_roles = {
-            role for role, cond in actual_role_map.items()
-            if cond and "_overlay_" in str(cond)
-        }
-
-        actual_roles_filtered = {r for r in actual_role_map if r not in overlay_roles}
-        expected_roles_filtered = {r for r in expected_role_map if r not in overlay_roles}
-
-        # Find differences
-        missing_role_names = expected_roles_filtered - actual_roles_filtered
-        extra_role_names = actual_roles_filtered - expected_roles_filtered
-        common_role_names = actual_roles_filtered & expected_roles_filtered
+        # Find differences. Overlay-gated roles are compared like any other
+        # role: generate() includes them (profiles/overlays/ is their source).
+        missing_role_names = expected_role_map.keys() - actual_role_map.keys()
+        extra_role_names = actual_role_map.keys() - expected_role_map.keys()
+        common_role_names = actual_role_map.keys() & expected_role_map.keys()
 
         # Build PlaybookRole tuples for missing and extra
         missing_roles = tuple(
@@ -2975,10 +2967,10 @@ def _discover_overlay_role_conditions(
     the overlay applies regardless of config_check.
 
     Raises:
-        ValueError: If any overlay file fails to load. Generation must fail
-            fast here: sync_check filters _overlay_-gated roles from both
-            sides, so silently skipping a broken overlay would produce an
-            incomplete play.yml that no CI gate can detect.
+        ValueError: If any overlay file fails to load. Generation must
+            fail fast here: silently skipping a broken overlay would
+            produce an incomplete play.yml; surfacing the error beats a
+            CI sync failure with a missing-role diff.
     """
     result: Dict[str, Tuple[str, List[str]]] = {}
     translator = AnsibleConditionTranslator(
