@@ -18,21 +18,21 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 
 ## Commands
 
-| Command | Purpose |
-|---|---|
-| `make setup` | One-shot fresh system: pipx + PATH + ansible |
-| `make bootstrap` | Install ansible via pipx (requires pipx) |
-| `make install` | `ansible-galaxy install` roles + collections from requirements.yml |
-| `make configure` | Run the playbook (prompts for sudo password) |
-| `make configure TAGS="rust,python"` | Run only tagged roles (tags validated first) |
-| `make profile-i3` | Run one profile; see `make list-profiles` |
-| `make test` | lint + syntax-check + validate-profiles + check-sync + pytest |
-| `make check-sync` | CI gate: `play.yml` vs `profiles/` drift |
-| `make generate-playbook` | Regenerate `play.yml` from profiles |
-| `make validate-deps` | Role dependency graph check (cycles, missing roles) |
-| `make gpu-info` | Show detected GPUs via `lspci` (requires pciutils) |
-| `make list-tags` / `make list-profiles` | Discovery |
-| `VERBOSE=1 make configure` | Non-silent output for troubleshooting |
+| Command                                 | Purpose                                                            |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| `make setup`                            | One-shot fresh system: pipx + PATH + ansible                       |
+| `make bootstrap`                        | Install ansible via pipx (requires pipx)                           |
+| `make install`                          | `ansible-galaxy install` roles + collections from requirements.yml |
+| `make configure`                        | Run the playbook (prompts for sudo password)                       |
+| `make configure TAGS="rust,python"`     | Run only tagged roles (tags validated first)                       |
+| `make profile-i3`                       | Run one profile; see `make list-profiles`                          |
+| `make test`                             | lint + syntax-check + validate-profiles + check-sync + pytest      |
+| `make check-sync`                       | CI gate: `play.yml` vs `profiles/` drift                           |
+| `make generate-playbook`                | Regenerate `play.yml` from profiles                                |
+| `make validate-deps`                    | Role dependency graph check (cycles, missing roles)                |
+| `make gpu-info`                         | Show detected GPUs via `lspci` (requires pciutils)                 |
+| `make list-tags` / `make list-profiles` | Discovery                                                          |
+| `VERBOSE=1 make configure`              | Non-silent output for troubleshooting                              |
 
 Dispatcher CLI (`scripts/profile_dispatcher.py`, pure Python — needs pyyaml + jinja2, no Ansible). **Prefer the make targets**: they resolve the pipx-managed ansible-venv interpreter and inject missing deps (`make pip-deps`). A bare `python` is often not on PATH, and system `python3` lacks jinja2. CI pip-installs the deps, so direct invocation works there.
 
@@ -46,10 +46,10 @@ python3 scripts/profile_dispatcher.py list-profiles --format pretty
 ```
 
 Tests: `make pytest` — pure Python, no Ansible; split by domain under `tests/`:
-`test_generator.py` (PlaybookGenerator boundary: generate/sync_check/resolve/resolve_manifest/explain/write_playbook),
+`test_generator.py` (PlaybookGenerator boundary: generate/sync*check/resolve/resolve_manifest/explain/write_playbook),
 `test_cli.py` (subcommands via `main()`), `test_profiles.py` (profile/overlay loading, resolution),
 `test_conditions.py` (condition translation + evaluators).
-Tests import only the public API (`profile_dispatcher.__all__`) — never `_`-prefixed symbols.
+Tests import only the public API (`profile_dispatcher.__all__`) — never `*`-prefixed symbols.
 
 ## Architecture
 
@@ -67,7 +67,7 @@ Run time:     play.yml pre_tasks (tag: always)
   - `laptop.yml` — `laptop | default(false)` → roles: laptop, backlight
   - `bluetooth.yml` — `bluetooth is defined and not bluetooth.disable` → role: bluetooth (Arch only)
   - `user_environment.yml` — `user_environment | default(true)` → roles: shell, dotfiles, gnupg, ai (each further gated: `dotfiles_config is defined`, `ai_enabled | default(false)`)
-  In `play.yml`, overlay roles are gated by the overlay-level fact: `when: _overlay_laptop` / `_overlay_bluetooth` / `_overlay_user_environment`. The manifest also computes per-role facts (`_overlay_shell`, `_overlay_ai`, …) which `pre_tasks` exposes.
+    In `play.yml`, overlay roles are gated by the overlay-level fact: `when: _overlay_laptop` / `_overlay_bluetooth` / `_overlay_user_environment`. The manifest also computes per-role facts (`_overlay_shell`, `_overlay_ai`, …) which `pre_tasks` exposes.
 - **`scripts/profile_dispatcher.py`** (~3.5k lines): profile resolver, `PlaybookGenerator` engine, condition translation (`ConditionTranslator` protocol), and CLI. No Ansible import. Tests in `tests/`.
 - **CI** (`.github/workflows/ci.yml`, Python 3.13): `pytest tests/` + `validate` + `sync-playbook --check` on push/PR to main. Nothing else — no Ansible in CI.
 - **Bump bot** (`.github/workflows/bump-plugin-versions.yml`, weekly Mondays): opens a PR when pinned zsh/tmux plugin versions in `roles/shell/defaults/main.yml` fall behind upstream (`scripts/bump_plugin_versions.py`). Plugin clones are always version-pinned — never floating `HEAD`.
@@ -76,25 +76,25 @@ Run time:     play.yml pre_tasks (tag: always)
 
 ## Key host variables
 
-| Variable | Meaning |
-|---|---|
-| `profile` | Profile to run (unset ⇒ manual mode driven by the vars below) |
-| `display_manager` | `lightdm` \| `gdm` \| `sddm` \| `""` |
-| `desktop_environment` | `i3` \| `hyprland` \| `gnome` \| `awesomewm` \| `kde` \| `""` |
-| `disable_i3` … `disable_kde` | Per-desktop opt-out flags (one per DE) |
-| `laptop`, `bluetooth` | Overlay toggles |
-| `user_environment` | Per-user personalization overlay; default `true`, set `false` to skip |
-| `ai_enabled` | AI tooling (pi, forge, …), gated inside user_environment |
-| `dotfiles_config` | Defined ⇒ dotfiles role runs |
+| Variable                     | Meaning                                                               |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `profile`                    | Profile to run (unset ⇒ manual mode driven by the vars below)         |
+| `display_manager`            | `lightdm` \| `gdm` \| `sddm` \| `""`                                  |
+| `desktop_environment`        | `i3` \| `hyprland` \| `gnome` \| `awesomewm` \| `kde` \| `""`         |
+| `disable_i3` … `disable_kde` | Per-desktop opt-out flags (one per DE)                                |
+| `laptop`, `bluetooth`        | Overlay toggles                                                       |
+| `user_environment`           | Per-user personalization overlay; default `true`, set `false` to skip |
+| `ai_enabled`                 | AI tooling (pi, forge, …), gated inside user_environment              |
+| `dotfiles_config`            | Defined ⇒ dotfiles role runs                                          |
 
 ### group_vars layout
 
-| File | Status | Content |
-|---|---|---|
-| `group_vars/all/base.yml` | tracked | Shared defaults for all machines |
-| `group_vars/all/local.yml` | **gitignored** | Machine-specific overrides (laptop, hostname, display_manager, …) |
-| `group_vars/all.yml` | **gitignored** | Machine-local vars (older layout, still loaded) |
-| `group_vars/templates/{desktop,server}.yml` | tracked | Starting-point templates for a new machine |
+| File                                        | Status         | Content                                                           |
+| ------------------------------------------- | -------------- | ----------------------------------------------------------------- |
+| `group_vars/all/base.yml`                   | tracked        | Shared defaults for all machines                                  |
+| `group_vars/all/local.yml`                  | **gitignored** | Machine-specific overrides (laptop, hostname, display_manager, …) |
+| `group_vars/all.yml`                        | **gitignored** | Machine-local vars (older layout, still loaded)                   |
+| `group_vars/templates/{desktop,server}.yml` | tracked        | Starting-point templates for a new machine                        |
 
 ## Conventions
 
@@ -107,13 +107,13 @@ Run time:     play.yml pre_tasks (tag: always)
 
 ### System-wide tool paths
 
-| Tool | Location | PATH via |
-|---|---|---|
-| asdf (languages, kubectl) | `/opt/asdf` | `/etc/profile.d/asdf.sh` |
+| Tool                            | Location                     | PATH via                      |
+| ------------------------------- | ---------------------------- | ----------------------------- |
+| asdf (languages, kubectl)       | `/opt/asdf`                  | `/etc/profile.d/asdf.sh`      |
 | Linuxbrew (bat, fd, ripgrep, …) | `/home/linuxbrew/.linuxbrew` | `/etc/profile.d/linuxbrew.sh` |
-| Rust/Cargo | `/opt/rust` | `/etc/profile.d/rust.sh` |
-| Go | `/usr/local/go` | default PATH |
-| Direct binaries | `/usr/local/bin` | default PATH |
+| Rust/Cargo                      | `/opt/rust`                  | `/etc/profile.d/rust.sh`      |
+| Go                              | `/usr/local/go`              | default PATH                  |
+| Direct binaries                 | `/usr/local/bin`             | default PATH                  |
 
 Grant a new user access: `sudo usermod -aG devtools,linuxbrew <username>`.
 
@@ -134,3 +134,7 @@ Default in the role's `defaults/main.yml`; machine value in `group_vars/all/loca
 ## Docs
 
 `README.md` (usage/overview — update for user-facing changes), `INSTALL.md`, `INSTALL_DUAL_BOOT.md`, `HOMEBREW_MIGRATION.md`, per-role `roles/*/README.md`.
+
+## Mistakes
+
+Follow guidelines listed in @MISTAKES.md
