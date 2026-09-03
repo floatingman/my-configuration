@@ -788,6 +788,39 @@ class TestSectionValidation:
             thing_errors = dict(results).get("thing", [])
             assert any("missing required field: role" in e for e in thing_errors)
 
+    def test_validate_reports_non_string_section(self):
+        """A non-string section (e.g. a YAML list) reports an error, not a TypeError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role], section: [misc] }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any("non-string 'section' field" in e for e in errors)
+
+    def test_validate_reports_non_string_section_in_overlay(self):
+        """A non-string section in an overlay reports an error, not a TypeError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_overlay(
+                tmpdir, "{ role: demo_role, tags: [demo_role], section: [misc] }"
+            )
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert any("non-string 'section' field" in e for e in thing_errors)
+
+    def test_validate_handles_non_string_role_name(self, capsys):
+        """validate reports malformed role entries instead of crashing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: [demo_role], tags: [x], section: misc }"
+            )
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            err = capsys.readouterr().err
+            assert rc == 1
+            assert "non-string 'role' field" in err
+
     def test_validate_detects_base_vs_profile_section_conflict(self, capsys):
         """A role sectioned differently in _base.yml and a profile fails validate.
 

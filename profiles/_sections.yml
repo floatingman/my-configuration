@@ -1,3 +1,4 @@
+---
 # Section definitions for play.yml generation (PRD-159).
 # Single source of truth for section order and comments; each role's section
 # lives inline as section: on its entry in profiles/*.yml.

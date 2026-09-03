@@ -888,9 +888,10 @@ def resolve_role_manifest(
     role_map: Dict[str, _RoleCondition] = {}
     # Track normalized OR-disjuncts per role to avoid duplicate terms on 3+ merges
     role_disjuncts: Dict[str, Set[str]] = {}
-    # Track inline section: per role for section-ordered output. Entries
-    # lacking section: sort last without failing; a missing or invalid
-    # profiles/_sections.yml still fails loud via load_sections below.
+    # Track inline section: per role for section-ordered output. A missing
+    # section: sorts last here so the manifest stays buildable, but the
+    # validators and the generate-playbook guards reject such entries; a
+    # missing or invalid profiles/_sections.yml fails loud via load_sections.
     section_of: Dict[str, str] = {}
 
     for role_entry in all_roles:
@@ -903,7 +904,8 @@ def resolve_role_manifest(
         if not role_name:
             continue
         if isinstance(role_entry, dict):
-            section_of[role_name] = role_entry.get("section", "")
+            raw_section = role_entry.get("section", "")
+            section_of[role_name] = raw_section if isinstance(raw_section, str) else ""
 
         # Get tags
         if isinstance(role_entry, str):
@@ -1049,9 +1051,14 @@ def validate_profile(profiles_dir: str, name: str) -> list:
             if not rname:
                 errors.append("role entry missing required field: role")
                 continue
+            if not isinstance(rname, str):
+                errors.append(f"role entry has non-string 'role' field: {rname!r}")
+                continue
             section = entry.get("section", "")
             if not section:
                 errors.append(f"role '{rname}' missing required field: section")
+            elif not isinstance(section, str):
+                errors.append(f"role '{rname}' has non-string 'section' field: {section!r}")
             elif section not in valid_sections:
                 errors.append(
                     f"role '{rname}' has unknown section '{section}' "
@@ -1130,6 +1137,10 @@ def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
                     f"profiles/_sections.yml: section #{i + 1} missing required field: {key}"
                 )
         name = entry["name"]
+        if not isinstance(name, str):
+            raise ValueError(
+                f"profiles/_sections.yml: section #{i + 1} has non-string 'name' field: {name!r}"
+            )
         if name in seen:
             raise ValueError(f"profiles/_sections.yml: duplicate section name: {name}")
         seen.add(name)
@@ -1390,9 +1401,14 @@ def validate_overlays(
                 if not rname:
                     errors.append("role entry missing required field: role")
                     continue
+                if not isinstance(rname, str):
+                    errors.append(f"role entry has non-string 'role' field: {rname!r}")
+                    continue
                 section = entry.get("section", "")
                 if not section:
                     errors.append(f"role '{rname}' missing required field: section")
+                elif not isinstance(section, str):
+                    errors.append(f"role '{rname}' has non-string 'section' field: {section!r}")
                 elif section not in valid_sections:
                     errors.append(
                         f"role '{rname}' has unknown section '{section}' "
@@ -2502,8 +2518,11 @@ def _cmd_validate(args: argparse.Namespace) -> int:
                     continue
                 rname = entry.get("role", "")
                 section = entry.get("section", "")
-                if not rname or not section:
-                    continue
+                if (
+                    not isinstance(rname, str) or not rname
+                    or not isinstance(section, str) or not section
+                ):
+                    continue  # malformed entries reported by the validators above
                 prior = conflict_seen.get(rname)
                 if prior and prior[0] != section:
                     print(
@@ -2785,7 +2804,8 @@ def _discover_overlay_role_conditions(
                 rname = role_entry.get("role", "")
                 tags = role_entry.get("tags", [rname])
                 annotation_cond = translator.translate_annotation(role_entry, {})
-                section = role_entry.get("section", "")
+                raw_section = role_entry.get("section", "")
+                section = raw_section if isinstance(raw_section, str) else ""
             else:
                 rname = getattr(role_entry, "role", "")
                 tags = getattr(role_entry, "tags", [rname])
