@@ -100,6 +100,9 @@ class TestCLIValidate:
         """validate exits 0 when there are no non-underscore profiles to check."""
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "_base.yml").write_text("name: base\n")
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
             rc = main(["validate", "--profiles-dir", tmpdir])
         assert rc == 0
 
@@ -582,10 +585,11 @@ class TestCLIGeneratePlaybook:
         assert "does not exist" in captured.err
 
     def test_generate_playbook_fails_loud_on_unmapped_role(self, capsys):
-        """generate-playbook must fail (not silently drop) a role missing from _ROLE_TO_SECTION.
+        """generate-playbook must fail (not silently drop) a role without section:.
 
-        Regression: a role added to profiles/ but absent from the section
-        mapping was previously omitted from play.yml without any error.
+        Regression: a role added to profiles/ but lacking a section: field
+        was previously omitted from play.yml without any error. Validation
+        now rejects the profile and generation refuses to run.
         """
         profile_yaml = (
             "name: Test Profile\n"
@@ -604,7 +608,7 @@ class TestCLIGeneratePlaybook:
             assert rc == 1
             captured = capsys.readouterr()
             assert "nonexistent_role_xyz" in captured.err
-            assert "section mapping" in captured.err
+            assert "missing required field: section" in captured.err
             # Guard fires before the output file is created.
             assert not Path(outfile).exists()
 
@@ -614,14 +618,13 @@ class TestCLIGeneratePlaybook:
             "sections:\n"
             "  - name: custom\n"
             "    comment: \"Custom Section XYZZY\"\n"
-            "    roles: [demo_role]\n"
         )
         profile_yaml = (
             "name: Test Profile\n"
             'display_manager_default: ""\n'
             'desktop_environment: ""\n'
             "roles:\n"
-            "  - { role: demo_role, tags: [demo_role] }\n"
+            "  - { role: demo_role, tags: [demo_role], section: custom }\n"
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "_sections.yml").write_text(sections_yaml)

@@ -618,7 +618,7 @@ class TestPlaybookGenerator:
         base_data = {
             "display_manager_default": "",
             "desktop_environment": "",
-            "roles": [{"role": "foo", "tags": ["t1"], "requires_display": True}],
+            "roles": [{"role": "foo", "tags": ["t1"], "requires_display": True, "section": "misc"}],
         }
         (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
 
@@ -666,7 +666,7 @@ class TestPlaybookGenerator:
         base_data = {
             "display_manager_default": "",
             "desktop_environment": "",
-            "roles": [{"role": "bar", "tags": ["t1"], "os": "archlinux"}],
+            "roles": [{"role": "bar", "tags": ["t1"], "os": "archlinux", "section": "misc"}],
         }
         (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))
 
@@ -713,8 +713,8 @@ class TestPlaybookGenerator:
             "display_manager_default": "",
             "desktop_environment": "",
             "roles": [
-                {"role": "baz", "tags": ["t1"], "requires_display": True},
-                {"role": "baz", "tags": ["t2"], "os": "archlinux"},
+                {"role": "baz", "tags": ["t1"], "requires_display": True, "section": "misc"},
+                {"role": "baz", "tags": ["t2"], "os": "archlinux", "section": "misc"},
             ],
         }
         (profiles_dir / "_base.yml").write_text(yaml.dump(base_data, default_flow_style=False))

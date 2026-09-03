@@ -10,9 +10,11 @@ from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     resolve,
     validate_profile,
+    validate_overlays,
     load_profile,
     list_profiles,
     load_overlay,
+    main,
 )
 
 
@@ -681,3 +683,85 @@ class TestResolveInvalidProfileError:
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
 
+
+
+class TestSectionValidation:
+    """FR6: every dict role entry carries a valid section key (PRD-159)."""
+
+    def _write_sections(self, tmpdir: str) -> None:
+        Path(tmpdir, "_sections.yml").write_text(
+            "sections:\n"
+            "  - name: misc\n"
+            "    comment: Misc\n"
+            "  - name: other\n"
+            "    comment: Other\n"
+        )
+
+    def _write_valid_profile(self, tmpdir: str, name: str, role_line: str) -> None:
+        Path(tmpdir, f"{name}.yml").write_text(
+            f"name: {name}\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            f"  - {role_line}\n"
+        )
+
+    def _write_overlay(self, tmpdir: str, role_line: str) -> None:
+        Path(tmpdir, "overlays").mkdir()
+        Path(tmpdir, "overlays", "thing.yml").write_text(
+            "name: thing\n"
+            'applies_when: "thing | default(false)"\n'
+            "roles:\n"
+            f"  - {role_line}\n"
+        )
+
+    def test_validate_rejects_role_missing_section(self):
+        """A dict role entry without section: fails profile validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role] }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any(
+                "role 'demo_role' missing required field: section" in e for e in errors
+            )
+
+    def test_validate_rejects_unknown_section_key(self):
+        """A dict role entry with an unknown section key fails validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role], section: bogus }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any(
+                "role 'demo_role' has unknown section 'bogus'" in e for e in errors
+            )
+
+    def test_validate_rejects_overlay_role_missing_section(self):
+        """A dict overlay role entry without section: fails overlay validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_overlay(tmpdir, "{ role: demo_role, tags: [demo_role] }")
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert any(
+                "role 'demo_role' missing required field: section" in e
+                for e in thing_errors
+            )
+
+    def test_validate_rejects_conflicting_sections_across_files(self, capsys):
+        """The same role with different sections in two files fails validate (rc 1)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role], section: misc }"
+            )
+            self._write_overlay(
+                tmpdir, "{ role: demo_role, tags: [demo_role], section: other }"
+            )
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            err = capsys.readouterr().err
+            assert rc == 1
+            assert "conflicting sections" in err

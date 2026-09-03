@@ -72,27 +72,6 @@ _ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 _ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
 
 
-def _section_sort_key(role_name: str, sections: list) -> Tuple[int, str]:
-    """
-    Return a sort key for a role name based on its section membership.
-
-    Roles are sorted by section order first, then alphabetically within each section.
-    Roles not in any section are sorted last.
-
-    Args:
-        role_name: The role name to get a sort key for
-        sections: Ordered section definitions (as returned by load_sections)
-
-    Returns:
-        Tuple of (section_index, role_name) for sorting
-    """
-    for section_index, section in enumerate(sections):
-        if role_name in section.get("roles", []):
-            return (section_index, role_name)
-    # Catch-all for roles not in any section
-    return (len(sections), role_name)
-
-
 # ---------------------------------------------------------------------------
 # Condition Translator Protocol (Slice 1 - Issue #104)
 # ---------------------------------------------------------------------------
@@ -909,6 +888,10 @@ def resolve_role_manifest(
     role_map: Dict[str, _RoleCondition] = {}
     # Track normalized OR-disjuncts per role to avoid duplicate terms on 3+ merges
     role_disjuncts: Dict[str, Set[str]] = {}
+    # Track inline section: per role for section-ordered output (missing
+    # section sorts last; the manifest path never hard-fails — CI validation
+    # is the gate)
+    section_of: Dict[str, str] = {}
 
     for role_entry in all_roles:
         # Get role name
@@ -919,6 +902,8 @@ def resolve_role_manifest(
 
         if not role_name:
             continue
+        if isinstance(role_entry, dict):
+            section_of[role_name] = role_entry.get("section", "")
 
         # Get tags
         if isinstance(role_entry, str):
@@ -980,9 +965,13 @@ def resolve_role_manifest(
             )
             role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
-    # Convert to sorted tuple (by section, then alphabetically)
-    sections = load_sections(profiles_dir)
-    roles_tuple = tuple(sorted(role_map.values(), key=lambda r: _section_sort_key(r.role, sections)))
+    # Convert to sorted tuple (by section order from profiles/_sections.yml,
+    # then alphabetically)
+    order = {s["name"]: i for i, s in enumerate(load_sections(profiles_dir))}
+    roles_tuple = tuple(sorted(
+        role_map.values(),
+        key=lambda r: (order.get(section_of.get(r.role, ""), len(order)), r.role),
+    ))
 
     return _ResolvedManifest(
         profile=resolved.profile,
@@ -999,7 +988,8 @@ def validate_profile(profiles_dir: str, name: str) -> list:
     Validate a profile, returning a list of error strings.
 
     Checks: required fields present, extends chain resolvable,
-    display_manager_default in allowed set, desktop_environment in known set.
+    display_manager_default in allowed set, desktop_environment in known set,
+    per-role section key present and known (profiles/_sections.yml).
 
     Args:
         profiles_dir: Directory containing profile YAML files
@@ -1042,6 +1032,28 @@ def validate_profile(profiles_dir: str, name: str) -> list:
                 f"desktop_environment '{de}' not in known set: "
                 f"{sorted(_ALLOWED_DESKTOP_ENVIRONMENTS)}"
             )
+
+    # Section field checks (PRD-159 FR6): every dict role entry must carry a
+    # section key that exists in profiles/_sections.yml. Skipped when the
+    # sections file itself is unloadable — that error is reported once by
+    # _cmd_validate.
+    try:
+        valid_sections = {s["name"] for s in load_sections(profiles_dir)}
+    except ValueError:
+        valid_sections = None
+    if valid_sections is not None:
+        for entry in profile.get("roles", []):
+            if not isinstance(entry, dict):
+                continue
+            rname = entry.get("role", "")
+            section = entry.get("section", "")
+            if not section:
+                errors.append(f"role '{rname}' missing required field: section")
+            elif section not in valid_sections:
+                errors.append(
+                    f"role '{rname}' has unknown section '{section}' "
+                    f"(see profiles/_sections.yml)"
+                )
 
     return errors
 
@@ -1334,6 +1346,7 @@ def validate_overlays(
     - applies_when is a non-empty string
     - roles is a list
     - Each role entry has required fields (role, tags) with correct types
+    - Each dict role entry carries a valid section key (profiles/_sections.yml)
 
     Args:
         profiles_dir: Directory containing profiles/ subdirectory
@@ -1345,6 +1358,13 @@ def validate_overlays(
     results = []
     overlays_root = Path(profiles_dir) / "overlays"
 
+    # Section field checks (PRD-159 FR6); skipped when the sections file
+    # itself is unloadable — that error is reported once by _cmd_validate.
+    try:
+        valid_sections = {s["name"] for s in load_sections(profiles_dir)}
+    except ValueError:
+        valid_sections = None
+
     for overlay_name in overlay_names:
         errors = []
 
@@ -1353,6 +1373,25 @@ def validate_overlays(
             _load_overlay(overlays_root / f"{overlay_name}.yml")
         except ValueError as exc:
             errors.append(str(exc))
+
+        if valid_sections is not None:
+            try:
+                raw = yaml.safe_load((overlays_root / f"{overlay_name}.yml").read_text())
+            except (yaml.YAMLError, OSError):
+                raw = None  # parse/load errors already reported above
+            entries = raw.get("roles", []) if isinstance(raw, dict) else []
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                rname = entry.get("role", "")
+                section = entry.get("section", "")
+                if not section:
+                    errors.append(f"role '{rname}' missing required field: section")
+                elif section not in valid_sections:
+                    errors.append(
+                        f"role '{rname}' has unknown section '{section}' "
+                        f"(see profiles/_sections.yml)"
+                    )
 
         results.append((overlay_name, errors))
 
@@ -1853,7 +1892,7 @@ class PlaybookGenerator:
         os_family: str,
         host_vars: Optional[Dict[str, Any]],
         include_overlays: bool,
-    ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
+    ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list, Dict[str, str]]:
         """Merge role manifests from all profiles and apply profile-gating.
 
         Single implementation of the cross-profile merge used by generate(),
@@ -1868,7 +1907,7 @@ class PlaybookGenerator:
                 sync_check compares overlay-gated roles like any other role)
 
         Returns:
-            (role_to_profiles, expected_role_map, role_tags, profile_names)
+            (role_to_profiles, expected_role_map, role_tags, profile_names, role_sections)
 
         Raises:
             ValueError: If any listed profile fails to resolve. list_profiles()
@@ -1881,6 +1920,7 @@ class PlaybookGenerator:
         role_to_profiles: Dict[str, set] = {}
         expected_role_map: Dict[str, Optional[str]] = {}
         role_tags: Dict[str, set] = {}
+        role_sections: Dict[str, str] = {}
 
         for profile_name in profile_names:
             manifest = resolve_role_manifest(
@@ -1932,9 +1972,19 @@ class PlaybookGenerator:
             for profile_name in profile_names:
                 for entry in load_profile(profiles_dir, profile_name).get("roles", []):
                     rname = entry if isinstance(entry, str) else entry.get("role", "")
-                    if rname:
-                        profile_file_roles.add(rname)
-            for role_name, (condition, tags) in _discover_overlay_role_conditions(
+                    if not rname:
+                        continue
+                    profile_file_roles.add(rname)
+                    section = entry.get("section", "") if isinstance(entry, dict) else ""
+                    if section:
+                        prior = role_sections.get(rname)
+                        if prior and prior != section:
+                            raise ValueError(
+                                f"Role '{rname}' has conflicting sections: "
+                                f"'{prior}' vs '{section}'"
+                            )
+                        role_sections[rname] = section
+            for role_name, (condition, tags, section) in _discover_overlay_role_conditions(
                 profiles_dir, os_family,
             ).items():
                 if role_name not in profile_file_roles:
@@ -1952,10 +2002,18 @@ class PlaybookGenerator:
                         pass
                     else:
                         expected_role_map[role_name] = f"({existing}) or ({condition})"
+                if section:
+                    prior = role_sections.get(role_name)
+                    if prior and prior != section:
+                        raise ValueError(
+                            f"Role '{role_name}' has conflicting sections: "
+                            f"'{prior}' vs '{section}'"
+                        )
+                    role_sections[role_name] = section
                 role_to_profiles.setdefault(role_name, set())
                 role_tags.setdefault(role_name, set()).update(tags)
 
-        return role_to_profiles, expected_role_map, role_tags, profile_names
+        return role_to_profiles, expected_role_map, role_tags, profile_names, role_sections
 
     def generate(self) -> Tuple[PlaybookRole, ...]:
         """
@@ -1967,7 +2025,7 @@ class PlaybookGenerator:
         Returns:
             Tuple of PlaybookRole objects with role names and conditions
         """
-        _, expected_role_map, role_tags, _ = self._merged_role_data(
+        _, expected_role_map, role_tags, _, _ = self._merged_role_data(
             profiles_dir=self.profiles_dir,
             os_family=self.os_family,
             host_vars=self.host_vars,
@@ -2389,6 +2447,47 @@ def _cmd_validate(args: argparse.Namespace) -> int:
             for error in errors:
                 print(f"overlay {overlay_name}: {error}", file=sys.stderr)
 
+    # _sections.yml load + cross-file section conflict check (PRD-159 FR6);
+    # collect-all ordering: reported alongside profile/overlay errors above.
+    try:
+        load_sections(args.profiles_dir)
+    except ValueError as exc:
+        any_invalid = True
+        print(f"_sections.yml: {exc}", file=sys.stderr)
+    else:
+        conflict_seen = {}  # role -> (section, file label)
+        candidates = []
+        for path in sorted(profiles_path.glob("*.yml")):
+            if not path.stem.startswith("_"):
+                candidates.append((f"profile {path.stem}", path))
+        overlays_dir = profiles_path / "overlays"
+        if overlays_dir.exists():
+            for path in sorted(overlays_dir.glob("*.yml")):
+                candidates.append((f"overlay {path.stem}", path))
+        for label, path in candidates:
+            try:
+                data = yaml.safe_load(path.read_text())
+            except (yaml.YAMLError, OSError):
+                continue  # parse/load errors reported by the loops above
+            entries = data.get("roles", []) if isinstance(data, dict) else []
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                rname = entry.get("role", "")
+                section = entry.get("section", "")
+                if not rname or not section:
+                    continue
+                prior = conflict_seen.get(rname)
+                if prior and prior[0] != section:
+                    print(
+                        f"role '{rname}' has conflicting sections: "
+                        f"'{prior[0]}' ({prior[1]}) vs '{section}' ({label})",
+                        file=sys.stderr,
+                    )
+                    any_invalid = True
+                elif not prior:
+                    conflict_seen[rname] = (section, label)
+
     return 1 if any_invalid else 0
 
 
@@ -2612,7 +2711,7 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
 def _discover_overlay_role_conditions(
     profiles_dir: str,
     os_family: str,
-) -> Dict[str, Tuple[str, List[str]]]:
+) -> Dict[str, Tuple[str, List[str], str]]:
     """Discover all overlay roles and their gating conditions dynamically.
 
     Each role's condition combines its declared annotations (os,
@@ -2628,7 +2727,7 @@ def _discover_overlay_role_conditions(
             produce an incomplete play.yml; surfacing the error beats a
             CI sync failure with a missing-role diff.
     """
-    result: Dict[str, Tuple[str, List[str]]] = {}
+    result: Dict[str, Tuple[str, List[str], str]] = {}
     translator = AnsibleConditionTranslator(
         os_family=os_family,
         preserve_config_check=True,
@@ -2651,6 +2750,7 @@ def _discover_overlay_role_conditions(
             roles_list = overlay_data.roles
         for role_entry in roles_list:
             annotation_cond = ""
+            section = ""
             if isinstance(role_entry, str):
                 rname = role_entry
                 tags = [rname]
@@ -2658,6 +2758,7 @@ def _discover_overlay_role_conditions(
                 rname = role_entry.get("role", "")
                 tags = role_entry.get("tags", [rname])
                 annotation_cond = translator.translate_annotation(role_entry, {})
+                section = role_entry.get("section", "")
             else:
                 rname = getattr(role_entry, "role", "")
                 tags = getattr(role_entry, "tags", [rname])
@@ -2666,7 +2767,9 @@ def _discover_overlay_role_conditions(
                     condition = f"({annotation_cond}) and {overlay_flag}"
                 else:
                     condition = overlay_flag
-                result[rname] = (condition, tags if isinstance(tags, list) else [tags])
+                result[rname] = (
+                    condition, tags if isinstance(tags, list) else [tags], section
+                )
     return result
 
 _DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
@@ -2709,6 +2812,22 @@ def _write_merged_playbook(
         print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
         return 1
 
+    # Fail loud when a profile file fails validation. list_profiles() filters
+    # to valid profiles, so an invalid one (e.g. a role missing section:)
+    # would otherwise be silently dropped from the generated playbook.
+    invalid_profiles = []
+    for path in sorted(profiles_path.glob("*.yml")):
+        if path.stem.startswith("_"):
+            continue
+        errors = validate_profile(profiles_dir, path.stem)
+        if errors:
+            invalid_profiles.append(f"profile {path.stem}: " + "; ".join(errors))
+    if invalid_profiles:
+        raise ValueError(
+            "Cannot generate playbook: invalid profile definition(s):\n  "
+            + "\n  ".join(invalid_profiles)
+        )
+
     # Discover overlay variables for _host_vars_json template
     # Only treat a missing overlays/ directory as non-fatal; let parse errors surface.
     overlays_path = Path(profiles_dir) / "overlays"
@@ -2719,42 +2838,47 @@ def _write_merged_playbook(
     host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
     # Merge all profile manifests (includes profile-gating and overlay roles)
-    _, expected_role_map, role_tags, _ = PlaybookGenerator._merged_role_data(
+    _, expected_role_map, role_tags, _, role_sections = PlaybookGenerator._merged_role_data(
         profiles_dir, os_family, {}, include_overlays=True,
     )
 
     # Organize roles into emit buckets keyed by section name; emission order
     # follows profiles/_sections.yml (dict preserves insertion order)
     sections = load_sections(profiles_dir)
-    role_to_section = {
-        role: s["name"] for s in sections for role in s.get("roles", [])
-    }
     buckets = {s["name"]: [] for s in sections}
     comments = {s["name"]: s["comment"] for s in sections}
 
-    unmapped_roles = []
+    missing_section_roles = []
+    unknown_section_roles = []
     for role_name, condition in expected_role_map.items():
-        section_name = role_to_section.get(role_name)
+        section_name = role_sections.get(role_name, "")
         if not section_name:
-            unmapped_roles.append(role_name)
+            missing_section_roles.append(role_name)
             continue
         if section_name not in buckets:
-            unmapped_roles.append(f"{role_name} (unknown section {section_name!r})")
+            unknown_section_roles.append(
+                f"{role_name} has unknown section '{section_name}' "
+                f"(not in profiles/_sections.yml)"
+            )
             continue
         # Use tags unioned from profile definitions (preserves [fonts], etc.)
         tags = sorted(role_tags.get(role_name, {role_name}))
         buckets[section_name].append((role_name, condition, tags))
 
-    # Fail loud rather than silently dropping profile roles that have no
-    # section mapping. Without this guard, adding a role to profiles/ but
-    # forgetting its entry in profiles/_sections.yml yields a playbook
+    # Fail loud rather than silently dropping roles. Without this guard,
+    # adding a role to profiles/ without a section: field yields a playbook
     # silently missing the role (only caught later by sync-playbook).
-    if unmapped_roles:
+    if missing_section_roles:
         raise ValueError(
-            f"Cannot generate playbook: {len(unmapped_roles)} profile role(s) "
-            f"have no section mapping in profiles/_sections.yml: "
-            f"{', '.join(sorted(unmapped_roles))}. Add each to the 'roles' list "
-            f"of its section in profiles/_sections.yml."
+            f"Cannot generate playbook: {len(missing_section_roles)} profile "
+            f"role(s) have no section: field: "
+            f"{', '.join(sorted(missing_section_roles))}. Add section: <key> "
+            f"to each role entry; valid keys are listed in profiles/_sections.yml."
+        )
+    if unknown_section_roles:
+        raise ValueError(
+            f"Cannot generate playbook: {len(unknown_section_roles)} profile "
+            f"role(s) with unknown section: {', '.join(sorted(unknown_section_roles))}."
         )
 
     # Write playbook to file with manual YAML formatting
@@ -2904,7 +3028,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     else:
         # Stdout mode: output merged role manifest JSON
         try:
-            role_to_profiles, expected_role_map, role_tags, profile_names = \
+            role_to_profiles, expected_role_map, role_tags, profile_names, _ = \
                 PlaybookGenerator._merged_role_data(
                     args.profiles_dir, os_family, {}, include_overlays=True,
                 )
