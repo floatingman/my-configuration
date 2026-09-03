@@ -1405,7 +1405,7 @@ def validate_overlays(
         # A non-list roles field is already reported once by _load_overlay
         # above; this gate just prevents per-entry noise below.
         raw_roles = raw.get("roles") if isinstance(raw, dict) else None
-        if valid_sections is not None and isinstance(raw_roles, list):
+        if not errors and valid_sections is not None and isinstance(raw_roles, list):
             for entry in raw_roles:
                 if not isinstance(entry, dict):
                     errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")

@@ -782,13 +782,14 @@ class TestSectionValidation:
             assert any("missing required field: role" in e for e in errors)
 
     def test_validate_rejects_overlay_role_entry_missing_role_name(self):
-        """A dict overlay role entry without role: fails overlay validation."""
+        """A dict overlay role entry without role: reports one structural error."""
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_sections(tmpdir)
             self._write_overlay(tmpdir, "{ tags: [demo_role], section: misc }")
             results = validate_overlays(tmpdir)
             thing_errors = dict(results).get("thing", [])
-            assert any("missing required field: role" in e for e in thing_errors)
+            assert len(thing_errors) == 1
+            assert "missing required field 'role'" in thing_errors[0]
 
     def test_validate_reports_non_string_section(self):
         """A non-string section (e.g. a YAML list) reports an error, not a TypeError."""
@@ -904,7 +905,7 @@ class TestSectionValidation:
             assert "'roles' must be a list, got str" in thing_errors[0]
 
     def test_validate_rejects_non_mapping_overlay_role_entry(self):
-        """A string overlay role entry cannot carry section: and must fail validation."""
+        """A string overlay role entry reports one structural error, not duplicates."""
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_sections(tmpdir)
             Path(tmpdir, "overlays").mkdir()
@@ -916,7 +917,8 @@ class TestSectionValidation:
             )
             results = validate_overlays(tmpdir)
             thing_errors = dict(results).get("thing", [])
-            assert any("must be a mapping" in e for e in thing_errors)
+            assert len(thing_errors) == 1
+            assert "role entry 0 must be a dict, got str" in thing_errors[0]
 
     def test_validate_detects_base_vs_profile_section_conflict(self, capsys):
         """A role sectioned differently in _base.yml and a profile fails validate.
