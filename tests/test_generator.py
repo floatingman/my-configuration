@@ -172,6 +172,18 @@ class TestSyncPlaybook:
         rc = main(["sync-playbook", "--playbook", str(playbook), "--check"])
         assert rc == 1
 
+    def test_sync_playbook_detects_overlay_role_drift(self, capsys, tmp_path):
+        """Overlay-gated role condition drift is detected (V1: _overlay_ roles are compared)."""
+        content = Path(self._PLAYBOOK).read_text()
+        mutated = content.replace("when: _overlay_laptop", "when: _overlay_no_such_overlay", 1)
+        assert mutated != content, "play.yml must contain an _overlay_laptop-gated role"
+        playbook = tmp_path / "play.yml"
+        playbook.write_text(mutated)
+        rc = main(["sync-playbook", "--playbook", str(playbook), "--check"])
+        out = capsys.readouterr().out
+        assert rc == 1
+        assert "laptop" in out
+
     def test_sync_playbook_profile_gating(self, capsys):
         """sync-playbook infers _is_<de> conditions from profile membership."""
         # The hyprland role only appears in the hyprland profile,
@@ -724,10 +736,14 @@ class TestPlaybookGenerator:
         roles = gen.generate()
         baz = [r for r in roles if r.role == "baz"]
         assert len(baz) == 1
-        # _has_display appears twice in sources but should appear once in output
+        # generate() includes overlay sources: the three distinct conditions
+        # (_has_display, _is_arch, (_has_display) and _overlay_test_overlay)
+        # OR into one condition — exactly 2 'or' joins. The _has_display term
+        # shared by two sources must not add a redundant third arm.
         cond = baz[0].condition
         or_count = cond.lower().count(" or ")
-        assert or_count == 1, f"Expected exactly 1 'or', got {or_count}: {cond}"
+        assert or_count == 2, f"Expected exactly 2 'or', got {or_count}: {cond}"
+        assert cond.count("_has_display") == 2
 
 
 class TestPlaybookGeneratorResolve:
@@ -1096,6 +1112,65 @@ class TestGenerateHostVarsTemplate:
         # Parse the template - should not raise
         env = Environment()
         env.parse(template)
+
+
+class TestHostVarsTemplateRendering:
+    """V2: rendering round-trip for the pre_tasks Jinja2 -> CLI -> JSON seam (play.yml:12-40)."""
+
+    @staticmethod
+    def _render(template: str, host_vars: dict) -> str:
+        """Render with Ansible-equivalent filters (combine/to_json are Ansible, not Jinja2 builtins)."""
+        from jinja2 import Environment
+
+        env = Environment()
+        env.filters["combine"] = lambda d, other: {**d, **other}
+        env.filters["to_json"] = json.dumps
+        return env.from_string(template).render(**host_vars)
+
+    @pytest.mark.parametrize(
+        "host_vars,expected_json",
+        [
+            ({}, {}),
+            ({"laptop": True}, {"laptop": True}),
+            ({"bluetooth": {"disable": False}}, {"bluetooth": {"disable": False}}),
+            ({"laptop": True, "unrelated": 1}, {"laptop": True}),  # undiscovered var excluded
+        ],
+        ids=["none", "one", "several", "undiscovered-excluded"],
+    )
+    def test_template_renders_to_expected_json(self, host_vars, expected_json):
+        """Rendered _host_vars_json is single-line, single-quote-safe, and parses to the expected dict."""
+        variables = discover_overlay_variables(_PROFILES_DIR)
+        rendered = self._render(generate_host_vars_template(variables), host_vars)
+        # play.yml:27 wraps the value in single quotes — output must stay a safe one-word argument.
+        assert "'" not in rendered
+        assert "\n" not in rendered
+        assert json.loads(rendered) == expected_json
+
+    @pytest.mark.parametrize(
+        "host_vars,expected_flags",
+        [
+            ({}, {"_overlay_laptop": False, "_overlay_bluetooth": False}),
+            ({"laptop": True}, {"_overlay_laptop": True, "_overlay_bluetooth": False}),
+            ({"bluetooth": {"disable": False}}, {"_overlay_laptop": False, "_overlay_bluetooth": True}),
+            ({"bluetooth": {"disable": True}}, {"_overlay_laptop": False, "_overlay_bluetooth": False}),
+        ],
+        ids=["none", "laptop", "bluetooth", "bluetooth-disabled"],
+    )
+    def test_rendered_json_drives_overlay_flags(self, capsys, host_vars, expected_flags):
+        """Rendered JSON fed through resolve-role-manifest produces the expected overlay_flags."""
+        variables = discover_overlay_variables(_PROFILES_DIR)
+        rendered = self._render(generate_host_vars_template(variables), host_vars)
+        rc = main([
+            "resolve-role-manifest",
+            "--profiles-dir", _PROFILES_DIR,
+            "--profile", "manual",
+            "--os-family", "Archlinux",
+            "--host-vars", rendered,
+        ])
+        assert rc == 0
+        manifest = json.loads(capsys.readouterr().out)
+        for flag, expected in expected_flags.items():
+            assert (manifest["overlay_flags"].get(flag) is True) == expected, flag
 
 
 class TestGenerateOverlayFactsTask:
