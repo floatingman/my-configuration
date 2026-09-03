@@ -27,7 +27,6 @@ import argparse
 import json
 import re
 import sys
-from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
@@ -71,33 +70,13 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 _ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 _ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
 
-# Role-to-section mapping for playbook generation
-# Sections are ordered as they appear in the hand-maintained play.yml
-_ROLE_SECTIONS = OrderedDict([
-    ("GPU Detection & Drivers (Arch-only)", {"gpu_detect", "gpu_drivers"}),
-    ("Base System (Arch-only)", {"base", "grub", "microcode"}),
-    ("Universal System Configuration", {"gnupg", "sysmon", "cron", "system", "shell", "ssh", "archive"}),
-    ("Package Management", {"ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"}),
-    ("Development Tools", {"editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools", "ai"}),
-    ("Networking (Arch-only)", {"nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"}),
-    ("Productivity & Utilities", {"taskwarrior", "pass", "pass_cli", "spell", "clipboard", "clouddrive", "syncthing"}),
-    ("Display Manager", {"lightdm", "gdm", "sddm"}),
-    ("Profile: i3 (X11 tiling window manager)", {"x", "i3"}),
-    ("Profile: Hyprland (Wayland compositor)", {"wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"}),
-    ("Profile: GNOME", {"gnome"}),
-    ("Profile: AwesomeWM", {"awesomewm"}),
-    ("Profile: KDE", {"kde"}),
-    ("Fonts & Theming (any desktop profile)", {"fonts", "nerd-fonts", "cursor-theme"}),
-    ("Desktop Applications (any desktop profile)", {"terminal", "notes", "browsers", "communication", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"}),
-    ("Optional / Feature-gated", {"dotfiles", "goesimage", "regdomain", "bluetooth", "laptop"}),
-])
 
 def _section_sort_key(role_name: str) -> Tuple[int, str]:
     """
     Return a sort key for a role name based on its section membership.
 
     Roles are sorted by section order first, then alphabetically within each section.
-    Roles not in any section are sorted last (section 999).
+    Roles not in any section are sorted last.
 
     Args:
         role_name: The role name to get a sort key for
@@ -105,11 +84,11 @@ def _section_sort_key(role_name: str) -> Tuple[int, str]:
     Returns:
         Tuple of (section_index, role_name) for sorting
     """
-    for section_index, (section_name, role_set) in enumerate(_ROLE_SECTIONS.items()):
-        if role_name in role_set:
+    for section_index, section in enumerate(_SECTION_DEFINITIONS):
+        if role_name in section["roles"]:
             return (section_index, role_name)
     # Catch-all for roles not in any section
-    return (999, role_name)
+    return (len(_SECTION_DEFINITIONS), role_name)
 
 
 # ---------------------------------------------------------------------------
@@ -2548,203 +2527,96 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
 # Role-to-Section Mapping for play.yml Generation
 # ---------------------------------------------------------------------------
 
-# Role-to-section mapping based on current play.yml organization
-_ROLE_TO_SECTION: Dict[str, str] = {
-    # GPU Detection & Drivers (Arch-only)
-    "gpu_detect": "gpu",
-    "gpu_drivers": "gpu",
-
-    # Base System (Arch-only)
-    "base": "base",
-    "grub": "base",
-    "microcode": "base",
-
-    # Universal System Configuration
-    "gnupg": "universal",
-    "sysmon": "universal",
-    "cron": "universal",
-    "system": "universal",
-    "shell": "universal",
-    "ssh": "universal",
-    "archive": "universal",
-
-    # Package Management
-    "ansible-role-packages": "packages",
-    "ansible-role-asdf": "packages",
-    "flatpak": "packages",
-    "golang": "packages",
-    "homebrew": "packages",
-    "ansible-role-binaries": "packages",
-    "aur": "packages",
-
-    # Development Tools
-    "editors": "dev",
-    "filesystem": "dev",
-    "python": "dev",
-    "rust": "dev",
-    "docker": "dev",
-    "kubernetes": "dev",
-    "devtools": "dev",
-    "ai": "dev",
-
-    # Networking (Arch-only)
-    "nmtrust": "networking",
-    "networkmanager": "networking",
-    "nettools": "networking",
-    "mirrorlist": "networking",
-    "filesharing": "networking",
-
-    # Productivity & Utilities
-    "taskwarrior": "productivity",
-    "pass": "productivity",
-    "pass_cli": "productivity",
-    "spell": "productivity",
-    "clipboard": "productivity",
-    "clouddrive": "productivity",
-    "syncthing": "productivity",
-
-    # Display Manager
-    "lightdm": "display_manager",
-    "gdm": "display_manager",
-    "sddm": "display_manager",
-
-    # Profile: i3 (X11 tiling window manager)
-    "x": "i3_profile",
-    "i3": "i3_profile",
-
-    # Profile: Hyprland (Wayland compositor)
-    "wayland": "hyprland_profile",
-    "hyprland": "hyprland_profile",
-    "qt_gtk_toolkit": "hyprland_profile",
-    "widgets": "hyprland_profile",
-    "uv_python_packages": "hyprland_profile",
-    "microtex": "hyprland_profile",
-    "oneui4_icons": "hyprland_profile",
-    "screencapture": "hyprland_profile",
-
-    # Profile: GNOME
-    "gnome": "gnome_profile",
-
-    # Profile: AwesomeWM
-    "awesomewm": "awesomewm_profile",
-
-    # Profile: KDE
-    "kde": "kde_profile",
-
-    # Fonts & Theming (any desktop profile)
-    "fonts": "fonts_theming",
-    "nerd-fonts": "fonts_theming",
-    "cursor-theme": "fonts_theming",
-
-    # Desktop Applications (any desktop profile)
-    "terminal": "desktop_apps",
-    "notes": "desktop_apps",
-    "browsers": "desktop_apps",
-    "communication": "desktop_apps",
-    "filemanager": "desktop_apps",
-    "screensaver": "desktop_apps",
-    "mpv": "desktop_apps",
-    "media": "desktop_apps",
-    "sound": "desktop_apps",
-    "proton": "desktop_apps",
-    "android": "desktop_apps",
-    "backlight": "desktop_apps",
-    "mpd": "desktop_apps",
-    "twitch": "desktop_apps",
-    "cups": "desktop_apps",
-    "udisks": "desktop_apps",
-
-    # Optional / Feature-gated (overlay-based)
-    "dotfiles": "optional",
-    "goesimage": "optional",
-    "regdomain": "optional",
-    "bluetooth": "optional",
-    "laptop": "optional",
-}
 
 # Section definitions with comments and ordering
 _SECTION_DEFINITIONS: List[Dict[str, Any]] = [
     {
         "name": "gpu",
         "comment": "GPU Detection & Drivers (Arch-only)",
-        "roles": [],
+        "roles": ["gpu_detect", "gpu_drivers"],
     },
     {
         "name": "base",
         "comment": "Base System (Arch-only)",
-        "roles": [],
+        "roles": ["base", "grub", "microcode"],
     },
     {
         "name": "universal",
         "comment": "Universal System Configuration",
-        "roles": [],
+        "roles": ["gnupg", "sysmon", "cron", "system", "shell", "ssh", "archive"],
     },
     {
         "name": "packages",
         "comment": "Package Management",
-        "roles": [],
+        "roles": ["ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"],
     },
     {
         "name": "dev",
         "comment": "Development Tools",
-        "roles": [],
+        "roles": ["editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools", "ai"],
     },
     {
         "name": "networking",
         "comment": "Networking (Arch-only)",
-        "roles": [],
+        "roles": ["nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"],
     },
     {
         "name": "productivity",
         "comment": "Productivity & Utilities",
-        "roles": [],
+        "roles": ["taskwarrior", "pass", "pass_cli", "spell", "clipboard", "clouddrive", "syncthing"],
     },
     {
         "name": "display_manager",
         "comment": "Display Manager",
-        "roles": [],
+        "roles": ["lightdm", "gdm", "sddm"],
     },
     {
         "name": "i3_profile",
         "comment": "Profile: i3 (X11 tiling window manager)",
-        "roles": [],
+        "roles": ["x", "i3"],
     },
     {
         "name": "hyprland_profile",
         "comment": "Profile: Hyprland (Wayland compositor)",
-        "roles": [],
+        "roles": ["wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"],
     },
     {
         "name": "gnome_profile",
         "comment": "Profile: GNOME",
-        "roles": [],
+        "roles": ["gnome"],
     },
     {
         "name": "awesomewm_profile",
         "comment": "Profile: AwesomeWM",
-        "roles": [],
+        "roles": ["awesomewm"],
     },
     {
         "name": "kde_profile",
         "comment": "Profile: KDE",
-        "roles": [],
+        "roles": ["kde"],
     },
     {
         "name": "fonts_theming",
         "comment": "Fonts & Theming (any desktop profile)",
-        "roles": [],
+        "roles": ["fonts", "nerd-fonts", "cursor-theme"],
     },
     {
         "name": "desktop_apps",
         "comment": "Desktop Applications (any desktop profile)",
-        "roles": [],
+        "roles": ["terminal", "notes", "browsers", "communication", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"],
     },
     {
         "name": "optional",
         "comment": "Optional / Feature-gated",
-        "roles": [],
+        "roles": ["dotfiles", "goesimage", "regdomain", "bluetooth", "laptop"],
     },
 ]
+
+# Derived role -> section-key mapping; _SECTION_DEFINITIONS is the single
+# source of truth for section order, comments, and role membership.
+_ROLE_TO_SECTION: Dict[str, str] = {
+    role: s["name"] for s in _SECTION_DEFINITIONS for role in s["roles"]
+}
 
 
 def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
@@ -2896,9 +2768,10 @@ def _write_merged_playbook(
         profiles_dir, os_family, {}, include_overlays=True,
     )
 
-    # Organize roles into sections (deep copy to avoid mutating module-level list)
-    sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
-    section_map = {section["name"]: section for section in sections}
+    # Organize roles into emit buckets keyed by section name; emission order
+    # follows _SECTION_DEFINITIONS (dict preserves insertion order)
+    buckets = {s["name"]: [] for s in _SECTION_DEFINITIONS}
+    comments = {s["name"]: s["comment"] for s in _SECTION_DEFINITIONS}
 
     unmapped_roles = []
     for role_name, condition in expected_role_map.items():
@@ -2906,26 +2779,23 @@ def _write_merged_playbook(
         if not section_name:
             unmapped_roles.append(role_name)
             continue
-        if section_name not in section_map:
+        if section_name not in buckets:
             unmapped_roles.append(f"{role_name} (unknown section {section_name!r})")
             continue
         # Use tags unioned from profile definitions (preserves [fonts], etc.)
         tags = sorted(role_tags.get(role_name, {role_name}))
-        section_map[section_name]["roles"].append(
-            (role_name, condition, tags)
-        )
+        buckets[section_name].append((role_name, condition, tags))
 
     # Fail loud rather than silently dropping profile roles that have no
     # section mapping. Without this guard, adding a role to profiles/ but
-    # forgetting _ROLE_TO_SECTION yields a playbook silently missing the role
-    # (only caught later by sync-playbook). The full profile-driven migration
-    # that removes this hardcoded mapping is tracked in the RFD issue.
+    # forgetting its entry in _SECTION_DEFINITIONS yields a playbook silently
+    # missing the role (only caught later by sync-playbook).
     if unmapped_roles:
         raise ValueError(
             f"Cannot generate playbook: {len(unmapped_roles)} profile role(s) "
-            f"have no section mapping in _ROLE_TO_SECTION: "
-            f"{', '.join(sorted(unmapped_roles))}. Add each to _ROLE_TO_SECTION "
-            f"(and _ROLE_SECTIONS) in scripts/profile_dispatcher.py."
+            f"have no section mapping in _SECTION_DEFINITIONS: "
+            f"{', '.join(sorted(unmapped_roles))}. Add each to the 'roles' list "
+            f"of its section in _SECTION_DEFINITIONS in scripts/profile_dispatcher.py."
         )
 
     # Write playbook to file with manual YAML formatting
@@ -3020,14 +2890,14 @@ def _write_merged_playbook(
 
         # Write roles
         f.write("  roles:\n")
-        for section in sections:
-            if section["roles"]:
+        for section_name, section_roles in buckets.items():
+            if section_roles:
                 # Add section comment
                 f.write("    # -------------------------------------------------------------------------\n")
-                f.write(f"    # {section['comment']}\n")
+                f.write(f"    # {comments[section_name]}\n")
                 f.write("    # -------------------------------------------------------------------------\n")
                 # Write roles in this section (double-quoted tags for Makefile grep compat)
-                for role_name, condition, tags in section["roles"]:
+                for role_name, condition, tags in section_roles:
                     yaml_tags = '[' + ', '.join(f'"{t}"' for t in tags) + ']'
                     if condition:
                         f.write(f"    - {{ role: {role_name}, tags: {yaml_tags}, when: {condition} }}\n")
