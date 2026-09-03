@@ -822,6 +822,19 @@ class TestSectionValidation:
             assert rc == 1
             assert "non-string 'role' field" in err
 
+    def test_validate_reports_non_list_roles_field(self):
+        """A non-list roles field reports one type error, not per-character noise."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "testprof.yml").write_text(
+                "name: testprof\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles: demo_role\n"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert errors == ["Field 'roles' must be a list, got str"]
+
     def test_validate_rejects_non_mapping_role_entry(self):
         """A string role entry cannot carry section: and must fail validation."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -903,4 +916,12 @@ class TestLoadSections:
                 "    comment: Misc\n"
             )
             with pytest.raises(ValueError, match="non-string 'name' field"):
+                load_sections(tmpdir)
+
+    def test_reports_unreadable_file(self):
+        """An unreadable _sections.yml raises ValueError, not a raw OSError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # exists() is True for a directory, but read_text() fails with OSError
+            Path(tmpdir, "_sections.yml").mkdir()
+            with pytest.raises(ValueError, match="cannot read file"):
                 load_sections(tmpdir)

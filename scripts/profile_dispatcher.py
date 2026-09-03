@@ -1035,6 +1035,10 @@ def validate_profile(profiles_dir: str, name: str) -> list:
                 f"{sorted(_ALLOWED_DESKTOP_ENVIRONMENTS)}"
             )
 
+    roles_field = profile.get("roles")
+    if roles_field is not None and not isinstance(roles_field, list):
+        errors.append(f"Field 'roles' must be a list, got {type(roles_field).__name__}")
+
     # Section field checks (PRD-159 FR6): every dict role entry must carry a
     # section key that exists in profiles/_sections.yml. Skipped when the
     # sections file itself is unloadable — that error is reported once by
@@ -1043,8 +1047,8 @@ def validate_profile(profiles_dir: str, name: str) -> list:
         valid_sections = {s["name"] for s in load_sections(profiles_dir)}
     except ValueError:
         valid_sections = None
-    if valid_sections is not None:
-        for entry in profile.get("roles", []):
+    if valid_sections is not None and isinstance(roles_field, list):
+        for entry in roles_field:
             if not isinstance(entry, dict):
                 errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")
                 continue
@@ -1120,7 +1124,11 @@ def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
     if not path.exists():
         raise ValueError(f"profiles/_sections.yml not found in {profiles_dir}")
     try:
-        data = yaml.safe_load(path.read_text())
+        raw = path.read_text()
+    except OSError as exc:
+        raise ValueError(f"profiles/_sections.yml: cannot read file: {exc}") from exc
+    try:
+        data = yaml.safe_load(raw)
     except yaml.YAMLError as exc:
         raise ValueError(f"profiles/_sections.yml: invalid YAML: {exc}") from exc
     if not isinstance(data, dict) or "sections" not in data:
