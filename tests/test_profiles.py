@@ -11,6 +11,7 @@ from profile_dispatcher import (  # noqa: E402
     resolve,
     validate_profile,
     validate_overlays,
+    load_sections,
     load_profile,
     list_profiles,
     load_overlay,
@@ -848,3 +849,29 @@ class TestSectionValidation:
             err = capsys.readouterr().err
             assert rc == 1
             assert "conflicting sections" in err
+
+
+class TestLoadSections:
+    """Fail-fast contract of load_sections() (PRD-159 Slice 3)."""
+
+    def test_rejects_non_string_comment(self):
+        """A non-string comment fails load_sections instead of reaching play.yml."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: misc\n"
+                "    comment: [Misc]\n"
+            )
+            with pytest.raises(ValueError, match="non-string 'comment' field"):
+                load_sections(tmpdir)
+
+    def test_rejects_non_string_name(self):
+        """A non-string section name fails load_sections (pins existing behavior)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: [misc]\n"
+                "    comment: Misc\n"
+            )
+            with pytest.raises(ValueError, match="non-string 'name' field"):
+                load_sections(tmpdir)

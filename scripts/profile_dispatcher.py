@@ -1136,11 +1136,11 @@ def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
                 raise ValueError(
                     f"profiles/_sections.yml: section #{i + 1} missing required field: {key}"
                 )
+            if not isinstance(entry[key], str):
+                raise ValueError(
+                    f"profiles/_sections.yml: section #{i + 1} has non-string '{key}' field: {entry[key]!r}"
+                )
         name = entry["name"]
-        if not isinstance(name, str):
-            raise ValueError(
-                f"profiles/_sections.yml: section #{i + 1} has non-string 'name' field: {name!r}"
-            )
         if name in seen:
             raise ValueError(f"profiles/_sections.yml: duplicate section name: {name}")
         seen.add(name)
