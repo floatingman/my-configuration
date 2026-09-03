@@ -979,3 +979,16 @@ class TestLoadSections:
             Path(tmpdir, "_sections.yml").mkdir()
             with pytest.raises(ValueError, match="cannot read file"):
                 load_sections(tmpdir)
+
+    def test_returns_only_validated_fields(self):
+        """Section dicts carry exactly the validated keys; stray keys are dropped."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: misc\n"
+                "    comment: Misc\n"
+                "    roles: [stale]\n"
+                "    description: stray\n"
+            )
+            result = load_sections(tmpdir)
+            assert result == [{"name": "misc", "comment": "Misc"}]

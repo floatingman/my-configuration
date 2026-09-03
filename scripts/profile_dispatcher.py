@@ -1113,8 +1113,7 @@ def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
         profiles_dir: Directory containing _sections.yml
 
     Returns:
-        Ordered list of section dicts with keys name, comment, roles
-        (roles defaults to [] when absent)
+        Ordered list of section dicts with the validated keys name, comment
 
     Raises:
         ValueError: If the file is missing, contains malformed YAML, is
@@ -1154,8 +1153,9 @@ def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
         if name in seen:
             raise ValueError(f"profiles/_sections.yml: duplicate section name: {name}")
         seen.add(name)
-    return [{**entry, "roles": entry.get("roles", [])} for entry in entries]
-
+    return [
+        {"name": entry["name"], "comment": entry["comment"]} for entry in entries
+    ]
 
 # ---------------------------------------------------------------------------
 # Overlay Discovery and Loading (Slice 2)
