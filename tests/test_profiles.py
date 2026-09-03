@@ -9,6 +9,7 @@ import pytest
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     resolve,
+    resolve_role_manifest,
     validate_profile,
     validate_overlays,
     load_sections,
@@ -835,6 +836,44 @@ class TestSectionValidation:
             errors = validate_profile(tmpdir, "testprof")
             assert errors == ["Field 'roles' must be a list, got str"]
 
+    def test_resolve_manifest_keeps_first_valid_section(self):
+        """A later duplicate entry without section: must not reset the sort bucket."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: misc\n"
+                "    comment: Misc\n"
+            )
+            Path(tmpdir, "_base.yml").write_text(
+                "name: base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - { role: aaa_role, tags: [aaa_role], section: misc }\n"
+                "  - { role: zzz_role, tags: [zzz_role], section: misc }\n"
+            )
+            Path(tmpdir, "test.yml").write_text(
+                "name: test\n"
+                "extends: _base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles: []\n"
+            )
+            Path(tmpdir, "overlays").mkdir()
+            Path(tmpdir, "overlays", "test_overlay.yml").write_text(
+                "name: test_overlay\n"
+                'applies_when: "test_overlay | default(false)"\n'
+                "roles:\n"
+                "  - { role: aaa_role, tags: [aaa2] }\n"
+            )
+            manifest = resolve_role_manifest(
+                profile="test",
+                profiles_dir=tmpdir,
+                host_vars={"test_overlay": True},
+            )
+            names = [r.role for r in manifest.roles]
+            assert names.index("aaa_role") < names.index("zzz_role")
+
     def test_validate_rejects_non_mapping_role_entry(self):
         """A string role entry cannot carry section: and must fail validation."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -848,6 +887,20 @@ class TestSectionValidation:
             )
             errors = validate_profile(tmpdir, "testprof")
             assert any("must be a mapping" in e for e in errors)
+
+    def test_validate_reports_non_list_overlay_roles_field(self):
+        """A non-list overlay roles field reports one type error, not per-char noise."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "overlays").mkdir()
+            Path(tmpdir, "overlays", "thing.yml").write_text(
+                "name: thing\n"
+                'applies_when: "thing | default(false)"\n'
+                "roles: demo_role\n"
+            )
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert thing_errors == ["Field 'roles' must be a list, got str"]
 
     def test_validate_rejects_non_mapping_overlay_role_entry(self):
         """A string overlay role entry cannot carry section: and must fail validation."""

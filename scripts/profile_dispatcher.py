@@ -905,7 +905,8 @@ def resolve_role_manifest(
             continue
         if isinstance(role_entry, dict):
             raw_section = role_entry.get("section", "")
-            section_of[role_name] = raw_section if isinstance(raw_section, str) else ""
+            if isinstance(raw_section, str) and raw_section:
+                section_of[role_name] = raw_section
 
         # Get tags
         if isinstance(role_entry, str):
@@ -1397,13 +1398,16 @@ def validate_overlays(
         except ValueError as exc:
             errors.append(str(exc))
 
-        if valid_sections is not None:
-            try:
-                raw = yaml.safe_load((overlays_root / f"{overlay_name}.yml").read_text())
-            except (yaml.YAMLError, OSError):
-                raw = None  # parse/load errors already reported above
-            entries = raw.get("roles", []) if isinstance(raw, dict) else []
-            for entry in entries:
+        try:
+            raw = yaml.safe_load((overlays_root / f"{overlay_name}.yml").read_text())
+        except (yaml.YAMLError, OSError):
+            raw = None  # parse/load errors already reported above
+        raw_roles = raw.get("roles") if isinstance(raw, dict) else None
+        if raw_roles is not None and not isinstance(raw_roles, list):
+            errors.append(f"Field 'roles' must be a list, got {type(raw_roles).__name__}")
+
+        if valid_sections is not None and isinstance(raw_roles, list):
+            for entry in raw_roles:
                 if not isinstance(entry, dict):
                     errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")
                     continue
