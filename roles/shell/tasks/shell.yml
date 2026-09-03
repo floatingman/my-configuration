@@ -47,8 +47,13 @@
 # (`[ -n "$BASH_VERSION" ] || return 0`) and (b) zsh never sources
 # /etc/profile.d anyway. Without this block, no asdf-managed language (node,
 # etc.) is on PATH in zsh, and `pi` falls back to the system Node (too old).
-# Source asdf.sh in /etc/zsh/zshrc so every interactive zsh gets asdf. ASDF_DIR
-# is set first (asdf.sh can only auto-detect it under bash/zsh/ksh).
+# Source asdf.sh in /etc/zsh/zshrc so every interactive zsh gets asdf.
+#
+# Export /opt/asdf UNCONDITIONALLY (when it exists): `:-` defaults preserve a
+# stale ASDF_DATA_DIR (e.g. ~/.asdf) inherited from long-running parents
+# (herdr, tmux) started before an env fix. A wrong ASDF_DATA_DIR makes every
+# asdf shim (node, npm, pi) exec against a data dir with no plugins and fail
+# silently with rc=126.
 
 - name: Initialize asdf for interactive zsh shells
   ansible.builtin.blockinfile:
@@ -57,10 +62,12 @@
     mode: '0644'
     marker: "# {mark} ANSIBLE MANAGED BLOCK (asdf)"
     block: |
-      export ASDF_DIR="${ASDF_DIR:-/opt/asdf}"
-      export ASDF_DATA_DIR="${ASDF_DATA_DIR:-/opt/asdf}"
-      if [ -f "$ASDF_DIR/asdf.sh" ]; then
-          . "$ASDF_DIR/asdf.sh"
+      if [ -d /opt/asdf ]; then
+          export ASDF_DIR="/opt/asdf"
+          export ASDF_DATA_DIR="/opt/asdf"
+          if [ -f "$ASDF_DIR/asdf.sh" ]; then
+              . "$ASDF_DIR/asdf.sh"
+          fi
       fi
   become: true
   tags:
