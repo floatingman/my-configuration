@@ -21,6 +21,7 @@
     clone: true
     repo: https://github.com/tmux-plugins/tpm
     dest: "/home/{{ user.name }}/.tmux/plugins/tpm"
+    version: "{{ shell_tpm_version }}"
   become: true
   become_user: "{{ user.name }}"
   register: shell_tpm_clone

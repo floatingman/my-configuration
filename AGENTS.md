@@ -70,6 +70,7 @@ Run time:     play.yml pre_tasks (tag: always)
   In `play.yml`, overlay roles are gated by the overlay-level fact: `when: _overlay_laptop` / `_overlay_bluetooth` / `_overlay_user_environment`. The manifest also computes per-role facts (`_overlay_shell`, `_overlay_ai`, …) which `pre_tasks` exposes.
 - **`scripts/profile_dispatcher.py`** (~3.5k lines): profile resolver, `PlaybookGenerator` engine, condition translation (`ConditionTranslator` protocol), and CLI. No Ansible import. Tests in `tests/`.
 - **CI** (`.github/workflows/ci.yml`, Python 3.13): `pytest tests/` + `validate` + `sync-playbook --check` on push/PR to main. Nothing else — no Ansible in CI.
+- **Bump bot** (`.github/workflows/bump-plugin-versions.yml`, weekly Mondays): opens a PR when pinned zsh/tmux plugin versions in `roles/shell/defaults/main.yml` fall behind upstream (`scripts/bump_plugin_versions.py`). Plugin clones are always version-pinned — never floating `HEAD`.
 - **`facts.yml`**: debug playbook that dumps `ansible_facts` to `/tmp/ansible_facts.json`.
 - **External roles**: git-based from `floatingman/*` (binaries, packages, asdf) + `kewlfft.aur` collection. Run `make install` after changing `requirements.yml`.
 

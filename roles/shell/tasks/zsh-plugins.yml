@@ -22,23 +22,19 @@
   tags:
     - shell
 
-# dest names match the legacy external role exactly so existing dotfile
-# references keep working (note the original `fast-syntax-Highlighting` casing).
+# Repos, dest names, and pinned versions live in defaults/main.yml
+# (shell_zsh_plugins) so the bump bot can update pins in one place.
 - name: Clone zsh plugins into ~/.shell
   ansible.builtin.git:
     clone: true
     repo: "{{ item.repo }}"
     dest: "/home/{{ user.name }}/.shell/{{ item.dest }}"
+    version: "{{ item.version }}"
   become: true
   become_user: "{{ user.name }}"
   register: shell_zsh_plugin_clones
   failed_when: false
-  loop:
-    - { repo: "https://github.com/wfxr/forgit.git", dest: "forgit" }
-    - { repo: "https://github.com/zsh-users/zsh-autosuggestions", dest: "zsh-autosuggestions" }
-    - { repo: "https://github.com/zdharma-continuum/fast-syntax-highlighting", dest: "fast-syntax-Highlighting" }
-    - { repo: "https://github.com/zsh-users/zsh-history-substring-search", dest: "zsh-history-substring-search" }
-    - { repo: "https://github.com/zsh-users/zsh-completions", dest: "zsh-completions" }
+  loop: "{{ shell_zsh_plugins }}"
   tags:
     - shell
 
