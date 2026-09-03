@@ -1046,6 +1046,7 @@ def validate_profile(profiles_dir: str, name: str) -> list:
     if valid_sections is not None:
         for entry in profile.get("roles", []):
             if not isinstance(entry, dict):
+                errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")
                 continue
             rname = entry.get("role", "")
             if not rname:
@@ -1396,6 +1397,7 @@ def validate_overlays(
             entries = raw.get("roles", []) if isinstance(raw, dict) else []
             for entry in entries:
                 if not isinstance(entry, dict):
+                    errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")
                     continue
                 rname = entry.get("role", "")
                 if not rname:

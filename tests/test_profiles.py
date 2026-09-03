@@ -822,6 +822,35 @@ class TestSectionValidation:
             assert rc == 1
             assert "non-string 'role' field" in err
 
+    def test_validate_rejects_non_mapping_role_entry(self):
+        """A string role entry cannot carry section: and must fail validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "testprof.yml").write_text(
+                "name: testprof\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - demo_role\n"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any("must be a mapping" in e for e in errors)
+
+    def test_validate_rejects_non_mapping_overlay_role_entry(self):
+        """A string overlay role entry cannot carry section: and must fail validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "overlays").mkdir()
+            Path(tmpdir, "overlays", "thing.yml").write_text(
+                "name: thing\n"
+                'applies_when: "thing | default(false)"\n'
+                "roles:\n"
+                "  - demo_role\n"
+            )
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert any("must be a mapping" in e for e in thing_errors)
+
     def test_validate_detects_base_vs_profile_section_conflict(self, capsys):
         """A role sectioned differently in _base.yml and a profile fails validate.
 
