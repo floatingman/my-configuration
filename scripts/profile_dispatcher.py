@@ -88,7 +88,7 @@ _ROLE_SECTIONS = OrderedDict([
     ("Profile: AwesomeWM", {"awesomewm"}),
     ("Profile: KDE", {"kde"}),
     ("Fonts & Theming (any desktop profile)", {"fonts", "nerd-fonts", "cursor-theme"}),
-    ("Desktop Applications (any desktop profile)", {"terminal", "notes", "browsers", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"}),
+    ("Desktop Applications (any desktop profile)", {"terminal", "notes", "browsers", "communication", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"}),
     ("Optional / Feature-gated", {"dotfiles", "goesimage", "regdomain", "bluetooth", "laptop"}),
 ])
 
