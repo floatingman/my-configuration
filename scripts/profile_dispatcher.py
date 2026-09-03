@@ -2846,8 +2846,13 @@ def _write_merged_playbook(
         profiles_dir, os_family, {}, include_overlays=True,
     )
 
-    # Organize roles into emit buckets keyed by section name; emission order
-    # follows profiles/_sections.yml (dict preserves insertion order)
+    # Organize roles into emit buckets keyed by section name; section order
+    # follows profiles/_sections.yml (dict preserves insertion order). Role
+    # order WITHIN a section is merge first-encounter order — profiles are
+    # processed in sorted order with section-sorted roles, then overlay
+    # roles append — which is deterministic across runs and preserves the
+    # committed play.yml's established within-section order (roles are NOT
+    # re-sorted alphabetically here).
     sections = load_sections(profiles_dir)
     buckets = {s["name"]: [] for s in sections}
     comments = {s["name"]: s["comment"] for s in sections}
