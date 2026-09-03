@@ -1046,6 +1046,9 @@ def validate_profile(profiles_dir: str, name: str) -> list:
             if not isinstance(entry, dict):
                 continue
             rname = entry.get("role", "")
+            if not rname:
+                errors.append("role entry missing required field: role")
+                continue
             section = entry.get("section", "")
             if not section:
                 errors.append(f"role '{rname}' missing required field: section")
@@ -1384,6 +1387,9 @@ def validate_overlays(
                 if not isinstance(entry, dict):
                     continue
                 rname = entry.get("role", "")
+                if not rname:
+                    errors.append("role entry missing required field: role")
+                    continue
                 section = entry.get("section", "")
                 if not section:
                     errors.append(f"role '{rname}' missing required field: section")
@@ -1910,13 +1916,30 @@ class PlaybookGenerator:
             (role_to_profiles, expected_role_map, role_tags, profile_names, role_sections)
 
         Raises:
-            ValueError: If any listed profile fails to resolve. list_profiles()
-                pre-validates candidates, so a failure here indicates a real
-                problem (e.g. a profile changed mid-run) and must not be
-                swallowed — silently skipping a profile would produce an
-                incomplete expected-role set.
+            ValueError: If any profile file in profiles_dir fails validation
+                (reported loudly rather than silently excluded — see below),
+                or if any listed profile fails to resolve mid-run. Silent
+                skipping would produce an incomplete expected-role set.
         """
         profile_names = list_profiles(profiles_dir)
+        # Fail loud when a profile file fails validation: list_profiles()
+        # filters to valid profiles, so an invalid one (e.g. a role missing
+        # section:) would otherwise be silently excluded and its roles
+        # vanish from generate(), sync_check, and the generate-playbook
+        # manifest without any error.
+        invalid_profiles = []
+        for path in sorted(Path(profiles_dir).glob("*.yml")):
+            if path.stem.startswith("_"):
+                continue
+            errors = validate_profile(profiles_dir, path.stem)
+            if errors:
+                invalid_profiles.append(f"profile {path.stem}: " + "; ".join(errors))
+        if invalid_profiles:
+            raise ValueError(
+                "Cannot merge role manifests: invalid profile definition(s):\n  "
+                + "\n  ".join(invalid_profiles)
+            )
+
         role_to_profiles: Dict[str, set] = {}
         expected_role_map: Dict[str, Optional[str]] = {}
         role_tags: Dict[str, set] = {}
@@ -2816,21 +2839,6 @@ def _write_merged_playbook(
         print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
         return 1
 
-    # Fail loud when a profile file fails validation. list_profiles() filters
-    # to valid profiles, so an invalid one (e.g. a role missing section:)
-    # would otherwise be silently dropped from the generated playbook.
-    invalid_profiles = []
-    for path in sorted(profiles_path.glob("*.yml")):
-        if path.stem.startswith("_"):
-            continue
-        errors = validate_profile(profiles_dir, path.stem)
-        if errors:
-            invalid_profiles.append(f"profile {path.stem}: " + "; ".join(errors))
-    if invalid_profiles:
-        raise ValueError(
-            "Cannot generate playbook: invalid profile definition(s):\n  "
-            + "\n  ".join(invalid_profiles)
-        )
 
     # Discover overlay variables for _host_vars_json template
     # Only treat a missing overlays/ directory as non-fatal; let parse errors surface.

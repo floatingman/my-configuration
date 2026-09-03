@@ -766,6 +766,28 @@ class TestSectionValidation:
             assert rc == 1
             assert "conflicting sections" in err
 
+    def test_validate_rejects_role_entry_missing_role_name(self):
+        """A dict role entry without role: fails profile validation.
+
+        Otherwise the entry is silently dropped during manifest generation.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ tags: [demo_role], section: misc }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any("missing required field: role" in e for e in errors)
+
+    def test_validate_rejects_overlay_role_entry_missing_role_name(self):
+        """A dict overlay role entry without role: fails overlay validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_overlay(tmpdir, "{ tags: [demo_role], section: misc }")
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert any("missing required field: role" in e for e in thing_errors)
+
     def test_validate_detects_base_vs_profile_section_conflict(self, capsys):
         """A role sectioned differently in _base.yml and a profile fails validate.
 

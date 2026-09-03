@@ -653,6 +653,31 @@ class TestCLIGeneratePlaybook:
             captured = capsys.readouterr()
             assert "_sections.yml" in captured.err
 
+    def test_generate_playbook_stdout_fails_loud_on_invalid_profile(self, capsys):
+        """stdout mode must fail (not silently drop) an invalid profile.
+
+        The merged manifest is a commit-boundary artifact too: a profile
+        excluded by list_profiles() filtering would silently vanish from
+        the JSON output.
+        """
+        profile_yaml = (
+            "name: Test Profile\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            "  - { role: demo_role, tags: [demo_role] }\n"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
+            Path(tmpdir, "testprof.yml").write_text(profile_yaml)
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir])
+            assert rc == 1
+            captured = capsys.readouterr()
+            assert captured.out == ""
+            assert "demo_role" in captured.err
+
     def test_generate_playbook_fails_loud_on_invalid_overlay(self, capsys):
         """generate-playbook must fail (not silently omit) an unloadable overlay.
 
