@@ -888,9 +888,9 @@ def resolve_role_manifest(
     role_map: Dict[str, _RoleCondition] = {}
     # Track normalized OR-disjuncts per role to avoid duplicate terms on 3+ merges
     role_disjuncts: Dict[str, Set[str]] = {}
-    # Track inline section: per role for section-ordered output (missing
-    # section sorts last; the manifest path never hard-fails — CI validation
-    # is the gate)
+    # Track inline section: per role for section-ordered output. Entries
+    # lacking section: sort last without failing; a missing or invalid
+    # profiles/_sections.yml still fails loud via load_sections below.
     section_of: Dict[str, str] = {}
 
     for role_entry in all_roles:
