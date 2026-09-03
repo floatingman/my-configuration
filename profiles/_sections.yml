@@ -1,7 +1,8 @@
 # Section definitions for play.yml generation (PRD-159).
 # Single source of truth for section order and comments; each role's section
 # lives inline as section: on its entry in profiles/*.yml.
-# Files starting with '_' are excluded from profile discovery and validation.
+# Profile discovery and validation skip '_'-prefixed files; this data file
+# is instead read and validated by load_sections().
 sections:
   - name: gpu
     comment: GPU Detection & Drivers (Arch-only)

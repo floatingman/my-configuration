@@ -2458,8 +2458,12 @@ def _cmd_validate(args: argparse.Namespace) -> int:
         conflict_seen = {}  # role -> (section, file label)
         candidates = []
         for path in sorted(profiles_path.glob("*.yml")):
-            if not path.stem.startswith("_"):
-                candidates.append((f"profile {path.stem}", path))
+            # _base.yml participates: its roles fold into every profile via
+            # extends, so a base-vs-profile conflict is a generation failure
+            # and must be reported here. Other '_' files are not profiles.
+            if path.stem.startswith("_") and path.stem != "_base":
+                continue
+            candidates.append((f"profile {path.stem}", path))
         overlays_dir = profiles_path / "overlays"
         if overlays_dir.exists():
             for path in sorted(overlays_dir.glob("*.yml")):

@@ -765,3 +765,31 @@ class TestSectionValidation:
             err = capsys.readouterr().err
             assert rc == 1
             assert "conflicting sections" in err
+
+    def test_validate_detects_base_vs_profile_section_conflict(self, capsys):
+        """A role sectioned differently in _base.yml and a profile fails validate.
+
+        _base.yml folds into every profile via extends, so a base-vs-profile
+        section conflict is a generation failure and must surface here too.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "_base.yml").write_text(
+                "name: base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - { role: demo_role, tags: [demo_role], section: misc }\n"
+            )
+            Path(tmpdir, "testprof.yml").write_text(
+                "name: testprof\n"
+                "extends: _base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - { role: demo_role, tags: [demo_role], section: other }\n"
+            )
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            err = capsys.readouterr().err
+            assert rc == 1
+            assert "conflicting sections" in err
