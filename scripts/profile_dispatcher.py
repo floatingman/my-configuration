@@ -1402,10 +1402,9 @@ def validate_overlays(
             raw = yaml.safe_load((overlays_root / f"{overlay_name}.yml").read_text())
         except (yaml.YAMLError, OSError):
             raw = None  # parse/load errors already reported above
+        # A non-list roles field is already reported once by _load_overlay
+        # above; this gate just prevents per-entry noise below.
         raw_roles = raw.get("roles") if isinstance(raw, dict) else None
-        if raw_roles is not None and not isinstance(raw_roles, list):
-            errors.append(f"Field 'roles' must be a list, got {type(raw_roles).__name__}")
-
         if valid_sections is not None and isinstance(raw_roles, list):
             for entry in raw_roles:
                 if not isinstance(entry, dict):

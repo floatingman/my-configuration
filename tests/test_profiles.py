@@ -900,7 +900,8 @@ class TestSectionValidation:
             )
             results = validate_overlays(tmpdir)
             thing_errors = dict(results).get("thing", [])
-            assert thing_errors == ["Field 'roles' must be a list, got str"]
+            assert len(thing_errors) == 1
+            assert "'roles' must be a list, got str" in thing_errors[0]
 
     def test_validate_rejects_non_mapping_overlay_role_entry(self):
         """A string overlay role entry cannot carry section: and must fail validation."""
