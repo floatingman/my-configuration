@@ -26,7 +26,12 @@ jobs:
       - name: Bump pinned plugin versions
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python scripts/bump_plugin_versions.py | tee /tmp/bump-report.txt
+        run: |
+          # pipefail: a failed bump script must fail this step, not hide
+          # behind tee's exit code (GitHub's default bash -e doesn't
+          # propagate non-final pipeline members).
+          set -o pipefail
+          python scripts/bump_plugin_versions.py | tee /tmp/bump-report.txt
 
       - name: Validate defaults still parses
         run: |
