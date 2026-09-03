@@ -14,8 +14,8 @@ Usage:
     python3 scripts/bump_plugin_versions.py           # rewrite + report
     python3 scripts/bump_plugin_versions.py --check   # exit 1 if any pin is stale
 
-GITHUB_TOKEN (optional) raises the API rate limit from 60/hour; the six
-queries fit comfortably in the unauthenticated budget.
+GITHUB_TOKEN (optional) raises the API rate limit from 60/hour; the
+1-2 queries per repo fit comfortably in the unauthenticated budget.
 """
 
 import argparse
@@ -26,6 +26,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 DEFAULTS_PATH = (
     Path(__file__).resolve().parent.parent / "roles" / "shell" / "defaults" / "main.yml"
@@ -39,7 +40,7 @@ REPO_LINE = re.compile(r'^(\s+-\s+repo:\s*")([^"]+)(")')
 VERSION_LINE = re.compile(r'^(\s+version:\s*")([^"]+)(")')
 
 
-def github_get(path: str, token: str | None) -> dict:
+def github_get(path: str, token: str | None) -> Any:
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "plugin-version-bumper",
@@ -63,7 +64,7 @@ def latest_tag(repo: str, token: str | None) -> str:
 
 def repo_slug(repo_url: str) -> str:
     """https://github.com/owner/name(.git) -> owner/name"""
-    match = re.match(r"^https://github\.com/([^/]+/[^/]+?)(?:\.git)?$", repo_url)
+    match = re.match(r"^https://github\.com/([^/]+/[^/]+?)(?:\.git)?/?$", repo_url)
     if not match:
         raise ValueError(f"Unsupported repo URL: {repo_url}")
     return match.group(1)

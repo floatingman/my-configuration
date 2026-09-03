@@ -38,7 +38,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git diff --quiet && { echo "All pins current — nothing to do."; exit 0; }
-          branch="bump/plugin-versions-$(date -u +%Y%m%d)"
+          branch="bump/plugin-versions-$(date -u +%Y%m%d)-${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
