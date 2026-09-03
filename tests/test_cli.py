@@ -621,5 +621,45 @@ class TestCLIGeneratePlaybook:
             assert "broken" in captured.err
             assert "invalid YAML" in captured.err
 
+    def test_generate_playbook_includes_header_comment(self):
+        """--write output should include the auto-generated header comment."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                content = f.read()
+            assert "AUTO-GENERATED FILE - DO NOT EDIT BY HAND" in content
+        finally:
+            os.unlink(tmpfile)
+
+    def test_generate_playbook_includes_section_comments(self):
+        """--write output should include section comment headers."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                content = f.read()
+            assert "# GPU Detection & Drivers (Arch-only)" in content
+        finally:
+            os.unlink(tmpfile)
+
+    def test_generate_playbook_includes_vars_prompt(self):
+        """--write output should include the vars_prompt block."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                parsed = yaml.safe_load(f)
+            play = parsed[0]
+            assert "vars_prompt" in play
+        finally:
+            os.unlink(tmpfile)
+
 
 
