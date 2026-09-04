@@ -1277,7 +1277,12 @@ def load_overlay(profiles_dir: str, name: str) -> "_OverlayDefinition":
         )
 
     with open(overlay_path) as f:
-        data = yaml.safe_load(f) or {}
+        try:
+            data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as exc:
+            # Fail loud (PRD-176 FR6): name the overlay, matching the
+            # validate_overlays message pattern — never a silent skip.
+            raise ValueError(f"Overlay '{name}': invalid YAML: {exc}") from exc
 
     # Validate required fields
     required_fields = ["name", "applies_when", "roles"]
@@ -1940,41 +1945,36 @@ class ManifestResolver:
         overlay_specs: List[_RoleSpec] = []
 
         for overlay_name in self._repo.overlay_names:
-            try:
-                overlay_data = self._repo.overlay(overlay_name)
-                applies_when = overlay_data.applies_when
-                overlay_roles_list = overlay_data.roles
-                if not applies_when:
-                    continue
-
-                try:
-                    applies = self._applies_evaluator.evaluate(applies_when, host_vars)
-                except (ValueError, _EvaluationError) as exc:
-                    # Same message pattern as resolve_overlays; the surrounding
-                    # handler still skips silently until FR6 makes this loud.
-                    raise ValueError(
-                        f"Overlay '{overlay_name}': failed to evaluate applies_when: {exc}"
-                    ) from exc
-
-                if applies:
-                    overlay_flags[f"_overlay_{overlay_name}"] = True
-                    for overlay_role in overlay_roles_list:
-                        if isinstance(overlay_role, str):
-                            rname = overlay_role
-                        elif isinstance(overlay_role, dict):
-                            rname = overlay_role.get("role", "")
-                        else:
-                            rname = getattr(overlay_role, "role", "")
-                        if rname:
-                            overlay_flags[f"_overlay_{rname}"] = True
-                    overlay_specs.extend(
-                        self._repo.normalize_role(entry, origin=overlay_name)
-                        for entry in overlay_roles_list
-                    )
-            except (ValueError, yaml.YAMLError):
-                # Phase 1 verbatim: malformed overlays are skipped silently.
-                # FR6 turns this into a loud error naming the overlay.
+            # FR6: load/evaluation errors propagate — malformed overlays are
+            # an error naming the overlay, never a silent skip.
+            overlay_data = self._repo.overlay(overlay_name)
+            applies_when = overlay_data.applies_when
+            overlay_roles_list = overlay_data.roles
+            if not applies_when:
                 continue
+
+            try:
+                applies = self._applies_evaluator.evaluate(applies_when, host_vars)
+            except (ValueError, _EvaluationError) as exc:
+                raise ValueError(
+                    f"Overlay '{overlay_name}': failed to evaluate applies_when: {exc}"
+                ) from exc
+
+            if applies:
+                overlay_flags[f"_overlay_{overlay_name}"] = True
+                for overlay_role in overlay_roles_list:
+                    if isinstance(overlay_role, str):
+                        rname = overlay_role
+                    elif isinstance(overlay_role, dict):
+                        rname = overlay_role.get("role", "")
+                    else:
+                        rname = getattr(overlay_role, "role", "")
+                    if rname:
+                        overlay_flags[f"_overlay_{rname}"] = True
+                overlay_specs.extend(
+                    self._repo.normalize_role(entry, origin=overlay_name)
+                    for entry in overlay_roles_list
+                )
 
         profile_specs = [
             self._repo.normalize_role(e, origin=resolved.profile)
