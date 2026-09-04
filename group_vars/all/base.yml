@@ -447,12 +447,10 @@ laptop_power_management: "tuned"
 #   min_backlight: 60
 
 aws_vault_version: 7.13.6
-bit_version: 1.1.2
-dog_version: v0.1.0
 gh_md_toc_version: 0.10.0
 git_quick_stats_version: 2.11.0
 prettyping_version: v1.1.0
-rke_version: v1.8.4
+rke_version: v1.8.14
 tfswitch_version: 1.19.0
 
 # Homebrew packages - applications installed via Homebrew
@@ -526,15 +524,6 @@ binaries:
   - name: aws-vault
     url: "https://github.com/ByteNess/aws-vault/releases/download/v{{ aws_vault_version }}/aws-vault-linux-amd64"
     bin_name: aws-vault-linux-amd64
-
-  - name: bit
-    url: "https://github.com/chriswalz/bit/releases/download/v{{ bit_version }}/bit_{{ bit_version }}_linux_amd64.tar.gz"
-    extract: true
-
-  - name: dog
-    url: "https://github.com/ogham/dog/releases/download/{{ dog_version }}/dog-{{ dog_version }}-x86_64-unknown-linux-gnu.zip"
-    extract: true
-    bin_path: bin
 
   - name: gh-md-toc
     url: "https://github.com/ekalinin/github-markdown-toc/archive/refs/tags/{{ gh_md_toc_version }}.tar.gz"
