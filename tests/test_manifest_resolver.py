@@ -43,6 +43,65 @@ def _write_tree(root: Path, roles: list) -> None:
     }))
 
 
+# Recorded PRE-deletion (PRD-176 FR5 / AC3): the substring sniffer vs
+# Jinja2Evaluator over the 3 shipped applies_when expressions, the PRD's var
+# shapes, and the sniffer's string-"false" special case. Expected values are
+# the Jinja2Evaluator verdict (post-swap behavior); delta=True marks the cells
+# where the deleted sniffer differed:
+#   - string "false" is truthy under Jinja2 (the PRD's accepted delta)
+#   - user_environment={} passes through default(true) and is falsy
+_PARITY_ROWS = [
+    # (expression, var, value, expected_applies, delta_vs_sniffer)
+    ("laptop | default(false)", "laptop", "__missing__", False, False),
+    ("laptop | default(false)", "laptop", {}, False, False),
+    ("laptop | default(false)", "laptop", True, True, False),
+    ("laptop | default(false)", "laptop", {"disable": True}, True, False),
+    ("laptop | default(false)", "laptop", False, False, False),
+    ("laptop | default(false)", "laptop", "false", True, True),
+    ("bluetooth is defined and not (bluetooth.disable | default(false))", "bluetooth", "__missing__", False, False),
+    ("bluetooth is defined and not (bluetooth.disable | default(false))", "bluetooth", {}, True, False),
+    ("bluetooth is defined and not (bluetooth.disable | default(false))", "bluetooth", True, True, False),
+    ("bluetooth is defined and not (bluetooth.disable | default(false))", "bluetooth", {"disable": True}, False, False),
+    ("bluetooth is defined and not (bluetooth.disable | default(false))", "bluetooth", False, True, False),
+    ("bluetooth is defined and not (bluetooth.disable | default(false))", "bluetooth", "false", True, False),
+    ("user_environment | default(true)", "user_environment", "__missing__", True, False),
+    ("user_environment | default(true)", "user_environment", {}, False, True),
+    ("user_environment | default(true)", "user_environment", True, True, False),
+    ("user_environment | default(true)", "user_environment", {"disable": True}, True, False),
+    ("user_environment | default(true)", "user_environment", False, False, False),
+    ("user_environment | default(true)", "user_environment", "false", True, True),
+]
+
+
+class TestAppliesWhenEvaluation:
+    """FR5: applies_when is evaluated by the real Jinja2Evaluator."""
+
+    @pytest.mark.parametrize(
+        "expression,var,value,expected,delta",
+        _PARITY_ROWS,
+        ids=[f"{r[0][:14]}..{r[1]}={r[2]}" for r in _PARITY_ROWS],
+    )
+    def test_applies_when_evaluated_by_jinja2(self, tmp_path, expression, var, value, expected, delta):
+        (tmp_path / "overlays").mkdir(parents=True)
+        (tmp_path / "_sections.yml").write_text(yaml.safe_dump(
+            {"sections": [{"name": "base", "comment": "base section"}]}
+        ))
+        (tmp_path / "i3.yml").write_text(yaml.safe_dump({
+            "display_manager_default": "lightdm",
+            "desktop_environment": "i3",
+            "roles": [],
+        }))
+        (tmp_path / "overlays" / "probe.yml").write_text(yaml.safe_dump({
+            "name": "probe",
+            "description": "parity probe",
+            "applies_when": expression,
+            "roles": [{"role": "probe_role", "section": "base"}],
+        }))
+        host_vars = {} if value == "__missing__" else {var: value}
+        rm = ManifestResolver(profiles_dir=str(tmp_path)).manifest("i3", host_vars=host_vars)
+        assert ("_overlay_probe" in rm.overlay_flags) is expected
+
+
 class TestManifestResolver:
     """Public-contract tests for ManifestResolver / ManualTarget / EvalMode."""
 

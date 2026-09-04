@@ -1662,8 +1662,10 @@ def _resolve_manual_mode(
 # One concept — "given profiles + overlays + host vars, produce the
 # deduplicated role list with gating conditions and flags" — owned by a single
 # bound context. Signatures follow RFC #175's Interface section.
-# Phase 1 (FR1-FR3) is behavior-neutral: the golden-JSON matrix
-# (tests/test_golden.py) arbitrates byte-stability (NFR2).
+# Overlay applies_when is evaluated by the injected Jinja2Evaluator behind the
+# _ConditionEvaluator protocol (FR5); the golden-JSON matrix
+# (tests/test_golden.py) and the recorded parity matrix arbitrate byte
+# stability (NFR2).
 # ---------------------------------------------------------------------------
 
 
@@ -1790,40 +1792,6 @@ class _ProfileRepository:
         )
 
 
-def _sniff_applies_when(applies_when: str, overlay_var: Any) -> bool:
-    """Substring evaluation of overlay applies_when (Phase 1, relocated verbatim).
-
-    FR5 replaces this with the injected Jinja2Evaluator behind the
-    _ConditionEvaluator protocol; the parity matrix arbitrates.
-    """
-    applies = False
-    if " is defined " in applies_when:
-        if overlay_var is not None:
-            if "disable" in applies_when:
-                if isinstance(overlay_var, dict):
-                    is_disabled = overlay_var.get("disable", False)
-                    applies = not is_disabled
-                else:
-                    applies = True
-            else:
-                applies = True
-    elif " default(false)" in applies_when:
-        if isinstance(overlay_var, dict):
-            applies = bool(overlay_var)
-        elif overlay_var is True:
-            applies = True
-        else:
-            applies = False
-    elif " default(true)" in applies_when:
-        if overlay_var is False or overlay_var == "false":
-            applies = False
-        else:
-            applies = True
-    else:
-        applies = bool(overlay_var)
-    return applies
-
-
 class _RoleCollector:
     """Dedup / disjunct-merge / tag-union / section-sort, relocated verbatim
     from resolve_role_manifest. Conditions come from the untouched
@@ -1932,6 +1900,9 @@ class ManifestResolver:
         self._os_family = os_family
         self._mode = mode
         self._evaluator = evaluator
+        # FR5: applies_when is evaluated for real; None -> Jinja2Evaluator().
+        # (self._evaluator as passed still drives the translator's config_check.)
+        self._applies_evaluator = evaluator if evaluator is not None else Jinja2Evaluator()
 
     def manifest(
         self,
@@ -1977,7 +1948,16 @@ class ManifestResolver:
                     continue
 
                 overlay_var = host_vars.get(overlay_name)
-                applies = _sniff_applies_when(applies_when, overlay_var)
+                try:
+                    applies = bool(
+                        self._applies_evaluator.evaluate(applies_when, host_vars)
+                    )
+                except (ValueError, _EvaluationError) as exc:
+                    # Same message pattern as resolve_overlays; the surrounding
+                    # handler still skips silently until FR6 makes this loud.
+                    raise ValueError(
+                        f"Overlay '{overlay_name}': failed to evaluate applies_when: {exc}"
+                    ) from exc
 
                 if applies:
                     overlay_flags[f"_overlay_{overlay_name}"] = True
