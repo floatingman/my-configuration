@@ -63,8 +63,6 @@ class Tool:
 # and the upstream's current release assets (2026-09 audit).
 MANIFEST = {
     "aws_vault_version": Tool("ByteNess/aws-vault", "v", "url"),
-    "bit_version": Tool("chriswalz/bit", "v", "url"),
-    "dog_version": Tool("ogham/dog", "v", "value"),
     "gh_md_toc_version": Tool("ekalinin/github-markdown-toc", "", "url"),
     "git_quick_stats_version": Tool("arzzen/git-quick-stats", "", "url"),
     "prettyping_version": Tool("denilsonsa/prettyping", "v", "value"),
