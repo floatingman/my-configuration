@@ -1947,11 +1947,8 @@ class ManifestResolver:
                 if not applies_when:
                     continue
 
-                overlay_var = host_vars.get(overlay_name)
                 try:
-                    applies = bool(
-                        self._applies_evaluator.evaluate(applies_when, host_vars)
-                    )
+                    applies = self._applies_evaluator.evaluate(applies_when, host_vars)
                 except (ValueError, _EvaluationError) as exc:
                     # Same message pattern as resolve_overlays; the surrounding
                     # handler still skips silently until FR6 makes this loud.
