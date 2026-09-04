@@ -50,7 +50,7 @@ New users get access automatically when added to the `devtools` and `linuxbrew` 
 sudo usermod -aG devtools,linuxbrew <username>
 ```
 
-Per-user personalization (shell plugins, dotfiles, AI tool config) is separated into the `user_environment` overlay. Set `user_environment: false` in `local.yml` to skip user-specific setup entirely.
+Per-user personalization (shell plugins, dotfiles, AI tool config) is separated into the `user_environment` overlay (see [Overlays](#overlays) below). Set `user_environment: false` in `local.yml` to skip user-specific setup entirely.
 
 ### Configuration Profiles
 
@@ -98,6 +98,74 @@ profiles/
 ├── awesomewm.yml   # AwesomeWM (extends _base)
 └── kde.yml         # KDE Plasma (extends _base)
 ```
+
+#### Overlays
+
+Overlays are optional role groups in `profiles/overlays/` that apply on top of
+any profile. Each overlay gates itself on a variable from
+`group_vars/all/local.yml`:
+
+| Overlay            | Enabled when                                   | Roles |
+|--------------------|------------------------------------------------|-------|
+| `user_environment` | by default — set `user_environment: false` to skip | shell, dotfiles, gnupg, ai (AI tooling additionally needs `ai_enabled: true`) |
+| `laptop`           | `laptop: true`                                 | laptop, backlight (display required) |
+| `bluetooth`        | `bluetooth:` defined and not disabled (Arch only) | bluetooth |
+
+```yaml
+# group_vars/all/local.yml examples
+laptop: true                 # enable the laptop overlay
+
+bluetooth:
+  disable: true              # opt out of the bluetooth overlay
+
+user_environment: false      # skip shell/dotfiles/gnupg/ai personalization
+```
+
+#### Role annotations
+
+Roles in `profiles/*.yml` are entries with gating annotations. At run time the
+dispatcher translates them into `when:` conditions over pre-resolved facts
+(`_is_arch`, `_has_display`, `_is_i3`, … and the `_overlay_*` flags):
+
+| Annotation         | Meaning                                              | Example |
+|--------------------|------------------------------------------------------|---------|
+| `tags`             | Run targets for `make configure TAGS=`               | `[editors]` |
+| `os`               | Restrict to `archlinux` or `debian`                  | `os: archlinux` |
+| `requires_display` | Only runs with a display server (`_has_display`)     | `requires_display: true` |
+| `requires_config`  | Match a specific config value                        | `requires_config: { display_manager: lightdm }` |
+| `config_check`     | Jinja2 expression evaluated against host vars        | `"ai_enabled | default(false) \| bool"` |
+| `section`          | play.yml grouping; section order and comments are defined in `profiles/_sections.yml` | `section: dev` |
+
+#### Changing profiles or roles: regenerate play.yml
+
+`play.yml` is **auto-generated** from `profiles/` — never edit it by hand (its
+header says so). Edit the profile instead, regenerate, and commit both files
+together:
+
+```sh
+# 1. edit a profile or overlay
+$EDITOR profiles/i3.yml
+
+# 2. regenerate play.yml from the profile definitions
+make generate-playbook
+
+# 3. commit the profile change and the regenerated play.yml together
+git add profiles/i3.yml play.yml && git commit -m "profiles: ..."
+```
+
+CI runs `make check-sync` and fails when `play.yml` is stale relative to
+`profiles/`. Useful companion commands:
+
+```sh
+make validate-profiles             # validate all profiles + overlays
+make list-profiles                 # human-readable profile table
+python3 scripts/profile_dispatcher.py resolve-role-manifest --profile i3
+                                   # inspect the fully resolved manifest
+```
+
+To add a new profile, create `profiles/<name>.yml` (usually with
+`extends: _base.yml`) using an existing profile as a reference, then run
+`make generate-playbook`.
 
 ### Desktop Environment Support (Legacy / Manual)
 
