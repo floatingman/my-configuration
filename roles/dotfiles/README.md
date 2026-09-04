@@ -52,6 +52,7 @@ The role also reads:
 
 - `user.name`, `user.email`, `user.group` — the primary user (from `group_vars/all/base.yml`)
 - `github_user` — used by the gitconfig template
+- `gitconfig.*` — name, mail, delta, neovim_remote, meld flags (from `group_vars/all/base.yml`)
 - `asdf_plugins` — asdf version pins (from `group_vars/all/base.yml`); rendered
   into `~/.tool-versions` (see Notes)
 

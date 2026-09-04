@@ -24,7 +24,7 @@ the result together with the base.yml binary bumps and opens a PR.
 
 Usage:
     python3 scripts/bump_asdf_versions.py           # rewrite + report
-    python3 scripts/bump_asdf_versions.py --check   # exit 1 if any pin is stale
+    python3 scripts/bump_asdf_versions.py --check   # exit 1 if any pin is stale or unmanageable
 
 GITHUB_TOKEN (optional) raises the API rate limit from 60/hour.
 """
@@ -238,7 +238,7 @@ def rewrite_plugin(text: str, name: str, new_version: str) -> tuple[str, str, st
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true",
-                        help="exit 1 if any pin is stale or a query/error occurs (no writes)")
+                        help="exit 1 if any pin is stale, unmanageable, or a query/error occurs (no writes)")
     args = parser.parse_args(argv)
     token = os.environ.get("GITHUB_TOKEN") or None
     text = BASE_YML.read_text()
@@ -266,7 +266,11 @@ def main(argv: list[str] | None = None) -> int:
         try:
             new_text, old, _ = rewrite_plugin(text, name, tag_to_version(tag, plugin))
         except ValueError as exc:
+            # --check must fail too: a block the bot cannot manage is a
+            # validation failure, not a clean skip (matches the base bot's
+            # NOT FOUND handling).
             report.append(f"- asdf {name}: SKIPPED — {exc}{note}")
+            drift = True
             continue
         if version_to_tag(old, plugin) == tag or old == tag_to_version(tag, plugin):
             report.append(f"- asdf {name}: {old} (up to date){note}")
