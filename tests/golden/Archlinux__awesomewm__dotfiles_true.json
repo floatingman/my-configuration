@@ -1,0 +1,536 @@
+{
+  "profile": "awesomewm",
+  "display_manager": "lightdm",
+  "has_display": true,
+  "profile_flags": {
+    "_is_arch": true,
+    "_is_i3": false,
+    "_is_hyprland": false,
+    "_is_gnome": false,
+    "_is_awesomewm": true,
+    "_is_kde": false,
+    "_has_display": true,
+    "_dm": "lightdm"
+  },
+  "overlay_flags": {
+    "_overlay_user_environment": true,
+    "_overlay_shell": true,
+    "_overlay_dotfiles": true,
+    "_overlay_gnupg": true,
+    "_overlay_ai": true
+  },
+  "roles": [
+    {
+      "role": "gpu_detect",
+      "tags": [
+        "gpu_detect"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "gpu_drivers",
+      "tags": [
+        "gpu_drivers"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "base",
+      "tags": [
+        "base"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "grub",
+      "tags": [
+        "grub"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "microcode",
+      "tags": [
+        "microcode"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "archive",
+      "tags": [
+        "archive"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "cron",
+      "tags": [
+        "cron"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "gnupg",
+      "tags": [
+        "gnupg"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "shell",
+      "tags": [
+        "shell"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "ssh",
+      "tags": [
+        "ssh"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "sysmon",
+      "tags": [
+        "sysmon"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "system",
+      "tags": [
+        "system"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "ansible-role-asdf",
+      "tags": [
+        "asdf"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "ansible-role-binaries",
+      "tags": [
+        "binaries"
+      ],
+      "condition": "not _is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "ansible-role-packages",
+      "tags": [
+        "packages"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "aur",
+      "tags": [
+        "aur"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "flatpak",
+      "tags": [
+        "flatpak"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "golang",
+      "tags": [
+        "golang"
+      ],
+      "condition": "not _is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "homebrew",
+      "tags": [
+        "homebrew"
+      ],
+      "condition": "not _is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "ai",
+      "tags": [
+        "ai"
+      ],
+      "condition": "ai_enabled | default(false) | bool",
+      "source": "awesomewm"
+    },
+    {
+      "role": "devtools",
+      "tags": [
+        "devtools"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "docker",
+      "tags": [
+        "docker"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "editors",
+      "tags": [
+        "editors"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "filesystem",
+      "tags": [
+        "filesystem"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "kubernetes",
+      "tags": [
+        "kubernetes"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "python",
+      "tags": [
+        "python"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "rust",
+      "tags": [
+        "rust"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "filesharing",
+      "tags": [
+        "filesharing"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "mirrorlist",
+      "tags": [
+        "mirrorlist"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "nettools",
+      "tags": [
+        "nettools"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "networkmanager",
+      "tags": [
+        "networkmanager"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "nmtrust",
+      "tags": [
+        "nmtrust"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "clipboard",
+      "tags": [
+        "clipboard"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "clouddrive",
+      "tags": [
+        "clouddrive"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "pass",
+      "tags": [
+        "pass"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "pass_cli",
+      "tags": [
+        "pass_cli"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "spell",
+      "tags": [
+        "spell"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "syncthing",
+      "tags": [
+        "syncthing"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "taskwarrior",
+      "tags": [
+        "taskwarrior"
+      ],
+      "condition": "_is_arch",
+      "source": "awesomewm"
+    },
+    {
+      "role": "lightdm",
+      "tags": [
+        "lightdm"
+      ],
+      "condition": "_has_display and _dm == 'lightdm'",
+      "source": "awesomewm"
+    },
+    {
+      "role": "x",
+      "tags": [
+        "x"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "awesomewm",
+      "tags": [
+        "awesomewm"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
+      "role": "cursor-theme",
+      "tags": [
+        "cursor-theme"
+      ],
+      "condition": "_has_display and false",
+      "source": "awesomewm"
+    },
+    {
+      "role": "fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "nerd-fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "android",
+      "tags": [
+        "android"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "backlight",
+      "tags": [
+        "backlight"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "browsers",
+      "tags": [
+        "browsers"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "communication",
+      "tags": [
+        "communication"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "cups",
+      "tags": [
+        "cups"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "filemanager",
+      "tags": [
+        "filemanager"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "media",
+      "tags": [
+        "media"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "mpd",
+      "tags": [
+        "mpd"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "mpv",
+      "tags": [
+        "mpv"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "notes",
+      "tags": [
+        "notes"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "proton",
+      "tags": [
+        "proton"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "screensaver",
+      "tags": [
+        "screensaver"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "sound",
+      "tags": [
+        "sound"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "terminal",
+      "tags": [
+        "terminal"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "twitch",
+      "tags": [
+        "twitch"
+      ],
+      "condition": "_has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "udisks",
+      "tags": [
+        "udisks"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "awesomewm"
+    },
+    {
+      "role": "dotfiles",
+      "tags": [
+        "dotfiles"
+      ],
+      "condition": "true",
+      "source": "awesomewm"
+    },
+    {
+      "role": "goesimage",
+      "tags": [
+        "goesimage"
+      ],
+      "condition": "_has_display and false",
+      "source": "awesomewm"
+    },
+    {
+      "role": "regdomain",
+      "tags": [
+        "regdomain"
+      ],
+      "condition": "false",
+      "source": "awesomewm"
+    }
+  ]
+}

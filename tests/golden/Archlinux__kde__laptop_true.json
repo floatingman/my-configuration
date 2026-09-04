@@ -1,0 +1,554 @@
+{
+  "profile": "kde",
+  "display_manager": "sddm",
+  "has_display": true,
+  "profile_flags": {
+    "_is_arch": true,
+    "_is_i3": false,
+    "_is_hyprland": false,
+    "_is_gnome": false,
+    "_is_awesomewm": false,
+    "_is_kde": true,
+    "_has_display": true,
+    "_dm": "sddm"
+  },
+  "overlay_flags": {
+    "_overlay_laptop": true,
+    "_overlay_backlight": true,
+    "_overlay_user_environment": true,
+    "_overlay_shell": true,
+    "_overlay_dotfiles": true,
+    "_overlay_gnupg": true,
+    "_overlay_ai": true
+  },
+  "roles": [
+    {
+      "role": "gpu_detect",
+      "tags": [
+        "gpu_detect"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "gpu_drivers",
+      "tags": [
+        "gpu_drivers"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "base",
+      "tags": [
+        "base"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "grub",
+      "tags": [
+        "grub"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "microcode",
+      "tags": [
+        "microcode"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "archive",
+      "tags": [
+        "archive"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "cron",
+      "tags": [
+        "cron"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "gnupg",
+      "tags": [
+        "gnupg"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "shell",
+      "tags": [
+        "shell"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "ssh",
+      "tags": [
+        "ssh"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "sysmon",
+      "tags": [
+        "sysmon"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "system",
+      "tags": [
+        "system"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "ansible-role-asdf",
+      "tags": [
+        "asdf"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "ansible-role-binaries",
+      "tags": [
+        "binaries"
+      ],
+      "condition": "not _is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "ansible-role-packages",
+      "tags": [
+        "packages"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "aur",
+      "tags": [
+        "aur"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "flatpak",
+      "tags": [
+        "flatpak"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "golang",
+      "tags": [
+        "golang"
+      ],
+      "condition": "not _is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "homebrew",
+      "tags": [
+        "homebrew"
+      ],
+      "condition": "not _is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "ai",
+      "tags": [
+        "ai"
+      ],
+      "condition": "ai_enabled | default(false) | bool",
+      "source": "kde"
+    },
+    {
+      "role": "devtools",
+      "tags": [
+        "devtools"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "docker",
+      "tags": [
+        "docker"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "editors",
+      "tags": [
+        "editors"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "filesystem",
+      "tags": [
+        "filesystem"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "kubernetes",
+      "tags": [
+        "kubernetes"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "python",
+      "tags": [
+        "python"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "rust",
+      "tags": [
+        "rust"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "filesharing",
+      "tags": [
+        "filesharing"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "mirrorlist",
+      "tags": [
+        "mirrorlist"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "nettools",
+      "tags": [
+        "nettools"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "networkmanager",
+      "tags": [
+        "networkmanager"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "nmtrust",
+      "tags": [
+        "nmtrust"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "clipboard",
+      "tags": [
+        "clipboard"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "clouddrive",
+      "tags": [
+        "clouddrive"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "pass",
+      "tags": [
+        "pass"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "pass_cli",
+      "tags": [
+        "pass_cli"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "spell",
+      "tags": [
+        "spell"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "syncthing",
+      "tags": [
+        "syncthing"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "taskwarrior",
+      "tags": [
+        "taskwarrior"
+      ],
+      "condition": "_is_arch",
+      "source": "kde"
+    },
+    {
+      "role": "lightdm",
+      "tags": [
+        "lightdm"
+      ],
+      "condition": "_has_display and _dm == 'lightdm'",
+      "source": "kde"
+    },
+    {
+      "role": "sddm",
+      "tags": [
+        "sddm"
+      ],
+      "condition": "_has_display and _dm == 'sddm'",
+      "source": "kde"
+    },
+    {
+      "role": "x",
+      "tags": [
+        "x"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "kde",
+      "tags": [
+        "kde"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "cursor-theme",
+      "tags": [
+        "cursor-theme"
+      ],
+      "condition": "_has_display and false",
+      "source": "kde"
+    },
+    {
+      "role": "fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "nerd-fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "android",
+      "tags": [
+        "android"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "backlight",
+      "tags": [
+        "backlight"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "browsers",
+      "tags": [
+        "browsers"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "communication",
+      "tags": [
+        "communication"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "cups",
+      "tags": [
+        "cups"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "filemanager",
+      "tags": [
+        "filemanager"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "media",
+      "tags": [
+        "media"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "mpd",
+      "tags": [
+        "mpd"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "mpv",
+      "tags": [
+        "mpv"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "notes",
+      "tags": [
+        "notes"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "proton",
+      "tags": [
+        "proton"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "screensaver",
+      "tags": [
+        "screensaver"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "sound",
+      "tags": [
+        "sound"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "terminal",
+      "tags": [
+        "terminal"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "twitch",
+      "tags": [
+        "twitch"
+      ],
+      "condition": "_has_display",
+      "source": "kde"
+    },
+    {
+      "role": "udisks",
+      "tags": [
+        "udisks"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "kde"
+    },
+    {
+      "role": "dotfiles",
+      "tags": [
+        "dotfiles"
+      ],
+      "condition": "false",
+      "source": "kde"
+    },
+    {
+      "role": "goesimage",
+      "tags": [
+        "goesimage"
+      ],
+      "condition": "_has_display and false",
+      "source": "kde"
+    },
+    {
+      "role": "laptop",
+      "tags": [
+        "laptop"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
+      "role": "regdomain",
+      "tags": [
+        "regdomain"
+      ],
+      "condition": "false",
+      "source": "kde"
+    }
+  ]
+}
