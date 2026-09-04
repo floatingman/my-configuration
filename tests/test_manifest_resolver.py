@@ -139,7 +139,9 @@ class TestFailLoudOnMalformedOverlays:
         ])
         err = capsys.readouterr().err
         assert rc == 1
-        assert "broken" in err
+        # Full message contract (AC4): the overlay is explicitly named with
+        # the validate_overlays message pattern, not incidental text.
+        assert "Overlay 'broken': invalid YAML" in err
 
 
 class TestManifestResolver:
