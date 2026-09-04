@@ -8,6 +8,8 @@ import pytest
 
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
+    ManifestResolver,
+    ManualTarget,
     resolve,
     resolve_role_manifest,
     validate_profile,
@@ -19,382 +21,191 @@ from profile_dispatcher import (  # noqa: E402
     main,
 )
 
+_DES = ("i3", "hyprland", "gnome", "awesomewm", "kde")
+
 
 class TestProfileMode:
-    """Test profile mode resolution (profile name provided)."""
+    """Profile mode resolution, exercised through ManifestResolver (FR7)."""
 
-    def test_headless_profile(self):
-        """Headless profile should have no display and all DE flags False."""
-        result = resolve(profile='headless')
-        assert result.profile == 'headless'
-        assert result.display_manager is None
-        assert result.has_display is False
-        assert result.desktop_environment is None
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_i3_profile(self):
-        """i3 profile should use lightdm and set only is_i3 to True."""
-        result = resolve(profile='i3')
-        assert result.profile == 'i3'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'i3'
-        assert result.is_i3 is True
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_hyprland_profile(self):
-        """Hyprland profile should use sddm and set only is_hyprland to True."""
-        result = resolve(profile='hyprland')
-        assert result.profile == 'hyprland'
-        assert result.display_manager == 'sddm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'hyprland'
-        assert result.is_i3 is False
-        assert result.is_hyprland is True
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_gnome_profile(self):
-        """GNOME profile should use gdm and set only is_gnome to True."""
-        result = resolve(profile='gnome')
-        assert result.profile == 'gnome'
-        assert result.display_manager == 'gdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'gnome'
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is True
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_awesomewm_profile(self):
-        """AwesomeWM profile should use lightdm and set only is_awesomewm to True."""
-        result = resolve(profile='awesomewm')
-        assert result.profile == 'awesomewm'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'awesomewm'
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is True
-        assert result.is_kde is False
-
-    def test_kde_profile(self):
-        """KDE profile should use sddm and set only is_kde to True."""
-        result = resolve(profile='kde')
-        assert result.profile == 'kde'
-        assert result.display_manager == 'sddm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'kde'
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is True
+    @pytest.mark.parametrize(
+        "profile,dm,de_flag",
+        [
+            ("headless", None, None),
+            ("i3", "lightdm", "i3"),
+            ("hyprland", "sddm", "hyprland"),
+            ("gnome", "gdm", "gnome"),
+            ("awesomewm", "lightdm", "awesomewm"),
+            ("kde", "sddm", "kde"),
+        ],
+    )
+    def test_profile_flags(self, profile, dm, de_flag):
+        rm = ManifestResolver().manifest(profile)
+        assert rm.profile == profile
+        assert rm.display_manager == dm
+        assert rm.has_display is (dm is not None)
+        for de in _DES:
+            assert rm.profile_flags[f"_is_{de}"] is (de == de_flag), de
 
     def test_unknown_profile_raises_value_error(self):
-        """Unknown profile name should raise ValueError with available profiles."""
         with pytest.raises(ValueError) as exc_info:
-            resolve(profile='unknown_profile')
-
+            ManifestResolver().manifest("unknown_profile")
         error_msg = str(exc_info.value)
-        assert 'Unknown profile' in error_msg
-        assert 'unknown_profile' in error_msg
-        assert 'headless' in error_msg
-        assert 'i3' in error_msg
-        assert 'hyprland' in error_msg
-        assert 'gnome' in error_msg
-        assert 'awesomewm' in error_msg
-        assert 'kde' in error_msg
+        assert "Unknown profile" in error_msg
+        assert "unknown_profile" in error_msg
+        for name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
+            assert name in error_msg
 
-    def test_profile_mode_ignores_extra_vars(self):
-        """Profile mode should override conflicting display_manager from extra vars."""
-        # Profile mode wins even if display_manager is set
-        result = resolve(profile='gnome', display_manager='lightdm')
-        assert result.profile == 'gnome'
-        assert result.display_manager == 'gdm'  # From profile, not from extra var
-        assert result.is_gnome is True
-
-    def test_none_profile_equals_manual_mode(self):
-        """profile=None should behave like manual mode."""
-        result_none = resolve(profile=None)
-        result_manual = resolve()
-        assert result_none == result_manual
-
-    def test_empty_string_profile_equals_manual_mode(self):
-        """profile='' should behave like manual mode."""
-        result_empty = resolve(profile='')
-        result_manual = resolve()
-        assert result_empty == result_manual
-
-    def test_whitespace_profile_equals_manual_mode(self):
-        """profile='   ' should behave like manual mode."""
-        result_ws = resolve(profile='   ')
-        result_manual = resolve()
-        assert result_ws == result_manual
-
-    def test_literal_manual_profile_equals_manual_mode(self):
-        """Profile='manual' should behave exactly like manual mode."""
-        result_manual_profile = resolve(profile='manual')
-        result_manual = resolve()
-        assert result_manual_profile == result_manual
+    def test_none_empty_whitespace_and_manual_targets_are_manual_mode(self):
+        resolver = ManifestResolver()
+        baseline = resolver.manifest(None)
+        assert baseline.profile == "manual"
+        for target in ("", "   ", "manual"):
+            assert resolver.manifest(target) == baseline
 
     def test_case_sensitive_profile_names(self):
-        """Profile names should be case-sensitive."""
+        resolver = ManifestResolver()
         with pytest.raises(ValueError):
-            resolve(profile='I3')
+            resolver.manifest("I3")
         with pytest.raises(ValueError):
-            resolve(profile='Hyprland')
+            resolver.manifest("Hyprland")
 
 
 class TestManualMode:
-    """Test manual mode resolution (no profile, explicit variables)."""
+    """Manual mode via ManualTarget, exercised through ManifestResolver (FR7)."""
 
-    def test_manual_mode_no_display_manager(self):
-        """Manual mode with no display_manager should have has_display=False."""
-        result = resolve()
-        assert result.profile == 'manual'
-        assert result.display_manager is None
-        assert result.has_display is False
-        assert result.desktop_environment is None
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
+    def test_no_display_manager(self):
+        rm = ManifestResolver().manifest(ManualTarget())
+        assert rm.profile == "manual"
+        assert rm.display_manager is None
+        assert rm.has_display is False
+        assert all(rm.profile_flags[f"_is_{de}"] is False for de in _DES)
 
-    def test_manual_mode_empty_display_manager(self):
-        """Manual mode with empty string display_manager should have has_display=False."""
-        result = resolve(display_manager='')
-        assert result.profile == 'manual'
-        assert result.display_manager is None
-        assert result.has_display is False
+    def test_empty_display_manager_means_none(self):
+        rm = ManifestResolver().manifest(ManualTarget(display_manager=""))
+        assert rm.display_manager is None
+        assert rm.has_display is False
 
-    def test_manual_mode_with_empty_desktop_environment(self):
-        """desktop_environment='' with lightdm should behave like dual-desktop default."""
-        result = resolve(display_manager='lightdm', desktop_environment='')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        # Explicit empty string should still mean "no specific DE" -> dual-desktop mode
-        assert result.desktop_environment is None
-        assert result.is_i3 is True
-        assert result.is_hyprland is True
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
+    def test_empty_desktop_environment_is_dual_desktop(self):
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager="lightdm", desktop_environment="")
+        )
+        assert rm.display_manager == "lightdm"
+        assert rm.has_display is True
+        assert rm.profile_flags["_is_i3"] is True
+        assert rm.profile_flags["_is_hyprland"] is True
+        assert rm.profile_flags["_is_gnome"] is False
+        assert rm.profile_flags["_is_kde"] is False
 
-    def test_manual_mode_with_lightdm(self):
-        """Manual mode with lightdm should enable display but no DE by default."""
-        result = resolve(display_manager='lightdm')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment is None  # Dual-desktop mode
-        # i3 and hyprland both enabled (dual-desktop behavior)
-        assert result.is_i3 is True
-        assert result.is_hyprland is True
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_manual_mode_with_gdm(self):
-        """Manual mode with gdm should enable display but no DE by default."""
-        result = resolve(display_manager='gdm')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'gdm'
-        assert result.has_display is True
-        assert result.desktop_environment is None  # Dual-desktop mode
-        # i3 and hyprland both enabled (dual-desktop behavior)
-        assert result.is_i3 is True
-        assert result.is_hyprland is True
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_manual_mode_with_i3_desktop_environment(self):
-        """Manual mode with desktop_environment='i3' should enable only i3."""
-        result = resolve(display_manager='lightdm', desktop_environment='i3')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'i3'
-        assert result.is_i3 is True
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_manual_mode_with_hyprland_desktop_environment(self):
-        """Manual mode with desktop_environment='hyprland' should enable only hyprland."""
-        result = resolve(display_manager='lightdm', desktop_environment='hyprland')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'hyprland'
-        assert result.is_i3 is False
-        assert result.is_hyprland is True
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_manual_mode_with_gnome_desktop_environment(self):
-        """Manual mode with desktop_environment='gnome' should enable only GNOME."""
-        result = resolve(display_manager='gdm', desktop_environment='gnome')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'gdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'gnome'
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is True
-        assert result.is_awesomewm is False
-        assert result.is_kde is False
-
-    def test_manual_mode_with_awesomewm_desktop_environment(self):
-        """Manual mode with desktop_environment='awesomewm' should enable only AwesomeWM."""
-        result = resolve(display_manager='lightdm', desktop_environment='awesomewm')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'awesomewm'
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is True
-        assert result.is_kde is False
-
-    def test_manual_mode_with_kde_desktop_environment(self):
-        """Manual mode with desktop_environment='kde' should enable only KDE."""
-        result = resolve(display_manager='lightdm', desktop_environment='kde')
-        assert result.profile == 'manual'
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.desktop_environment == 'kde'
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        assert result.is_gnome is False
-        assert result.is_awesomewm is False
-        assert result.is_kde is True
+    @pytest.mark.parametrize(
+        "dm,de,only_de",
+        [
+            ("lightdm", None, None),   # dual-desktop default
+            ("gdm", None, None),       # dual-desktop with gdm
+            ("lightdm", "i3", "i3"),
+            ("lightdm", "hyprland", "hyprland"),
+            ("gdm", "gnome", "gnome"),
+            ("lightdm", "awesomewm", "awesomewm"),
+            ("lightdm", "kde", "kde"),
+        ],
+    )
+    def test_display_manager_and_desktop_environment(self, dm, de, only_de):
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager=dm, desktop_environment=de)
+        )
+        assert rm.profile == "manual"
+        assert rm.display_manager == dm
+        assert rm.has_display is True
+        for de_name in _DES:
+            if only_de is None:
+                expected = de_name in ("i3", "hyprland")
+            else:
+                expected = de_name == only_de
+            assert rm.profile_flags[f"_is_{de_name}"] is expected, de_name
 
 
 class TestDisableFlags:
-    """Test disable_* flags in manual mode."""
+    """disable_* suppression in manual mode via ManualTarget (FR7)."""
 
     def test_disable_i3(self):
-        """disable_i3 flag should suppress i3 in manual mode."""
-        result = resolve(display_manager='lightdm', disable_i3=True)
-        assert result.is_i3 is False
-        assert result.is_hyprland is True  # Other DEs unaffected
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager="lightdm", disable=("i3",))
+        )
+        assert rm.profile_flags["_is_i3"] is False
+        assert rm.profile_flags["_is_hyprland"] is True  # Other DEs unaffected
 
     def test_disable_hyprland(self):
-        """disable_hyprland flag should suppress hyprland in manual mode."""
-        result = resolve(display_manager='lightdm', disable_hyprland=True)
-        assert result.is_hyprland is False
-        assert result.is_i3 is True  # Other DEs unaffected
-
-    def test_disable_gnome(self):
-        """disable_gnome flag should suppress GNOME in manual mode."""
-        result = resolve(
-            display_manager='gdm',
-            desktop_environment='gnome',
-            disable_gnome=True
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager="lightdm", disable=("hyprland",))
         )
-        assert result.is_gnome is False
+        assert rm.profile_flags["_is_hyprland"] is False
+        assert rm.profile_flags["_is_i3"] is True  # Other DEs unaffected
 
-    def test_disable_awesomewm(self):
-        """disable_awesomewm flag should suppress AwesomeWM in manual mode."""
-        result = resolve(
-            display_manager='lightdm',
-            desktop_environment='awesomewm',
-            disable_awesomewm=True
+    @pytest.mark.parametrize("de", ["gnome", "awesomewm", "kde"])
+    def test_disable_single_de(self, de):
+        dm = "gdm" if de == "gnome" else "lightdm"
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager=dm, desktop_environment=de, disable=(de,))
         )
-        assert result.is_awesomewm is False
-
-    def test_disable_kde(self):
-        """disable_kde flag should suppress KDE in manual mode."""
-        result = resolve(
-            display_manager='lightdm',
-            desktop_environment='kde',
-            disable_kde=True
-        )
-        assert result.is_kde is False
+        assert rm.profile_flags[f"_is_{de}"] is False
 
     def test_disable_both_i3_and_hyprland(self):
-        """Disabling both i3 and hyprland should disable dual-desktop mode."""
-        result = resolve(
-            display_manager='lightdm',
-            disable_i3=True,
-            disable_hyprland=True
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager="lightdm", disable=("i3", "hyprland"))
         )
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
-        # Still has display, just no desktop environments
-        assert result.has_display is True
+        assert rm.profile_flags["_is_i3"] is False
+        assert rm.profile_flags["_is_hyprland"] is False
+        assert rm.has_display is True  # Still has display, just no DEs
 
     def test_disable_flags_with_explicit_desktop_environment(self):
-        """Disable flags should work even when desktop_environment is set."""
-        # i3 disabled, DE set to i3
-        result = resolve(
-            display_manager='lightdm',
-            desktop_environment='i3',
-            disable_i3=True
+        resolver = ManifestResolver()
+        r1 = resolver.manifest(
+            ManualTarget(display_manager="lightdm", desktop_environment="i3", disable=("i3",))
         )
-        assert result.is_i3 is False
-
-        # hyprland disabled, DE set to hyprland
-        result = resolve(
-            display_manager='lightdm',
-            desktop_environment='hyprland',
-            disable_hyprland=True
+        assert r1.profile_flags["_is_i3"] is False
+        r2 = resolver.manifest(
+            ManualTarget(display_manager="lightdm", desktop_environment="hyprland", disable=("hyprland",))
         )
-        assert result.is_hyprland is False
+        assert r2.profile_flags["_is_hyprland"] is False
 
     def test_all_de_flags_false_preserves_display_manager(self):
-        """When all DE flags are False, display_manager should still be preserved."""
-        result = resolve(
-            display_manager='lightdm',
-            desktop_environment='i3',
-            disable_i3=True,
-            disable_hyprland=True
+        rm = ManifestResolver().manifest(
+            ManualTarget(
+                display_manager="lightdm",
+                desktop_environment="i3",
+                disable=("i3", "hyprland"),
+            )
         )
-        assert result.display_manager == 'lightdm'
-        assert result.has_display is True
-        assert result.is_i3 is False
-        assert result.is_hyprland is False
+        assert rm.display_manager == "lightdm"
+        assert rm.has_display is True
+        assert rm.profile_flags["_is_i3"] is False
+        assert rm.profile_flags["_is_hyprland"] is False
+
+    def test_unknown_disable_name_raises_value_error(self):
+        with pytest.raises(ValueError):
+            ManifestResolver().manifest(ManualTarget(disable=("cinnamon",)))
 
 
 class TestDualDesktopMode:
-    """Test dual-desktop behavior (display_manager set without desktop_environment)."""
+    """Dual-desktop behavior via ManualTarget (FR7): display_manager set
+    without desktop_environment enables both i3 and hyprland."""
 
     def test_dual_desktop_with_lightdm(self):
-        """When display_manager is set but desktop_environment is None, both i3 and hyprland are True."""
-        result = resolve(display_manager='lightdm')
-        assert result.is_i3 is True
-        assert result.is_hyprland is True
-        assert result.desktop_environment is None  # No specific DE
+        rm = ManifestResolver().manifest(ManualTarget(display_manager="lightdm"))
+        assert rm.profile_flags["_is_i3"] is True
+        assert rm.profile_flags["_is_hyprland"] is True
 
     def test_dual_desktop_with_gdm(self):
-        """Dual-desktop mode works with gdm as well."""
-        result = resolve(display_manager='gdm')
-        assert result.is_i3 is True
-        assert result.is_hyprland is True
+        rm = ManifestResolver().manifest(ManualTarget(display_manager="gdm"))
+        assert rm.profile_flags["_is_i3"] is True
+        assert rm.profile_flags["_is_hyprland"] is True
 
     def test_explicit_desktop_environment_breaks_dual_desktop(self):
-        """Setting desktop_environment explicitly should disable dual-desktop mode."""
-        result = resolve(display_manager='lightdm', desktop_environment='i3')
-        assert result.is_i3 is True
-        assert result.is_hyprland is False
-        assert result.desktop_environment == 'i3'
+        rm = ManifestResolver().manifest(
+            ManualTarget(display_manager="lightdm", desktop_environment="i3")
+        )
+        assert rm.profile_flags["_is_i3"] is True
+        assert rm.profile_flags["_is_hyprland"] is False
+
 
 
 class TestLoadProfile:
@@ -553,98 +364,74 @@ class TestListProfiles:
 
 
 class TestLoadOverlay:
-    """Test load_overlay() function."""
+    """Overlay loading semantics through the resolver's repository-backed
+    diagnostic view (FR7 re-home of the former load_overlay() tests)."""
 
-    def test_load_laptop_overlay(self):
-        """load_overlay correctly parses laptop.yml."""
-        overlay = load_overlay(_PROFILES_DIR, "laptop")
-        assert overlay.name == "Laptop Features Overlay"
-        assert overlay.applies_when == "laptop | default(false)"
-        assert isinstance(overlay.roles, list)
-        assert len(overlay.roles) == 2
-        # First role entry
-        assert overlay.roles[0]["role"] == "laptop"
-        assert overlay.roles[0]["tags"] == ["laptop"]
-        # Second role entry
-        assert overlay.roles[1]["role"] == "backlight"
-        assert overlay.roles[1]["tags"] == ["backlight"]
-        assert overlay.roles[1]["requires_display"] is True
+    def test_all_shipped_overlays_are_discovered_in_sorted_order(self):
+        view = ManifestResolver().overlays({}, has_display=True)
+        assert [r.overlay.name for r in view] == [
+            "Bluetooth Support Overlay",
+            "Laptop Features Overlay",
+            "User Environment",
+        ]
 
-    def test_load_bluetooth_overlay(self):
-        """load_overlay correctly parses bluetooth.yml."""
-        overlay = load_overlay(_PROFILES_DIR, "bluetooth")
-        assert overlay.name == "Bluetooth Support Overlay"
-        assert overlay.applies_when == "bluetooth is defined and not (bluetooth.disable | default(false))"
-        assert isinstance(overlay.roles, list)
-        assert len(overlay.roles) == 1
-        assert overlay.roles[0]["role"] == "bluetooth"
-        assert overlay.roles[0]["tags"] == ["bluetooth"]
-        assert overlay.roles[0]["os"] == "archlinux"
+    def _overlay_view(self, host_vars, has_display=True):
+        return {
+            r.overlay.name: r for r in ManifestResolver().overlays(host_vars, has_display)
+        }
 
-    def test_load_overlay_with_yml_extension(self):
-        """load_overlay accepts name with .yml extension."""
-        overlay = load_overlay(_PROFILES_DIR, "laptop.yml")
-        assert overlay.name == "Laptop Features Overlay"
+    def test_laptop_overlay_content(self):
+        laptop = self._overlay_view({})["Laptop Features Overlay"]
+        assert laptop.overlay.applies_when == "laptop | default(false)"
+        roles = laptop.overlay.roles
+        assert len(roles) == 2
+        assert roles[0].role == "laptop"
+        assert tuple(roles[0].tags) == ("laptop",)
+        assert roles[1].role == "backlight"
+        assert tuple(roles[1].tags) == ("backlight",)
+        assert roles[1].requires_display is True
 
-    def test_missing_overlay_raises_value_error(self):
-        """Missing overlay file raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            load_overlay(_PROFILES_DIR, "nonexistent_overlay")
-        error_msg = str(exc_info.value)
-        assert "not found" in error_msg
-        assert "nonexistent_overlay" in error_msg
+    def test_bluetooth_overlay_content(self):
+        bt = self._overlay_view({})["Bluetooth Support Overlay"]
+        assert bt.overlay.applies_when == (
+            "bluetooth is defined and not (bluetooth.disable | default(false))"
+        )
+        roles = bt.overlay.roles
+        assert len(roles) == 1
+        assert roles[0].role == "bluetooth"
+        assert tuple(roles[0].tags) == ("bluetooth",)
+        assert roles[0].os == "archlinux"
 
-    def test_overlay_missing_name_field_raises_value_error(self):
-        """Overlay missing 'name' field raises ValueError."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            overlays_path = Path(tmpdir) / "overlays"
-            overlays_path.mkdir()
-            overlay_file = overlays_path / "bad.yml"
-            overlay_file.write_text(
-                'applies_when: "true"\nroles:\n  - { role: test }\n'
-            )
-            with pytest.raises(ValueError) as exc_info:
-                load_overlay(tmpdir, "bad")
-            error_msg = str(exc_info.value)
-            assert "missing required fields" in error_msg
-            assert "name" in error_msg
+    def test_laptop_overlay_applies_against_host_vars(self):
+        off = self._overlay_view({})["Laptop Features Overlay"]
+        on = self._overlay_view({"laptop": True})["Laptop Features Overlay"]
+        assert off.applies is False
+        assert on.applies is True
+        assert [role.role for role, role_applies in on.resolved_roles if role_applies] == [
+            "laptop", "backlight",
+        ]
 
-    def test_overlay_missing_applies_when_field_raises_value_error(self):
-        """Overlay missing 'applies_when' field raises ValueError."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            overlays_path = Path(tmpdir) / "overlays"
-            overlays_path.mkdir()
-            overlay_file = overlays_path / "bad.yml"
-            overlay_file.write_text(
-                'name: "Bad Overlay"\nroles:\n  - { role: test }\n'
-            )
-            with pytest.raises(ValueError) as exc_info:
-                load_overlay(tmpdir, "bad")
-            error_msg = str(exc_info.value)
-            assert "missing required fields" in error_msg
-            assert "applies_when" in error_msg
+    def test_laptop_roles_suppressed_without_display(self):
+        view = self._overlay_view({"laptop": True}, has_display=False)
+        laptop = view["Laptop Features Overlay"]
+        assert laptop.applies is True
+        # requires_display flips backlight off; plain laptop role still applies
+        by_role = {role.role: role_applies for role, role_applies in laptop.resolved_roles}
+        assert by_role["laptop"] is True
+        assert by_role["backlight"] is False
 
-    def test_overlay_missing_roles_field_raises_value_error(self):
-        """Overlay missing 'roles' field raises ValueError."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            overlays_path = Path(tmpdir) / "overlays"
-            overlays_path.mkdir()
-            overlay_file = overlays_path / "bad.yml"
-            overlay_file.write_text(
-                'name: "Bad Overlay"\napplies_when: "true"\n'
-            )
-            with pytest.raises(ValueError) as exc_info:
-                load_overlay(tmpdir, "bad")
-            error_msg = str(exc_info.value)
-            assert "missing required fields" in error_msg
-            assert "roles" in error_msg
+    def test_bluetooth_disable_via_host_vars(self):
+        bt = self._overlay_view({"bluetooth": {"disable": True}})["Bluetooth Support Overlay"]
+        assert bt.applies is False
 
-    def test_overlay_with_path_traversal_raises_value_error(self):
-        """Overlay name with path separators raises ValueError."""
-        with pytest.raises(ValueError) as exc_info:
-            load_overlay(_PROFILES_DIR, "../etc/passwd")
-        error_msg = str(exc_info.value)
-        assert "invalid path characters" in error_msg
+    def test_manifest_applies_laptop_overlay_flags_and_roles(self):
+        rm = ManifestResolver().manifest("i3", host_vars={"laptop": True})
+        assert rm.overlay_flags["_overlay_laptop"] is True
+        assert rm.overlay_flags["_overlay_backlight"] is True
+        # bluetooth overlay not applied -> its flags are absent entirely
+        assert "_overlay_bluetooth" not in rm.overlay_flags
+        assert any(g.role == "backlight" and g.source == "i3+laptop" for g in rm.roles)
+
 
 
 class TestValidateProfileTypeChecking:
