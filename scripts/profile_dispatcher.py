@@ -1423,9 +1423,10 @@ class _ProfileRepository:
                 "Overlay names must not include path separators or '..'."
             )
         profiles_root = Path(self._profiles_dir).resolve()
-        overlay_path = profiles_root / "overlays" / f"{name}.yml"
+        overlays_root = profiles_root / "overlays"
+        overlay_path = overlays_root / f"{name}.yml"
         try:
-            overlay_path.resolve().relative_to(profiles_root)
+            overlay_path.resolve().relative_to(overlays_root)
         except ValueError:
             raise ValueError(
                 f"Overlay '{name}' resolves outside the overlays directory."
@@ -2673,10 +2674,7 @@ def _discover_overlay_role_conditions(
         overlay_name = overlay_file.stem
         overlay_flag = f"_overlay_{overlay_name}"
         overlay_data = repo.overlay(overlay_name)
-        if isinstance(overlay_data, dict):
-            roles_list = overlay_data.get("roles", [])
-        else:
-            roles_list = overlay_data.roles
+        roles_list = overlay_data.roles
         for role_entry in roles_list:
             annotation_cond = ""
             section = ""
@@ -2876,10 +2874,7 @@ def _write_merged_playbook(
         for overlay_name in _discover_overlay_names(profiles_dir):
             try:
                 od = writer_repo.overlay(overlay_name)
-                if isinstance(od, dict):
-                    roles_list = od.get("roles", [])
-                else:
-                    roles_list = od.roles
+                roles_list = od.roles
                 for r in roles_list:
                     rname = r if isinstance(r, str) else r.get("role", "")
                     if rname:
