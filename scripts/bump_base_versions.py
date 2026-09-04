@@ -35,6 +35,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 BASE_YML = (
     Path(__file__).resolve().parent.parent / "group_vars" / "all" / "base.yml"
@@ -128,8 +129,9 @@ def latest_release(repo: str, token: str | None) -> tuple[str | None, str]:
     """(tag, published_iso) for the latest stable release.
 
     Falls back to the newest non-prerelease tag for repos that publish no
-    GitHub releases (published date then comes from the tag's commit, best
-    effort; '' if unavailable).
+    GitHub releases; the published date is only available on the
+    releases/latest path (empty string on the tag fallback, so staleness
+    cannot be assessed there).
     """
     try:
         rel = github_get(f"/repos/{repo}/releases/latest", token)
@@ -168,7 +170,7 @@ def rewrite_var(text: str, var: str, new_value: str) -> tuple[str, str, str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true",
-                        help="exit 1 if any pin is stale (no writes)")
+                        help="exit 1 if any pin is stale or a query/error occurs (no writes)")
     args = parser.parse_args(argv)
 
     token = os.environ.get("GITHUB_TOKEN") or None

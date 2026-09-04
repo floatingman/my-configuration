@@ -2,6 +2,7 @@ name: bump-versions
 
 # Weekly bot for shell/tmux plugin pins + monthly bot for base.yml binary
 # pins. Two schedules, two jobs — the cron that fired selects the job.
+# workflow_dispatch runs both (each opens a PR only if its pins changed).
 # Pins only move through review; the playbook itself never floats.
 
 on:
