@@ -52,7 +52,8 @@ The role also reads:
 
 - `user.name`, `user.email`, `user.group` — the primary user (from `group_vars/all/base.yml`)
 - `github_user` — used by the gitconfig template
-- `gitconfig.*` — name, mail, delta, neovim_remote, meld flags (from `group_vars/all/base.yml`)
+- `asdf_plugins` — asdf version pins (from `group_vars/all/base.yml`); rendered
+  into `~/.tool-versions` (see Notes)
 
 ## Tags
 
@@ -68,7 +69,12 @@ The role also reads:
 ## Notes
 
 - The server template (`group_vars/templates/server.yml`) sets `dotfiles_config` using `user.githubuser`, so the repo URL resolves to `https://github.com/<githubuser>/dotfiles.git` by default.
-- If you need to force a fresh re-clone, remove `~/.local/share/chezmoi` for the user and re-run `make configure TAGS="dotfiles"`.
+- `~/.tool-versions` is **derived, not hand-edited**: the role renders it from
+  `asdf_plugins` after `chezmoi init --apply`. The dotfiles repo no longer
+  manages the path (its copy drifted and pinned uninstalled versions, breaking
+  tools like helm); `.chezmoiignore` lists `.tool-versions`. Change pins in
+  `group_vars/all/base.yml`, then re-run `make configure TAGS="dotfiles"` —
+  the monthly bump bot keeps them current.
 
 ## License
 
