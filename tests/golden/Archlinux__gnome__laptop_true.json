@@ -1,0 +1,546 @@
+{
+  "profile": "gnome",
+  "display_manager": "gdm",
+  "has_display": true,
+  "profile_flags": {
+    "_is_arch": true,
+    "_is_i3": false,
+    "_is_hyprland": false,
+    "_is_gnome": true,
+    "_is_awesomewm": false,
+    "_is_kde": false,
+    "_has_display": true,
+    "_dm": "gdm"
+  },
+  "overlay_flags": {
+    "_overlay_laptop": true,
+    "_overlay_backlight": true,
+    "_overlay_user_environment": true,
+    "_overlay_shell": true,
+    "_overlay_dotfiles": true,
+    "_overlay_gnupg": true,
+    "_overlay_ai": true
+  },
+  "roles": [
+    {
+      "role": "gpu_detect",
+      "tags": [
+        "gpu_detect"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "gpu_drivers",
+      "tags": [
+        "gpu_drivers"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "base",
+      "tags": [
+        "base"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "grub",
+      "tags": [
+        "grub"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "microcode",
+      "tags": [
+        "microcode"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "archive",
+      "tags": [
+        "archive"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "cron",
+      "tags": [
+        "cron"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "gnupg",
+      "tags": [
+        "gnupg"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "shell",
+      "tags": [
+        "shell"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "ssh",
+      "tags": [
+        "ssh"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "sysmon",
+      "tags": [
+        "sysmon"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "system",
+      "tags": [
+        "system"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "ansible-role-asdf",
+      "tags": [
+        "asdf"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "ansible-role-binaries",
+      "tags": [
+        "binaries"
+      ],
+      "condition": "not _is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "ansible-role-packages",
+      "tags": [
+        "packages"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "aur",
+      "tags": [
+        "aur"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "flatpak",
+      "tags": [
+        "flatpak"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "golang",
+      "tags": [
+        "golang"
+      ],
+      "condition": "not _is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "homebrew",
+      "tags": [
+        "homebrew"
+      ],
+      "condition": "not _is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "ai",
+      "tags": [
+        "ai"
+      ],
+      "condition": "ai_enabled | default(false) | bool",
+      "source": "gnome"
+    },
+    {
+      "role": "devtools",
+      "tags": [
+        "devtools"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "docker",
+      "tags": [
+        "docker"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "editors",
+      "tags": [
+        "editors"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "filesystem",
+      "tags": [
+        "filesystem"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "kubernetes",
+      "tags": [
+        "kubernetes"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "python",
+      "tags": [
+        "python"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "rust",
+      "tags": [
+        "rust"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "filesharing",
+      "tags": [
+        "filesharing"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "mirrorlist",
+      "tags": [
+        "mirrorlist"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "nettools",
+      "tags": [
+        "nettools"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "networkmanager",
+      "tags": [
+        "networkmanager"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "nmtrust",
+      "tags": [
+        "nmtrust"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "clipboard",
+      "tags": [
+        "clipboard"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "clouddrive",
+      "tags": [
+        "clouddrive"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "pass",
+      "tags": [
+        "pass"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "pass_cli",
+      "tags": [
+        "pass_cli"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "spell",
+      "tags": [
+        "spell"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "syncthing",
+      "tags": [
+        "syncthing"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "taskwarrior",
+      "tags": [
+        "taskwarrior"
+      ],
+      "condition": "_is_arch",
+      "source": "gnome"
+    },
+    {
+      "role": "gdm",
+      "tags": [
+        "gdm"
+      ],
+      "condition": "_has_display and _dm == 'gdm'",
+      "source": "gnome"
+    },
+    {
+      "role": "x",
+      "tags": [
+        "x"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "gnome",
+      "tags": [
+        "gnome"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "cursor-theme",
+      "tags": [
+        "cursor-theme"
+      ],
+      "condition": "_has_display and false",
+      "source": "gnome"
+    },
+    {
+      "role": "fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "nerd-fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "android",
+      "tags": [
+        "android"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "backlight",
+      "tags": [
+        "backlight"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "browsers",
+      "tags": [
+        "browsers"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "communication",
+      "tags": [
+        "communication"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "cups",
+      "tags": [
+        "cups"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "filemanager",
+      "tags": [
+        "filemanager"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "media",
+      "tags": [
+        "media"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "mpd",
+      "tags": [
+        "mpd"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "mpv",
+      "tags": [
+        "mpv"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "notes",
+      "tags": [
+        "notes"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "proton",
+      "tags": [
+        "proton"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "screensaver",
+      "tags": [
+        "screensaver"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "sound",
+      "tags": [
+        "sound"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "terminal",
+      "tags": [
+        "terminal"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "twitch",
+      "tags": [
+        "twitch"
+      ],
+      "condition": "_has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "udisks",
+      "tags": [
+        "udisks"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "gnome"
+    },
+    {
+      "role": "dotfiles",
+      "tags": [
+        "dotfiles"
+      ],
+      "condition": "false",
+      "source": "gnome"
+    },
+    {
+      "role": "goesimage",
+      "tags": [
+        "goesimage"
+      ],
+      "condition": "_has_display and false",
+      "source": "gnome"
+    },
+    {
+      "role": "laptop",
+      "tags": [
+        "laptop"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
+      "role": "regdomain",
+      "tags": [
+        "regdomain"
+      ],
+      "condition": "false",
+      "source": "gnome"
+    }
+  ]
+}

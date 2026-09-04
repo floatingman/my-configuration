@@ -1,0 +1,386 @@
+{
+  "profile": "headless",
+  "display_manager": null,
+  "has_display": false,
+  "profile_flags": {
+    "_is_arch": true,
+    "_is_i3": false,
+    "_is_hyprland": false,
+    "_is_gnome": false,
+    "_is_awesomewm": false,
+    "_is_kde": false,
+    "_has_display": false,
+    "_dm": ""
+  },
+  "overlay_flags": {
+    "_overlay_laptop": true,
+    "_overlay_backlight": true,
+    "_overlay_user_environment": true,
+    "_overlay_shell": true,
+    "_overlay_dotfiles": true,
+    "_overlay_gnupg": true,
+    "_overlay_ai": true
+  },
+  "roles": [
+    {
+      "role": "gpu_detect",
+      "tags": [
+        "gpu_detect"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "gpu_drivers",
+      "tags": [
+        "gpu_drivers"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "base",
+      "tags": [
+        "base"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "grub",
+      "tags": [
+        "grub"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "microcode",
+      "tags": [
+        "microcode"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "archive",
+      "tags": [
+        "archive"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "cron",
+      "tags": [
+        "cron"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "gnupg",
+      "tags": [
+        "gnupg"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "shell",
+      "tags": [
+        "shell"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "ssh",
+      "tags": [
+        "ssh"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "sysmon",
+      "tags": [
+        "sysmon"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "system",
+      "tags": [
+        "system"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "ansible-role-asdf",
+      "tags": [
+        "asdf"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "ansible-role-binaries",
+      "tags": [
+        "binaries"
+      ],
+      "condition": "not _is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "ansible-role-packages",
+      "tags": [
+        "packages"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "aur",
+      "tags": [
+        "aur"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "flatpak",
+      "tags": [
+        "flatpak"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "golang",
+      "tags": [
+        "golang"
+      ],
+      "condition": "not _is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "homebrew",
+      "tags": [
+        "homebrew"
+      ],
+      "condition": "not _is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "ai",
+      "tags": [
+        "ai"
+      ],
+      "condition": "ai_enabled | default(false) | bool",
+      "source": "headless"
+    },
+    {
+      "role": "devtools",
+      "tags": [
+        "devtools"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "headless"
+    },
+    {
+      "role": "docker",
+      "tags": [
+        "docker"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "editors",
+      "tags": [
+        "editors"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "filesystem",
+      "tags": [
+        "filesystem"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "kubernetes",
+      "tags": [
+        "kubernetes"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "python",
+      "tags": [
+        "python"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "rust",
+      "tags": [
+        "rust"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "filesharing",
+      "tags": [
+        "filesharing"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "mirrorlist",
+      "tags": [
+        "mirrorlist"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "nettools",
+      "tags": [
+        "nettools"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "networkmanager",
+      "tags": [
+        "networkmanager"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "headless"
+    },
+    {
+      "role": "nmtrust",
+      "tags": [
+        "nmtrust"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "headless"
+    },
+    {
+      "role": "clipboard",
+      "tags": [
+        "clipboard"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "clouddrive",
+      "tags": [
+        "clouddrive"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "pass",
+      "tags": [
+        "pass"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "pass_cli",
+      "tags": [
+        "pass_cli"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "spell",
+      "tags": [
+        "spell"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "syncthing",
+      "tags": [
+        "syncthing"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "taskwarrior",
+      "tags": [
+        "taskwarrior"
+      ],
+      "condition": "_is_arch",
+      "source": "headless"
+    },
+    {
+      "role": "backlight",
+      "tags": [
+        "backlight"
+      ],
+      "condition": "_has_display",
+      "source": "headless"
+    },
+    {
+      "role": "communication",
+      "tags": [
+        "communication"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "headless"
+    },
+    {
+      "role": "dotfiles",
+      "tags": [
+        "dotfiles"
+      ],
+      "condition": "false",
+      "source": "headless"
+    },
+    {
+      "role": "goesimage",
+      "tags": [
+        "goesimage"
+      ],
+      "condition": "_has_display and false",
+      "source": "headless"
+    },
+    {
+      "role": "laptop",
+      "tags": [
+        "laptop"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
+      "role": "regdomain",
+      "tags": [
+        "regdomain"
+      ],
+      "condition": "false",
+      "source": "headless"
+    }
+  ]
+}

@@ -1,0 +1,592 @@
+{
+  "profile": "hyprland",
+  "display_manager": "sddm",
+  "has_display": true,
+  "profile_flags": {
+    "_is_arch": false,
+    "_is_i3": false,
+    "_is_hyprland": true,
+    "_is_gnome": false,
+    "_is_awesomewm": false,
+    "_is_kde": false,
+    "_has_display": true,
+    "_dm": "sddm"
+  },
+  "overlay_flags": {
+    "_overlay_user_environment": true,
+    "_overlay_shell": true,
+    "_overlay_dotfiles": true,
+    "_overlay_gnupg": true,
+    "_overlay_ai": true
+  },
+  "roles": [
+    {
+      "role": "gpu_detect",
+      "tags": [
+        "gpu_detect"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "gpu_drivers",
+      "tags": [
+        "gpu_drivers"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "base",
+      "tags": [
+        "base"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "grub",
+      "tags": [
+        "grub"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "microcode",
+      "tags": [
+        "microcode"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "archive",
+      "tags": [
+        "archive"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "cron",
+      "tags": [
+        "cron"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "gnupg",
+      "tags": [
+        "gnupg"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "shell",
+      "tags": [
+        "shell"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "ssh",
+      "tags": [
+        "ssh"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "sysmon",
+      "tags": [
+        "sysmon"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "system",
+      "tags": [
+        "system"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "ansible-role-asdf",
+      "tags": [
+        "asdf"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "ansible-role-binaries",
+      "tags": [
+        "binaries"
+      ],
+      "condition": "not _is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "ansible-role-packages",
+      "tags": [
+        "packages"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "aur",
+      "tags": [
+        "aur"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "flatpak",
+      "tags": [
+        "flatpak"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "golang",
+      "tags": [
+        "golang"
+      ],
+      "condition": "not _is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "homebrew",
+      "tags": [
+        "homebrew"
+      ],
+      "condition": "not _is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "ai",
+      "tags": [
+        "ai"
+      ],
+      "condition": "ai_enabled | default(false) | bool",
+      "source": "hyprland"
+    },
+    {
+      "role": "devtools",
+      "tags": [
+        "devtools"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "docker",
+      "tags": [
+        "docker"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "editors",
+      "tags": [
+        "editors"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "filesystem",
+      "tags": [
+        "filesystem"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "kubernetes",
+      "tags": [
+        "kubernetes"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "python",
+      "tags": [
+        "python"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "rust",
+      "tags": [
+        "rust"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "filesharing",
+      "tags": [
+        "filesharing"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "mirrorlist",
+      "tags": [
+        "mirrorlist"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "nettools",
+      "tags": [
+        "nettools"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "networkmanager",
+      "tags": [
+        "networkmanager"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "nmtrust",
+      "tags": [
+        "nmtrust"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "clipboard",
+      "tags": [
+        "clipboard"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "clouddrive",
+      "tags": [
+        "clouddrive"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "pass",
+      "tags": [
+        "pass"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "pass_cli",
+      "tags": [
+        "pass_cli"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "spell",
+      "tags": [
+        "spell"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "syncthing",
+      "tags": [
+        "syncthing"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "taskwarrior",
+      "tags": [
+        "taskwarrior"
+      ],
+      "condition": "_is_arch",
+      "source": "hyprland"
+    },
+    {
+      "role": "lightdm",
+      "tags": [
+        "lightdm"
+      ],
+      "condition": "_has_display and _dm == 'lightdm'",
+      "source": "hyprland"
+    },
+    {
+      "role": "sddm",
+      "tags": [
+        "sddm"
+      ],
+      "condition": "_has_display and _dm == 'sddm'",
+      "source": "hyprland"
+    },
+    {
+      "role": "hyprland",
+      "tags": [
+        "hyprland"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "microtex",
+      "tags": [
+        "microtex"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "oneui4_icons",
+      "tags": [
+        "oneui4_icons"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "qt_gtk_toolkit",
+      "tags": [
+        "qt_gtk_toolkit"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "screencapture",
+      "tags": [
+        "screencapture"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "uv_python_packages",
+      "tags": [
+        "uv_python_packages"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "wayland",
+      "tags": [
+        "wayland"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "widgets",
+      "tags": [
+        "widgets"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
+      "role": "cursor-theme",
+      "tags": [
+        "cursor-theme"
+      ],
+      "condition": "_has_display and false",
+      "source": "hyprland"
+    },
+    {
+      "role": "fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "nerd-fonts",
+      "tags": [
+        "fonts"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "android",
+      "tags": [
+        "android"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "backlight",
+      "tags": [
+        "backlight"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "browsers",
+      "tags": [
+        "browsers"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "communication",
+      "tags": [
+        "communication"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "cups",
+      "tags": [
+        "cups"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "filemanager",
+      "tags": [
+        "filemanager"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "media",
+      "tags": [
+        "media"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "mpd",
+      "tags": [
+        "mpd"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "mpv",
+      "tags": [
+        "mpv"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "notes",
+      "tags": [
+        "notes"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "proton",
+      "tags": [
+        "proton"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "screensaver",
+      "tags": [
+        "screensaver"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "sound",
+      "tags": [
+        "sound"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "terminal",
+      "tags": [
+        "terminal"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "twitch",
+      "tags": [
+        "twitch"
+      ],
+      "condition": "_has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "udisks",
+      "tags": [
+        "udisks"
+      ],
+      "condition": "_is_arch and _has_display",
+      "source": "hyprland"
+    },
+    {
+      "role": "dotfiles",
+      "tags": [
+        "dotfiles"
+      ],
+      "condition": "true",
+      "source": "hyprland"
+    },
+    {
+      "role": "goesimage",
+      "tags": [
+        "goesimage"
+      ],
+      "condition": "_has_display and false",
+      "source": "hyprland"
+    },
+    {
+      "role": "regdomain",
+      "tags": [
+        "regdomain"
+      ],
+      "condition": "false",
+      "source": "hyprland"
+    }
+  ]
+}
