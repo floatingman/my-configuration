@@ -452,7 +452,7 @@ dog_version: v0.1.0
 gh_md_toc_version: 0.10.0
 git_quick_stats_version: 2.11.0
 prettyping_version: v1.1.0
-rke_version: v1.8.4
+rke_version: v1.8.14
 tfswitch_version: 1.19.0
 
 # Homebrew packages - applications installed via Homebrew
