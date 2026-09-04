@@ -153,6 +153,37 @@ class TestFailLoudOnMalformedOverlays:
             load_overlay(str(tmp_path), "listish")
 
 
+class TestResolverCliEquality:
+    """AC5: json.loads(manifest_to_json(resolver.manifest(...))) equals the
+    CLI wire output for the same inputs (golden samples)."""
+
+    def test_profile_target_matches_cli(self, capsys):
+        rm = ManifestResolver().manifest("i3", host_vars={"laptop": True})
+        rc = main([
+            "resolve-role-manifest", "--profile", "i3",
+            "--host-vars", json.dumps({"laptop": True}),
+        ])
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out) == json.loads(manifest_to_json(rm))
+
+    def test_manual_target_matches_cli(self, capsys):
+        rm = ManifestResolver().manifest(
+            ManualTarget(
+                display_manager="lightdm",
+                desktop_environment="i3",
+                disable=("hyprland",),
+            )
+        )
+        rc = main([
+            "resolve-role-manifest",
+            "--display-manager", "lightdm",
+            "--desktop-environment", "i3",
+            "--disable-hyprland",
+        ])
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out) == json.loads(manifest_to_json(rm))
+
+
 class TestManifestResolver:
     """Public-contract tests for ManifestResolver / ManualTarget / EvalMode."""
 
