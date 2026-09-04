@@ -84,7 +84,7 @@
         "gnupg"
       ],
       "condition": "",
-      "source": "gnome"
+      "source": "user_environment"
     },
     {
       "role": "shell",
@@ -92,7 +92,7 @@
         "shell"
       ],
       "condition": "",
-      "source": "gnome"
+      "source": "user_environment"
     },
     {
       "role": "ssh",
@@ -180,7 +180,7 @@
         "ai"
       ],
       "condition": "ai_enabled | default(false) | bool",
-      "source": "gnome"
+      "source": "user_environment"
     },
     {
       "role": "devtools",
@@ -396,7 +396,7 @@
         "backlight"
       ],
       "condition": "_has_display",
-      "source": "gnome"
+      "source": "gnome+laptop"
     },
     {
       "role": "browsers",
@@ -516,7 +516,7 @@
         "dotfiles"
       ],
       "condition": "false",
-      "source": "gnome"
+      "source": "user_environment"
     },
     {
       "role": "goesimage",
@@ -532,7 +532,7 @@
         "laptop"
       ],
       "condition": "",
-      "source": "gnome"
+      "source": "laptop"
     },
     {
       "role": "regdomain",

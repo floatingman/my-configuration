@@ -82,7 +82,7 @@
         "gnupg"
       ],
       "condition": "",
-      "source": "headless"
+      "source": "user_environment"
     },
     {
       "role": "shell",
@@ -90,7 +90,7 @@
         "shell"
       ],
       "condition": "",
-      "source": "headless"
+      "source": "user_environment"
     },
     {
       "role": "ssh",
@@ -178,7 +178,7 @@
         "ai"
       ],
       "condition": "ai_enabled | default(false) | bool",
-      "source": "headless"
+      "source": "user_environment"
     },
     {
       "role": "devtools",
@@ -346,7 +346,7 @@
         "dotfiles"
       ],
       "condition": "true",
-      "source": "headless"
+      "source": "user_environment"
     },
     {
       "role": "goesimage",

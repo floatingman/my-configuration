@@ -82,7 +82,7 @@
         "gnupg"
       ],
       "condition": "",
-      "source": "kde"
+      "source": "user_environment"
     },
     {
       "role": "shell",
@@ -90,7 +90,7 @@
         "shell"
       ],
       "condition": "",
-      "source": "kde"
+      "source": "user_environment"
     },
     {
       "role": "ssh",
@@ -178,7 +178,7 @@
         "ai"
       ],
       "condition": "ai_enabled | default(false) | bool",
-      "source": "kde"
+      "source": "user_environment"
     },
     {
       "role": "devtools",
@@ -522,7 +522,7 @@
         "dotfiles"
       ],
       "condition": "true",
-      "source": "kde"
+      "source": "user_environment"
     },
     {
       "role": "goesimage",
