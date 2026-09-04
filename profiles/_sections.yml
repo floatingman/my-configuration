@@ -1,0 +1,39 @@
+---
+# Section definitions for play.yml generation (PRD-159).
+# Single source of truth for section order and comments; each role's section
+# lives inline as section: on its entry in profiles/*.yml.
+# Profile discovery and validation skip '_'-prefixed files; this data file
+# is instead read and validated by load_sections().
+sections:
+  - name: gpu
+    comment: GPU Detection & Drivers (Arch-only)
+  - name: base
+    comment: Base System (Arch-only)
+  - name: universal
+    comment: Universal System Configuration
+  - name: packages
+    comment: Package Management
+  - name: dev
+    comment: Development Tools
+  - name: networking
+    comment: Networking (Arch-only)
+  - name: productivity
+    comment: Productivity & Utilities
+  - name: display_manager
+    comment: Display Manager
+  - name: i3_profile
+    comment: "Profile: i3 (X11 tiling window manager)"
+  - name: hyprland_profile
+    comment: "Profile: Hyprland (Wayland compositor)"
+  - name: gnome_profile
+    comment: "Profile: GNOME"
+  - name: awesomewm_profile
+    comment: "Profile: AwesomeWM"
+  - name: kde_profile
+    comment: "Profile: KDE"
+  - name: fonts_theming
+    comment: Fonts & Theming (any desktop profile)
+  - name: desktop_apps
+    comment: Desktop Applications (any desktop profile)
+  - name: optional
+    comment: Optional / Feature-gated

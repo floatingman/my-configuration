@@ -100,6 +100,9 @@ class TestCLIValidate:
         """validate exits 0 when there are no non-underscore profiles to check."""
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "_base.yml").write_text("name: base\n")
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
             rc = main(["validate", "--profiles-dir", tmpdir])
         assert rc == 0
 
@@ -562,6 +565,9 @@ class TestCLIGeneratePlaybook:
         """generate-playbook respects --profiles-dir."""
         valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
         with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
             Path(tmpdir, "myprofile.yml").write_text(valid)
             outfile = str(Path(tmpdir) / "output.yml")
             rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
@@ -579,10 +585,11 @@ class TestCLIGeneratePlaybook:
         assert "does not exist" in captured.err
 
     def test_generate_playbook_fails_loud_on_unmapped_role(self, capsys):
-        """generate-playbook must fail (not silently drop) a role missing from _ROLE_TO_SECTION.
+        """generate-playbook must fail (not silently drop) a role without section:.
 
-        Regression: a role added to profiles/ but absent from the section
-        mapping was previously omitted from play.yml without any error.
+        Regression: a role added to profiles/ but lacking a section: field
+        was previously omitted from play.yml without any error. Validation
+        now rejects the profile and generation refuses to run.
         """
         profile_yaml = (
             "name: Test Profile\n"
@@ -593,14 +600,83 @@ class TestCLIGeneratePlaybook:
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "testprof.yml").write_text(profile_yaml)
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
             outfile = str(Path(tmpdir) / "output.yml")
             rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
             assert rc == 1
             captured = capsys.readouterr()
             assert "nonexistent_role_xyz" in captured.err
-            assert "section mapping" in captured.err
+            assert "missing required field: section" in captured.err
             # Guard fires before the output file is created.
             assert not Path(outfile).exists()
+
+    def test_generate_playbook_reads_sections_from_data_file(self, capsys):
+        """generate-playbook must read section definitions from profiles/_sections.yml."""
+        sections_yaml = (
+            "sections:\n"
+            "  - name: custom\n"
+            "    comment: \"Custom Section XYZZY\"\n"
+        )
+        profile_yaml = (
+            "name: Test Profile\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            "  - { role: demo_role, tags: [demo_role], section: custom }\n"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(sections_yaml)
+            Path(tmpdir, "testprof.yml").write_text(profile_yaml)
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 0
+            with open(outfile) as f:
+                content = f.read()
+            assert "Custom Section XYZZY" in content
+
+    def test_generate_playbook_missing_sections_file_fails(self, capsys):
+        """generate-playbook without profiles/_sections.yml must fail loud."""
+        profile_yaml = (
+            "name: Test Profile\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            "  - { role: demo_role, tags: [demo_role] }\n"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "testprof.yml").write_text(profile_yaml)
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 1
+            captured = capsys.readouterr()
+            assert "_sections.yml" in captured.err
+
+    def test_generate_playbook_stdout_fails_loud_on_invalid_profile(self, capsys):
+        """stdout mode must fail (not silently drop) an invalid profile.
+
+        The merged manifest is a commit-boundary artifact too: a profile
+        excluded by list_profiles() filtering would silently vanish from
+        the JSON output.
+        """
+        profile_yaml = (
+            "name: Test Profile\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            "  - { role: demo_role, tags: [demo_role] }\n"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
+            Path(tmpdir, "testprof.yml").write_text(profile_yaml)
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir])
+            assert rc == 1
+            captured = capsys.readouterr()
+            assert captured.out == ""
+            assert "demo_role" in captured.err
 
     def test_generate_playbook_fails_loud_on_invalid_overlay(self, capsys):
         """generate-playbook must fail (not silently omit) an unloadable overlay.
@@ -620,6 +696,46 @@ class TestCLIGeneratePlaybook:
             assert captured.out == ""
             assert "broken" in captured.err
             assert "invalid YAML" in captured.err
+
+    def test_generate_playbook_includes_header_comment(self):
+        """--write output should include the auto-generated header comment."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                content = f.read()
+            assert "AUTO-GENERATED FILE - DO NOT EDIT BY HAND" in content
+        finally:
+            os.unlink(tmpfile)
+
+    def test_generate_playbook_includes_section_comments(self):
+        """--write output should include section comment headers."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                content = f.read()
+            assert "# GPU Detection & Drivers (Arch-only)" in content
+        finally:
+            os.unlink(tmpfile)
+
+    def test_generate_playbook_includes_vars_prompt(self):
+        """--write output should include the vars_prompt block."""
+        with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+            tmpfile = tmp.name
+        try:
+            rc = main(["generate-playbook", "--write", tmpfile])
+            assert rc == 0
+            with open(tmpfile) as f:
+                parsed = yaml.safe_load(f)
+            play = parsed[0]
+            assert "vars_prompt" in play
+        finally:
+            os.unlink(tmpfile)
 
 
 

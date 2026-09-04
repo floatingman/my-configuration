@@ -12,7 +12,7 @@ description: |
 applies_when: "user_environment | default(true)"
 
 roles:
-  - { role: shell, tags: [shell] }
-  - { role: dotfiles, tags: [dotfiles], config_check: "dotfiles_config is defined" }
-  - { role: gnupg, tags: [gnupg] }
-  - { role: ai, tags: [ai], config_check: "ai_enabled | default(false) | bool" }
+  - { role: shell, tags: [shell], section: universal }
+  - { role: dotfiles, tags: [dotfiles], config_check: "dotfiles_config is defined", section: optional }
+  - { role: gnupg, tags: [gnupg], section: universal }
+  - { role: ai, tags: [ai], config_check: "ai_enabled | default(false) | bool", section: dev }

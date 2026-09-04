@@ -9,10 +9,14 @@ import pytest
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     resolve,
+    resolve_role_manifest,
     validate_profile,
+    validate_overlays,
+    load_sections,
     load_profile,
     list_profiles,
     load_overlay,
+    main,
 )
 
 
@@ -681,3 +685,312 @@ class TestResolveInvalidProfileError:
             assert 'invalid' in msg.lower() or 'missing' in msg.lower()
             assert 'Unknown profile' not in msg
 
+
+
+class TestSectionValidation:
+    """FR6: every dict role entry carries a valid section key (PRD-159)."""
+
+    def _write_sections(self, tmpdir: str) -> None:
+        Path(tmpdir, "_sections.yml").write_text(
+            "sections:\n"
+            "  - name: misc\n"
+            "    comment: Misc\n"
+            "  - name: other\n"
+            "    comment: Other\n"
+        )
+
+    def _write_valid_profile(self, tmpdir: str, name: str, role_line: str) -> None:
+        Path(tmpdir, f"{name}.yml").write_text(
+            f"name: {name}\n"
+            'display_manager_default: ""\n'
+            'desktop_environment: ""\n'
+            "roles:\n"
+            f"  - {role_line}\n"
+        )
+
+    def _write_overlay(self, tmpdir: str, role_line: str) -> None:
+        Path(tmpdir, "overlays").mkdir()
+        Path(tmpdir, "overlays", "thing.yml").write_text(
+            "name: thing\n"
+            'applies_when: "thing | default(false)"\n'
+            "roles:\n"
+            f"  - {role_line}\n"
+        )
+
+    def test_validate_rejects_role_missing_section(self):
+        """A dict role entry without section: fails profile validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role] }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any(
+                "role 'demo_role' missing required field: section" in e for e in errors
+            )
+
+    def test_validate_rejects_unknown_section_key(self):
+        """A dict role entry with an unknown section key fails validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role], section: bogus }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any(
+                "role 'demo_role' has unknown section 'bogus'" in e for e in errors
+            )
+
+    def test_validate_rejects_overlay_role_missing_section(self):
+        """A dict overlay role entry without section: fails overlay validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_overlay(tmpdir, "{ role: demo_role, tags: [demo_role] }")
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert any(
+                "role 'demo_role' missing required field: section" in e
+                for e in thing_errors
+            )
+
+    def test_validate_rejects_conflicting_sections_across_files(self, capsys):
+        """The same role with different sections in two files fails validate (rc 1)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role], section: misc }"
+            )
+            self._write_overlay(
+                tmpdir, "{ role: demo_role, tags: [demo_role], section: other }"
+            )
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            err = capsys.readouterr().err
+            assert rc == 1
+            assert "conflicting sections" in err
+
+    def test_validate_rejects_role_entry_missing_role_name(self):
+        """A dict role entry without role: fails profile validation.
+
+        Otherwise the entry is silently dropped during manifest generation.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ tags: [demo_role], section: misc }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any("missing required field: role" in e for e in errors)
+
+    def test_validate_rejects_overlay_role_entry_missing_role_name(self):
+        """A dict overlay role entry without role: reports one structural error."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_overlay(tmpdir, "{ tags: [demo_role], section: misc }")
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert len(thing_errors) == 1
+            assert "missing required field 'role'" in thing_errors[0]
+
+    def test_validate_reports_non_string_section(self):
+        """A non-string section (e.g. a YAML list) reports an error, not a TypeError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: demo_role, tags: [demo_role], section: [misc] }"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any("non-string 'section' field" in e for e in errors)
+
+    def test_validate_reports_non_string_section_in_overlay(self):
+        """A non-string section in an overlay reports an error, not a TypeError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_overlay(
+                tmpdir, "{ role: demo_role, tags: [demo_role], section: [misc] }"
+            )
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert any("non-string 'section' field" in e for e in thing_errors)
+
+    def test_validate_handles_non_string_role_name(self, capsys):
+        """validate reports malformed role entries instead of crashing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            self._write_valid_profile(
+                tmpdir, "testprof", "{ role: [demo_role], tags: [x], section: misc }"
+            )
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            err = capsys.readouterr().err
+            assert rc == 1
+            assert "non-string 'role' field" in err
+
+    def test_validate_reports_non_list_roles_field(self):
+        """A non-list roles field reports one type error, not per-character noise."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "testprof.yml").write_text(
+                "name: testprof\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles: demo_role\n"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert errors == ["Field 'roles' must be a list, got str"]
+
+    def test_resolve_manifest_keeps_first_valid_section(self):
+        """A later duplicate entry without section: must not reset the sort bucket."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: misc\n"
+                "    comment: Misc\n"
+            )
+            Path(tmpdir, "_base.yml").write_text(
+                "name: base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - { role: aaa_role, tags: [aaa_role], section: misc }\n"
+                "  - { role: zzz_role, tags: [zzz_role], section: misc }\n"
+            )
+            Path(tmpdir, "test.yml").write_text(
+                "name: test\n"
+                "extends: _base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles: []\n"
+            )
+            Path(tmpdir, "overlays").mkdir()
+            Path(tmpdir, "overlays", "test_overlay.yml").write_text(
+                "name: test_overlay\n"
+                'applies_when: "test_overlay | default(false)"\n'
+                "roles:\n"
+                "  - { role: aaa_role, tags: [aaa2] }\n"
+            )
+            manifest = resolve_role_manifest(
+                profile="test",
+                profiles_dir=tmpdir,
+                host_vars={"test_overlay": True},
+            )
+            names = [r.role for r in manifest.roles]
+            assert names.index("aaa_role") < names.index("zzz_role")
+
+    def test_validate_rejects_non_mapping_role_entry(self):
+        """A string role entry cannot carry section: and must fail validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "testprof.yml").write_text(
+                "name: testprof\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - demo_role\n"
+            )
+            errors = validate_profile(tmpdir, "testprof")
+            assert any("must be a mapping" in e for e in errors)
+
+    def test_validate_reports_non_list_overlay_roles_field(self):
+        """A non-list overlay roles field reports one type error, not per-char noise."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "overlays").mkdir()
+            Path(tmpdir, "overlays", "thing.yml").write_text(
+                "name: thing\n"
+                'applies_when: "thing | default(false)"\n'
+                "roles: demo_role\n"
+            )
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert len(thing_errors) == 1
+            assert "'roles' must be a list, got str" in thing_errors[0]
+
+    def test_validate_rejects_non_mapping_overlay_role_entry(self):
+        """A string overlay role entry reports one structural error, not duplicates."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "overlays").mkdir()
+            Path(tmpdir, "overlays", "thing.yml").write_text(
+                "name: thing\n"
+                'applies_when: "thing | default(false)"\n'
+                "roles:\n"
+                "  - demo_role\n"
+            )
+            results = validate_overlays(tmpdir)
+            thing_errors = dict(results).get("thing", [])
+            assert len(thing_errors) == 1
+            assert "role entry 0 must be a dict, got str" in thing_errors[0]
+
+    def test_validate_detects_base_vs_profile_section_conflict(self, capsys):
+        """A role sectioned differently in _base.yml and a profile fails validate.
+
+        _base.yml folds into every profile via extends, so a base-vs-profile
+        section conflict is a generation failure and must surface here too.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_sections(tmpdir)
+            Path(tmpdir, "_base.yml").write_text(
+                "name: base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - { role: demo_role, tags: [demo_role], section: misc }\n"
+            )
+            Path(tmpdir, "testprof.yml").write_text(
+                "name: testprof\n"
+                "extends: _base\n"
+                'display_manager_default: ""\n'
+                'desktop_environment: ""\n'
+                "roles:\n"
+                "  - { role: demo_role, tags: [demo_role], section: other }\n"
+            )
+            rc = main(["validate", "--profiles-dir", tmpdir])
+            err = capsys.readouterr().err
+            assert rc == 1
+            assert "conflicting sections" in err
+
+
+class TestLoadSections:
+    """Fail-fast contract of load_sections() (PRD-159 Slice 3)."""
+
+    def test_rejects_non_string_comment(self):
+        """A non-string comment fails load_sections instead of reaching play.yml."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: misc\n"
+                "    comment: [Misc]\n"
+            )
+            with pytest.raises(ValueError, match="non-string 'comment' field"):
+                load_sections(tmpdir)
+
+    def test_rejects_non_string_name(self):
+        """A non-string section name fails load_sections (pins existing behavior)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: [misc]\n"
+                "    comment: Misc\n"
+            )
+            with pytest.raises(ValueError, match="non-string 'name' field"):
+                load_sections(tmpdir)
+
+    def test_reports_unreadable_file(self):
+        """An unreadable _sections.yml raises ValueError, not a raw OSError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # exists() is True for a directory, but read_text() fails with OSError
+            Path(tmpdir, "_sections.yml").mkdir()
+            with pytest.raises(ValueError, match="cannot read file"):
+                load_sections(tmpdir)
+
+    def test_returns_only_validated_fields(self):
+        """Section dicts carry exactly the validated keys; stray keys are dropped."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n"
+                "  - name: misc\n"
+                "    comment: Misc\n"
+                "    roles: [stale]\n"
+                "    description: stray\n"
+            )
+            result = load_sections(tmpdir)
+            assert result == [{"name": "misc", "comment": "Misc"}]

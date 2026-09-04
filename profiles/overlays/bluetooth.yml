@@ -7,4 +7,4 @@ description: |
 applies_when: "bluetooth is defined and not (bluetooth.disable | default(false))"
 
 roles:
-  - { role: bluetooth, tags: [bluetooth], os: archlinux }
+  - { role: bluetooth, tags: [bluetooth], os: archlinux, section: optional }

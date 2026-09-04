@@ -27,7 +27,6 @@ import argparse
 import json
 import re
 import sys
-from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Set, Tuple
@@ -52,6 +51,7 @@ __all__ = [
     "validate_profile",
     "validate_overlays",
     "list_profiles",
+    "load_sections",
     # Overlay variable plumbing (resolve-role-manifest)
     "discover_overlay_variables",
     "generate_host_vars_template",
@@ -70,46 +70,6 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 # Allowed values for profile fields (internal to validate_profile)
 _ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 _ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
-
-# Role-to-section mapping for playbook generation
-# Sections are ordered as they appear in the hand-maintained play.yml
-_ROLE_SECTIONS = OrderedDict([
-    ("GPU Detection & Drivers (Arch-only)", {"gpu_detect", "gpu_drivers"}),
-    ("Base System (Arch-only)", {"base", "grub", "microcode"}),
-    ("Universal System Configuration", {"gnupg", "sysmon", "cron", "system", "shell", "ssh", "archive"}),
-    ("Package Management", {"ansible-role-packages", "ansible-role-asdf", "flatpak", "golang", "homebrew", "ansible-role-binaries", "aur"}),
-    ("Development Tools", {"editors", "filesystem", "python", "rust", "docker", "kubernetes", "devtools", "ai"}),
-    ("Networking (Arch-only)", {"nmtrust", "networkmanager", "nettools", "mirrorlist", "filesharing"}),
-    ("Productivity & Utilities", {"taskwarrior", "pass", "pass_cli", "spell", "clipboard", "clouddrive", "syncthing"}),
-    ("Display Manager", {"lightdm", "gdm", "sddm"}),
-    ("Profile: i3 (X11 tiling window manager)", {"x", "i3"}),
-    ("Profile: Hyprland (Wayland compositor)", {"wayland", "hyprland", "qt_gtk_toolkit", "widgets", "uv_python_packages", "microtex", "oneui4_icons", "screencapture"}),
-    ("Profile: GNOME", {"gnome"}),
-    ("Profile: AwesomeWM", {"awesomewm"}),
-    ("Profile: KDE", {"kde"}),
-    ("Fonts & Theming (any desktop profile)", {"fonts", "nerd-fonts", "cursor-theme"}),
-    ("Desktop Applications (any desktop profile)", {"terminal", "notes", "browsers", "filemanager", "screensaver", "mpv", "media", "sound", "proton", "android", "backlight", "mpd", "twitch", "cups", "udisks"}),
-    ("Optional / Feature-gated", {"dotfiles", "goesimage", "regdomain", "bluetooth", "laptop"}),
-])
-
-def _section_sort_key(role_name: str) -> Tuple[int, str]:
-    """
-    Return a sort key for a role name based on its section membership.
-
-    Roles are sorted by section order first, then alphabetically within each section.
-    Roles not in any section are sorted last (section 999).
-
-    Args:
-        role_name: The role name to get a sort key for
-
-    Returns:
-        Tuple of (section_index, role_name) for sorting
-    """
-    for section_index, (section_name, role_set) in enumerate(_ROLE_SECTIONS.items()):
-        if role_name in role_set:
-            return (section_index, role_name)
-    # Catch-all for roles not in any section
-    return (999, role_name)
 
 
 # ---------------------------------------------------------------------------
@@ -928,6 +888,11 @@ def resolve_role_manifest(
     role_map: Dict[str, _RoleCondition] = {}
     # Track normalized OR-disjuncts per role to avoid duplicate terms on 3+ merges
     role_disjuncts: Dict[str, Set[str]] = {}
+    # Track inline section: per role for section-ordered output. A missing
+    # section: sorts last here so the manifest stays buildable, but the
+    # validators and the generate-playbook guards reject such entries; a
+    # missing or invalid profiles/_sections.yml fails loud via load_sections.
+    section_of: Dict[str, str] = {}
 
     for role_entry in all_roles:
         # Get role name
@@ -938,6 +903,10 @@ def resolve_role_manifest(
 
         if not role_name:
             continue
+        if isinstance(role_entry, dict):
+            raw_section = role_entry.get("section", "")
+            if isinstance(raw_section, str) and raw_section:
+                section_of[role_name] = raw_section
 
         # Get tags
         if isinstance(role_entry, str):
@@ -999,8 +968,13 @@ def resolve_role_manifest(
             )
             role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
-    # Convert to sorted tuple (by section, then alphabetically)
-    roles_tuple = tuple(sorted(role_map.values(), key=lambda r: _section_sort_key(r.role)))
+    # Convert to sorted tuple (by section order from profiles/_sections.yml,
+    # then alphabetically)
+    order = {s["name"]: i for i, s in enumerate(load_sections(profiles_dir))}
+    roles_tuple = tuple(sorted(
+        role_map.values(),
+        key=lambda r: (order.get(section_of.get(r.role, ""), len(order)), r.role),
+    ))
 
     return _ResolvedManifest(
         profile=resolved.profile,
@@ -1017,7 +991,8 @@ def validate_profile(profiles_dir: str, name: str) -> list:
     Validate a profile, returning a list of error strings.
 
     Checks: required fields present, extends chain resolvable,
-    display_manager_default in allowed set, desktop_environment in known set.
+    display_manager_default in allowed set, desktop_environment in known set,
+    per-role section key present and known (profiles/_sections.yml).
 
     Args:
         profiles_dir: Directory containing profile YAML files
@@ -1061,6 +1036,41 @@ def validate_profile(profiles_dir: str, name: str) -> list:
                 f"{sorted(_ALLOWED_DESKTOP_ENVIRONMENTS)}"
             )
 
+    roles_field = profile.get("roles")
+    if roles_field is not None and not isinstance(roles_field, list):
+        errors.append(f"Field 'roles' must be a list, got {type(roles_field).__name__}")
+
+    # Section field checks (PRD-159 FR6): every dict role entry must carry a
+    # section key that exists in profiles/_sections.yml. Skipped when the
+    # sections file itself is unloadable — that error is reported once by
+    # _cmd_validate.
+    try:
+        valid_sections = {s["name"] for s in load_sections(profiles_dir)}
+    except ValueError:
+        valid_sections = None
+    if valid_sections is not None and isinstance(roles_field, list):
+        for entry in roles_field:
+            if not isinstance(entry, dict):
+                errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")
+                continue
+            rname = entry.get("role", "")
+            if not rname:
+                errors.append("role entry missing required field: role")
+                continue
+            if not isinstance(rname, str):
+                errors.append(f"role entry has non-string 'role' field: {rname!r}")
+                continue
+            section = entry.get("section", "")
+            if not section:
+                errors.append(f"role '{rname}' missing required field: section")
+            elif not isinstance(section, str):
+                errors.append(f"role '{rname}' has non-string 'section' field: {section!r}")
+            elif section not in valid_sections:
+                errors.append(
+                    f"role '{rname}' has unknown section '{section}' "
+                    f"(see profiles/_sections.yml)"
+                )
+
     return errors
 
 
@@ -1090,6 +1100,62 @@ def list_profiles(profiles_dir: str) -> list:
     ]
     return sorted(valid)
 
+
+def load_sections(profiles_dir: str) -> List[Dict[str, Any]]:
+    """
+    Load ordered section definitions from <profiles_dir>/_sections.yml.
+
+    The file is directory-global (not a profile), so unlike load_profile()
+    there is no per-file equivalent. Fail-fast: any structural problem
+    raises ValueError with a message naming the file.
+
+    Args:
+        profiles_dir: Directory containing _sections.yml
+
+    Returns:
+        Ordered list of section dicts with the validated keys name, comment
+
+    Raises:
+        ValueError: If the file is missing, contains malformed YAML, is
+            missing the sections key, is empty, has entries missing
+            name/comment, or has duplicate section names
+    """
+    path = Path(profiles_dir) / "_sections.yml"
+    if not path.exists():
+        raise ValueError(f"profiles/_sections.yml not found in {profiles_dir}")
+    try:
+        raw = path.read_text()
+    except OSError as exc:
+        raise ValueError(f"profiles/_sections.yml: cannot read file: {exc}") from exc
+    try:
+        data = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"profiles/_sections.yml: invalid YAML: {exc}") from exc
+    if not isinstance(data, dict) or "sections" not in data:
+        raise ValueError("profiles/_sections.yml: missing top-level 'sections' key")
+    entries = data["sections"]
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("profiles/_sections.yml: 'sections' must be a non-empty list")
+    seen = set()
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(f"profiles/_sections.yml: section #{i + 1} is not a mapping")
+        for key in ("name", "comment"):
+            if not entry.get(key):
+                raise ValueError(
+                    f"profiles/_sections.yml: section #{i + 1} missing required field: {key}"
+                )
+            if not isinstance(entry[key], str):
+                raise ValueError(
+                    f"profiles/_sections.yml: section #{i + 1} has non-string '{key}' field: {entry[key]!r}"
+                )
+        name = entry["name"]
+        if name in seen:
+            raise ValueError(f"profiles/_sections.yml: duplicate section name: {name}")
+        seen.add(name)
+    return [
+        {"name": entry["name"], "comment": entry["comment"]} for entry in entries
+    ]
 
 # ---------------------------------------------------------------------------
 # Overlay Discovery and Loading (Slice 2)
@@ -1304,6 +1370,7 @@ def validate_overlays(
     - applies_when is a non-empty string
     - roles is a list
     - Each role entry has required fields (role, tags) with correct types
+    - Each dict role entry carries a valid section key (profiles/_sections.yml)
 
     Args:
         profiles_dir: Directory containing profiles/ subdirectory
@@ -1315,6 +1382,13 @@ def validate_overlays(
     results = []
     overlays_root = Path(profiles_dir) / "overlays"
 
+    # Section field checks (PRD-159 FR6); skipped when the sections file
+    # itself is unloadable — that error is reported once by _cmd_validate.
+    try:
+        valid_sections = {s["name"] for s in load_sections(profiles_dir)}
+    except ValueError:
+        valid_sections = None
+
     for overlay_name in overlay_names:
         errors = []
 
@@ -1323,6 +1397,36 @@ def validate_overlays(
             _load_overlay(overlays_root / f"{overlay_name}.yml")
         except ValueError as exc:
             errors.append(str(exc))
+
+        try:
+            raw = yaml.safe_load((overlays_root / f"{overlay_name}.yml").read_text())
+        except (yaml.YAMLError, OSError):
+            raw = None  # parse/load errors already reported above
+        # A non-list roles field is already reported once by _load_overlay
+        # above; this gate just prevents per-entry noise below.
+        raw_roles = raw.get("roles") if isinstance(raw, dict) else None
+        if not errors and valid_sections is not None and isinstance(raw_roles, list):
+            for entry in raw_roles:
+                if not isinstance(entry, dict):
+                    errors.append(f"role entry must be a mapping (cannot carry section:): {entry!r}")
+                    continue
+                rname = entry.get("role", "")
+                if not rname:
+                    errors.append("role entry missing required field: role")
+                    continue
+                if not isinstance(rname, str):
+                    errors.append(f"role entry has non-string 'role' field: {rname!r}")
+                    continue
+                section = entry.get("section", "")
+                if not section:
+                    errors.append(f"role '{rname}' missing required field: section")
+                elif not isinstance(section, str):
+                    errors.append(f"role '{rname}' has non-string 'section' field: {section!r}")
+                elif section not in valid_sections:
+                    errors.append(
+                        f"role '{rname}' has unknown section '{section}' "
+                        f"(see profiles/_sections.yml)"
+                    )
 
         results.append((overlay_name, errors))
 
@@ -1794,7 +1898,6 @@ class PlaybookGenerator:
         profiles_dir: str = _DEFAULT_PROFILES_DIR,
         os_family: str = "Archlinux",
         host_vars: Optional[Dict[str, Any]] = None,
-        profile: Optional[str] = None,
     ):
         """
         Initialize the generator.
@@ -1805,12 +1908,10 @@ class PlaybookGenerator:
             host_vars: Host variables for overlay resolution (e.g. laptop, bluetooth).
                 Note: generate() calls resolve_role_manifest with preserve_config_check=True,
                 so config_check expressions are kept as raw Jinja2 rather than evaluated.
-            profile: Optional profile name for write_playbook() method.
         """
         self.profiles_dir = profiles_dir
         self.os_family = os_family
         self.host_vars = host_vars or {}
-        self.profile = profile
 
         # Validate profiles_dir at construction time for clear error messages
         profiles_path = Path(self.profiles_dir)
@@ -1826,7 +1927,7 @@ class PlaybookGenerator:
         os_family: str,
         host_vars: Optional[Dict[str, Any]],
         include_overlays: bool,
-    ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list]:
+    ) -> Tuple[Dict[str, set], Dict[str, Optional[str]], Dict[str, set], list, Dict[str, str]]:
         """Merge role manifests from all profiles and apply profile-gating.
 
         Single implementation of the cross-profile merge used by generate(),
@@ -1841,19 +1942,37 @@ class PlaybookGenerator:
                 sync_check compares overlay-gated roles like any other role)
 
         Returns:
-            (role_to_profiles, expected_role_map, role_tags, profile_names)
+            (role_to_profiles, expected_role_map, role_tags, profile_names, role_sections)
 
         Raises:
-            ValueError: If any listed profile fails to resolve. list_profiles()
-                pre-validates candidates, so a failure here indicates a real
-                problem (e.g. a profile changed mid-run) and must not be
-                swallowed — silently skipping a profile would produce an
-                incomplete expected-role set.
+            ValueError: If any profile file in profiles_dir fails validation
+                (reported loudly rather than silently excluded — see below),
+                or if any listed profile fails to resolve mid-run. Silent
+                skipping would produce an incomplete expected-role set.
         """
         profile_names = list_profiles(profiles_dir)
+        # Fail loud when a profile file fails validation: list_profiles()
+        # filters to valid profiles, so an invalid one (e.g. a role missing
+        # section:) would otherwise be silently excluded and its roles
+        # vanish from generate(), sync_check, and the generate-playbook
+        # manifest without any error.
+        invalid_profiles = []
+        for path in sorted(Path(profiles_dir).glob("*.yml")):
+            if path.stem.startswith("_"):
+                continue
+            errors = validate_profile(profiles_dir, path.stem)
+            if errors:
+                invalid_profiles.append(f"profile {path.stem}: " + "; ".join(errors))
+        if invalid_profiles:
+            raise ValueError(
+                "Cannot merge role manifests: invalid profile definition(s):\n  "
+                + "\n  ".join(invalid_profiles)
+            )
+
         role_to_profiles: Dict[str, set] = {}
         expected_role_map: Dict[str, Optional[str]] = {}
         role_tags: Dict[str, set] = {}
+        role_sections: Dict[str, str] = {}
 
         for profile_name in profile_names:
             manifest = resolve_role_manifest(
@@ -1905,9 +2024,19 @@ class PlaybookGenerator:
             for profile_name in profile_names:
                 for entry in load_profile(profiles_dir, profile_name).get("roles", []):
                     rname = entry if isinstance(entry, str) else entry.get("role", "")
-                    if rname:
-                        profile_file_roles.add(rname)
-            for role_name, (condition, tags) in _discover_overlay_role_conditions(
+                    if not rname:
+                        continue
+                    profile_file_roles.add(rname)
+                    section = entry.get("section", "") if isinstance(entry, dict) else ""
+                    if section:
+                        prior = role_sections.get(rname)
+                        if prior and prior != section:
+                            raise ValueError(
+                                f"Role '{rname}' has conflicting sections: "
+                                f"'{prior}' vs '{section}'"
+                            )
+                        role_sections[rname] = section
+            for role_name, (condition, tags, section) in _discover_overlay_role_conditions(
                 profiles_dir, os_family,
             ).items():
                 if role_name not in profile_file_roles:
@@ -1925,10 +2054,18 @@ class PlaybookGenerator:
                         pass
                     else:
                         expected_role_map[role_name] = f"({existing}) or ({condition})"
+                if section:
+                    prior = role_sections.get(role_name)
+                    if prior and prior != section:
+                        raise ValueError(
+                            f"Role '{role_name}' has conflicting sections: "
+                            f"'{prior}' vs '{section}'"
+                        )
+                    role_sections[role_name] = section
                 role_to_profiles.setdefault(role_name, set())
                 role_tags.setdefault(role_name, set()).update(tags)
 
-        return role_to_profiles, expected_role_map, role_tags, profile_names
+        return role_to_profiles, expected_role_map, role_tags, profile_names, role_sections
 
     def generate(self) -> Tuple[PlaybookRole, ...]:
         """
@@ -1940,7 +2077,7 @@ class PlaybookGenerator:
         Returns:
             Tuple of PlaybookRole objects with role names and conditions
         """
-        _, expected_role_map, role_tags, _ = self._merged_role_data(
+        _, expected_role_map, role_tags, _, _ = self._merged_role_data(
             profiles_dir=self.profiles_dir,
             os_family=self.os_family,
             host_vars=self.host_vars,
@@ -2286,174 +2423,6 @@ class PlaybookGenerator:
 
         return "\n".join(lines)
 
-    def write_playbook(self, output_path: str) -> None:
-        """
-        Generate a playbook file from the resolved profile.
-
-        Reads an existing playbook (if present) to preserve pre_tasks and
-        vars_prompt (via YAML parse/serialize, not byte-for-byte), resolves
-        the role manifest for the configured profile, and writes the complete
-        playbook to output_path.
-
-        Args:
-            output_path: Path to write the playbook YAML file
-
-        Raises:
-            ValueError: If no profile is configured or profile is invalid
-        """
-        if not self.profile:
-            raise ValueError("write_playbook() requires a profile name")
-
-        # Read existing playbook to preserve name, hosts, pre_tasks, vars_prompt
-        play_name = "Configure localhost"
-        play_hosts = "localhost"
-        pre_tasks = []
-        vars_prompt = []
-        output_file = Path(output_path)
-        if output_file.exists():
-            try:
-                with open(output_file) as f:
-                    existing = yaml.safe_load(f)
-                if existing and isinstance(existing, list) and existing:
-                    play = existing[0] if isinstance(existing[0], dict) else {}
-                    play_name = play.get("name", play_name)
-                    play_hosts = play.get("hosts", play_hosts)
-                    pre_tasks = play.get("pre_tasks", [])
-                    vars_prompt = play.get("vars_prompt", [])
-            except yaml.YAMLError as exc:
-                raise ValueError(
-                    f"Failed to parse existing playbook '{output_file}' while preserving "
-                    f"name/hosts/pre_tasks/vars_prompt: {exc}"
-                ) from exc
-            except OSError as exc:
-                raise ValueError(
-                    f"Failed to read existing playbook '{output_file}' while preserving "
-                    f"name/hosts/pre_tasks/vars_prompt: {exc}"
-                ) from exc
-
-        # Resolve role manifest for this profile
-        manifest = resolve_role_manifest(
-            profile=self.profile,
-            os_family=self.os_family,
-            host_vars=self.host_vars,
-            profiles_dir=self.profiles_dir,
-            preserve_config_check=True,
-        )
-
-        # Build ordered role entries
-        role_entries = []
-        for role_cond in manifest.roles:
-            role_entries.append({
-                "role": role_cond.role,
-                "tags": list(role_cond.tags),
-                **({"when": role_cond.condition} if role_cond.condition else {}),
-            })
-
-        # Build the play dict
-        play: Dict[str, Any] = {
-            "name": play_name,
-            "hosts": play_hosts,
-        }
-        if pre_tasks:
-            play["pre_tasks"] = pre_tasks
-        play["roles"] = role_entries
-        if vars_prompt:
-            play["vars_prompt"] = vars_prompt
-
-        # Write playbook
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, "w") as f:
-            f.write("# GENERATED by profile_dispatcher — do not edit by hand\n")
-            self._write_roles_with_sections(f, play)
-
-    def _write_roles_with_sections(self, f, play: dict) -> None:
-        """Write play dict with section comments between role groups."""
-        roles = play.get("roles", [])
-
-        lines = ["---"]
-        lines.append(f"- name: {play['name']}")
-        lines.append(f"  hosts: {play['hosts']}")
-
-        if play.get("pre_tasks"):
-            lines.append("  pre_tasks:")
-            dumped = yaml.dump(
-                play["pre_tasks"],
-                default_flow_style=False,
-                allow_unicode=True,
-                sort_keys=False,
-            )
-            for line in dumped.rstrip("\n").split("\n"):
-                lines.append(f"    {line}")
-
-        lines.append("  roles:")
-        self._write_sectioned_roles(lines, roles)
-
-        if play.get("vars_prompt"):
-            lines.append("  vars_prompt:")
-            dumped = yaml.dump(
-                play["vars_prompt"],
-                default_flow_style=False,
-                allow_unicode=True,
-                sort_keys=False,
-            )
-            for line in dumped.rstrip("\n").split("\n"):
-                lines.append(f"    {line}")
-
-        f.write("\n".join(lines) + "\n")
-
-    def _write_sectioned_roles(self, lines: list, roles: list) -> None:
-        """Write roles with section comment headers."""
-        # Group roles by section
-        current_section_roles: List[dict] = []
-        written_sections: set = set()
-
-        # Sort roles by section order
-        sorted_roles = sorted(roles, key=lambda r: _section_sort_key(r.get("role", "")))
-
-        for role_entry in sorted_roles:
-            role_name = role_entry.get("role", "")
-            section_name = self._get_section_for_role(role_name)
-
-            if section_name and section_name not in written_sections:
-                # Flush current section roles
-                for r in current_section_roles:
-                    lines.extend(self._format_role_entry(r))
-                current_section_roles = []
-                written_sections.add(section_name)
-                lines.append("")
-                lines.append(f"    # {'-' * 73}")
-                lines.append(f"    # {section_name}")
-                lines.append(f"    # {'-' * 73}")
-
-            current_section_roles.append(role_entry)
-
-        # Flush remaining
-        for r in current_section_roles:
-            lines.extend(self._format_role_entry(r))
-
-    def _format_role_entry(self, role_entry: dict) -> list:
-        """Format a single role entry as an inline YAML mapping.
-
-        Uses double-quoted tag format (``tags: ["base"]``) to match the
-        repository's established style and ensure compatibility with
-        ``make list-tags`` / Makefile grep patterns.
-        """
-        parts = []
-        for key, value in role_entry.items():
-            if key == "tags" and isinstance(value, list):
-                tag_str = "[" + ", ".join(f'"{t}"' for t in value) + "]"
-                parts.append(f"tags: {tag_str}")
-            else:
-                parts.append(f"{key}: {value}")
-        return [f"    - {{ {', '.join(parts)} }}"]
-
-    def _get_section_for_role(self, role_name: str) -> Optional[str]:
-        """Look up which section a role belongs to in _ROLE_SECTIONS."""
-        for section_name, role_set in _ROLE_SECTIONS.items():
-            if role_name in role_set:
-                return section_name
-        return None
-
 
 # ---------------------------------------------------------------------------
 # CLI subcommands
@@ -2529,6 +2498,54 @@ def _cmd_validate(args: argparse.Namespace) -> int:
             any_invalid = True
             for error in errors:
                 print(f"overlay {overlay_name}: {error}", file=sys.stderr)
+
+    # _sections.yml load + cross-file section conflict check (PRD-159 FR6);
+    # collect-all ordering: reported alongside profile/overlay errors above.
+    try:
+        load_sections(args.profiles_dir)
+    except ValueError as exc:
+        any_invalid = True
+        print(f"_sections.yml: {exc}", file=sys.stderr)
+    else:
+        conflict_seen = {}  # role -> (section, file label)
+        candidates = []
+        for path in sorted(profiles_path.glob("*.yml")):
+            # _base.yml participates: its roles fold into every profile via
+            # extends, so a base-vs-profile conflict is a generation failure
+            # and must be reported here. Other '_' files are not profiles.
+            if path.stem.startswith("_") and path.stem != "_base":
+                continue
+            candidates.append((f"profile {path.stem}", path))
+        overlays_dir = profiles_path / "overlays"
+        if overlays_dir.exists():
+            for path in sorted(overlays_dir.glob("*.yml")):
+                candidates.append((f"overlay {path.stem}", path))
+        for label, path in candidates:
+            try:
+                data = yaml.safe_load(path.read_text())
+            except (yaml.YAMLError, OSError):
+                continue  # parse/load errors reported by the loops above
+            entries = data.get("roles", []) if isinstance(data, dict) else []
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                rname = entry.get("role", "")
+                section = entry.get("section", "")
+                if (
+                    not isinstance(rname, str) or not rname
+                    or not isinstance(section, str) or not section
+                ):
+                    continue  # malformed entries reported by the validators above
+                prior = conflict_seen.get(rname)
+                if prior and prior[0] != section:
+                    print(
+                        f"role '{rname}' has conflicting sections: "
+                        f"'{prior[0]}' ({prior[1]}) vs '{section}' ({label})",
+                        file=sys.stderr,
+                    )
+                    any_invalid = True
+                elif not prior:
+                    conflict_seen[rname] = (section, label)
 
     return 1 if any_invalid else 0
 
@@ -2715,209 +2732,6 @@ def _cmd_resolve_role_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# Role-to-Section Mapping for play.yml Generation
-# ---------------------------------------------------------------------------
-
-# Role-to-section mapping based on current play.yml organization
-_ROLE_TO_SECTION: Dict[str, str] = {
-    # GPU Detection & Drivers (Arch-only)
-    "gpu_detect": "gpu",
-    "gpu_drivers": "gpu",
-
-    # Base System (Arch-only)
-    "base": "base",
-    "grub": "base",
-    "microcode": "base",
-
-    # Universal System Configuration
-    "gnupg": "universal",
-    "sysmon": "universal",
-    "cron": "universal",
-    "system": "universal",
-    "shell": "universal",
-    "ssh": "universal",
-    "archive": "universal",
-
-    # Package Management
-    "ansible-role-packages": "packages",
-    "ansible-role-asdf": "packages",
-    "flatpak": "packages",
-    "golang": "packages",
-    "homebrew": "packages",
-    "ansible-role-binaries": "packages",
-    "aur": "packages",
-
-    # Development Tools
-    "editors": "dev",
-    "filesystem": "dev",
-    "python": "dev",
-    "rust": "dev",
-    "docker": "dev",
-    "kubernetes": "dev",
-    "devtools": "dev",
-    "ai": "dev",
-
-    # Networking (Arch-only)
-    "nmtrust": "networking",
-    "networkmanager": "networking",
-    "nettools": "networking",
-    "mirrorlist": "networking",
-    "filesharing": "networking",
-
-    # Productivity & Utilities
-    "taskwarrior": "productivity",
-    "pass": "productivity",
-    "pass_cli": "productivity",
-    "spell": "productivity",
-    "clipboard": "productivity",
-    "clouddrive": "productivity",
-    "syncthing": "productivity",
-
-    # Display Manager
-    "lightdm": "display_manager",
-    "gdm": "display_manager",
-    "sddm": "display_manager",
-
-    # Profile: i3 (X11 tiling window manager)
-    "x": "i3_profile",
-    "i3": "i3_profile",
-
-    # Profile: Hyprland (Wayland compositor)
-    "wayland": "hyprland_profile",
-    "hyprland": "hyprland_profile",
-    "qt_gtk_toolkit": "hyprland_profile",
-    "widgets": "hyprland_profile",
-    "uv_python_packages": "hyprland_profile",
-    "microtex": "hyprland_profile",
-    "oneui4_icons": "hyprland_profile",
-    "screencapture": "hyprland_profile",
-
-    # Profile: GNOME
-    "gnome": "gnome_profile",
-
-    # Profile: AwesomeWM
-    "awesomewm": "awesomewm_profile",
-
-    # Profile: KDE
-    "kde": "kde_profile",
-
-    # Fonts & Theming (any desktop profile)
-    "fonts": "fonts_theming",
-    "nerd-fonts": "fonts_theming",
-    "cursor-theme": "fonts_theming",
-
-    # Desktop Applications (any desktop profile)
-    "terminal": "desktop_apps",
-    "notes": "desktop_apps",
-    "browsers": "desktop_apps",
-    "communication": "desktop_apps",
-    "filemanager": "desktop_apps",
-    "screensaver": "desktop_apps",
-    "mpv": "desktop_apps",
-    "media": "desktop_apps",
-    "sound": "desktop_apps",
-    "proton": "desktop_apps",
-    "android": "desktop_apps",
-    "backlight": "desktop_apps",
-    "mpd": "desktop_apps",
-    "twitch": "desktop_apps",
-    "cups": "desktop_apps",
-    "udisks": "desktop_apps",
-
-    # Optional / Feature-gated (overlay-based)
-    "dotfiles": "optional",
-    "goesimage": "optional",
-    "regdomain": "optional",
-    "bluetooth": "optional",
-    "laptop": "optional",
-}
-
-# Section definitions with comments and ordering
-_SECTION_DEFINITIONS: List[Dict[str, Any]] = [
-    {
-        "name": "gpu",
-        "comment": "GPU Detection & Drivers (Arch-only)",
-        "roles": [],
-    },
-    {
-        "name": "base",
-        "comment": "Base System (Arch-only)",
-        "roles": [],
-    },
-    {
-        "name": "universal",
-        "comment": "Universal System Configuration",
-        "roles": [],
-    },
-    {
-        "name": "packages",
-        "comment": "Package Management",
-        "roles": [],
-    },
-    {
-        "name": "dev",
-        "comment": "Development Tools",
-        "roles": [],
-    },
-    {
-        "name": "networking",
-        "comment": "Networking (Arch-only)",
-        "roles": [],
-    },
-    {
-        "name": "productivity",
-        "comment": "Productivity & Utilities",
-        "roles": [],
-    },
-    {
-        "name": "display_manager",
-        "comment": "Display Manager",
-        "roles": [],
-    },
-    {
-        "name": "i3_profile",
-        "comment": "Profile: i3 (X11 tiling window manager)",
-        "roles": [],
-    },
-    {
-        "name": "hyprland_profile",
-        "comment": "Profile: Hyprland (Wayland compositor)",
-        "roles": [],
-    },
-    {
-        "name": "gnome_profile",
-        "comment": "Profile: GNOME",
-        "roles": [],
-    },
-    {
-        "name": "awesomewm_profile",
-        "comment": "Profile: AwesomeWM",
-        "roles": [],
-    },
-    {
-        "name": "kde_profile",
-        "comment": "Profile: KDE",
-        "roles": [],
-    },
-    {
-        "name": "fonts_theming",
-        "comment": "Fonts & Theming (any desktop profile)",
-        "roles": [],
-    },
-    {
-        "name": "desktop_apps",
-        "comment": "Desktop Applications (any desktop profile)",
-        "roles": [],
-    },
-    {
-        "name": "optional",
-        "comment": "Optional / Feature-gated",
-        "roles": [],
-    },
-]
-
-
 def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
     """Generate _host_vars_json Jinja2 template with overlay variables.
 
@@ -2956,7 +2770,7 @@ def _generate_host_vars_json_template(overlay_vars: List[str]) -> str:
 def _discover_overlay_role_conditions(
     profiles_dir: str,
     os_family: str,
-) -> Dict[str, Tuple[str, List[str]]]:
+) -> Dict[str, Tuple[str, List[str], str]]:
     """Discover all overlay roles and their gating conditions dynamically.
 
     Each role's condition combines its declared annotations (os,
@@ -2972,7 +2786,7 @@ def _discover_overlay_role_conditions(
             produce an incomplete play.yml; surfacing the error beats a
             CI sync failure with a missing-role diff.
     """
-    result: Dict[str, Tuple[str, List[str]]] = {}
+    result: Dict[str, Tuple[str, List[str], str]] = {}
     translator = AnsibleConditionTranslator(
         os_family=os_family,
         preserve_config_check=True,
@@ -2995,6 +2809,7 @@ def _discover_overlay_role_conditions(
             roles_list = overlay_data.roles
         for role_entry in roles_list:
             annotation_cond = ""
+            section = ""
             if isinstance(role_entry, str):
                 rname = role_entry
                 tags = [rname]
@@ -3002,6 +2817,8 @@ def _discover_overlay_role_conditions(
                 rname = role_entry.get("role", "")
                 tags = role_entry.get("tags", [rname])
                 annotation_cond = translator.translate_annotation(role_entry, {})
+                raw_section = role_entry.get("section", "")
+                section = raw_section if isinstance(raw_section, str) else ""
             else:
                 rname = getattr(role_entry, "role", "")
                 tags = getattr(role_entry, "tags", [rname])
@@ -3010,7 +2827,9 @@ def _discover_overlay_role_conditions(
                     condition = f"({annotation_cond}) and {overlay_flag}"
                 else:
                     condition = overlay_flag
-                result[rname] = (condition, tags if isinstance(tags, list) else [tags])
+                result[rname] = (
+                    condition, tags if isinstance(tags, list) else [tags], section
+                )
     return result
 
 _DE_PROFILES = {"i3", "hyprland", "gnome", "awesomewm", "kde"}
@@ -3053,6 +2872,7 @@ def _write_merged_playbook(
         print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
         return 1
 
+
     # Discover overlay variables for _host_vars_json template
     # Only treat a missing overlays/ directory as non-fatal; let parse errors surface.
     overlays_path = Path(profiles_dir) / "overlays"
@@ -3063,40 +2883,52 @@ def _write_merged_playbook(
     host_vars_template = _generate_host_vars_json_template(overlay_vars)
 
     # Merge all profile manifests (includes profile-gating and overlay roles)
-    _, expected_role_map, role_tags, _ = PlaybookGenerator._merged_role_data(
+    _, expected_role_map, role_tags, _, role_sections = PlaybookGenerator._merged_role_data(
         profiles_dir, os_family, {}, include_overlays=True,
     )
 
-    # Organize roles into sections (deep copy to avoid mutating module-level list)
-    sections = [{**section, "roles": []} for section in _SECTION_DEFINITIONS]
-    section_map = {section["name"]: section for section in sections}
+    # Organize roles into emit buckets keyed by section name; section order
+    # follows profiles/_sections.yml (dict preserves insertion order). Role
+    # order WITHIN a section is merge first-encounter order — profiles are
+    # processed in sorted order with section-sorted roles, then overlay
+    # roles append — which is deterministic across runs and preserves the
+    # committed play.yml's established within-section order (roles are NOT
+    # re-sorted alphabetically here).
+    sections = load_sections(profiles_dir)
+    buckets = {s["name"]: [] for s in sections}
+    comments = {s["name"]: s["comment"] for s in sections}
 
-    unmapped_roles = []
+    missing_section_roles = []
+    unknown_section_roles = []
     for role_name, condition in expected_role_map.items():
-        section_name = _ROLE_TO_SECTION.get(role_name)
+        section_name = role_sections.get(role_name, "")
         if not section_name:
-            unmapped_roles.append(role_name)
+            missing_section_roles.append(role_name)
             continue
-        if section_name not in section_map:
-            unmapped_roles.append(f"{role_name} (unknown section {section_name!r})")
+        if section_name not in buckets:
+            unknown_section_roles.append(
+                f"{role_name} has unknown section '{section_name}' "
+                f"(not in profiles/_sections.yml)"
+            )
             continue
         # Use tags unioned from profile definitions (preserves [fonts], etc.)
         tags = sorted(role_tags.get(role_name, {role_name}))
-        section_map[section_name]["roles"].append(
-            (role_name, condition, tags)
-        )
+        buckets[section_name].append((role_name, condition, tags))
 
-    # Fail loud rather than silently dropping profile roles that have no
-    # section mapping. Without this guard, adding a role to profiles/ but
-    # forgetting _ROLE_TO_SECTION yields a playbook silently missing the role
-    # (only caught later by sync-playbook). The full profile-driven migration
-    # that removes this hardcoded mapping is tracked in the RFD issue.
-    if unmapped_roles:
+    # Fail loud rather than silently dropping roles. Without this guard,
+    # adding a role to profiles/ without a section: field yields a playbook
+    # silently missing the role (only caught later by sync-playbook).
+    if missing_section_roles:
         raise ValueError(
-            f"Cannot generate playbook: {len(unmapped_roles)} profile role(s) "
-            f"have no section mapping in _ROLE_TO_SECTION: "
-            f"{', '.join(sorted(unmapped_roles))}. Add each to _ROLE_TO_SECTION "
-            f"(and _ROLE_SECTIONS) in scripts/profile_dispatcher.py."
+            f"Cannot generate playbook: {len(missing_section_roles)} profile "
+            f"role(s) have no section: field: "
+            f"{', '.join(sorted(missing_section_roles))}. Add section: <key> "
+            f"to each role entry; valid keys are listed in profiles/_sections.yml."
+        )
+    if unknown_section_roles:
+        raise ValueError(
+            f"Cannot generate playbook: {len(unknown_section_roles)} profile "
+            f"role(s) with unknown section: {', '.join(sorted(unknown_section_roles))}."
         )
 
     # Write playbook to file with manual YAML formatting
@@ -3191,14 +3023,14 @@ def _write_merged_playbook(
 
         # Write roles
         f.write("  roles:\n")
-        for section in sections:
-            if section["roles"]:
+        for section_name, section_roles in buckets.items():
+            if section_roles:
                 # Add section comment
                 f.write("    # -------------------------------------------------------------------------\n")
-                f.write(f"    # {section['comment']}\n")
+                f.write(f"    # {comments[section_name]}\n")
                 f.write("    # -------------------------------------------------------------------------\n")
                 # Write roles in this section (double-quoted tags for Makefile grep compat)
-                for role_name, condition, tags in section["roles"]:
+                for role_name, condition, tags in section_roles:
                     yaml_tags = '[' + ', '.join(f'"{t}"' for t in tags) + ']'
                     if condition:
                         f.write(f"    - {{ role: {role_name}, tags: {yaml_tags}, when: {condition} }}\n")
@@ -3246,7 +3078,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     else:
         # Stdout mode: output merged role manifest JSON
         try:
-            role_to_profiles, expected_role_map, role_tags, profile_names = \
+            role_to_profiles, expected_role_map, role_tags, profile_names, _ = \
                 PlaybookGenerator._merged_role_data(
                     args.profiles_dir, os_family, {}, include_overlays=True,
                 )

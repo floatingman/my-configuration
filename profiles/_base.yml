@@ -9,64 +9,64 @@ desktop_environment: ""
 
 roles:
   # GPU Detection & Drivers
-  - { role: gpu_detect, tags: [gpu_detect], os: archlinux }
-  - { role: gpu_drivers, tags: [gpu_drivers], os: archlinux }
+  - { role: gpu_detect, tags: [gpu_detect], os: archlinux, section: gpu }
+  - { role: gpu_drivers, tags: [gpu_drivers], os: archlinux, section: gpu }
 
   # Base System (Arch-only)
-  - { role: base, tags: [base], os: archlinux }
-  - { role: grub, tags: [grub], os: archlinux }
-  - { role: microcode, tags: [microcode], os: archlinux }
+  - { role: base, tags: [base], os: archlinux, section: base }
+  - { role: grub, tags: [grub], os: archlinux, section: base }
+  - { role: microcode, tags: [microcode], os: archlinux, section: base }
 
   # Universal System Configuration
-  - { role: sysmon, tags: [sysmon] }
-  - { role: cron, tags: [cron] }
-  - { role: system, tags: [system] }
-  - { role: ssh, tags: [ssh] }
-  - { role: archive, tags: [archive] }
+  - { role: sysmon, tags: [sysmon], section: universal }
+  - { role: cron, tags: [cron], section: universal }
+  - { role: system, tags: [system], section: universal }
+  - { role: ssh, tags: [ssh], section: universal }
+  - { role: archive, tags: [archive], section: universal }
 
   # Package Management
-  - { role: ansible-role-packages, tags: [packages] }
-  - { role: ansible-role-asdf, tags: [asdf] }
-  - { role: flatpak, tags: [flatpak] }
-  - { role: golang, tags: [golang], os: debian }
-  - { role: homebrew, tags: [homebrew], os: debian }
-  - { role: ansible-role-binaries, tags: [binaries], os: debian }
+  - { role: ansible-role-packages, tags: [packages], section: packages }
+  - { role: ansible-role-asdf, tags: [asdf], section: packages }
+  - { role: flatpak, tags: [flatpak], section: packages }
+  - { role: golang, tags: [golang], os: debian, section: packages }
+  - { role: homebrew, tags: [homebrew], os: debian, section: packages }
+  - { role: ansible-role-binaries, tags: [binaries], os: debian, section: packages }
 
   # AUR (Arch-only)
-  - { role: aur, tags: [aur], os: archlinux }
+  - { role: aur, tags: [aur], os: archlinux, section: packages }
 
   # Development Tools
-  - { role: editors, tags: [editors] }
-  - { role: filesystem, tags: [filesystem] }
-  - { role: python, tags: [python] }
-  - { role: rust, tags: [rust] }
-  - { role: docker, tags: [docker], os: archlinux }
-  - { role: kubernetes, tags: [kubernetes], os: archlinux }
+  - { role: editors, tags: [editors], section: dev }
+  - { role: filesystem, tags: [filesystem], section: dev }
+  - { role: python, tags: [python], section: dev }
+  - { role: rust, tags: [rust], section: dev }
+  - { role: docker, tags: [docker], os: archlinux, section: dev }
+  - { role: kubernetes, tags: [kubernetes], os: archlinux, section: dev }
 
   # Display-gated Development (Arch-only, filtered out for headless)
-  - { role: devtools, tags: [devtools], os: archlinux, requires_display: true }
+  - { role: devtools, tags: [devtools], os: archlinux, requires_display: true, section: dev }
 
   # AI Development Tools (moved to user overlay — roles/overlays/user.yml)
 
   # Networking (Arch-only)
-  - { role: nmtrust, tags: [nmtrust], os: archlinux, requires_display: true }
-  - { role: networkmanager, tags: [networkmanager], os: archlinux, requires_display: true }
-  - { role: nettools, tags: [nettools], os: archlinux }
-  - { role: mirrorlist, tags: [mirrorlist], os: archlinux }
-  - { role: filesharing, tags: [filesharing], os: archlinux }
+  - { role: nmtrust, tags: [nmtrust], os: archlinux, requires_display: true, section: networking }
+  - { role: networkmanager, tags: [networkmanager], os: archlinux, requires_display: true, section: networking }
+  - { role: nettools, tags: [nettools], os: archlinux, section: networking }
+  - { role: mirrorlist, tags: [mirrorlist], os: archlinux, section: networking }
+  - { role: filesharing, tags: [filesharing], os: archlinux, section: networking }
 
   # Communication (Arch-only, requires display)
-  - { role: communication, tags: [communication], os: archlinux, requires_display: true }
+  - { role: communication, tags: [communication], os: archlinux, requires_display: true, section: desktop_apps }
 
   # Productivity & Utilities
-  - { role: taskwarrior, tags: [taskwarrior], os: archlinux }
-  - { role: pass, tags: [pass], os: archlinux }
-  - { role: pass_cli, tags: [pass_cli] }
-  - { role: spell, tags: [spell] }
-  - { role: clipboard, tags: [clipboard], os: archlinux }
-  - { role: clouddrive, tags: [clouddrive], os: archlinux }
-  - { role: syncthing, tags: [syncthing] }
+  - { role: taskwarrior, tags: [taskwarrior], os: archlinux, section: productivity }
+  - { role: pass, tags: [pass], os: archlinux, section: productivity }
+  - { role: pass_cli, tags: [pass_cli], section: productivity }
+  - { role: spell, tags: [spell], section: productivity }
+  - { role: clipboard, tags: [clipboard], os: archlinux, section: productivity }
+  - { role: clouddrive, tags: [clouddrive], os: archlinux, section: productivity }
+  - { role: syncthing, tags: [syncthing], section: productivity }
 
   # Optional / Feature-gated
-  - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined", requires_display: true }
-  - { role: regdomain, tags: [regdomain], config_check: "regdomain is defined" }
+  - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined", requires_display: true, section: optional }
+  - { role: regdomain, tags: [regdomain], config_check: "regdomain is defined", section: optional }

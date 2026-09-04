@@ -46,7 +46,7 @@ python3 scripts/profile_dispatcher.py list-profiles --format pretty
 ```
 
 Tests: `make pytest` — pure Python, no Ansible; split by domain under `tests/`:
-`test_generator.py` (PlaybookGenerator boundary: generate/sync*check/resolve/resolve_manifest/explain/write_playbook),
+`test_generator.py` (PlaybookGenerator boundary: generate/sync*check/resolve/resolve_manifest/explain),
 `test_cli.py` (subcommands via `main()`), `test_profiles.py` (profile/overlay loading, resolution),
 `test_conditions.py` (condition translation + evaluators).
 Tests import only the public API (`profile_dispatcher.__all__`) — never `*`-prefixed symbols.
