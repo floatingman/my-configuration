@@ -36,7 +36,10 @@ def _write_tree(root: Path, roles: list) -> None:
         "name": "laptop",
         "description": "laptop extras",
         "applies_when": "laptop | default(false)",
-        "roles": [{"role": "backlight", "requires_display": True}],
+        "roles": [
+            {"role": "laptop", "section": "base"},
+            {"role": "backlight", "requires_display": True},
+        ],
     }))
 
 
@@ -98,6 +101,23 @@ class TestManifestResolver:
         rg = next(g for g in runtime.manifest("i3", host_vars={}).roles if g.role == "dotfiles")
         assert bg.condition == "dotfiles_config is defined"  # kept RAW
         assert rg.condition == "false"  # evaluated against host_vars
+
+    def test_provenance_recorded_at_collection(self, tmp_path):
+        """FR4/AC2: source = profile, overlay, or profile+overlays sorted."""
+        _write_tree(tmp_path, roles=[{
+            "role": "backlight", "section": "base", "requires_display": True,
+        }])
+        resolver = ManifestResolver(profiles_dir=str(tmp_path))
+
+        # backlight contributed by profile AND overlay; "laptop" role overlay-only
+        src = {g.role: g.source for g in resolver.manifest("i3", host_vars={"laptop": True}).roles}
+        assert src["backlight"] == "i3+laptop"
+        assert src["laptop"] == "laptop"
+
+        # overlay skipped: backlight contributed by profile only
+        src = {g.role: g.source for g in resolver.manifest("i3").roles}
+        assert src["backlight"] == "i3"
+        assert "laptop" not in src
 
     def test_manifest_to_json_key_order(self, tmp_path):
         _write_tree(tmp_path, roles=[])

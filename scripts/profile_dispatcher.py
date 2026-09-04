@@ -1679,7 +1679,7 @@ class RoleGate:
     role: str
     tags: Tuple[str, ...]
     condition: str         # Jinja2 when: expr; byte-identical to today
-    source: str            # Phase 1: post-hoc guess (FR4 records real provenance)
+    source: str            # provenance: "<profile>", "<overlay>", or "<profile>+<overlays sorted>"
 
 
 @dataclass(frozen=True)
@@ -1712,12 +1712,14 @@ class _RoleSpec:
 
     ``raw`` is the untouched original entry (str or dict) handed verbatim to
     AnsibleConditionTranslator.translate_annotation, keeping condition bytes
-    identical by construction.
+    identical by construction. ``origin`` is the contributing source name
+    (profile or overlay) — provenance is recorded here, at collection time.
     """
 
     role: str
     tags: Tuple[str, ...]
     section: str
+    origin: str
     raw: Any
 
 
@@ -1763,26 +1765,27 @@ class _ProfileRepository:
         return self._overlays[name]
 
     @staticmethod
-    def normalize_role(entry: Any) -> _RoleSpec:
+    def normalize_role(entry: Any, origin: str) -> _RoleSpec:
         """Normalize a raw role entry (str | dict | dataclass) exactly once.
 
         Eliminates the per-consumer isinstance branch trees: name, tags and
         section are extracted here with the same semantics the merge loop
-        previously applied inline.
+        previously applied inline. ``origin`` tags the contributing source.
         """
         if isinstance(entry, str):
-            return _RoleSpec(role=entry, tags=(), section="", raw=entry)
+            return _RoleSpec(role=entry, tags=(), section="", origin=origin, raw=entry)
         if isinstance(entry, dict):
             role_name = entry.get("role", "")
             raw_section = entry.get("section", "")
             section = raw_section if isinstance(raw_section, str) and raw_section else ""
             tags_list = entry.get("tags", [])
             tags = tuple(tags_list) if isinstance(tags_list, list) else ()
-            return _RoleSpec(role=role_name, tags=tags, section=section, raw=entry)
+            return _RoleSpec(role=role_name, tags=tags, section=section, origin=origin, raw=entry)
         return _RoleSpec(
             role=getattr(entry, "role", ""),
             tags=tuple(getattr(entry, "tags", ()) or ()),
             section="",
+            origin=origin,
             raw=entry,
         )
 
@@ -1824,8 +1827,10 @@ def _sniff_applies_when(applies_when: str, overlay_var: Any) -> bool:
 class _RoleCollector:
     """Dedup / disjunct-merge / tag-union / section-sort, relocated verbatim
     from resolve_role_manifest. Conditions come from the untouched
-    AnsibleConditionTranslator, so bytes are identical by construction. Phase 1
-    reproduces the post-hoc source guess verbatim (the provenance fix is FR4).
+    AnsibleConditionTranslator, so bytes are identical by construction.
+    Provenance (FR4) is recorded at collection: each spec's origin contributes
+    to its role's source, rendered as "<profile>", "<overlay>", or
+    "<profile>+<overlays sorted>" (profile first, overlays sorted).
     """
 
     def __init__(
@@ -1845,7 +1850,7 @@ class _RoleCollector:
         role_map: Dict[str, RoleGate] = {}
         role_disjuncts: Dict[str, Set[str]] = {}
         section_of: Dict[str, str] = {}
-        source = profile_name
+        contributors: Dict[str, Set[str]] = {}
 
         for spec in role_specs:
             role_name = spec.role
@@ -1853,6 +1858,8 @@ class _RoleCollector:
                 continue
             if spec.section:
                 section_of[role_name] = spec.section
+            if spec.origin:
+                contributors.setdefault(role_name, set()).add(spec.origin)
 
             condition = self._translator.translate_annotation(spec.raw, host_vars)
             norm_cond = _normalize_condition(condition)
@@ -1861,35 +1868,46 @@ class _RoleCollector:
                 existing = role_map[role_name]
                 merged_tags = tuple(sorted(set(existing.tags + spec.tags)))
                 disjuncts = role_disjuncts[role_name]
-                merged_source = existing.source
                 if condition and norm_cond not in disjuncts:
                     disjuncts.add(norm_cond)
                     if existing.condition:
                         merged_condition = f"({existing.condition}) or ({condition})"
-                        merged_source = f"{existing.source}+overlay"
                     else:
                         merged_condition = condition
-                        merged_source = source
                 else:
                     merged_condition = existing.condition
                 role_map[role_name] = RoleGate(
                     role=role_name,
                     tags=merged_tags,
                     condition=merged_condition,
-                    source=merged_source,
+                    source="",
                 )
             else:
                 role_map[role_name] = RoleGate(
                     role=role_name,
                     tags=spec.tags,
                     condition=condition,
-                    source=source,
+                    source="",
                 )
                 role_disjuncts[role_name] = {norm_cond} if norm_cond else set()
 
+        def _source_for(role_name: str) -> str:
+            contributed = contributors.get(role_name, set())
+            parts = [profile_name] if profile_name in contributed else []
+            parts += sorted(c for c in contributed if c != profile_name)
+            return "+".join(parts)
+
         order = {s["name"]: i for i, s in enumerate(self._sections)}
         return tuple(sorted(
-            role_map.values(),
+            (
+                RoleGate(
+                    role=g.role,
+                    tags=g.tags,
+                    condition=g.condition,
+                    source=_source_for(g.role),
+                )
+                for g in role_map.values()
+            ),
             key=lambda r: (order.get(section_of.get(r.role, ""), len(order)), r.role),
         ))
 
@@ -1948,7 +1966,7 @@ class ManifestResolver:
             profile_roles = profile_data.get("roles", [])
 
         overlay_flags: Dict[str, bool] = {}
-        overlay_roles: List[Any] = []
+        overlay_specs: List[_RoleSpec] = []
 
         for overlay_name in self._repo.overlay_names:
             try:
@@ -1972,15 +1990,21 @@ class ManifestResolver:
                             rname = getattr(overlay_role, "role", "")
                         if rname:
                             overlay_flags[f"_overlay_{rname}"] = True
-                    overlay_roles.extend(overlay_roles_list)
+                    overlay_specs.extend(
+                        self._repo.normalize_role(entry, origin=overlay_name)
+                        for entry in overlay_roles_list
+                    )
             except (ValueError, yaml.YAMLError):
                 # Phase 1 verbatim: malformed overlays are skipped silently.
                 # FR6 turns this into a loud error naming the overlay.
                 continue
 
-        all_specs = [self._repo.normalize_role(e) for e in profile_roles + overlay_roles]
+        profile_specs = [
+            self._repo.normalize_role(e, origin=resolved.profile)
+            for e in profile_roles
+        ]
         roles_tuple = _RoleCollector(translator, self._repo.sections).collect(
-            all_specs, resolved.profile, host_vars
+            profile_specs + overlay_specs, resolved.profile, host_vars
         )
 
         return RoleManifest(
