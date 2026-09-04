@@ -17,7 +17,6 @@ from profile_dispatcher import (  # noqa: E402
     load_sections,
     load_profile,
     list_profiles,
-    load_overlay,
     main,
 )
 
