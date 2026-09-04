@@ -11,8 +11,7 @@ import yaml
 
 from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
-    resolve_role_manifest,
-    resolve_manifest,
+    ManifestResolver,
     discover_overlay_variables,
     generate_host_vars_template,
     generate_overlay_facts_task,
@@ -20,99 +19,6 @@ from profile_dispatcher import (  # noqa: E402
     PlaybookRole,
     main,
 )
-
-
-class TestResolveRoleManifestFunction:
-    """Test resolve_role_manifest() function."""
-
-    def test_resolves_hyprland_profile(self):
-        """resolve_role_manifest for hyprland profile returns correct manifest."""
-        manifest = resolve_role_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
-        assert manifest.profile == "hyprland"
-        assert manifest.display_manager == "sddm"
-        assert manifest.has_display is True
-        assert manifest.profile_flags["_is_arch"] is True
-        assert manifest.profile_flags["_is_hyprland"] is True
-        assert manifest.profile_flags["_is_i3"] is False
-
-    def test_resolves_headless_profile(self):
-        """resolve_manifest for headless profile has _has_display=False in flags."""
-        manifest = resolve_role_manifest(profile="headless", host_vars={}, os_family="Archlinux")
-        assert manifest.profile == "headless"
-        assert manifest.has_display is False
-        assert manifest.profile_flags["_has_display"] is False
-
-    def test_manual_mode_with_explicit_vars(self):
-        """resolve_manifest works in manual mode with explicit variables."""
-        manifest = resolve_role_manifest(
-            display_manager="lightdm",
-            desktop_environment="i3",
-            host_vars={},
-            os_family="Archlinux",
-        )
-        assert manifest.profile == "manual"
-        assert manifest.display_manager == "lightdm"
-        assert manifest.has_display is True
-        assert manifest.profile_flags["_is_i3"] is True
-
-    def test_includes_overlay_flags_when_overlay_applies(self):
-        """resolve_manifest includes overlay flags when overlay applies."""
-        host_vars = {"laptop": True}
-        manifest = resolve_role_manifest(
-            profile="hyprland",
-            host_vars=host_vars,
-            os_family="Archlinux",
-        )
-        assert "_overlay_laptop" in manifest.overlay_flags
-        assert manifest.overlay_flags["_overlay_laptop"] is True
-
-    def test_deduplicates_roles_by_name(self):
-        """Roles appearing in multiple profiles produce single manifest entry."""
-        manifest = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-        role_names = [r.role for r in manifest.roles]
-        terminal_count = role_names.count("terminal")
-        assert terminal_count == 1
-
-    def test_evaluates_config_check_correctly(self):
-        """config_check expressions are evaluated against host_vars."""
-        host_vars = {
-            "dotfiles_config": True,
-        }
-        manifest = resolve_role_manifest(
-            profile="hyprland",
-            host_vars=host_vars,
-            os_family="Archlinux",
-        )
-        dotfiles_roles = [r for r in manifest.roles if r.role == "dotfiles"]
-        assert len(dotfiles_roles) == 1
-        assert dotfiles_roles[0].condition == "true"
-
-    def test_all_profiles_resolve_successfully(self):
-        """All 6 named profiles resolve to valid manifests."""
-        for profile_name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
-            manifest = resolve_role_manifest(
-                profile=profile_name,
-                host_vars={},
-                os_family="Archlinux",
-            )
-            assert manifest.profile == profile_name
-            assert isinstance(manifest.roles, tuple)
-            assert len(manifest.roles) > 0
-
-    def test_resolved_manifest_is_frozen(self):
-        """ResolvedManifest should be immutable (frozen dataclass)."""
-        manifest = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-        with pytest.raises(AttributeError):
-            manifest.profile = "hyprland"
-
-    def test_resolved_manifest_equality(self):
-        """ResolvedManifest with same inputs should be equal."""
-        manifest1 = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-        manifest2 = resolve_role_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-        manifest3 = resolve_role_manifest(profile="hyprland", host_vars={}, os_family="Archlinux")
-
-        assert manifest1 == manifest2
-        assert manifest1 != manifest3
 
 
 class TestSyncPlaybook:
@@ -215,51 +121,6 @@ class TestSyncPlaybook:
         out = capsys.readouterr().out
         assert rc == 0
         assert "in sync" in out
-
-
-class TestPlaybookGeneratorResolveManifest:
-    """Tests for PlaybookGenerator.resolve_manifest() class."""
-
-    def test_resolve_manifest_delegates_to_resolve_role_manifest(self):
-        """PlaybookGenerator.resolve_manifest() produces same output as resolve_role_manifest()."""
-        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
-        result = gen.resolve_manifest(profile="i3", host_vars={}, os_family="Archlinux")
-
-        direct = resolve_role_manifest(
-            profile="i3",
-            host_vars={},
-            os_family="Archlinux",
-            profiles_dir=_PROFILES_DIR,
-        )
-        assert result == direct
-
-    def test_resolve_manifest_with_host_vars(self):
-        """PlaybookGenerator.resolve_manifest() passes host_vars through."""
-        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
-        result = gen.resolve_manifest(
-            profile="i3",
-            host_vars={"laptop": True},
-            os_family="Archlinux",
-        )
-        assert "_overlay_laptop" in result.overlay_flags
-        assert result.overlay_flags["_overlay_laptop"] is True
-
-    def test_resolve_manifest_headless(self):
-        """PlaybookGenerator.resolve_manifest() works for headless profile."""
-        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
-        result = gen.resolve_manifest(
-            profile="headless",
-            host_vars={},
-            os_family="Archlinux",
-        )
-        assert result.profile == "headless"
-        assert result.has_display is False
-
-    def test_resolve_manifest_unknown_profile_raises(self):
-        """PlaybookGenerator.resolve_manifest() raises ValueError for unknown profile."""
-        gen = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
-        with pytest.raises(ValueError, match="Unknown profile"):
-            gen.resolve_manifest(profile="nonexistent", host_vars={})
 
 
 class TestPlaybookGenerator:
@@ -932,12 +793,9 @@ class TestPlaybookGeneratorExplain:
 class TestSectionSorting:
     """Tests verifying role sorting by section in manifest output."""
 
-    def test_resolve_role_manifest_output_sorted_by_section(self):
+    def test_resolver_output_sorted_by_section(self):
         """Resolved manifest roles should be sorted by section, then alphabetically."""
-        manifest = resolve_role_manifest(
-            profile="i3",
-            os_family="Archlinux",
-        )
+        manifest = ManifestResolver().manifest("i3")
         role_names = [r.role for r in manifest.roles]
 
         # First roles should be from GPU Detection, then Base System
@@ -1241,52 +1099,6 @@ class TestGenerateOverlayFactsTask:
         # Verify fact format
         for var in variables:
             assert f"    _overlay_{var}: \"{{{{ _of._overlay_{var} | default(false) }}}}\"" in task
-
-
-class TestResolveManifestFunction:
-    """Test resolve_manifest() function (module-level convenience boundary)."""
-
-    def test_resolve_manifest_default_os_is_arch(self):
-        """Without os_family, defaults to Archlinux."""
-        manifest = resolve_manifest(profile="i3")
-        assert manifest.is_arch is True
-        assert manifest.is_i3 is True
-
-    def test_resolve_manifest_debian_is_not_arch(self):
-        """os_family='Debian' sets is_arch=False."""
-        manifest = resolve_manifest(profile="headless", os_family="Debian")
-        assert manifest.is_arch is False
-        assert manifest.has_display is False
-
-    def test_resolve_manifest_arch_explicit(self):
-        """os_family='Archlinux' sets is_arch=True."""
-        manifest = resolve_manifest(profile="hyprland", os_family="Archlinux")
-        assert manifest.is_arch is True
-        assert manifest.is_hyprland is True
-        assert manifest.display_manager == "sddm"
-
-    def test_resolve_manifest_manual_mode(self):
-        """Manual mode with explicit vars."""
-        manifest = resolve_manifest(
-            display_manager="lightdm",
-            desktop_environment="i3",
-            os_family="Debian",
-        )
-        assert manifest.profile == "manual"
-        assert manifest.is_arch is False
-        assert manifest.is_i3 is True
-
-    def test_resolve_manifest_null_os_family_defaults_arch(self):
-        """None os_family defaults to Archlinux."""
-        manifest = resolve_manifest(profile="gnome", os_family=None)
-        assert manifest.is_arch is True
-
-    def test_resolve_manifest_all_profiles(self):
-        """All 6 profiles resolve successfully with os_family."""
-        for name in ("headless", "i3", "hyprland", "gnome", "awesomewm", "kde"):
-            manifest = resolve_manifest(profile=name, os_family="Archlinux")
-            assert manifest.profile == name
-            assert manifest.is_arch is True
 
 
 if __name__ == '__main__':

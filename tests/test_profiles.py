@@ -11,7 +11,6 @@ from profile_dispatcher import (  # noqa: E402
     ManifestResolver,
     ManualTarget,
     resolve,
-    resolve_role_manifest,
     validate_profile,
     validate_overlays,
     load_sections,
@@ -364,7 +363,7 @@ class TestListProfiles:
 
 class TestLoadOverlay:
     """Overlay loading semantics through the resolver's repository-backed
-    diagnostic view (FR7 re-home of the former load_overlay() tests)."""
+    diagnostic view (FR7 re-home of the former load-overlay tests)."""
 
     def test_all_shipped_overlays_are_discovered_in_sorted_order(self):
         view = ManifestResolver().overlays({}, has_display=True)
@@ -653,10 +652,8 @@ class TestSectionValidation:
                 "roles:\n"
                 "  - { role: aaa_role, tags: [aaa2] }\n"
             )
-            manifest = resolve_role_manifest(
-                profile="test",
-                profiles_dir=tmpdir,
-                host_vars={"test_overlay": True},
+            manifest = ManifestResolver(profiles_dir=tmpdir).manifest(
+                "test", host_vars={"test_overlay": True}
             )
             names = [r.role for r in manifest.roles]
             assert names.index("aaa_role") < names.index("zzz_role")

@@ -14,7 +14,6 @@ profile definitions.
 
 CLI subcommands:
   resolve              Resolve a profile to JSON (for Ansible script module)
-  resolve-manifest     Resolve profile to manifest JSON with OS detection (for Ansible)
   resolve-role-manifest Resolve a complete role manifest with computed conditions
   sync-playbook        Compare play.yml roles with profile-derived expected roles
   generate-playbook    Generate play.yml from profile definitions
@@ -48,7 +47,6 @@ __all__ = [
     "Jinja2Evaluator",
     # Profile/overlay loading and validation
     "load_profile",
-    "load_overlay",
     "validate_profile",
     "validate_overlays",
     "list_profiles",
@@ -59,8 +57,6 @@ __all__ = [
     "generate_overlay_facts_task",
     # Resolution entry points
     "resolve",
-    "resolve_manifest",
-    "resolve_role_manifest",
     # ManifestResolver module (PRD-176)
     "EvalMode",
     "ManifestResolver",
@@ -506,35 +502,6 @@ class _ResolvedProfile:
 
 
 @dataclass(frozen=True)
-class _Manifest:
-    """
-    Complete manifest for Ansible playbook execution.
-
-    Combines profile resolution with OS detection into a single payload.
-
-    Attributes:
-        profile: The profile name that was resolved (or 'manual' for manual mode)
-        display_manager: The display manager to use ('gdm', 'lightdm', 'sddm', or None)
-        has_display: Whether this machine has any display/GUI
-        is_i3: Whether to install i3 window manager
-        is_hyprland: Whether to install Hyprland compositor
-        is_gnome: Whether to install GNOME desktop
-        is_awesomewm: Whether to install AwesomeWM window manager
-        is_kde: Whether to install KDE Plasma desktop
-        is_arch: Whether the OS is Arch Linux (computed from os_family)
-    """
-    profile: str
-    display_manager: Optional[str]
-    has_display: bool
-    is_i3: bool
-    is_hyprland: bool
-    is_gnome: bool
-    is_awesomewm: bool
-    is_kde: bool
-    is_arch: bool
-
-
-@dataclass(frozen=True)
 class _RoleCondition:
     """
     A single role entry with its computed Jinja2 condition.
@@ -727,66 +694,6 @@ def _normalize_condition(cond: Optional[str]) -> str:
     parts = sorted(p.strip() for p in s.split(" and "))
     return " and ".join(parts)
 
-
-def resolve_role_manifest(
-    profile: Optional[str] = None,
-    display_manager: Optional[str] = None,
-    desktop_environment: Optional[str] = None,
-    disable_i3: bool = False,
-    disable_hyprland: bool = False,
-    disable_gnome: bool = False,
-    disable_awesomewm: bool = False,
-    disable_kde: bool = False,
-    host_vars: Optional[dict] = None,
-    os_family: str = "Archlinux",
-    profiles_dir: str = _DEFAULT_PROFILES_DIR,
-    evaluator: Any = None,
-    preserve_config_check: bool = False,
-) -> _ResolvedManifest:
-    """Deprecated shim over ManifestResolver (PRD-176 FR2).
-
-    Retained until FR8 deletes the old surface. Constructs a RUNTIME- (or
-    BUILD-mode when preserve_config_check) resolver and adapts the RoleManifest
-    onto the legacy _ResolvedManifest shape so existing callers and tests keep
-    working unchanged.
-    """
-    resolver = ManifestResolver(
-        profiles_dir=profiles_dir,
-        os_family=os_family,
-        mode=EvalMode.BUILD if preserve_config_check else EvalMode.RUNTIME,
-        evaluator=evaluator,
-    )
-    normalized = profile.strip() if profile else ""
-    if normalized in ("", "manual"):
-        target: Union[str, ManualTarget] = ManualTarget(
-            display_manager=display_manager,
-            desktop_environment=desktop_environment,
-            disable=tuple(
-                de
-                for de, disabled in (
-                    ("i3", disable_i3),
-                    ("hyprland", disable_hyprland),
-                    ("gnome", disable_gnome),
-                    ("awesomewm", disable_awesomewm),
-                    ("kde", disable_kde),
-                )
-                if disabled
-            ),
-        )
-    else:
-        target = profile
-    rm = resolver.manifest(target, host_vars=host_vars)
-    return _ResolvedManifest(
-        profile=rm.profile,
-        display_manager=rm.display_manager,
-        has_display=rm.has_display,
-        profile_flags=rm.profile_flags,
-        overlay_flags=rm.overlay_flags,
-        roles=tuple(
-            _RoleCondition(role=g.role, tags=g.tags, condition=g.condition, source=g.source)
-            for g in rm.roles
-        ),
-    )
 
 
 def validate_profile(profiles_dir: str, name: str) -> list:
@@ -1236,80 +1143,6 @@ def validate_overlays(
     return results
 
 
-def load_overlay(profiles_dir: str, name: str) -> "_OverlayDefinition":
-    """
-    Load an overlay by name from profiles_dir/overlays/.
-
-    Args:
-        profiles_dir: Directory containing the overlays subdirectory
-        name: Overlay name with or without .yml extension (e.g. 'laptop' or 'laptop.yml')
-
-    Returns:
-        _OverlayDefinition with parsed overlay data
-
-    Raises:
-        ValueError: If the overlay file does not exist, the name contains path separators,
-                    or required fields are missing (name, applies_when, roles)
-    """
-    name = name.removesuffix(".yml")
-
-    # Guard against path traversal
-    if "/" in name or "\\" in name or ".." in name:
-        raise ValueError(
-            f"Overlay name '{name}' contains invalid path characters. "
-            "Overlay names must not include path separators or '..'."
-        )
-
-    profiles_root = Path(profiles_dir).resolve()
-    overlay_path = profiles_root / "overlays" / f"{name}.yml"
-
-    # Enforce the path stays inside profiles_dir/overlays
-    try:
-        overlay_path.resolve().relative_to(profiles_root)
-    except ValueError:
-        raise ValueError(
-            f"Overlay '{name}' resolves outside the overlays directory."
-        )
-
-    if not overlay_path.exists():
-        raise ValueError(
-            f"Overlay '{name}' not found at {overlay_path}"
-        )
-
-    with open(overlay_path) as f:
-        try:
-            data = yaml.safe_load(f)
-        except yaml.YAMLError as exc:
-            # Fail loud (PRD-176 FR6): name the overlay, matching the
-            # validate_overlays message pattern — never a silent skip.
-            raise ValueError(f"Overlay '{name}': invalid YAML: {exc}") from exc
-    if data is None:
-        data = {}
-    if not isinstance(data, dict):
-        raise ValueError(
-            f"Overlay '{name}': invalid YAML: expected a mapping at top level, "
-            f"got {type(data).__name__}"
-        )
-
-    # Validate required fields
-    required_fields = ["name", "applies_when", "roles"]
-    missing = [field for field in required_fields if field not in data]
-    if missing:
-        raise ValueError(
-            f"Overlay '{name}' is missing required fields: {', '.join(missing)}"
-        )
-
-    return _OverlayDefinition(
-        name=data["name"],
-        description=data.get("description"),
-        applies_when=data["applies_when"],
-        roles=data["roles"]
-    )
-
-
-# ---------------------------------------------------------------------------
-# Dynamic Host Vars Generation (Phase 2 Slice 3)
-# ---------------------------------------------------------------------------
 
 def discover_overlay_variables(profiles_dir: str = _DEFAULT_PROFILES_DIR) -> list[str]:
     """
@@ -1445,228 +1278,34 @@ def resolve(
     disable_kde: bool = False,
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
 ) -> _ResolvedProfile:
+    """Resolve profile configuration into boolean flags.
+
+    Re-implemented over ManifestResolver (PRD-176 FR8); consumers are the
+    `resolve` and `make-args` CLI subcommands. In profile mode the profile
+    file wins; None / '' / 'manual' select manual mode from the explicit
+    variables.
     """
-    Resolve profile configuration into boolean flags.
-
-    Args:
-        profile: Profile name ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde')
-                or None for manual mode
-        display_manager: Display manager name ('gdm', 'lightdm', 'sddm') or None
-        desktop_environment: Desktop environment name or None
-        disable_i3: Suppress i3 in manual mode
-        disable_hyprland: Suppress Hyprland in manual mode
-        disable_gnome: Suppress GNOME in manual mode
-        disable_awesomewm: Suppress AwesomeWM in manual mode
-        disable_kde: Suppress KDE in manual mode
-        profiles_dir: Directory containing profile YAML files
-
-    Returns:
-        _ResolvedProfile with all flags computed
-
-    Raises:
-        ValueError: If profile name is unknown
-    """
-    # Normalize profile: strip whitespace, treat empty/whitespace/'manual' as manual mode
-    normalized = profile.strip() if profile else ''
-    if normalized == 'manual':
-        normalized = ''
-    effective_profile = normalized or 'manual'
-
-    # Validate profile exists (only in profile mode)
-    if normalized:
-        profile_file = Path(profiles_dir) / f"{normalized}.yml"
-        if not profile_file.exists():
-            # File not found → unknown profile; list valid ones for a helpful message
-            valid_profiles = list_profiles(profiles_dir)
-            raise ValueError(
-                f"Unknown profile '{normalized}'. "
-                f"Available profiles: {', '.join(sorted(valid_profiles))}"
+    resolver = ManifestResolver(profiles_dir=profiles_dir)
+    normalized = profile.strip() if profile else ""
+    if normalized in ("", "manual"):
+        return resolver._resolve_target(
+            ManualTarget(
+                display_manager=display_manager,
+                desktop_environment=desktop_environment,
+                disable=tuple(
+                    de
+                    for de, disabled in (
+                        ("i3", disable_i3),
+                        ("hyprland", disable_hyprland),
+                        ("gnome", disable_gnome),
+                        ("awesomewm", disable_awesomewm),
+                        ("kde", disable_kde),
+                    )
+                    if disabled
+                ),
             )
-        # File exists → proceed; _resolve_profile_mode will validate and surface errors
-
-    # Profile mode: load settings from YAML
-    if effective_profile != 'manual':
-        return _resolve_profile_mode(effective_profile, profiles_dir)
-
-    # Manual mode: derive from explicit variables
-    return _resolve_manual_mode(
-        display_manager=display_manager,
-        desktop_environment=desktop_environment,
-        disable_i3=disable_i3,
-        disable_hyprland=disable_hyprland,
-        disable_gnome=disable_gnome,
-        disable_awesomewm=disable_awesomewm,
-        disable_kde=disable_kde
-    )
-
-
-def resolve_manifest(
-    profile: Optional[str] = None,
-    display_manager: Optional[str] = None,
-    desktop_environment: Optional[str] = None,
-    disable_i3: bool = False,
-    disable_hyprland: bool = False,
-    disable_gnome: bool = False,
-    disable_awesomewm: bool = False,
-    disable_kde: bool = False,
-    os_family: Optional[str] = None,
-    profiles_dir: str = _DEFAULT_PROFILES_DIR,
-) -> _Manifest:
-    """
-    Resolve profile configuration into a complete manifest for Ansible.
-
-    This is the single entry point for play.yml pre_tasks, combining profile
-    resolution with OS detection into one JSON output.
-
-    Args:
-        profile: Profile name ('headless', 'i3', 'hyprland', 'gnome', 'awesomewm', 'kde')
-                or None for manual mode
-        display_manager: Display manager name ('gdm', 'lightdm', 'sddm') or None
-        desktop_environment: Desktop environment name or None
-        disable_i3: Suppress i3 in manual mode
-        disable_hyprland: Suppress Hyprland in manual mode
-        disable_gnome: Suppress GNOME in manual mode
-        disable_awesomewm: Suppress AwesomeWM in manual mode
-        disable_kde: Suppress KDE in manual mode
-        os_family: OS family ('Archlinux', 'Debian', etc.) - if None, defaults to 'Archlinux'
-        profiles_dir: Directory containing profile YAML files
-
-    Returns:
-        Manifest with all flags computed for Ansible consumption
-
-    Raises:
-        ValueError: If profile name is unknown
-    """
-    # Resolve profile using existing logic
-    resolved = resolve(
-        profile=profile,
-        display_manager=display_manager,
-        desktop_environment=desktop_environment,
-        disable_i3=disable_i3,
-        disable_hyprland=disable_hyprland,
-        disable_gnome=disable_gnome,
-        disable_awesomewm=disable_awesomewm,
-        disable_kde=disable_kde,
-        profiles_dir=profiles_dir,
-    )
-
-    # Compute is_arch from os_family (default to Archlinux for backward compatibility)
-    is_arch = (os_family or 'Archlinux') == 'Archlinux'
-
-    return _Manifest(
-        profile=resolved.profile,
-        display_manager=resolved.display_manager,
-        has_display=resolved.has_display,
-        is_i3=resolved.is_i3,
-        is_hyprland=resolved.is_hyprland,
-        is_gnome=resolved.is_gnome,
-        is_awesomewm=resolved.is_awesomewm,
-        is_kde=resolved.is_kde,
-        is_arch=is_arch,
-    )
-
-
-def _resolve_profile_mode(profile: str, profiles_dir: str) -> _ResolvedProfile:
-    """
-    Resolve in profile mode - settings come from YAML profile file.
-    """
-    errors = validate_profile(profiles_dir, profile)
-    if errors:
-        raise ValueError(
-            f"Profile '{profile}' is invalid:\n" + "\n".join(f"  - {e}" for e in errors)
         )
-
-    profile_data = load_profile(profiles_dir, profile)
-
-    # Map display_manager_default → display_manager (empty string becomes None)
-    dm_raw = profile_data["display_manager_default"]
-    dm = dm_raw if dm_raw else None
-
-    de_raw = profile_data["desktop_environment"]
-    de = de_raw if de_raw else None
-
-    has_display = dm is not None
-
-    return _ResolvedProfile(
-        profile=profile,
-        display_manager=dm,
-        has_display=has_display,
-        desktop_environment=de,
-        is_i3=(de == "i3"),
-        is_hyprland=(de == "hyprland"),
-        is_gnome=(de == "gnome"),
-        is_awesomewm=(de == "awesomewm"),
-        is_kde=(de == "kde"),
-    )
-
-
-def _resolve_manual_mode(
-    display_manager: Optional[str],
-    desktop_environment: Optional[str],
-    disable_i3: bool,
-    disable_hyprland: bool,
-    disable_gnome: bool,
-    disable_awesomewm: bool,
-    disable_kde: bool
-) -> _ResolvedProfile:
-    """
-    Resolve in manual mode - derive flags from explicit variables.
-
-    This matches the Jinja2 ternary logic in play.yml:
-    - has_display is true if display_manager is set
-    - Desktop flags are derived from desktop_environment
-    - i3/hyprland have special dual-desktop behavior
-    - All DEs respect their disable_* flags
-    """
-    # Normalize empty string to None
-    dm = display_manager if display_manager else None
-    de = desktop_environment if desktop_environment else None
-
-    # has_display: true if display manager is set
-    has_display = dm is not None
-
-    # Desktop environment flags
-    # For i3 and hyprland: enabled unless explicitly disabled or DE set to something else
-    # For gnome/awesomewm/kde: only enabled if DE matches
-    is_i3 = (
-        has_display and
-        not disable_i3 and
-        (de is None or de == 'i3')
-    )
-    is_hyprland = (
-        has_display and
-        not disable_hyprland and
-        (de is None or de == 'hyprland')
-    )
-    is_gnome = (
-        not disable_gnome and
-        de == 'gnome'
-    )
-    is_awesomewm = (
-        not disable_awesomewm and
-        de == 'awesomewm'
-    )
-    is_kde = (
-        not disable_kde and
-        de == 'kde'
-    )
-
-    return _ResolvedProfile(
-        profile='manual',
-        display_manager=dm,
-        has_display=has_display,
-        desktop_environment=de,
-        is_i3=is_i3,
-        is_hyprland=is_hyprland,
-        is_gnome=is_gnome,
-        is_awesomewm=is_awesomewm,
-        is_kde=is_kde
-    )
-
-
-# ---------------------------------------------------------------------------
-# Playbook Generator (Slice 7)
-# ---------------------------------------------------------------------------
+    return resolver._resolve_target(normalized)
 
 # ---------------------------------------------------------------------------
 # ManifestResolver module (PRD-176 FR1)
@@ -1774,9 +1413,53 @@ class _ProfileRepository:
         return self._profiles[name]
 
     def overlay(self, name: str) -> "_OverlayDefinition":
-        if name not in self._overlays:
-            self._overlays[name] = load_overlay(self._profiles_dir, name)
-        return self._overlays[name]
+        """Load (and cache) an overlay, validating structure (FR8: the
+        repository owns the former load-overlay loading logic)."""
+        if name in self._overlays:
+            return self._overlays[name]
+        if "/" in name or "\\" in name or ".." in name:
+            raise ValueError(
+                f"Overlay name '{name}' contains invalid path characters. "
+                "Overlay names must not include path separators or '..'."
+            )
+        profiles_root = Path(self._profiles_dir).resolve()
+        overlay_path = profiles_root / "overlays" / f"{name}.yml"
+        try:
+            overlay_path.resolve().relative_to(profiles_root)
+        except ValueError:
+            raise ValueError(
+                f"Overlay '{name}' resolves outside the overlays directory."
+            )
+        if not overlay_path.exists():
+            raise ValueError(f"Overlay '{name}' not found at {overlay_path}")
+        with open(overlay_path) as f:
+            try:
+                data = yaml.safe_load(f)
+            except yaml.YAMLError as exc:
+                # Fail loud (PRD-176 FR6): name the overlay, matching the
+                # validate_overlays message pattern - never a silent skip.
+                raise ValueError(f"Overlay '{name}': invalid YAML: {exc}") from exc
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"Overlay '{name}': invalid YAML: expected a mapping at top level, "
+                f"got {type(data).__name__}"
+            )
+        required_fields = ["name", "applies_when", "roles"]
+        missing = [field for field in required_fields if field not in data]
+        if missing:
+            raise ValueError(
+                f"Overlay '{name}' is missing required fields: {', '.join(missing)}"
+            )
+        definition = _OverlayDefinition(
+            name=data["name"],
+            description=data.get("description"),
+            applies_when=data["applies_when"],
+            roles=data["roles"],
+        )
+        self._overlays[name] = definition
+        return definition
 
     @staticmethod
     def normalize_role(entry: Any, origin: str) -> _RoleSpec:
@@ -1805,8 +1488,8 @@ class _ProfileRepository:
 
 
 class _RoleCollector:
-    """Dedup / disjunct-merge / tag-union / section-sort, relocated verbatim
-    from resolve_role_manifest. Conditions come from the untouched
+    """Dedup / disjunct-merge / tag-union / section-sort (PRD-176 FR1,
+    behavior pinned by the golden matrix). Conditions come from the untouched
     AnsibleConditionTranslator, so bytes are identical by construction.
     Provenance (FR4) is recorded at collection: each spec's origin contributes
     to its role's source, rendered as "<profile>", "<overlay>", or
@@ -2013,6 +1696,9 @@ class ManifestResolver:
         )
 
     def _resolve_target(self, target: Union[str, ManualTarget, None]) -> "_ResolvedProfile":
+        """Target normalization (FR8 fold of the former profile-mode and
+        manual-mode helpers): a ManualTarget carries explicit flags; a str
+        is a profile name; None means manual defaults."""
         if isinstance(target, ManualTarget):
             unknown = sorted(set(target.disable) - set(_KNOWN_DES))
             if unknown:
@@ -2021,20 +1707,71 @@ class ManifestResolver:
                     + ", ".join(unknown)
                     + f". Known desktop environments: {', '.join(_KNOWN_DES)}"
                 )
-            return _resolve_manual_mode(
-                display_manager=target.display_manager,
-                desktop_environment=target.desktop_environment,
-                disable_i3="i3" in target.disable,
-                disable_hyprland="hyprland" in target.disable,
-                disable_gnome="gnome" in target.disable,
-                disable_awesomewm="awesomewm" in target.disable,
-                disable_kde="kde" in target.disable,
+            dm = target.display_manager if target.display_manager else None
+            de = target.desktop_environment if target.desktop_environment else None
+            has_display = dm is not None
+            disabled = target.disable
+            return _ResolvedProfile(
+                profile="manual",
+                display_manager=dm,
+                has_display=has_display,
+                desktop_environment=de,
+                is_i3=(has_display and "i3" not in disabled and (de is None or de == "i3")),
+                is_hyprland=(has_display and "hyprland" not in disabled and (de is None or de == "hyprland")),
+                is_gnome=("gnome" not in disabled and de == "gnome"),
+                is_awesomewm=("awesomewm" not in disabled and de == "awesomewm"),
+                is_kde=("kde" not in disabled and de == "kde"),
             )
-        # str profile name | None: resolve() performs the same strip/manual
-        # normalization the legacy path did; dm/de args are profile-mode no-ops.
-        return resolve(
-            profile=target,
-            profiles_dir=self._repo.profiles_dir,
+
+        normalized = target.strip() if target else ""
+        if normalized == "manual":
+            normalized = ""
+        effective_profile = normalized or "manual"
+
+        if normalized:
+            profile_file = Path(self._repo.profiles_dir) / f"{normalized}.yml"
+            if not profile_file.exists():
+                valid_profiles = list_profiles(self._repo.profiles_dir)
+                raise ValueError(
+                    f"Unknown profile '{normalized}'. "
+                    f"Available profiles: {', '.join(sorted(valid_profiles))}"
+                )
+
+        if effective_profile != "manual":
+            errors = validate_profile(self._repo.profiles_dir, effective_profile)
+            if errors:
+                raise ValueError(
+                    f"Profile '{effective_profile}' is invalid:\n"
+                    + "\n".join(f"  - {e}" for e in errors)
+                )
+            profile_data = self._repo.profile(effective_profile)
+            dm_raw = profile_data["display_manager_default"]
+            de_raw = profile_data["desktop_environment"]
+            dm = dm_raw if dm_raw else None
+            de = de_raw if de_raw else None
+            has_display = dm is not None
+            return _ResolvedProfile(
+                profile=effective_profile,
+                display_manager=dm,
+                has_display=has_display,
+                desktop_environment=de,
+                is_i3=(de == "i3"),
+                is_hyprland=(de == "hyprland"),
+                is_gnome=(de == "gnome"),
+                is_awesomewm=(de == "awesomewm"),
+                is_kde=(de == "kde"),
+            )
+
+        return _ResolvedProfile(
+            profile="manual",
+            display_manager=None,
+            has_display=False,
+            desktop_environment=None,
+            is_i3=False,
+            is_hyprland=False,
+            is_gnome=False,
+            is_awesomewm=False,
+            is_kde=False,
         )
 
 
@@ -2112,7 +1849,7 @@ class PlaybookGenerator:
             profiles_dir: Directory containing profile YAML files
             os_family: OS family for OS-specific role filtering
             host_vars: Host variables for overlay resolution (e.g. laptop, bluetooth).
-                Note: generate() calls resolve_role_manifest with preserve_config_check=True,
+                Note: generate() resolves each profile through a BUILD-mode ManifestResolver,
                 so config_check expressions are kept as raw Jinja2 rather than evaluated.
         """
         self.profiles_dir = profiles_dir
@@ -2180,14 +1917,11 @@ class PlaybookGenerator:
         role_tags: Dict[str, set] = {}
         role_sections: Dict[str, str] = {}
 
+        build_resolver = ManifestResolver(
+            profiles_dir=profiles_dir, os_family=os_family, mode=EvalMode.BUILD
+        )
         for profile_name in profile_names:
-            manifest = resolve_role_manifest(
-                profile=profile_name,
-                os_family=os_family,
-                host_vars=host_vars,
-                profiles_dir=profiles_dir,
-                preserve_config_check=True,
-            )
+            manifest = build_resolver.manifest(profile_name, host_vars=host_vars)
             for role_cond in manifest.roles:
                 role_name = role_cond.role
                 condition = role_cond.condition or None
@@ -2224,7 +1958,7 @@ class PlaybookGenerator:
 
         if include_overlays:
             # Roles declared in profile FILES (independent of overlays).
-            # resolve_role_manifest() folds default-true overlays into every
+            # the resolver folds default-true overlays into every
             # profile's manifest, so membership alone can't distinguish them.
             profile_file_roles: set = set()
             for profile_name in profile_names:
@@ -2430,55 +2164,14 @@ class PlaybookGenerator:
         hv = host_vars if host_vars is not None else self.host_vars
 
         # Resolve the profile manifest
-        manifest = resolve_role_manifest(
-            profile=profile,
-            os_family=self.os_family,
-            host_vars=hv,
-            profiles_dir=self.profiles_dir,
-            preserve_config_check=True,
-        )
+        manifest = ManifestResolver(
+            profiles_dir=self.profiles_dir, os_family=self.os_family, mode=EvalMode.BUILD
+        ).manifest(profile, host_vars=hv)
 
         # Convert RoleCondition to PlaybookRole
         return tuple(
             PlaybookRole(role=rc.role, tags=rc.tags, condition=rc.condition or None)
             for rc in manifest.roles
-        )
-
-    def resolve_manifest(
-        self,
-        profile: Optional[str] = None,
-        display_manager: Optional[str] = None,
-        desktop_environment: Optional[str] = None,
-        disable_i3: bool = False,
-        disable_hyprland: bool = False,
-        disable_gnome: bool = False,
-        disable_awesomewm: bool = False,
-        disable_kde: bool = False,
-        host_vars: Optional[Dict[str, Any]] = None,
-        os_family: Optional[str] = None,
-        evaluator: Any = None,
-        preserve_config_check: bool = False,
-    ) -> _ResolvedManifest:
-        """Resolve a single profile manifest with full parameter control.
-
-        Wraps resolve_role_manifest() using this generator's profiles_dir.
-        Returns the _ResolvedManifest with flags, overlay flags, and role
-        conditions for the given profile.
-        """
-        return resolve_role_manifest(
-            profile=profile,
-            display_manager=display_manager,
-            desktop_environment=desktop_environment,
-            disable_i3=disable_i3,
-            disable_hyprland=disable_hyprland,
-            disable_gnome=disable_gnome,
-            disable_awesomewm=disable_awesomewm,
-            disable_kde=disable_kde,
-            host_vars=host_vars,
-            os_family=os_family or self.os_family,
-            profiles_dir=self.profiles_dir,
-            evaluator=evaluator,
-            preserve_config_check=preserve_config_check,
         )
 
     def explain(self, role_name: str) -> str:
@@ -2656,29 +2349,6 @@ def _cmd_resolve(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_resolve_manifest(args: argparse.Namespace) -> int:
-    """Output _Manifest as JSON to stdout; exit 1 on error."""
-    try:
-        result = resolve_manifest(
-            profile=args.profile,
-            display_manager=args.display_manager,
-            desktop_environment=args.desktop_environment,
-            disable_i3=args.disable_i3,
-            disable_hyprland=args.disable_hyprland,
-            disable_gnome=args.disable_gnome,
-            disable_awesomewm=args.disable_awesomewm,
-            disable_kde=args.disable_kde,
-            os_family=args.os_family,
-            profiles_dir=args.profiles_dir,
-        )
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-
-    print(json.dumps(asdict(result)))
-    return 0
-
-
 def _cmd_validate(args: argparse.Namespace) -> int:
     """Validate all profiles and overlays; write errors to stderr; exit 1 on any failure."""
     # Validate profiles
@@ -2795,9 +2465,10 @@ def _cmd_list_profiles(args: argparse.Namespace) -> int:
     if overlay_names:
         print()
         print("Available overlays:")
+        listings_repo = _ProfileRepository(args.profiles_dir)
         for name in overlay_names:
             try:
-                overlay = load_overlay(args.profiles_dir, name)
+                overlay = listings_repo.overlay(name)
             except (ValueError, yaml.YAMLError, OSError):
                 continue
             description = str(overlay.description).splitlines()[0] if overlay.description else ""
@@ -2997,15 +2668,11 @@ def _discover_overlay_role_conditions(
     overlays_path = Path(profiles_dir) / "overlays"
     if not overlays_path.exists():
         return result
+    repo = _ProfileRepository(profiles_dir)
     for overlay_file in sorted(overlays_path.glob("*.yml")):
         overlay_name = overlay_file.stem
         overlay_flag = f"_overlay_{overlay_name}"
-        try:
-            overlay_data = load_overlay(profiles_dir, overlay_name)
-        except yaml.YAMLError as exc:
-            raise ValueError(
-                f"Overlay '{overlay_name}' has invalid YAML: {exc}"
-            ) from exc
+        overlay_data = repo.overlay(overlay_name)
         if isinstance(overlay_data, dict):
             roles_list = overlay_data.get("roles", [])
         else:
@@ -3205,9 +2872,10 @@ def _write_merged_playbook(
         # Also emit per-role overlay flags from all discovered overlays
         # These are derived from the overlay roles themselves
         all_overlay_role_flags = set()
+        writer_repo = _ProfileRepository(profiles_dir)
         for overlay_name in _discover_overlay_names(profiles_dir):
             try:
-                od = load_overlay(profiles_dir, overlay_name)
+                od = writer_repo.overlay(overlay_name)
                 if isinstance(od, dict):
                     roles_list = od.get("roles", [])
                 else:
@@ -3392,25 +3060,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
     )
 
-    # --- resolve-manifest ---
-    p_manifest = subparsers.add_parser(
-        "resolve-manifest",
-        help="Resolve profile to manifest JSON for Ansible (includes OS detection).",
-    )
-    p_manifest.add_argument("--profile", default=None, help="Profile name (e.g. i3, headless)")
-    p_manifest.add_argument("--display-manager", dest="display_manager", default=None)
-    p_manifest.add_argument("--desktop-environment", dest="desktop_environment", default=None)
-    p_manifest.add_argument("--disable-i3", dest="disable_i3", action="store_true")
-    p_manifest.add_argument("--disable-hyprland", dest="disable_hyprland", action="store_true")
-    p_manifest.add_argument("--disable-gnome", dest="disable_gnome", action="store_true")
-    p_manifest.add_argument("--disable-awesomewm", dest="disable_awesomewm", action="store_true")
-    p_manifest.add_argument("--disable-kde", dest="disable_kde", action="store_true")
-    p_manifest.add_argument("--os-family", dest="os_family", default=None,
-                          help="OS family (e.g. Archlinux, Debian)")
-    p_manifest.add_argument(
-        "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
-    )
-
     # --- validate ---
     p_validate = subparsers.add_parser(
         "validate",
@@ -3563,7 +3212,6 @@ def main(argv: Optional[list] = None) -> int:
 
     dispatch = {
         "resolve": _cmd_resolve,
-        "resolve-manifest": _cmd_resolve_manifest,
         "resolve-role-manifest": _cmd_resolve_role_manifest,
         "resolve-overlays": _cmd_resolve_overlays,
         "sync-playbook": _cmd_sync_playbook,
