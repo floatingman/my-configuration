@@ -1278,11 +1278,18 @@ def load_overlay(profiles_dir: str, name: str) -> "_OverlayDefinition":
 
     with open(overlay_path) as f:
         try:
-            data = yaml.safe_load(f) or {}
+            data = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             # Fail loud (PRD-176 FR6): name the overlay, matching the
             # validate_overlays message pattern — never a silent skip.
             raise ValueError(f"Overlay '{name}': invalid YAML: {exc}") from exc
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Overlay '{name}': invalid YAML: expected a mapping at top level, "
+            f"got {type(data).__name__}"
+        )
 
     # Validate required fields
     required_fields = ["name", "applies_when", "roles"]

@@ -17,6 +17,7 @@ from profile_dispatcher import (  # noqa: E402
     EvalMode,
     ManifestResolver,
     ManualTarget,
+    load_overlay,
     main,
     manifest_to_json,
     resolve_role_manifest,
@@ -142,6 +143,14 @@ class TestFailLoudOnMalformedOverlays:
         # Full message contract (AC4): the overlay is explicitly named with
         # the validate_overlays message pattern, not incidental text.
         assert "Overlay 'broken': invalid YAML" in err
+
+    def test_non_mapping_overlay_doc_raises_naming_overlay(self, tmp_path):
+        # A YAML doc that parses to a non-dict (e.g. a bare list) must raise
+        # the overlay-named ValueError, never a TypeError.
+        self._tree_with_broken_overlay(tmp_path)
+        (tmp_path / "overlays" / "listish.yml").write_text("- name\n- applies_when\n- roles\n")
+        with pytest.raises(ValueError, match="Overlay 'listish'"):
+            load_overlay(str(tmp_path), "listish")
 
 
 class TestManifestResolver:
