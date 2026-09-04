@@ -50,7 +50,7 @@ New users get access automatically when added to the `devtools` and `linuxbrew` 
 sudo usermod -aG devtools,linuxbrew <username>
 ```
 
-Per-user personalization (shell plugins, dotfiles, AI tool config) is separated into the `user_environment` overlay (see [Overlays](#overlays) below). Set `user_environment: false` in `local.yml` to skip user-specific setup entirely.
+Per-user personalization (shell plugins, dotfiles, AI tool config) is separated into the `user_environment` overlay (see [Overlays](#overlays) below). Set `user_environment: false` in `group_vars/all/local.yml` to skip user-specific setup entirely.
 
 ### Configuration Profiles
 
@@ -116,10 +116,13 @@ any profile. Each overlay gates itself on a variable from
 laptop: true                 # enable the laptop overlay
 
 bluetooth:
-  disable: true              # opt out of the bluetooth overlay
+  disable: false             # defining bluetooth enables the overlay (default)
 
 user_environment: false      # skip shell/dotfiles/gnupg/ai personalization
 ```
+
+To opt out of bluetooth entirely, set `disable: true` (or remove the
+`bluetooth:` variable).
 
 #### Role annotations
 
@@ -133,7 +136,7 @@ dispatcher translates them into `when:` conditions over pre-resolved facts
 | `os`               | Restrict to `archlinux` or `debian`                  | `os: archlinux` |
 | `requires_display` | Only runs with a display server (`_has_display`)     | `requires_display: true` |
 | `requires_config`  | Match a specific config value                        | `requires_config: { display_manager: lightdm }` |
-| `config_check`     | Jinja2 expression evaluated against host vars        | `"ai_enabled | default(false) \| bool"` |
+| `config_check`     | Jinja2 expression evaluated against host vars        | `"ai_enabled \| default(false) \| bool"` |
 | `section`          | play.yml grouping; section order and comments are defined in `profiles/_sections.yml` | `section: dev` |
 
 #### Changing profiles or roles: regenerate play.yml
@@ -162,6 +165,10 @@ make list-profiles                 # human-readable profile table
 python3 scripts/profile_dispatcher.py resolve-role-manifest --profile i3
                                    # inspect the fully resolved manifest
 ```
+
+> The direct `python3 ...` dispatcher calls need `pyyaml` + `jinja2` in that
+> interpreter (the `make` targets handle this for you by resolving the
+> pipx-managed ansible venv) — prefer the make targets when in doubt.
 
 To add a new profile, create `profiles/<name>.yml` (usually with
 `extends: _base.yml`) using an existing profile as a reference, then run
