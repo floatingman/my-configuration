@@ -340,7 +340,6 @@ pip_packages:
 
 aur:
   packages:
-    - awless
     - aws-iam-authenticator-bin
     - bit
     - brave-bin
@@ -447,65 +446,14 @@ laptop_power_management: "tuned"
 #   illuminance_file:   /sys/bus/iio/devices/iio:device0/in_illuminance_raw
 #   min_backlight: 60
 
-argocdcli_version: 2.3.1
-awless_version: 0.1.11
 aws_vault_version: 7.13.6
-bat_version: 0.20.0
 bit_version: 1.1.2
-bottom_version: 0.6.8
-delta_version: 0.12.1
-direnv_version: 2.30.3
-dive_version: 0.10.0
-docker_compose_version: v2.3.3
-docker_version: 20.10.13
-doctl_version: 1.71.1
 dog_version: v0.1.0
-dua_version: 2.17.0
-duf_version: 0.8.1
-dust_version: 0.8.1-alpha.2
-dyff_version: 1.5.1
-exa_version: 0.10.1
-fd_version: v8.3.2
-githubcli_version: 2.76.1
-gitui_version: 0.20.1
-glab_version: 1.22.0
-helm_version: 3.18.3
-istioctl_version: 1.13.2
-jq_version: 1.6
-k6_version: v0.37.0
-k9s_version: 0.25.18
-kind_version: 0.12.0
-kops_version: 1.23.0
-kube_linter_version: 0.2.5
-kubectl_version: 1.33.2
-kubectx_version: v0.9.4
-kubens_version: v0.9.4
-kubeseal_version: 0.17.3
-kubeval_version: 0.16.1
-kustomize_version: 4.5.2
-lazygit_version: 0.34
-lf_version: r26
-logcli_version: v2.4.2
-mdbook_version: 0.4.15
-nnn_version: 4.4
-nova_version: 3.0.2
-pet_version: 0.4.0
-polaris_version: 5.1.0
-popeye_version: 0.9.8
-ripgrep_version: 13.0.0
+gh_md_toc_version: 0.10.0
+git_quick_stats_version: 2.11.0
+prettyping_version: v1.1.0
 rke_version: v1.8.4
-scc_version: 3.0.0
-sd_version: 0.7.6
-stern_version: 1.26.0
-tectonic_version: 0.8.2
-texlab_version: v3.3.2
-tflint_version: v0.34.1
-tfswitch_version: 0.13.1218
-tokei_version: 12.1.2
-viddy_version: 0.3.4
-xsv_version: 0.13.0
-yq_version: 4.22.1
-yazi_version: 25.4.8
+tfswitch_version: 1.19.0
 
 # Homebrew packages - applications installed via Homebrew
 homebrew_packages:
@@ -572,10 +520,6 @@ binaries:
     url: "https://storage.googleapis.com/hey-releases/hey_linux_amd64"
     bin_name: hey_linux_amd64
 
-  - name: awless
-    url: "https://github.com/wallix/awless/releases/download/v{{ awless_version }}/awless-linux-amd64.tar.gz"
-    extract: true
-
   - name: aws-iam-authenticator
     url: "https://amazon-eks.s3-us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/amd64/aws-iam-authenticator"
 
@@ -593,13 +537,19 @@ binaries:
     bin_path: bin
 
   - name: gh-md-toc
-    url: "https://raw.githubusercontent.com/ekalinin/github-markdown-toc/master/gh-md-toc"
+    url: "https://github.com/ekalinin/github-markdown-toc/archive/refs/tags/{{ gh_md_toc_version }}.tar.gz"
+    extract: true
+    bin_path: github-markdown-toc-{{ gh_md_toc_version }}
 
   - name: git-quick-stats
-    url: "https://raw.githubusercontent.com/arzzen/git-quick-stats/master/git-quick-stats"
+    url: "https://github.com/arzzen/git-quick-stats/archive/refs/tags/{{ git_quick_stats_version }}.tar.gz"
+    extract: true
+    bin_path: git-quick-stats-{{ git_quick_stats_version }}
 
   - name: prettyping
-    url: "https://raw.githubusercontent.com/denilsonsa/prettyping/master/prettyping"
+    url: "https://github.com/denilsonsa/prettyping/archive/refs/tags/{{ prettyping_version }}.tar.gz"
+    extract: true
+    bin_path: prettyping-{{ prettyping_version }}
 
   - name: rke
     url: "https://github.com/rancher/rke/releases/download/{{ rke_version }}/rke_linux-amd64"
@@ -607,7 +557,7 @@ binaries:
 
   - name: tfswitch
     url: "https://github.com/warrensbox/terraform-switcher/releases/download/\
-      {{ tfswitch_version }}/terraform-switcher_{{ tfswitch_version }}_linux_amd64.tar.gz"
+      v{{ tfswitch_version }}/terraform-switcher_v{{ tfswitch_version }}_linux_amd64.tar.gz"
     extract: true
 
 # Rust cargo packages to install

@@ -1,0 +1,109 @@
+name: bump-versions
+
+# Weekly bot for shell/tmux plugin pins + monthly bot for base.yml binary
+# pins. Two schedules, two jobs — the cron that fired selects the job.
+# Pins only move through review; the playbook itself never floats.
+
+on:
+  schedule:
+    - cron: "23 4 * * 1" # Mondays 04:23 UTC — shell plugin pins (weekly)
+    - cron: "43 4 1 * *" # 1st of month 04:43 UTC — base.yml binary pins (monthly)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-plugins:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '23 4 * * 1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Bump pinned plugin versions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # pipefail: a failed bump script must fail this step, not hide
+          # behind tee's exit code (GitHub's default bash -e doesn't
+          # propagate non-final pipeline members).
+          set -o pipefail
+          python scripts/bump_plugin_versions.py | tee /tmp/bump-report.txt
+
+      - name: Validate defaults still parses
+        run: |
+          pip install pyyaml
+          python -c "import yaml; yaml.safe_load(open('roles/shell/defaults/main.yml'))"
+
+      - name: Open pull request if pins changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --quiet && { echo "All pins current — nothing to do."; exit 0; }
+          branch="bump/plugin-versions-$(date -u +%Y%m%d)-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add roles/shell/defaults/main.yml
+          git commit -m "chore(shell): bump pinned plugin versions" -m "$(cat /tmp/bump-report.txt)"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --title "chore(shell): bump pinned plugin versions" \
+            --body "Automated weekly pin refresh (scripts/bump_plugin_versions.py).
+
+          $(cat /tmp/bump-report.txt)
+
+          Note: this PR was opened with the default \`GITHUB_TOKEN\`, which
+          does not trigger \`pull_request\` workflows — the bump job above
+          already validated the YAML parses. The diff is version-pin-only."
+
+  bump-base:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '43 4 1 * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Bump pinned base.yml binary versions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          python scripts/bump_base_versions.py | tee /tmp/bump-report.txt
+
+      - name: Validate base.yml still parses
+        run: |
+          pip install pyyaml
+          python -c "import yaml; yaml.safe_load(open('group_vars/all/base.yml'))"
+
+      - name: Open pull request if pins changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --quiet && { echo "All pins current — nothing to do."; exit 0; }
+          branch="bump/base-versions-$(date -u +%Y%m%d)-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add group_vars/all/base.yml
+          git commit -m "chore(base): bump pinned binary versions" -m "$(cat /tmp/bump-report.txt)"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --title "chore(base): bump pinned binary versions" \
+            --body "Automated monthly pin refresh (scripts/bump_base_versions.py).
+
+          $(cat /tmp/bump-report.txt)
+
+          Note: this PR was opened with the default \`GITHUB_TOKEN\`, which
+          does not trigger \`pull_request\` workflows — the bump job above
+          already validated the YAML parses. The diff is version-pin-only."
