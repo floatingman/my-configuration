@@ -71,7 +71,7 @@ Run time:     play.yml pre_tasks (tag: always)
     In `play.yml`, overlay roles are gated by the overlay-level fact: `when: _overlay_laptop` / `_overlay_bluetooth` / `_overlay_user_environment`. The manifest also computes per-role facts (`_overlay_shell`, `_overlay_ai`, …) which `pre_tasks` exposes.
 - **`scripts/profile_dispatcher.py`** (~3.5k lines): profile resolver, `PlaybookGenerator` engine, condition translation (`ConditionTranslator` protocol), and CLI. No Ansible import. Tests in `tests/`.
 - **CI** (`.github/workflows/ci.yml`, Python 3.13): `pytest tests/` + `validate` + `sync-playbook --check` on push/PR to main. Nothing else — no Ansible in CI.
-- **Bump bot** (`.github/workflows/bump-plugin-versions.yml`, weekly Mondays): opens a PR when pinned zsh/tmux plugin versions in `roles/shell/defaults/main.yml` fall behind upstream (`scripts/bump_plugin_versions.py`). Plugin clones are always version-pinned — never floating `HEAD`.
+- **Bump bot** (`.github/workflows/bump-versions.yml`): two cadences, one workflow — weekly Mondays, shell/tmux plugin pins in `roles/shell/defaults/main.yml` (`scripts/bump_plugin_versions.py`); monthly on the 1st, `base.yml` binary-download versions (`scripts/bump_base_versions.py`, manifest doubles as the exclusion list). Both open pin-only PRs — versions move only through review; the playbook never floats. Plugin clones are always version-pinned — never floating `HEAD`.
 - **`facts.yml`**: debug playbook that dumps `ansible_facts` to `/tmp/ansible_facts.json`.
 - **External roles**: git-based from `floatingman/*` (binaries, packages, asdf) + `kewlfft.aur` collection. Run `make install` after changing `requirements.yml`.
 
@@ -94,7 +94,6 @@ Run time:     play.yml pre_tasks (tag: always)
 | ------------------------------------------- | -------------- | ----------------------------------------------------------------- |
 | `group_vars/all/base.yml`                   | tracked        | Shared defaults for all machines                                  |
 | `group_vars/all/local.yml`                  | **gitignored** | Machine-specific overrides (laptop, hostname, display_manager, …) |
-| `group_vars/all.yml`                        | **gitignored** | Machine-local vars (older layout, still loaded)                   |
 | `group_vars/templates/{desktop,server}.yml` | tracked        | Starting-point templates for a new machine                        |
 
 ## Conventions
