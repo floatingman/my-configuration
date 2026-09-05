@@ -77,7 +77,7 @@
   become: true
   become_user: "{{ user.name }}"
   ansible.builtin.template:
-    src: templates/tool-versions.j2
+    src: tool-versions.j2
     dest: "/home/{{ user.name }}/.tool-versions"
     mode: '0644'
   when: dotfiles_config is defined and dotfiles_asdf_plugins | length > 0

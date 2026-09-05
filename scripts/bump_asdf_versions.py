@@ -262,7 +262,10 @@ def main(argv: list[str] | None = None) -> int:
             drift = True
             continue
         if tag is None:
+            # Unverifiable pin: --check must fail so it surfaces, and the
+            # write run must not treat silence as "up to date".
             report.append(f"- asdf {name}: no stable release/tag found upstream")
+            drift = True
             continue
         note = ""
         if is_stale(published):
