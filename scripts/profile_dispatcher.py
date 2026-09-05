@@ -2674,11 +2674,10 @@ def _write_merged_playbook(
     """Generate play.yml from profile definitions.
 
     Reads all profile YAML files, generates the expected play.yml structure
-    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
+    (with pre_tasks and roles), and writes it to the specified path.
 
     Preserves:
     - pre_tasks structure (resolve-role-manifest call)
-    - vars_prompt section
     - Section comments in roles
 
     The _host_vars_json template is auto-generated from discovered overlay variables.
@@ -2862,11 +2861,6 @@ def _write_merged_playbook(
                     else:
                         f.write(f"    - {{ role: {role_name}, tags: {yaml_tags} }}\n")
 
-        # Write vars_prompt
-        f.write("\n  vars_prompt:\n")
-        f.write("    - name: user_password\n")
-        f.write("      prompt: \"Enter desired user password\"\n")
-
     print(f"Generated {playbook_path} from profile definitions")
     return 0
 
@@ -2875,7 +2869,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     """Generate play.yml from profile definitions.
 
     When --write is provided, writes the complete play.yml structure
-    (with pre_tasks, roles, and vars_prompt) to the specified path.
+    (with pre_tasks and roles) to the specified path.
 
     When --write is omitted, outputs merged role manifest JSON to stdout
     (aggregated from all profiles, same as what would be written to play.yml).

@@ -723,8 +723,8 @@ class TestCLIGeneratePlaybook:
         finally:
             os.unlink(tmpfile)
 
-    def test_generate_playbook_includes_vars_prompt(self):
-        """--write output should include the vars_prompt block."""
+    def test_generate_playbook_excludes_vars_prompt(self):
+        """--write output must not include a vars_prompt block (user_password prompt removed)."""
         with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
             tmpfile = tmp.name
         try:
@@ -733,7 +733,7 @@ class TestCLIGeneratePlaybook:
             with open(tmpfile) as f:
                 parsed = yaml.safe_load(f)
             play = parsed[0]
-            assert "vars_prompt" in play
+            assert "vars_prompt" not in play
         finally:
             os.unlink(tmpfile)
 

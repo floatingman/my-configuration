@@ -198,7 +198,3 @@
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: (_is_arch) and _overlay_bluetooth }
     - { role: laptop, tags: ["laptop"], when: _overlay_laptop }
-
-  vars_prompt:
-    - name: user_password
-      prompt: "Enter desired user password"
