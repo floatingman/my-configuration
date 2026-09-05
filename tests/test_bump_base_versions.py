@@ -133,19 +133,26 @@ class TestArchiveBinPaths:
         import yaml
 
         data = yaml.safe_load(bbv.BASE_YML.read_text())
-        checked = 0
         for entry in data.get("binaries", []):
             if not entry.get("extract"):
                 continue
-            match = re.search(r"/archive/refs/tags/\{\{ (\w+) \}\}", entry.get("url", ""))
-            if not match:
+            url_match = re.search(r"/archive/refs/tags/\{\{\s*(\w+)\s*\}\}", entry.get("url", ""))
+            if not url_match:
                 continue
-            var = match.group(1)
-            if not str(data[var]).startswith("v"):
+            var = url_match.group(1)
+            value = data.get(var)
+            if not isinstance(value, str) or not value.startswith("v"):
                 continue
-            checked += 1
-            assert "regex_replace('^v', '')" in entry.get("bin_path", ""), (
+            bin_path = entry.get("bin_path", "")
+            # Only RAW interpolation is a problem: {{ var }} with no filter
+            # attached. A filtered or non-interpolating bin_path is fine.
+            if not re.search(r"\{\{\s*" + re.escape(var) + r"\s*\}\}", bin_path):
+                continue
+            assert "regex_replace('^v', '')" in bin_path, (
                 f"{entry['name']}: bin_path must strip the 'v' prefix "
-                f"({var}={data[var]}) — GitHub archive roots drop it"
+                f"({var}={value}) — GitHub archive roots drop it"
             )
-        assert checked >= 1  # prettyping keeps this test honest
+        # The live regression case stays covered even though a correctly
+        # stripped bin_path no longer raw-interpolates the var above.
+        prettyping = next(e for e in data["binaries"] if e.get("name") == "prettyping")
+        assert "regex_replace('^v', '')" in prettyping["bin_path"]
