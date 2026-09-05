@@ -538,7 +538,9 @@ binaries:
   - name: prettyping
     url: "https://github.com/denilsonsa/prettyping/archive/refs/tags/{{ prettyping_version }}.tar.gz"
     extract: true
-    bin_path: prettyping-{{ prettyping_version }}
+    # GitHub archive roots strip the tag's leading 'v': the tarball for
+    # v1.1.0 extracts to prettyping-1.1.0/.
+    bin_path: prettyping-{{ prettyping_version | regex_replace('^v', '') }}
 
   - name: rke
     url: "https://github.com/rancher/rke/releases/download/{{ rke_version }}/rke_linux-amd64"

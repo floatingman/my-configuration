@@ -118,3 +118,41 @@ class TestManifestSyncsWithBaseYml:
         text = bbv.BASE_YML.read_text()
         for name in bbv.UNMANAGED:
             assert f"\n{name}_version:" not in text, name
+
+
+class TestArchiveBinPaths:
+    """Contract: GitHub /archive/ tarball roots strip the tag's leading
+    'v' (v1.1.0 extracts to <repo>-1.1.0/), so an extract: true entry
+    whose version var carries a 'v' prefix must not interpolate it raw
+    into bin_path. Runtime failure mode: ansible-role-binaries
+    "Source /tmp/.../<repo>-vX.Y.Z/... not found" — only visible on
+    Debian runs, so guard it here."""
+
+    def test_extract_bin_paths_account_for_v_prefix(self):
+        import re
+        import yaml
+
+        data = yaml.safe_load(bbv.BASE_YML.read_text())
+        for entry in data.get("binaries", []):
+            if not entry.get("extract"):
+                continue
+            url_match = re.search(r"/archive/refs/tags/\{\{\s*(\w+)\s*\}\}", entry.get("url", ""))
+            if not url_match:
+                continue
+            var = url_match.group(1)
+            value = data.get(var)
+            if not isinstance(value, str) or not value.startswith("v"):
+                continue
+            bin_path = entry.get("bin_path", "")
+            # Only RAW interpolation is a problem: {{ var }} with no filter
+            # attached. A filtered or non-interpolating bin_path is fine.
+            if not re.search(r"\{\{\s*" + re.escape(var) + r"\s*\}\}", bin_path):
+                continue
+            assert "regex_replace('^v', '')" in bin_path, (
+                f"{entry['name']}: bin_path must strip the 'v' prefix "
+                f"({var}={value}) — GitHub archive roots drop it"
+            )
+        # The live regression case stays covered even though a correctly
+        # stripped bin_path no longer raw-interpolates the var above.
+        prettyping = next(e for e in data["binaries"] if e.get("name") == "prettyping")
+        assert "regex_replace('^v', '')" in prettyping["bin_path"]
