@@ -501,47 +501,6 @@ class _ResolvedProfile:
     is_kde: bool
 
 
-@dataclass(frozen=True)
-class _RoleCondition:
-    """
-    A single role entry with its computed Jinja2 condition.
-
-    Attributes:
-        role: Role name
-        tags: Tuple of tags associated with this role
-        condition: Jinja2 when: expression (or empty string for no condition)
-        source: Name of the source (profile or overlay) that provided this role
-    """
-    role: str
-    tags: Tuple[str, ...]
-    condition: str
-    source: str
-
-
-@dataclass(frozen=True)
-class _ResolvedManifest:
-    """
-    Complete role manifest with computed conditions.
-
-    Combines profile roles and overlay roles into a deduplicated list
-    with Jinja2 when: conditions pre-computed from annotations.
-
-    Attributes:
-        profile: The profile name that was resolved
-        display_manager: The display manager to use
-        has_display: Whether this machine has any display/GUI
-        profile_flags: Dict of profile boolean flags (_is_arch, _is_i3, etc.)
-        overlay_flags: Dict of overlay boolean flags (_overlay_laptop, _overlay_bluetooth, etc.)
-        roles: List of _RoleCondition entries (deduplicated by role name)
-    """
-    profile: str
-    display_manager: Optional[str]
-    has_display: bool
-    profile_flags: Dict[str, Any]
-    overlay_flags: Dict[str, bool]
-    roles: Tuple[_RoleCondition, ...]
-
-
 # ---------------------------------------------------------------------------
 # Overlay Data Model (Slice 2)
 # ---------------------------------------------------------------------------
@@ -2715,11 +2674,10 @@ def _write_merged_playbook(
     """Generate play.yml from profile definitions.
 
     Reads all profile YAML files, generates the expected play.yml structure
-    (with pre_tasks, roles, and vars_prompt), and writes it to the specified path.
+    (with pre_tasks and roles), and writes it to the specified path.
 
     Preserves:
     - pre_tasks structure (resolve-role-manifest call)
-    - vars_prompt section
     - Section comments in roles
 
     The _host_vars_json template is auto-generated from discovered overlay variables.
@@ -2903,11 +2861,6 @@ def _write_merged_playbook(
                     else:
                         f.write(f"    - {{ role: {role_name}, tags: {yaml_tags} }}\n")
 
-        # Write vars_prompt
-        f.write("\n  vars_prompt:\n")
-        f.write("    - name: user_password\n")
-        f.write("      prompt: \"Enter desired user password\"\n")
-
     print(f"Generated {playbook_path} from profile definitions")
     return 0
 
@@ -2916,7 +2869,7 @@ def _cmd_generate_playbook(args: argparse.Namespace) -> int:
     """Generate play.yml from profile definitions.
 
     When --write is provided, writes the complete play.yml structure
-    (with pre_tasks, roles, and vars_prompt) to the specified path.
+    (with pre_tasks and roles) to the specified path.
 
     When --write is omitted, outputs merged role manifest JSON to stdout
     (aggregated from all profiles, same as what would be written to play.yml).
