@@ -501,47 +501,6 @@ class _ResolvedProfile:
     is_kde: bool
 
 
-@dataclass(frozen=True)
-class _RoleCondition:
-    """
-    A single role entry with its computed Jinja2 condition.
-
-    Attributes:
-        role: Role name
-        tags: Tuple of tags associated with this role
-        condition: Jinja2 when: expression (or empty string for no condition)
-        source: Name of the source (profile or overlay) that provided this role
-    """
-    role: str
-    tags: Tuple[str, ...]
-    condition: str
-    source: str
-
-
-@dataclass(frozen=True)
-class _ResolvedManifest:
-    """
-    Complete role manifest with computed conditions.
-
-    Combines profile roles and overlay roles into a deduplicated list
-    with Jinja2 when: conditions pre-computed from annotations.
-
-    Attributes:
-        profile: The profile name that was resolved
-        display_manager: The display manager to use
-        has_display: Whether this machine has any display/GUI
-        profile_flags: Dict of profile boolean flags (_is_arch, _is_i3, etc.)
-        overlay_flags: Dict of overlay boolean flags (_overlay_laptop, _overlay_bluetooth, etc.)
-        roles: List of _RoleCondition entries (deduplicated by role name)
-    """
-    profile: str
-    display_manager: Optional[str]
-    has_display: bool
-    profile_flags: Dict[str, Any]
-    overlay_flags: Dict[str, bool]
-    roles: Tuple[_RoleCondition, ...]
-
-
 # ---------------------------------------------------------------------------
 # Overlay Data Model (Slice 2)
 # ---------------------------------------------------------------------------
