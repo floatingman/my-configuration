@@ -10,6 +10,7 @@ base.yml is read-only here — no test writes to it.
 """
 
 import datetime
+import re
 
 import pytest
 
@@ -100,16 +101,31 @@ base_packages:
 """
 
 
+def helm_block(version):
+    return f'  - name: "helm"\n    versions:\n      - {version}\n    global: {version}'
+
+
+def current_helm_version(text):
+    match = re.search(
+        r'^  - name: "helm"\n    versions:\n      - (\S+)\n    global: \1$',
+        text,
+        re.M,
+    )
+    assert match
+    return match.group(1)
+
+
 class TestRewritePlugin:
     def test_rewrites_exactly_two_scalars_in_real_base_yml(self):
         text = bav.BASE_YML.read_text()
+        helm_version = current_helm_version(text)
         new_text, old, new = bav.rewrite_plugin(text, "helm", "9.9.9")
-        assert (old, new) == ("4.1.3", "9.9.9")
+        assert (old, new) == (helm_version, "9.9.9")
         before, after = text.splitlines(), new_text.splitlines()
         assert len(before) == len(after)
         assert [(a, b) for a, b in zip(before, after) if a != b] == [
-            ("      - 4.1.3", "      - 9.9.9"),
-            ("    global: 4.1.3", "    global: 9.9.9"),
+            (f"      - {helm_version}", "      - 9.9.9"),
+            (f"    global: {helm_version}", "    global: 9.9.9"),
         ]
 
     def test_targets_the_named_plugin_when_blocks_are_identical(self):
@@ -192,29 +208,32 @@ class TestCheckSemantics:
         return rc, capsys.readouterr().out
 
     def test_stale_pin_fails_check_and_write_updates(self, base_yml, monkeypatch, capsys):
+        helm_version = current_helm_version(base_yml.read_text())
         latest = {"helm/helm": ("v9.9.9", "2026-08-01T00:00:00Z")}
         rc, out = self._run(monkeypatch, capsys, ["--check"], latest)
-        assert rc == 1 and "helm: 4.1.3 -> 9.9.9" in out
+        assert rc == 1 and f"helm: {helm_version} -> 9.9.9" in out
         rc, _ = self._run(monkeypatch, capsys, [], latest)
         assert rc == 0
         assert "      - 9.9.9" in base_yml.read_text()
 
     def test_unmanageable_block_fails_check(self, base_yml, monkeypatch, capsys):
+        helm_version = current_helm_version(base_yml.read_text())
         text = base_yml.read_text().replace(
-            '  - name: "helm"\n    versions:\n      - 4.1.3\n    global: 4.1.3',
-            '  - name: "helm"\n    versions:\n      - 4.1.3\n      - 4.0.0\n    global: 4.1.3')
+            helm_block(helm_version),
+            f'  - name: "helm"\n    versions:\n      - {helm_version}\n      - 4.0.0\n    global: {helm_version}')
         base_yml.write_text(text)
         rc, out = self._run(monkeypatch, capsys, ["--check"], {})
         assert rc == 1 and "SKIPPED" in out
 
     def test_unresolvable_upstream_fails_check_but_write_skips_only_it(self, base_yml, monkeypatch, capsys):
+        helm_version = current_helm_version(base_yml.read_text())
         latest = {"helm/helm": (None, "")}
         rc, out = self._run(monkeypatch, capsys, ["--check"], latest)
         assert rc == 1 and "no stable release/tag found upstream" in out
         rc, _ = self._run(monkeypatch, capsys, [], latest)
         assert rc == 0
         written = base_yml.read_text()
-        assert "      - 4.1.3" in written  # helm untouched — no tag known
+        assert f"      - {helm_version}" in written  # helm untouched — no tag known
         assert "      - 1.0.0" in written  # every other plugin moved
 
     def test_idempotent_second_run_writes_nothing(self, base_yml, monkeypatch, capsys):

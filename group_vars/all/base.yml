@@ -109,56 +109,56 @@ asdf_group: "devtools"
 asdf_plugins:
   - name: "awscli"
     versions:
-      - 2.34.9
-    global: 2.34.9
+      - 2.36.40
+    global: 2.36.40
   - name: "concourse"
     versions:
-      - 8.1.0
-    global: 8.1.0
+      - 8.3.0
+    global: 8.3.0
   - name: "dotnet-core"
     versions:
-      - 10.0.201
-    global: 10.0.201
+      - 10.0.400
+    global: 10.0.400
   - name: "gcloud"
     versions:
       - 560.0.0
     global: 560.0.0
   - name: "golang"
     versions:
-      - 1.26.1
-    global: 1.26.1
+      - 1.27.1
+    global: 1.27.1
   - name: "helm"
     versions:
-      - 4.1.3
-    global: 4.1.3
+      - 4.2.4
+    global: 4.2.4
   - name: "kubectl"
     versions:
-      - 1.35.2
-    global: 1.35.2
+      - 1.37.0
+    global: 1.37.0
   - name: "minikube"
     versions:
-      - 1.38.1
-    global: 1.38.1
+      - 1.39.0
+    global: 1.39.0
   - name: "nodejs"
     versions:
-      - 25.8.1
-    global: 25.8.1
+      - 26.8.1
+    global: 26.8.1
   - name: "opentofu"
     versions:
-      - 1.11.5
-    global: 1.11.5
+      - 1.12.6
+    global: 1.12.6
   - name: "packer"
     versions:
-      - 1.15.0
-    global: 1.15.0
+      - 1.16.0
+    global: 1.16.0
   - name: "ruby"
     versions:
-      - 3.4.7
-    global: 3.4.7
+      - 4.0.6
+    global: 4.0.6
   - name: "terraform"
     versions:
-      - 1.14.7
-    global: 1.14.7
+      - 1.16.1
+    global: 1.16.1
 
 base_packages:
   - abiword
