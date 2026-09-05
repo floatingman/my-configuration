@@ -237,7 +237,11 @@ def rewrite_plugin(text: str, name: str, new_version: str) -> tuple[str, str, st
                                   f"{version_line.group(1)}{new_version}", 1)
     updated_block = updated_block.replace(
         global_match.group(0), f"{global_match.group(1)}{new_version}", 1)
-    return text.replace(block, updated_block, 1), old, new_version
+    # Splice at the plugin's absolute offsets: str.replace would match the
+    # FIRST textually-identical block, which is not necessarily this
+    # plugin's (two plugins may pin the same version).
+    start = name_match.end()
+    return text[:start] + updated_block + text[start + len(block):], old, new_version
 
 
 def main(argv: list[str] | None = None) -> int:
