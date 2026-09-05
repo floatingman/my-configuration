@@ -212,7 +212,10 @@ def rewrite_plugin(text: str, name: str, new_version: str) -> tuple[str, str, st
     if not name_match:
         raise ValueError(f"plugin {name} not found under asdf_plugins in base.yml")
     block = text[name_match.end():]
-    block = block[: re.search(r"^\S|^\s+-\s+name:", block, re.M).start()]
+    # No boundary when asdf_plugins is the file's last key — the block then
+    # runs to end of text.
+    boundary = re.search(r"^\S|^\s+-\s+name:", block, re.M)
+    block = block[: boundary.start() if boundary else len(block)]
 
     versions = re.findall(r"^\s+-\s+(\S+)\s*$", block, re.M)
     if len(versions) != 1:
@@ -228,6 +231,8 @@ def rewrite_plugin(text: str, name: str, new_version: str) -> tuple[str, str, st
     # is the only "- <scalar>" list line in the block, the global scalar is
     # the only "global: <scalar>" line. Surrounding text is untouched.
     version_line = re.search(rf"^(\s+-\s+){re.escape(old)}(?=\s*$)", block, re.M)
+    if not version_line:
+        raise ValueError(f"plugin {name}: unparseable version line (trailing comment?)")
     updated_block = block.replace(version_line.group(0),
                                   f"{version_line.group(1)}{new_version}", 1)
     updated_block = updated_block.replace(
