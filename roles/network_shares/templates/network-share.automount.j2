@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Automount network share {{ item.name }}
+
+[Automount]
+Where={{ item.path }}
+TimeoutIdleSec={{ network_shares_idle_timeout }}

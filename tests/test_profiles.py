@@ -382,12 +382,14 @@ class TestLoadOverlay:
         laptop = self._overlay_view({})["Laptop Features Overlay"]
         assert laptop.overlay.applies_when == "laptop | default(false)"
         roles = laptop.overlay.roles
-        assert len(roles) == 2
+        assert len(roles) == 3
         assert roles[0].role == "laptop"
         assert tuple(roles[0].tags) == ("laptop",)
-        assert roles[1].role == "backlight"
-        assert tuple(roles[1].tags) == ("backlight",)
-        assert roles[1].requires_display is True
+        assert roles[1].role == "network_shares"
+        assert tuple(roles[1].tags) == ("network_shares",)
+        assert roles[2].role == "backlight"
+        assert tuple(roles[2].tags) == ("backlight",)
+        assert roles[2].requires_display is True
 
     def test_bluetooth_overlay_content(self):
         bt = self._overlay_view({})["Bluetooth Support Overlay"]
@@ -406,7 +408,7 @@ class TestLoadOverlay:
         assert off.applies is False
         assert on.applies is True
         assert [role.role for role, role_applies in on.resolved_roles if role_applies] == [
-            "laptop", "backlight",
+            "laptop", "network_shares", "backlight",
         ]
 
     def test_laptop_roles_suppressed_without_display(self):

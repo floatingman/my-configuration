@@ -67,6 +67,7 @@
         _overlay_backlight: "{{ _of._overlay_backlight | default(false) }}"
         _overlay_dotfiles: "{{ _of._overlay_dotfiles | default(false) }}"
         _overlay_gnupg: "{{ _of._overlay_gnupg | default(false) }}"
+        _overlay_network_shares: "{{ _of._overlay_network_shares | default(false) }}"
         _overlay_shell: "{{ _of._overlay_shell | default(false) }}"
       tags: always
 
@@ -198,3 +199,4 @@
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: (_is_arch) and _overlay_bluetooth }
     - { role: laptop, tags: ["laptop"], when: _overlay_laptop }
+    - { role: network_shares, tags: ["network_shares"], when: _overlay_laptop }
