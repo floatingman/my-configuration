@@ -1,9 +1,11 @@
 ---
 - name: Reload systemd units
+  become: true
   ansible.builtin.systemd:
     daemon_reload: true
 
 - name: Apply trusted-network mount state
+  become: true
   ansible.builtin.command:
     cmd: /etc/NetworkManager/dispatcher.d/90-network-shares --apply
   changed_when: false
