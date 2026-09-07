@@ -9,7 +9,14 @@
 # harmless. Run manually as root to (re)apply now:
 #   sudo /etc/NetworkManager/dispatcher.d/90-network-shares --apply
 
-TRUSTED_CONNECTIONS='{{ network_shares_config.trusted_connections | join("\n") }}'
+# Connection names are emitted inside a quoted heredoc so arbitrary
+# characters (quotes, spaces, backslashes) stay literal data, never shell.
+TRUSTED_CONNECTIONS=$(cat <<'__NS_TRUSTED__'
+{% for name in network_shares_config.trusted_connections %}
+{{ name }}
+{% endfor %}
+__NS_TRUSTED__
+)
 AUTOMOUNT_UNITS='{% for share in network_shares_config.shares %}{{ share.path | trim("/") | replace("-", "\\x2d") | replace("/", "-") }}.automount {% endfor %}'
 MOUNT_UNITS='{% for share in network_shares_config.shares %}{{ share.path | trim("/") | replace("-", "\\x2d") | replace("/", "-") }}.mount {% endfor %}'
 MOUNT_PATHS='{{ network_shares_config.shares | map(attribute="path") | join(" ") }}'
@@ -17,9 +24,11 @@ MOUNT_PATHS='{{ network_shares_config.shares | map(attribute="path") | join(" ")
 log() { logger -t network-shares "$@"; }
 
 active_connections() {
-    nmcli --terse --fields NAME,TYPE connection show --active 2>/dev/null \
-        | grep -E ':(802-11-wireless|802-3-ethernet)$' \
-        | sed 's/:[^:]*$//'
+    # TYPE-first so a ':' inside a connection name can't corrupt the split:
+    # TYPE is a fixed enum, so 'cut -f2-' recovers the whole name.
+    nmcli --terse --fields TYPE,NAME connection show --active 2>/dev/null \
+        | grep -E '^(802-11-wireless|802-3-ethernet):' \
+        | cut -d : -f 2-
 }
 
 is_trusted() {

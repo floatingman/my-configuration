@@ -84,7 +84,9 @@
       loop: "{{ network_shares_config.shares }}"
       loop_control:
         label: "{{ item.name }}"
-      notify: Reload systemd units
+      notify:
+        - Reload systemd units
+        - Apply trusted-network mount state
 
     - name: Install automount units
       become: true
@@ -97,7 +99,9 @@
       loop: "{{ network_shares_config.shares }}"
       loop_control:
         label: "{{ item.name }}"
-      notify: Reload systemd units
+      notify:
+        - Reload systemd units
+        - Apply trusted-network mount state
 
     - name: Purge boot-time enablement of managed mount units
       become: true
@@ -120,7 +124,9 @@
                   | list }}"
       loop_control:
         label: "{{ item }}"
-      notify: Reload systemd units
+      notify:
+        - Reload systemd units
+        - Apply trusted-network mount state
 
     - name: Install NetworkManager dispatcher gate
       become: true
