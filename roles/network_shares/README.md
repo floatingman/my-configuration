@@ -9,8 +9,10 @@ servers.
 
 ## How it works
 
-1. Each `shares` entry renders a `mnt-*.mount` + `mnt-*.automount` unit
-   pair (mount-on-first-access, idle unmount after `network_shares_idle_timeout`).
+1. Each `shares` entry renders a systemd-escaped `<path>.mount` +
+   `<path>.automount` unit pair named from the mount path (e.g.
+   `/mnt/media` → `mnt-media.mount`; `/srv/media` → `srv-media.mount`),
+   mount-on-first-access, idle unmount after `network_shares_idle_timeout`.
 2. `/etc/NetworkManager/dispatcher.d/90-network-shares` runs on every NM
    event. While any trusted connection (wifi or wired) is active it starts
    the `.automount` units; otherwise it stops them and force-unmounts the
