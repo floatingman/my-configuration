@@ -55,7 +55,7 @@ if is_trusted; then
     # shellcheck disable=SC2086
     systemctl start $AUTOMOUNT_UNITS
 else
-    log "no trusted connection: stopping $MOUNT_UNITS"
+    log "no trusted connection: disarming $AUTOMOUNT_UNITS and unmounting $MOUNT_UNITS"
     # shellcheck disable=SC2086
     systemctl stop $AUTOMOUNT_UNITS 2>/dev/null
     # Stopping a .mount unit unmounts it (ForceUnmount= in the units);

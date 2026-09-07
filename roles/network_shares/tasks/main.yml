@@ -7,16 +7,17 @@
       ansible.builtin.assert:
         that:
           - network_shares_config.trusted_connections | length > 0
-          - item.path is match('^/[A-Za-z0-9/_-]*[A-Za-z0-9]$')
+          - item.path is match('^/([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+$')
           - item.name is defined
           - item.src is defined
           - item.fstype in ['nfs', 'cifs']
           - item.options is defined
         fail_msg: >-
           network_shares_config: every share needs name/src/path/options, a
-          fstype of nfs or cifs, and a path like /mnt/name (letters, digits,
-          dashes, slashes; no trailing slash); trusted_connections must list
-          at least one NetworkManager connection name.
+          fstype of nfs or cifs, and an absolute path of non-empty segments
+          (letters, digits, dashes, slashes; no trailing slash);
+          trusted_connections must list at least one NetworkManager
+          connection name.
       loop: "{{ network_shares_config.shares }}"
       loop_control:
         label: "{{ item.name }}"
