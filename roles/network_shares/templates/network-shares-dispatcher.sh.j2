@@ -26,7 +26,9 @@ log() { logger -t network-shares "$@"; }
 active_connections() {
     # TYPE-first so a ':' inside a connection name can't corrupt the split:
     # TYPE is a fixed enum, so 'cut -f2-' recovers the whole name.
-    nmcli --terse --fields TYPE,NAME connection show --active 2>/dev/null \
+    # --escape no disables terse mode's backslash-escaping of ':' and '\'
+    # inside values, so names compare literally against trusted_connections.
+    nmcli --terse --escape no --fields TYPE,NAME connection show --active 2>/dev/null \
         | grep -E '^(802-11-wireless|802-3-ethernet):' \
         | cut -d : -f 2-
 }
