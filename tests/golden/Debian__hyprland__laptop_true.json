@@ -14,6 +14,7 @@
   },
   "overlay_flags": {
     "_overlay_laptop": true,
+    "_overlay_network_shares": true,
     "_overlay_backlight": true,
     "_overlay_user_environment": true,
     "_overlay_shell": true,
@@ -586,6 +587,14 @@
       "role": "laptop",
       "tags": [
         "laptop"
+      ],
+      "condition": "",
+      "source": "laptop"
+    },
+    {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
       ],
       "condition": "",
       "source": "laptop"

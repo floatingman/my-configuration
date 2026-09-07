@@ -63,6 +63,19 @@ nmtrust_config:
   trusted_uuid:
     - REPLACE-WITH-YOUR-UUID # Run: nmcli connection show | grep UUID
 
+# Network shares (laptop overlay) — empty/omitted on servers; laptops automount
+# these while a trusted NetworkManager connection is active.
+# network_shares_config:
+#   trusted_connections:     # NetworkManager connection names: nmcli -g NAME con show --active
+#     - homessid
+#   shares:                  # entries with fstype nfs or cifs; see roles/network_shares/README.md
+#     - name: Media
+#       src: "192.168.0.10:/volume1/Media"
+#       path: /mnt/media
+#       fstype: nfs
+#       options: "vers=3,soft,timeo=100,noatime"
+# network_shares_idle_timeout: 600  # seconds idle before an automounted share unmounts
+
 # Bluetooth
 bluetooth:
   disable: true # Disable bluetooth on servers
