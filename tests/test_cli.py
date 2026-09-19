@@ -361,7 +361,7 @@ class TestCLIResolveOverlays:
         laptop = by_name["Laptop Features Overlay"]
         assert laptop["applies"] is True
         roles = {r["role"]: r["applies"] for r in laptop["roles"]}
-        assert roles == {"laptop": True, "network_shares": True, "backlight": True}
+        assert roles == {"laptop": True, "backlight": True}
 
     def test_laptop_without_display_disables_backlight(self, capsys):
         """laptop=true with --no-has-display → backlight role does not apply."""
@@ -369,7 +369,7 @@ class TestCLIResolveOverlays:
         laptop = by_name["Laptop Features Overlay"]
         assert laptop["applies"] is True
         roles = {r["role"]: r["applies"] for r in laptop["roles"]}
-        assert roles == {"laptop": True, "network_shares": True, "backlight": False}
+        assert roles == {"laptop": True, "backlight": False}
 
     def test_empty_facts_only_user_environment_applies(self, capsys):
         """Empty facts → default(true) overlay applies; default(false) overlays don't."""

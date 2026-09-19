@@ -1,6 +1,11 @@
 ---
 # Network shares automounted while a trusted NetworkManager connection
 # (e.g. the home WiFi) is active. Empty shares list disables all role behavior.
+# 'trusted-network' (default): laptop-style automounts armed by the
+# NetworkManager dispatcher while a trusted connection is active.
+# 'persistent': always-on server mounts — no NM requirement, units enabled
+# at boot, no idle unmount.
+network_shares_mode: trusted-network
 network_shares_config:
   # NetworkManager connection names that count as "home".
   # Find yours with: nmcli --terse --fields NAME,TYPE connection show --active

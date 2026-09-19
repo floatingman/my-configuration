@@ -4,8 +4,21 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Apply persistent mount state
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.mount"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ network_shares_config.shares }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: network_shares_mode == 'persistent'
+
 - name: Apply trusted-network mount state
   become: true
   ansible.builtin.command:
     cmd: /etc/NetworkManager/dispatcher.d/90-network-shares --apply
   changed_when: false
+  when: network_shares_mode == 'trusted-network'

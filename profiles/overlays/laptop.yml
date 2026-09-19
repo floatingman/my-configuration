@@ -7,5 +7,4 @@ applies_when: "laptop | default(false)"
 
 roles:
   - { role: laptop, tags: [laptop], section: optional }
-  - { role: network_shares, tags: [network_shares], section: optional }
   - { role: backlight, tags: [backlight], requires_display: true, section: desktop_apps }

@@ -63,18 +63,19 @@ nmtrust_config:
   trusted_uuid:
     - REPLACE-WITH-YOUR-UUID # Run: nmcli connection show | grep UUID
 
-# Network shares (laptop overlay) — empty/omitted on servers; laptops automount
-# these while a trusted NetworkManager connection is active.
+# Network shares — servers use 'persistent' mode: systemd .mount units enabled
+# at boot, no NetworkManager gate, no idle unmount (role runs whenever
+# network_shares_config is defined; laptops use trusted-network automounts).
+# network_shares_mode: persistent
 # network_shares_config:
-#   trusted_connections:     # NetworkManager connection names: nmcli -g NAME con show --active
-#     - homessid
+#   trusted_connections: []  # unused in persistent mode
 #   shares:                  # entries with fstype nfs or cifs; see roles/network_shares/README.md
 #     - name: Media
 #       src: "192.168.0.10:/volume1/Media"
 #       path: /mnt/media
 #       fstype: nfs
-#       options: "vers=3,soft,timeo=100,noatime"
-# network_shares_idle_timeout: 600  # seconds idle before an automounted share unmounts
+#       options: "vers=3,hard,noatime,rsize=1048576,wsize=1048576,timeo=100,retrans=3"
+# network_shares_idle_timeout: 600  # trusted-network mode only: idle unmount seconds
 
 # Bluetooth
 bluetooth:

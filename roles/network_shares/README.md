@@ -1,35 +1,44 @@
 # network_shares
 
-Automounts NFS (and CIFS) network shares on laptops while a trusted
-NetworkManager connection — e.g. the home WiFi — is active, and cleanly
-unmounts them when the machine leaves that network. Shares are systemd
-`.mount`/`.automount` pairs armed by a NetworkManager dispatcher script;
-they are never enabled at boot, so an off-home boot never touches the NFS
-servers.
+Manages NFS (and CIFS) network shares as systemd mount units. Two modes:
+
+- **`trusted-network`** (default, laptops): automount pairs armed by a
+  NetworkManager dispatcher while a trusted connection — e.g. the home WiFi —
+  is active, cleanly unmounted when the machine leaves that network. Never
+  enabled at boot, so an off-home boot never touches the NFS servers.
+- **`persistent`** (always-on servers): plain `.mount` units enabled at boot
+  via `WantedBy=multi-user.target`, no NetworkManager requirement, no idle
+  unmount. Shares are mounted as soon as the network target allows.
 
 ## How it works
 
-1. Each `shares` entry renders a systemd-escaped `<path>.mount` +
-   `<path>.automount` unit pair named from the mount path (e.g.
-   `/mnt/media` → `mnt-media.mount`; `/srv/media` → `srv-media.mount`),
-   mount-on-first-access, idle unmount after `network_shares_idle_timeout`.
-2. `/etc/NetworkManager/dispatcher.d/90-network-shares` runs on every NM
-   event. While any trusted connection (wifi or wired) is active it starts
+1. Each `shares` entry renders a systemd-escaped `<path>.mount` named from
+   the mount path (e.g. `/mnt/media` → `mnt-media.mount`;
+   `/srv/media` → `srv-media.mount`). In `trusted-network` mode it is paired
+   with a `<path>.automount` unit (mount-on-first-access, idle unmount after
+   `network_shares_idle_timeout`); in `persistent` mode the `.mount` unit is
+   enabled at boot instead.
+2. Trusted-network mode installs
+   `/etc/NetworkManager/dispatcher.d/90-network-shares`, which runs on every
+   NM event: while any trusted connection (wifi or wired) is active it starts
    the `.automount` units; otherwise it stops them and force-unmounts the
    `.mount` units so no stale NFS handles survive a network change.
+   Persistent mode installs no dispatcher and removes a leftover one.
 3. Any legacy `/etc/fstab` entry for a managed path is removed — the role
    owns those mount points.
 
-Requires NetworkManager (`nmcli`). NFS needs `nfs-utils`/`nfs-common`,
-CIFS needs `cifs-utils` — all installed by the role.
+Trusted-network mode requires NetworkManager (`nmcli`). NFS needs
+`nfs-utils`/`nfs-common`, CIFS needs `cifs-utils` — all installed by the role.
+
 
 ## Variables
 
-| Variable                                     | Default | Purpose                                                     |
-| -------------------------------------------- | ------- | ----------------------------------------------------------- |
-| `network_shares_config.trusted_connections`  | `[]`    | NM connection names that count as home (`nmcli -g NAME con show --active`) |
-| `network_shares_config.shares`               | `[]`    | Shares: `name`, `src`, `path`, `fstype` (nfs/cifs), `options` |
-| `network_shares_idle_timeout`                | `600`   | Seconds idle before an automounted share unmounts           |
+| Variable                                     | Default            | Purpose                                                     |
+| -------------------------------------------- | ------------------ | ----------------------------------------------------------- |
+| `network_shares_mode`                        | `trusted-network`  | `trusted-network` (NM-gated automounts) or `persistent` (boot-enabled server mounts) |
+| `network_shares_config.trusted_connections`  | `[]`               | NM connection names that count as home (`nmcli -g NAME con show --active`) — required in trusted-network mode |
+| `network_shares_config.shares`               | `[]`               | Shares: `name`, `src`, `path`, `fstype` (nfs/cifs), `options` |
+| `network_shares_idle_timeout`                | `600`              | Seconds idle before an automounted share unmounts (trusted-network mode) |
 
 An empty `shares` list disables the role entirely.
 
