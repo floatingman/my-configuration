@@ -36,6 +36,7 @@
     state: absent
   become: true
   failed_when: false
+  when: ai_herdr_enabled | default(true)
 
 - name: Verify herdr installation
   ansible.builtin.command: "{{ ai_user_bin_dir }}/herdr --version"
