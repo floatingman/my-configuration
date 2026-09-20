@@ -535,6 +535,14 @@
       "source": "laptop"
     },
     {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
+      ],
+      "condition": "false",
+      "source": "i3"
+    },
+    {
       "role": "regdomain",
       "tags": [
         "regdomain"

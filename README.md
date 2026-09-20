@@ -108,7 +108,7 @@ any profile. Each overlay gates itself on a variable from
 | Overlay            | Enabled when                                   | Roles |
 |--------------------|------------------------------------------------|-------|
 | `user_environment` | by default — set `user_environment: false` to skip | shell, dotfiles, gnupg, ai (AI tooling additionally needs `ai_enabled: true`) |
-| `laptop`           | `laptop: true`                                 | laptop, backlight (display required) |
+| `laptop`           | `laptop: true`                                 | laptop, network_shares, backlight (display required) |
 | `bluetooth`        | `bluetooth:` defined and not disabled (Arch only) | bluetooth |
 
 ```yaml

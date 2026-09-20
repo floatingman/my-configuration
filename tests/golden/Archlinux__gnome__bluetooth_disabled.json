@@ -525,6 +525,14 @@
       "source": "gnome"
     },
     {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
+      ],
+      "condition": "false",
+      "source": "gnome"
+    },
+    {
       "role": "regdomain",
       "tags": [
         "regdomain"

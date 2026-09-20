@@ -1,0 +1,25 @@
+---
+# Network shares automounted while a trusted NetworkManager connection
+# (e.g. the home WiFi) is active. Empty shares list disables all role behavior.
+# 'trusted-network' (default): laptop-style automounts armed by the
+# NetworkManager dispatcher while a trusted connection is active.
+# 'persistent': always-on server mounts — no NM requirement, units enabled
+# at boot, no idle unmount.
+network_shares_mode: trusted-network
+network_shares_config:
+  # NetworkManager connection names that count as "home".
+  # Find yours with: nmcli --terse --fields NAME,TYPE connection show --active
+  trusted_connections: []
+
+  # Shares to manage. Each entry:
+  #   name:     short label used in unit descriptions
+  #   src:      mount source — NFS "host:/export" or CIFS "//host/share"
+  #   path:     local mount point (letters, digits, dashes, slashes only)
+  #   fstype:   nfs | cifs
+  #   options:  mount options (systemd adds network dependencies itself)
+  # CIFS credentials stay out of this repo: point options at a pre-created
+  # credentials file (see roles/network_shares/README.md).
+  shares: []
+
+# Seconds of inactivity before an automounted share unmounts itself again.
+network_shares_idle_timeout: 600

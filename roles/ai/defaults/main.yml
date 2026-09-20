@@ -23,5 +23,10 @@ ai_local_llm_enabled: true
 ai_lmstudio_enabled: true
 ai_llmfit_enabled: true
 
-# System-wide binary directory for AI tools
+# System-wide binary directory for AI tools (pi symlink, ForgeCode)
 ai_system_bin_dir: /usr/local/bin
+
+# Per-user binary directory for self-updating AI tools (omp, herdr). Their
+# updaters rewrite the resolved binary in place, so the directory must be
+# owned by the updating user; a root-owned system bin dir forces sudo.
+ai_user_bin_dir: /home/{{ user.name }}/.local/bin

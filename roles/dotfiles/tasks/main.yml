@@ -68,6 +68,20 @@
     HOME: "/home/{{ user.name }}"
     PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
 
+# ~/.tool-versions is DERIVED from group_vars/all/base.yml (asdf_plugins),
+# not dotfiles-managed: the chezmoi copy drifted and pinned uninstalled
+# versions (breaking e.g. helm), so the dotfiles repo no longer ships
+# dot_tool-versions and ignores the path via .chezmoiignore. Rendering runs
+# AFTER `chezmoi init --apply` — the last task touching the file.
+- name: Render user .tool-versions from asdf_plugins
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.template:
+    src: tool-versions.j2
+    dest: "/home/{{ user.name }}/.tool-versions"
+    mode: '0644'
+  when: dotfiles_config is defined and dotfiles_asdf_plugins | length > 0
+
 - name: Create global gitconfig
   ansible.builtin.template:
     src: templates/gitconfig.j2

@@ -16,3 +16,10 @@
 #         reviewerRepo: "git@github.com:user/pi-reviewer.git"
 
 # dotfiles_config: null
+
+# asdf version pins rendered into ~/.tool-versions. Defined in
+# group_vars/all/base.yml (the single pin source; the monthly bump bot keeps
+# it current). Indirected through a dotfiles_-prefixed name because
+# ansible-lint requires role vars to carry the role prefix; group_vars/all
+# wins precedence at use time.
+dotfiles_asdf_plugins: "{{ asdf_plugins | default([]) }}"

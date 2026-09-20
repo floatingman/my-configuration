@@ -1,0 +1,7 @@
+{#- ~/.tool-versions is DERIVED, not hand-edited: asdf pins live in
+    group_vars/all/base.yml (asdf_plugins) — the monthly bump bot updates
+    them and the dotfiles role re-renders this file. The dotfiles repo no
+    longer manages this path. -#}
+{% for plugin in dotfiles_asdf_plugins %}
+{{ plugin.name }} {{ plugin.global | default(plugin.versions | first) }}
+{% endfor %}

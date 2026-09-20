@@ -18,7 +18,7 @@ shell_tpm_version: "v3.1.0"
 shell_zsh_plugins:
   - repo: "https://github.com/wfxr/forgit.git"
     dest: "forgit"
-    version: "26.09.0"
+    version: "26.09.1"
   - repo: "https://github.com/zsh-users/zsh-autosuggestions"
     dest: "zsh-autosuggestions"
     version: "v0.7.1"

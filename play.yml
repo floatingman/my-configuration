@@ -195,10 +195,7 @@
     # -------------------------------------------------------------------------
     - { role: dotfiles, tags: ["dotfiles"], when: (dotfiles_config is defined) and _overlay_user_environment }
     - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
+    - { role: network_shares, tags: ["network_shares"], when: network_shares_config is defined }
     - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
     - { role: bluetooth, tags: ["bluetooth"], when: (_is_arch) and _overlay_bluetooth }
     - { role: laptop, tags: ["laptop"], when: _overlay_laptop }
-
-  vars_prompt:
-    - name: user_password
-      prompt: "Enter desired user password"

@@ -1,0 +1,173 @@
+---
+- name: Manage NFS/CIFS shares (automount on trusted networks, or persistent server mounts)
+  when: network_shares_config.shares | length > 0
+  block:
+
+    - name: Validate network share definitions
+      ansible.builtin.assert:
+        that:
+          - network_shares_mode in ['trusted-network', 'persistent']
+          - item.path is match('^/([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+$')
+          - item.name is defined
+          - item.src is defined
+          - item.fstype in ['nfs', 'cifs']
+          - item.options is defined
+        fail_msg: >-
+          network_shares_config: every share needs name/src/path/options, a
+          fstype of nfs or cifs, and an absolute path of non-empty segments
+          (letters, digits, dashes, slashes; no trailing slash);
+          network_shares_mode must be 'trusted-network' or 'persistent'.
+      loop: "{{ network_shares_config.shares }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Require trusted connections (trusted-network mode)
+      ansible.builtin.assert:
+        that:
+          - network_shares_config.trusted_connections | length > 0
+        fail_msg: >-
+          trusted-network mode needs NetworkManager connection names in
+          network_shares_config.trusted_connections (find yours with:
+          nmcli -g NAME con show --active) — or switch the host to
+          network_shares_mode: persistent for always-on servers.
+      when: network_shares_mode == 'trusted-network'
+
+    - name: Require NetworkManager (nmcli)
+      ansible.builtin.command:
+        cmd: nmcli --version
+      changed_when: false
+      when: network_shares_mode == 'trusted-network'
+
+    - name: Install NFS client (Arch Linux)
+      become: true
+      ansible.builtin.package:
+        name: nfs-utils
+        state: present
+      when: ansible_facts["os_family"] == "Archlinux"
+
+    - name: Install NFS client (Debian)
+      become: true
+      ansible.builtin.package:
+        name: nfs-common
+        state: present
+      when: ansible_facts["os_family"] == "Debian"
+
+    - name: Install CIFS client
+      become: true
+      ansible.builtin.package:
+        name: cifs-utils
+        state: present
+      when: network_shares_config.shares | selectattr('fstype', 'equalto', 'cifs') | list | length > 0
+
+    - name: Create mount point directories
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop: "{{ network_shares_config.shares }}"
+      loop_control:
+        label: "{{ item.name }}"
+      # While a share is mounted the directory IS the remote export; applying
+      # local owner/mode would hit the NFS server (root-squashed) and EPERM.
+      when: ansible_facts["mounts"] | selectattr("mount", "equalto", item.path) | list | length == 0
+
+    - name: Drop legacy fstab entries for managed paths
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        state: absent
+        regexp: '^\S+\s+{{ item.path }}\s'
+      loop: "{{ network_shares_config.shares }}"
+      loop_control:
+        label: "{{ item.name }}"
+      notify: Reload systemd units
+
+    - name: Install mount units
+      become: true
+      ansible.builtin.template:
+        src: network-share.mount.j2
+        dest: "/etc/systemd/system/{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.mount"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ network_shares_config.shares }}"
+      loop_control:
+        label: "{{ item.name }}"
+      notify:
+        - Reload systemd units
+        - Apply persistent mount state
+
+    - name: Install automount units
+      become: true
+      ansible.builtin.template:
+        src: network-share.automount.j2
+        dest: "/etc/systemd/system/{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.automount"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ network_shares_config.shares }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: network_shares_mode == 'trusted-network'
+      notify:
+        - Reload systemd units
+        - Apply trusted-network mount state
+
+    - name: Purge boot-time enablement of managed mount units
+      become: true
+      ansible.builtin.file:
+        path: "/etc/systemd/system/multi-user.target.wants/{{ item }}"
+        state: absent
+      loop: "{{ network_shares_config.shares
+                | map(attribute='path')
+                | map('trim', '/')
+                | map('replace', '-', '\\x2d')
+                | map('replace', '/', '-')
+                | map('regex_replace', '$', '.automount')
+                | list
+                + network_shares_config.shares
+                  | map(attribute='path')
+                  | map('trim', '/')
+                  | map('replace', '-', '\\x2d')
+                  | map('replace', '/', '-')
+                  | map('regex_replace', '$', '.mount')
+                  | list }}"
+      loop_control:
+        label: "{{ item }}"
+      when: network_shares_mode == 'trusted-network'
+      notify:
+        - Reload systemd units
+        - Apply trusted-network mount state
+
+    - name: Install NetworkManager dispatcher gate
+      become: true
+      ansible.builtin.template:
+        src: network-shares-dispatcher.sh.j2
+        dest: /etc/NetworkManager/dispatcher.d/90-network-shares
+        owner: root
+        group: root
+        mode: "0755"
+      when: network_shares_mode == 'trusted-network'
+      notify: Apply trusted-network mount state
+
+    - name: Remove automount units (persistent mode)
+      become: true
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.automount"
+        state: absent
+      loop: "{{ network_shares_config.shares }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: network_shares_mode == 'persistent'
+      notify: Reload systemd units
+
+    - name: Remove NetworkManager dispatcher gate (persistent mode)
+      become: true
+      ansible.builtin.file:
+        path: /etc/NetworkManager/dispatcher.d/90-network-shares
+        state: absent
+      when: network_shares_mode == 'persistent'
+      notify: Reload systemd units

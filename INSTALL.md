@@ -70,7 +70,7 @@ Optionally edit the mirror list.
 
 Install the base system.
 
-    $ pacstrap -i /mnt base base-devel linux linux-firmware lvm2 dhcpcd net-tools wireless_tools dialog wpa_supplicant efibootmgr vim git grub ansible iwd openssh python-passlib
+    $ pacstrap -i /mnt base base-devel linux linux-firmware lvm2 dhcpcd net-tools wireless_tools dialog wpa_supplicant efibootmgr vim git grub ansible iwd openssh sudo
 
 Generate and verify fstab.
 
@@ -93,6 +93,14 @@ Change root into the base install and perform base configuration tasks.
     $ echo mymachine > /etc/hostname
     $ systemctl enable dhcpcd.service
     $ passwd
+
+Create your regular user and grant it sudo. The playbook is designed to be run
+as this user (never as root); it does not create or manage login passwords.
+
+    $ useradd -m -G wheel <username>
+    $ passwd <username>
+    $ echo '%wheel ALL=(ALL) ALL' > /etc/sudoers.d/01_wheel
+    $ chmod 440 /etc/sudoers.d/01_wheel
 
 Set your mkinitcpio encrypt/lvm2 hooks.
 

@@ -1,0 +1,70 @@
+#!/bin/sh
+# {{ ansible_managed }}
+#
+# Gate network-share automounts on trusted NetworkManager connections
+# (e.g. the home WiFi). Installed by the network_shares role.
+#
+# NetworkManager runs this on every dispatcher event (up/down/connectivity
+# change); each run just re-evaluates current state, so extra events are
+# harmless. Run manually as root to (re)apply now:
+#   sudo /etc/NetworkManager/dispatcher.d/90-network-shares --apply
+
+# Connection names are emitted inside a quoted heredoc so arbitrary
+# characters (quotes, spaces, backslashes) stay literal data, never shell.
+TRUSTED_CONNECTIONS=$(cat <<'__NS_TRUSTED__'
+{% for name in network_shares_config.trusted_connections %}
+{{ name }}
+{% endfor %}
+__NS_TRUSTED__
+)
+AUTOMOUNT_UNITS='{% for share in network_shares_config.shares %}{{ share.path | trim("/") | replace("-", "\\x2d") | replace("/", "-") }}.automount {% endfor %}'
+MOUNT_UNITS='{% for share in network_shares_config.shares %}{{ share.path | trim("/") | replace("-", "\\x2d") | replace("/", "-") }}.mount {% endfor %}'
+MOUNT_PATHS='{{ network_shares_config.shares | map(attribute="path") | join(" ") }}'
+
+log() { logger -t network-shares "$@"; }
+
+active_connections() {
+    # TYPE-first so a ':' inside a connection name can't corrupt the split:
+    # TYPE is a fixed enum, so 'cut -f2-' recovers the whole name.
+    # --escape no disables terse mode's backslash-escaping of ':' and '\'
+    # inside values, so names compare literally against trusted_connections.
+    nmcli --terse --escape no --fields TYPE,NAME connection show --active 2>/dev/null \
+        | grep -E '^(802-11-wireless|802-3-ethernet):' \
+        | cut -d : -f 2-
+}
+
+is_trusted() {
+    [ -n "$TRUSTED_CONNECTIONS" ] || return 1
+    _names=$(active_connections)
+    [ -n "$_names" ] || return 1
+    _ifs=$IFS
+    IFS='
+'
+    for _name in $_names; do
+        for _trusted in $TRUSTED_CONNECTIONS; do
+            if [ "$_name" = "$_trusted" ]; then
+                IFS=$_ifs
+                return 0
+            fi
+        done
+    done
+    IFS=$_ifs
+    return 1
+}
+
+if is_trusted; then
+    log "trusted connection active: starting $AUTOMOUNT_UNITS"
+    # shellcheck disable=SC2086
+    systemctl start $AUTOMOUNT_UNITS
+else
+    log "no trusted connection: disarming $AUTOMOUNT_UNITS and unmounting $MOUNT_UNITS"
+    # shellcheck disable=SC2086
+    systemctl stop $AUTOMOUNT_UNITS 2>/dev/null
+    # Stopping a .mount unit unmounts it (ForceUnmount= in the units);
+    # fall back to a forced lazy unmount for anything still attached.
+    # shellcheck disable=SC2086
+    systemctl stop $MOUNT_UNITS 2>/dev/null
+    for _path in $MOUNT_PATHS; do
+        mountpoint -q "$_path" && umount -f -l "$_path" 2>/dev/null
+    done
+fi

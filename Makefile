@@ -136,11 +136,10 @@ else
 endif
 
 .PHONY: pip-deps
-pip-deps: ## Ensure pyyaml and passlib are available (injects into pipx ansible environment)
+pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
 	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
-	@$(SCRIPT_PYTHON) -c "import passlib" 2>/dev/null || pipx inject ansible passlib
-	@if ! $(SCRIPT_PYTHON) -c "import yaml, passlib" >/dev/null 2>&1; then \
-		echo 'ERROR: scripts interpreter cannot import pyyaml/passlib even after pipx inject.'; \
+	@if ! $(SCRIPT_PYTHON) -c "import yaml" >/dev/null 2>&1; then \
+		echo 'ERROR: scripts interpreter cannot import pyyaml even after pipx inject.'; \
 		echo '  interpreter : $(SCRIPT_PYTHON)'; \
 		echo '  pipx venvs  : $(PIPX_VENVS)'; \
 		echo 'This usually means the pipx ansible venv was not found and the interpreter'; \

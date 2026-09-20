@@ -1,7 +1,8 @@
 name: bump-versions
 
 # Weekly bot for shell/tmux plugin pins + monthly bot for base.yml binary
-# pins. Two schedules, two jobs — the cron that fired selects the job.
+# and asdf plugin pins. Two schedules, two jobs — the cron that fired
+# selects the job.
 # workflow_dispatch runs both (each opens a PR only if its pins changed).
 # Pins only move through review; the playbook itself never floats.
 
@@ -81,6 +82,14 @@ jobs:
           set -o pipefail
           python scripts/bump_base_versions.py | tee /tmp/bump-report.txt
 
+      - name: Bump pinned asdf plugin versions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          # Appends to the report the base step started — one combined PR body.
+          python scripts/bump_asdf_versions.py | tee -a /tmp/bump-report.txt
+
       - name: Validate base.yml still parses
         run: |
           pip install pyyaml
@@ -96,12 +105,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           git add group_vars/all/base.yml
-          git commit -m "chore(base): bump pinned binary versions" -m "$(cat /tmp/bump-report.txt)"
+          git commit -m "chore(base): bump pinned binary and asdf plugin versions" -m "$(cat /tmp/bump-report.txt)"
           git push origin "$branch"
           gh pr create \
             --base main \
-            --title "chore(base): bump pinned binary versions" \
-            --body "Automated monthly pin refresh (scripts/bump_base_versions.py).
+            --title "chore(base): bump pinned binary and asdf plugin versions" \
+            --body "Automated monthly pin refresh (scripts/bump_base_versions.py + scripts/bump_asdf_versions.py).
 
           $(cat /tmp/bump-report.txt)
 

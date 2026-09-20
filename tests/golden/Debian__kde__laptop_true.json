@@ -543,6 +543,14 @@
       "source": "laptop"
     },
     {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
+      ],
+      "condition": "false",
+      "source": "kde"
+    },
+    {
       "role": "regdomain",
       "tags": [
         "regdomain"
