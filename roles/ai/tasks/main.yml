@@ -1,15 +1,16 @@
 ---
 # tasks file for ai
-# AI tools (pi, forge, omp, herdr) are installed system-wide so all users on
-# the machine can access them.
+# AI tool install locations:
 # - pi-agent is installed via npm under the system-wide asdf-managed Node, so
 #   the `pi` binary is exposed through the asdf shims (/etc/profile.d/asdf.sh)
-#   plus a /usr/local/bin symlink.
-# - herdr and omp install straight into /usr/local/bin via their installers'
-#   install-dir env overrides; forge's installer has no such override on
-#   Linux, so it runs under a throwaway HOME and the binary is installed out
-#   of the temp dir (see forgecode.yml / omp.yml / herdr.yml).
-# Per-user config (~/.pi/, ~/.forge/) remains in each user's home.
+#   plus a /usr/local/bin symlink. ForgeCode also installs system-wide into
+#   {{ ai_system_bin_dir }} — neither of those rewrites its own binary.
+# - omp and herdr self-update by rewriting the binary they resolve to on
+#   PATH, so they install per-user into {{ ai_user_bin_dir }}: `omp update` /
+#   `herdr update` then need no sudo (see omp.yml / herdr.yml, which also
+#   remove the stale system-wide copies from the previous flow).
+# Per-user config (~/.pi/, ~/.forge/, ~/.omp/) remains in each user's home.
+
 
 - name: Check if Homebrew is available
   ansible.builtin.stat:
@@ -19,6 +20,19 @@
 - name: Set Homebrew availability fact
   ansible.builtin.set_fact:
     ai_homebrew_available: "{{ ai_homebrew_stat.stat.exists }}"
+
+# Per-user install dir for the self-updating tools (omp, herdr — see header).
+# Runs as root (no become_user) so a pre-existing root-owned directory gets
+# chowned to the primary user; the become_user'd installers below need the
+# dir user-writable or every self-update would still require sudo.
+- name: Ensure user bin dir exists and is owned by the primary user
+  ansible.builtin.file:
+    path: "{{ ai_user_bin_dir }}"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: "0755"
+  become: true
 
 - name: Include ForgeCode tasks
   ansible.builtin.include_tasks: forgecode.yml

@@ -11,3 +11,8 @@ Type={{ item.fstype }}
 Options={{ item.options }}
 TimeoutSec=30
 ForceUnmount=true
+{% if network_shares_mode == 'persistent' %}
+
+[Install]
+WantedBy=multi-user.target
+{% endif %}

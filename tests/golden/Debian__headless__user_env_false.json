@@ -319,6 +319,14 @@
       "source": "headless"
     },
     {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
+      ],
+      "condition": "false",
+      "source": "headless"
+    },
+    {
       "role": "regdomain",
       "tags": [
         "regdomain"

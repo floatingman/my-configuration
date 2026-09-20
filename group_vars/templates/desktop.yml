@@ -79,6 +79,7 @@ nmtrust_config:
     - REPLACE-WITH-YOUR-UUID   # Run: nmcli connection show | grep UUID
 
 # Network shares (laptop overlay) — automounted while a trusted connection is active
+# network_shares_mode: trusted-network  # or 'persistent' for always-on machines (boot-enabled, no NM gate)
 # network_shares_config:
 #   trusted_connections:     # NetworkManager connection names: nmcli -g NAME con show --active
 #     - homessid

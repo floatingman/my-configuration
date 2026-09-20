@@ -1,47 +1,58 @@
 ---
 # Oh My Pi (omp) — AI coding agent (https://omp.sh)
-# Install via the official installer script. It honors PI_INSTALL_DIR, so the
-# prebuilt native binary (Rust core, no Node/Bun runtime needed) lands directly
-# in the system bin dir — no /root intermediate, no world-executable copy (the
-# old flow installed under /root because /root is mode 0700 and a symlink from
-# /usr/local/bin into /root is unreachable by non-root users). `--binary`
-# forces the prebuilt path so a bun appearing on PATH can't redirect the
-# install into bun's global dir. The stat guard keeps runs idempotent; the
-# installer itself smoke-tests the downloaded binary before reporting success.
+# Install via the official installer script into the per-user bin dir. It
+# honors PI_INSTALL_DIR, so the prebuilt native binary (Rust core, no
+# Node/Bun runtime needed) lands directly in {{ ai_user_bin_dir }}. The dir
+# is owned by the primary user because `omp update` rewrites the
+# PATH-resolved binary in place — a root-owned system bin dir is exactly why
+# updates used to require sudo. `--binary` forces the prebuilt path so a bun
+# appearing on PATH can't redirect the install into bun's global dir. The
+# stat guard keeps runs idempotent; the installer itself smoke-tests the
+# downloaded binary before reporting success.
 
 - name: Check if omp binary is installed
   ansible.builtin.stat:
-    path: "{{ ai_system_bin_dir }}/omp"
+    path: "{{ ai_user_bin_dir }}/omp"
   register: ai_omp_stat
 
-- name: Install omp via official installer (into system bin dir)
+- name: Install omp via official installer (user bin dir, sudo-free self-updates)
   ansible.builtin.shell:
     cmd: set -o pipefail && curl -fsSL https://omp.sh/install | sh -s -- --binary
     executable: /bin/bash
   environment:
-    PI_INSTALL_DIR: "{{ ai_system_bin_dir }}"
-    HOME: /root
-    PATH: "/usr/local/bin:/usr/bin:/bin"
+    PI_INSTALL_DIR: "{{ ai_user_bin_dir }}"
+    HOME: "/home/{{ user.name }}"
+    PATH: "{{ ai_user_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
+  become: true
+  become_user: "{{ user.name }}"
   register: ai_omp_install
   changed_when: ai_omp_install.rc == 0
-  become: true
   when:
     - ai_omp_enabled | default(true)
     - not ai_omp_stat.stat.exists
 
-# Migration: the previous flow left its source binary under /root/.local/bin.
-# The installer's PATH export puts that directory FIRST on root's shell PATH,
-# so `sudo omp` would keep running that frozen copy long after the system bin
-# dir got a newer one. Remove it so there is exactly one omp on this machine.
-- name: Remove stale omp binary from root home (old install flow)
+# omp update rewrites the PATH-resolved omp, so exactly one omp must exist.
+# Migrations from earlier flows, both of which left root-owned copies that
+# shadowed the user copy on PATH: /usr/local/bin (old system-wide flow) and
+# /root/.local/bin (older installer flow whose PATH export put that directory
+# first on root's shell PATH, so `sudo omp` kept running the frozen copy).
+- name: Remove stale omp binaries from old install locations
   ansible.builtin.file:
-    path: /root/.local/bin/omp
+    path: "{{ item }}"
     state: absent
   become: true
   failed_when: false
+  when: ai_omp_enabled | default(true)
+  loop:
+    - /root/.local/bin/omp
+    - "{{ ai_system_bin_dir }}/omp"
 
 - name: Verify omp installation
-  ansible.builtin.command: "{{ ai_system_bin_dir }}/omp --version"
+  ansible.builtin.command: "{{ ai_user_bin_dir }}/omp --version"
+  environment:
+    HOME: "/home/{{ user.name }}"
+  become: true
+  become_user: "{{ user.name }}"
   register: ai_omp_verify
   changed_when: false
   failed_when: false

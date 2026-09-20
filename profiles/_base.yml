@@ -70,3 +70,4 @@ roles:
   # Optional / Feature-gated
   - { role: goesimage, tags: [goesimage], config_check: "goesimage is defined", requires_display: true, section: optional }
   - { role: regdomain, tags: [regdomain], config_check: "regdomain is defined", section: optional }
+  - { role: network_shares, tags: [network_shares], config_check: "network_shares_config is defined", section: optional }

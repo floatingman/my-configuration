@@ -581,6 +581,14 @@
       "source": "hyprland"
     },
     {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
+      ],
+      "condition": "false",
+      "source": "hyprland"
+    },
+    {
       "role": "regdomain",
       "tags": [
         "regdomain"

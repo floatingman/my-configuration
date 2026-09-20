@@ -487,6 +487,14 @@
       "source": "awesomewm"
     },
     {
+      "role": "network_shares",
+      "tags": [
+        "network_shares"
+      ],
+      "condition": "false",
+      "source": "awesomewm"
+    },
+    {
       "role": "regdomain",
       "tags": [
         "regdomain"
