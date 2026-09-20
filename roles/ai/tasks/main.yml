@@ -22,13 +22,17 @@
     ai_homebrew_available: "{{ ai_homebrew_stat.stat.exists }}"
 
 # Per-user install dir for the self-updating tools (omp, herdr — see header).
-- name: Ensure user bin dir exists for self-updating AI tools
+# Runs as root (no become_user) so a pre-existing root-owned directory gets
+# chowned to the primary user; the become_user'd installers below need the
+# dir user-writable or every self-update would still require sudo.
+- name: Ensure user bin dir exists and is owned by the primary user
   ansible.builtin.file:
     path: "{{ ai_user_bin_dir }}"
     state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
     mode: "0755"
   become: true
-  become_user: "{{ user.name }}"
 
 - name: Include ForgeCode tasks
   ansible.builtin.include_tasks: forgecode.yml

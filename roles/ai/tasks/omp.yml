@@ -42,6 +42,7 @@
     state: absent
   become: true
   failed_when: false
+  when: ai_omp_enabled | default(true)
   loop:
     - /root/.local/bin/omp
     - "{{ ai_system_bin_dir }}/omp"
