@@ -237,9 +237,11 @@
   become: true
   when:
     - ai_pi_agent_enabled | default(true)
-    # Only drop the fallback after a replacement binary was located AND the
-    # /usr/local/bin symlink was created successfully, so a failed install
-    # never leaves the machine without any pi command.
+    # Only drop the fallback when the npm install succeeded, a replacement
+    # binary was located AND the /usr/local/bin symlink was created
+    # successfully, so any failure along that chain keeps a working pi
+    # (either the legacy shim or a previously installed version).
+    - ai_pi_agent_result.rc | default(1) == 0
     - ai_pi_asdf_binary.stdout | default('') | length > 0
     - ai_pi_symlink_result is defined and not (ai_pi_symlink_result.failed | default(false))
   failed_when: false
