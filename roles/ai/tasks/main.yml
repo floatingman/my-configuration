@@ -118,12 +118,27 @@
 
 # pi's built-in updater (`pi update --all`, used by the user's update-all zsh
 # function) runs as the primary user, so it needs write access to the
-# npm-global tree inside the asdf node install. That tree is created by the
-# root npm install above with a 022 umask (0755 root:root), which would force
-# every future pi update through sudo. Grant the devtools group write access
-# (setgid dirs so files created by later root runs inherit the group) and make
-# sure the primary user is actually in that group. Mirrors the linuxbrew
-# migration below; group membership applies on the NEXT login.
+# npm-global paths inside the asdf node install. Those paths are created by
+# the root npm install above with a 022 umask (0755 root:root), which would
+# force every future pi update through sudo. Grant the devtools group write
+# access, but SCOPE it to what npm touches for a global update:
+#   - lib/node_modules/** (package code; setgid dirs so files created by
+#     later root runs re-inherit the group)
+#   - the version bin/ DIRECTORY, with the sticky bit and bin/pi chowned to
+#     the primary user, so devtools members manage their own entries but can
+#     never replace root-owned runtime executables (node, npm, ...).
+# The runtime executables themselves stay non-group-writable: a group-writable
+# node/npm would let a devtools member inject code that root executes via the
+# npm install / pi verify tasks above. Also revokes any broader grant left by
+# older revisions of this task. Mirrors the linuxbrew migration below; group
+# membership applies on the NEXT login.
+- name: Ensure devtools group exists
+  ansible.builtin.group:
+    name: devtools
+    state: present
+  become: true
+  when: ai_pi_agent_enabled | default(true)
+
 - name: Add primary user to the devtools group (user-level pi updates)
   ansible.builtin.user:
     name: "{{ user.name }}"
@@ -132,12 +147,37 @@
   become: true
   when: ai_pi_agent_enabled | default(true)
 
-- name: Grant devtools write access to the nodejs install tree
-  ansible.builtin.shell:
-    cmd: >
-      chown -R root:devtools /opt/asdf/installs/nodejs &&
-      chmod -R g+rwX /opt/asdf/installs/nodejs &&
-      find /opt/asdf/installs/nodejs -type d -exec chmod g+s {} +
+- name: Grant devtools scoped write access for npm-global pi updates
+  ansible.builtin.shell: |
+    set -e
+    shopt -s nullglob
+    installs=(/opt/asdf/installs/nodejs)
+    if [ -d "${installs[0]}" ]; then
+      chown root:devtools "${installs[0]}"
+      chmod g-ws "${installs[0]}"
+    fi
+    for v in /opt/asdf/installs/nodejs/*/; do
+      [ -d "$v" ] || continue
+      # Revoke group write/setgid everywhere, then re-grant scoped.
+      chown -R root:devtools "$v"
+      chmod -R g-ws "$v"
+      if [ -d "$v/lib/node_modules" ]; then
+        chown -R root:devtools "$v/lib/node_modules"
+        chmod -R g+rwX "$v/lib/node_modules"
+        find "$v/lib/node_modules" -type d -exec chmod g+s {} +
+      fi
+      if [ -d "$v/bin" ]; then
+        chown root:devtools "$v/bin"
+        chmod g+rwx "$v/bin"
+        chmod +t "$v/bin"
+        find "$v/bin" -maxdepth 1 -type f -exec chown root:root {} +
+        find "$v/bin" -maxdepth 1 -type f -exec chmod g-w {} +
+        if [ -e "$v/bin/pi" ]; then
+          chown -h "{{ user.name }}:devtools" "$v/bin/pi"
+        fi
+      fi
+    done
+  args:
     executable: /bin/bash
   become: true
   changed_when: false
@@ -186,7 +226,11 @@
     path: /opt/asdf/shims/pi
     state: absent
   become: true
-  when: ai_pi_agent_enabled | default(true)
+  when:
+    - ai_pi_agent_enabled | default(true)
+    # Only drop the fallback after a replacement binary was located, so a
+    # failed install never leaves the machine without any pi command.
+    - ai_pi_asdf_binary.stdout | default('') | length > 0
   failed_when: false
 
 # asdf 0.16+ (Go rewrite) removed the static completion files (completions are
