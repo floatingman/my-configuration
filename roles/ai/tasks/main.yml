@@ -116,6 +116,33 @@
   changed_when: false
   failed_when: false
 
+# pi's built-in updater (`pi update --all`, used by the user's update-all zsh
+# function) runs as the primary user, so it needs write access to the
+# npm-global tree inside the asdf node install. That tree is created by the
+# root npm install above with a 022 umask (0755 root:root), which would force
+# every future pi update through sudo. Grant the devtools group write access
+# (setgid dirs so files created by later root runs inherit the group) and make
+# sure the primary user is actually in that group. Mirrors the linuxbrew
+# migration below; group membership applies on the NEXT login.
+- name: Add primary user to the devtools group (user-level pi updates)
+  ansible.builtin.user:
+    name: "{{ user.name }}"
+    groups: devtools
+    append: true
+  become: true
+  when: ai_pi_agent_enabled | default(true)
+
+- name: Grant devtools write access to the nodejs install tree
+  ansible.builtin.shell:
+    cmd: >
+      chown -R root:devtools /opt/asdf/installs/nodejs &&
+      chmod -R g+rwX /opt/asdf/installs/nodejs &&
+      find /opt/asdf/installs/nodejs -type d -exec chmod g+s {} +
+    executable: /bin/bash
+  become: true
+  changed_when: false
+  when: ai_pi_agent_enabled | default(true)
+
 # asdf 0.16+ (Go rewrite) only shims the executables a plugin DECLARES
 # (node, npm, npx, ...) — NOT arbitrary npm-global binaries like `pi`. The old
 # bash asdf shimmed everything in bin/, so the asdf-shim approach for pi broke
@@ -146,6 +173,20 @@
   when:
     - ai_pi_agent_enabled | default(true)
     - ai_pi_asdf_binary.stdout | default('') | length > 0
+  failed_when: false
+
+# Machines migrated from bash asdf (<= 0.15) still carry a legacy
+# /opt/asdf/shims/pi from when reshim shimmed every bin/ executable. The shim
+# resolves through the version-selected install dir, so it shadows the stable
+# symlink above and breaks ("No version is set for command pi") whenever the
+# selected nodejs version has no npm-global pi installed. Remove it so PATH
+# resolution falls through to the /usr/local/bin symlink.
+- name: Remove legacy asdf pi shim (superseded by /usr/local/bin symlink)
+  ansible.builtin.file:
+    path: /opt/asdf/shims/pi
+    state: absent
+  become: true
+  when: ai_pi_agent_enabled | default(true)
   failed_when: false
 
 # asdf 0.16+ (Go rewrite) removed the static completion files (completions are
