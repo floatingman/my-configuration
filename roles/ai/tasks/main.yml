@@ -132,6 +132,14 @@
 # npm install / pi verify tasks above. Also revokes any broader grant left by
 # older revisions of this task. Mirrors the linuxbrew migration below; group
 # membership applies on the NEXT login.
+#
+# Residual trust note: devtools members remain able to modify npm-global
+# package code — that is inherent to sudo-free updates — and the root
+# `npm install -g` task executes the npm CLI from this tree. This matches the
+# repo's existing trust model: devtools membership is granted by an admin via
+# sudo, and the asdf tree is already root:devtools, so members are co-admins
+# by policy. Narrowing further to the pi package alone would break npm's
+# reify, which writes outside the package path (top-level lockfile, staging).
 - name: Ensure devtools group exists
   ansible.builtin.group:
     name: devtools
@@ -210,6 +218,7 @@
     owner: root
     group: root
   become: true
+  register: ai_pi_symlink_result
   when:
     - ai_pi_agent_enabled | default(true)
     - ai_pi_asdf_binary.stdout | default('') | length > 0
@@ -228,9 +237,11 @@
   become: true
   when:
     - ai_pi_agent_enabled | default(true)
-    # Only drop the fallback after a replacement binary was located, so a
-    # failed install never leaves the machine without any pi command.
+    # Only drop the fallback after a replacement binary was located AND the
+    # /usr/local/bin symlink was created successfully, so a failed install
+    # never leaves the machine without any pi command.
     - ai_pi_asdf_binary.stdout | default('') | length > 0
+    - ai_pi_symlink_result is defined and not (ai_pi_symlink_result.failed | default(false))
   failed_when: false
 
 # asdf 0.16+ (Go rewrite) removed the static completion files (completions are
@@ -250,13 +261,18 @@
     creates: /opt/asdf/completions/asdf.bash
   become: true
 
+# Run the verification as the primary user, not root: root would execute pi
+# from the npm-global tree that devtools members can write (sudo-free updates),
+# and running it as the invoking user keeps that exposure one hop smaller.
 - name: Verify pi-agent installation
   ansible.builtin.command: "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi --version"
   environment:
     PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
     ASDF_DIR: "/opt/asdf"
     ASDF_DATA_DIR: "/opt/asdf"
+    HOME: "/home/{{ user.name }}"
   become: true
+  become_user: "{{ user.name }}"
   register: ai_pi_agent_verify
   changed_when: false
   failed_when: false
