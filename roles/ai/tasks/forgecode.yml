@@ -1,11 +1,16 @@
 ---
 # ForgeCode — AI coding harness (https://forgecode.dev)
 # The installer hardcodes $HOME/.local/bin on Linux (its PREFIX override is
-# Android-only), so it cannot target the system bin dir directly. Instead we
-# run it with a throwaway HOME: the forge binary, its fzf/bat/fd dependency
-# downloads, and its rc-file PATH edits all land under the temp dir, and we
-# `install` the binary out of there into the system bin dir as a real,
-# world-executable file.
+# Android-only), so it cannot target the system bin dir directly. It also
+# must never run as root: it downloads and executes a remote script, so a
+# compromised installer would run with root's privileges. Instead the
+# primary user runs it with a throwaway HOME — the forge binary, its
+# fzf/bat/fd dependency downloads, and its rc-file PATH edits all land under
+# a temp dir removed on exit — and `install`s the binary into a staging dir
+# under the user's own home. A separate root task then copies that file into
+# the system bin dir as a real, root-owned, world-executable file, and the
+# staging dir is removed: root only ever reads the finished binary, so the
+# worst a compromised installer can do is affect the primary user.
 #
 # The old flow ran the installer with HOME=/root and copied the binary out of
 # /root/.local/bin. That littered /root/.local/bin with frozen fzf/bat/fd
@@ -28,6 +33,17 @@
     follow: false
   register: ai_forgecode_link_stat
 
+# The first stat above follows links, so a stale symlink to a valid file
+# counts as "exists" even though the cleanup task below removes it. Treat
+# that case as needing a fresh install instead of gating the installer (and
+# the root copy below) on raw stat.exists, which would leave the system
+# without forge entirely.
+- name: Determine whether ForgeCode needs (re)installing
+  ansible.builtin.set_fact:
+    ai_forgecode_needs_install: >-
+      {{ (not ai_forgecode_stat.stat.exists)
+         or (ai_forgecode_link_stat.stat.islnk | default(false)) }}
+
 - name: Remove stale forge symlink from system bin dir
   ansible.builtin.file:
     path: "{{ ai_system_bin_dir }}/forge"
@@ -37,23 +53,85 @@
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_link_stat.stat.islnk | default(false)
 
-- name: Install ForgeCode via official installer (throwaway HOME, into system bin dir)
+# Runs as the primary user, never root (see header). The throwaway HOME
+# keeps every installer side effect (dependency downloads, rc-file PATH
+# edits) inside a temp dir that the trap removes on exit; only the finished
+# binary is staged under the user's own home for the root copy task below.
+# `install -D` creates the staging dir: the role has no pre-existing shared
+# staging location, so this is the single new path in the flow.
+- name: Install ForgeCode via official installer (throwaway HOME, as primary user)
   ansible.builtin.shell:
     cmd: |
       set -eo pipefail
       tmp="$(mktemp -d)"
       trap 'rm -rf "$tmp"' EXIT
       curl -fsSL https://forgecode.dev/cli | HOME="$tmp" sh
-      install -m 0755 "$tmp/.local/bin/forge" "{{ ai_system_bin_dir }}/forge"
+      install -D -m 0755 "$tmp/.local/bin/forge" "/home/{{ user.name }}/.local/share/forge-install/forge"
     executable: /bin/bash
   environment:
     PATH: "/usr/local/bin:/usr/bin:/bin"
+  become: true
+  become_user: "{{ user.name }}"
   register: ai_forgecode_install
   changed_when: ai_forgecode_install.rc == 0
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_needs_install
+
+# Root's only action in the whole flow: read the user-staged binary and
+# install it as a real root-owned file in the system bin dir (a copy, not a
+# link, so nothing in the system PATH resolves into user-controlled space).
+# The guard task below first proves the staged entry is a regular file
+# owned by the primary user, so a symlink planted at the staging path can
+# never be promoted into a root-owned, world-readable system file.
+- name: Stat staged ForgeCode binary
+  ansible.builtin.stat:
+    path: "/home/{{ user.name }}/.local/share/forge-install/forge"
+  register: ai_forgecode_staged_stat
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_needs_install
+
+- name: Refuse to promote anything but the primary user's regular staged file
+  ansible.builtin.assert:
+    that:
+      - ai_forgecode_staged_stat.stat.exists
+      - ai_forgecode_staged_stat.stat.isreg
+      - ai_forgecode_staged_stat.stat.pw_name == user.name
+    fail_msg: >-
+      Expected a regular file owned by {{ user.name }} at
+      /home/{{ user.name }}/.local/share/forge-install/forge; refusing to
+      promote it into {{ ai_system_bin_dir }}.
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_needs_install
+    - ai_forgecode_install is succeeded
+
+- name: Install ForgeCode binary into system bin dir
+  ansible.builtin.copy:
+    src: "/home/{{ user.name }}/.local/share/forge-install/forge"
+    dest: "{{ ai_system_bin_dir }}/forge"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
   become: true
   when:
     - ai_forgecode_enabled | default(true)
-    - not ai_forgecode_stat.stat.exists
+    - ai_forgecode_needs_install
+    - ai_forgecode_install is succeeded
+
+# The trap in the install task only removes the mktemp dir, so remove the
+# staging dir explicitly. Runs every play (also on fresh installs, after the
+# copy) so nothing is left behind even if an earlier run was interrupted;
+# state: absent on a missing path is a no-op.
+- name: Remove ForgeCode staging directory
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.local/share/forge-install"
+    state: absent
+  become: true
+  when:
+    - ai_forgecode_enabled | default(true)
 
 # Migration: the previous HOME=/root flow left its source binary plus the
 # fzf/bat/fd dependency downloads in /root/.local/bin. The installer's PATH
