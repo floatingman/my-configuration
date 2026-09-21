@@ -137,16 +137,25 @@
         chmod -R g-ws /opt/asdf/installs/nodejs
       fi
       for v in /opt/asdf/installs/nodejs/*/; do
-        [ -d "$v" ] || continue
-        scope="${v}lib/node_modules/@earendil-works"
-        if [ -L "$scope" ]; then
-          rm -f "$scope"
-        elif [ -d "$scope" ]; then
+        [ -d "$v" ] && [ ! -L "$v" ] || continue
+        vd="${v%/}"
+        lib="${vd}/lib"
+        nm="${lib}/node_modules"
+        scope="${nm}/@earendil-works"
+        if [ -L "$lib" ] || [ -L "$nm" ] || [ -L "$scope" ]; then
+          # A planted link anywhere on the path: remove the links themselves
+          # and never let rm traverse through them.
+          [ -L "$lib" ] && rm -f "$lib"
+          [ -L "$nm" ] && rm -f "$nm"
+          [ -L "$scope" ] && rm -f "$scope"
+          continue
+        fi
+        if [ -d "$scope" ]; then
           rm -rf "${scope}/pi-coding-agent"
           rmdir "$scope" 2>/dev/null || true
         fi
-        if [ -d "${v}bin" ] && [ ! -L "${v}bin" ]; then
-          rm -f "${v}bin/pi"
+        if [ -d "${vd}/bin" ] && [ ! -L "${vd}/bin" ]; then
+          rm -f "${vd}/bin/pi"
         fi
       done
     fi
