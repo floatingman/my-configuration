@@ -112,27 +112,43 @@
   failed_when: false
 
 # Clean cutover from the earlier system-wide flow: machines that ran it have
-# a root-owned pi under the asdf node tree, a /usr/local/bin/pi symlink, a
+# a root-owned pi under the asdf node tree, a configured-bin-dir symlink, a
 # legacy asdf shim, and (from one revision of this role) group-write grants on
 # the node tree. Remove all of them so ~/.local/bin/pi is the only pi entry
 # point, and revoke the group write/setgid bits so the asdf tree returns to
 # admin-managed root-only modes.
+#
+# Ordering matters on machines where the grants are still live: group write is
+# revoked across the tree BEFORE any removal, so a devtools member cannot swap
+# an intermediate component (e.g. plant lib/node_modules/@earendil-works as a
+# symlink) while root is deleting through it. Removals then verify each parent
+# is a real directory rather than resolving through a pre-planted symlink. The
+# recursive revoke is a one-time migration: it is skipped once the tree no
+# longer holds any group-writable entry, so steady-state runs don't walk it.
 - name: Remove superseded system-wide pi install and access grants
   ansible.builtin.shell: |
     set -e
     shopt -s nullglob
-    # ai_system_bin_dir is where the superseded flow created its symlink.
     rm -f "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi"
-    for v in /opt/asdf/installs/nodejs/*/; do
-      [ -d "$v" ] || continue
-      rm -rf "${v}lib/node_modules/@earendil-works/pi-coding-agent"
-      rmdir "${v}lib/node_modules/@earendil-works" 2>/dev/null || true
-      rm -f "${v}bin/pi"
-    done
     rm -f /opt/asdf/shims/pi
     if [ -d /opt/asdf/installs/nodejs ]; then
-      chown -R root:devtools /opt/asdf/installs/nodejs
-      chmod -R g-ws /opt/asdf/installs/nodejs
+      if [ -n "$(find /opt/asdf/installs/nodejs -perm -g+w -print -quit 2>/dev/null)" ]; then
+        chown -R root:devtools /opt/asdf/installs/nodejs
+        chmod -R g-ws /opt/asdf/installs/nodejs
+      fi
+      for v in /opt/asdf/installs/nodejs/*/; do
+        [ -d "$v" ] || continue
+        scope="${v}lib/node_modules/@earendil-works"
+        if [ -L "$scope" ]; then
+          rm -f "$scope"
+        elif [ -d "$scope" ]; then
+          rm -rf "${scope}/pi-coding-agent"
+          rmdir "$scope" 2>/dev/null || true
+        fi
+        if [ -d "${v}bin" ] && [ ! -L "${v}bin" ]; then
+          rm -f "${v}bin/pi"
+        fi
+      done
     fi
   args:
     executable: /bin/bash
