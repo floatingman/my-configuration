@@ -1,10 +1,11 @@
 ---
 # tasks file for ai
 # AI tool install locations:
-# - pi-agent is installed via npm under the system-wide asdf-managed Node, so
-#   the `pi` binary is exposed through the asdf shims (/etc/profile.d/asdf.sh)
-#   plus a /usr/local/bin symlink. ForgeCode also installs system-wide into
-#   {{ ai_system_bin_dir }} — neither of those rewrites its own binary.
+# - pi-agent installs per-user via npm into ~/.local (user npm prefix) so its
+#   built-in updater (`pi update`) needs no sudo; the pi section also removes
+#   superseded system-wide copies from the earlier flow.
+# - ForgeCode installs system-wide into {{ ai_system_bin_dir }} — it does not
+#   rewrite its own binary.
 # - omp and herdr self-update by rewriting the binary they resolve to on
 #   PATH, so they install per-user into {{ ai_user_bin_dir }}: `omp update` /
 #   `herdr update` then need no sudo (see omp.yml / herdr.yml, which also
@@ -21,10 +22,11 @@
   ansible.builtin.set_fact:
     ai_homebrew_available: "{{ ai_homebrew_stat.stat.exists }}"
 
-# Per-user install dir for the self-updating tools (omp, herdr — see header).
-# Runs as root (no become_user) so a pre-existing root-owned directory gets
-# chowned to the primary user; the become_user'd installers below need the
-# dir user-writable or every self-update would still require sudo.
+# Per-user install dir for the self-updating tools (pi, omp, herdr — see
+# header). Runs as root (no become_user) so a pre-existing root-owned
+# directory gets chowned to the primary user; the become_user'd installers
+# below need the dir user-writable or every self-update would still require
+# sudo.
 - name: Ensure user bin dir exists and is owned by the primary user
   ansible.builtin.file:
     path: "{{ ai_user_bin_dir }}"
@@ -63,188 +65,82 @@
   become: true
 
 # -------------------------------------------------------------------------
-# pi-agent (npm — system-wide via asdf-managed Node)
+# pi-agent (npm — per-user install for sudo-free self-updates)
 # -------------------------------------------------------------------------
-# Remove the stale per-user pi install from ~/.local. pi used to be installed
-# manually there; with it present, ~/.local/bin/pi (shebang #!/usr/bin/env
-# node) can resolve ahead of the asdf shim and run under the system Node
-# (e.g. v18.19.1), which is too old for pi's `import ... with { type: "json" }`
-# import attributes. Removing it ensures the asdf-managed pi (Node 25) is used.
-- name: Remove stale per-user pi install from ~/.local
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
+# pi is installed into the user's npm prefix (~/.local) and owns its own
+# updater (`pi update`, used by the user's update-all zsh function), which
+# shells out to `npm install -g`. Root never touches the pi tree, so updates
+# need no sudo and no group-write grants on the asdf node install (an earlier
+# system-wide flow made parts of that tree devtools-writable so root-run
+# npm/pi could be trojaned by a group member — reverted here).
+#
+# History note: a per-user pi was removed in the past because ~/.local/bin/pi
+# shadowed the asdf shim and ran under the system Node (v18) on machines
+# without a pinned asdf nodejs. That is addressed by keeping nodejs pinned in
+# asdf_plugins (base.yml) — `env node` then resolves to the asdf-managed Node
+# via /etc/profile.d/asdf.sh on every machine this role runs on — and by this
+# section removing any superseded system-wide pi copies, so ~/.local/bin/pi is
+# the single pi entrypoint.
+- name: Point user npm global prefix at ~/.local (keeps pi update sudo-free)
+  ansible.builtin.lineinfile:
+    path: "/home/{{ user.name }}/.npmrc"
+    line: "prefix={{ ai_user_bin_dir | dirname }}"
+    state: present
+    create: true
+    mode: "0644"
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
   become: true
-  become_user: "{{ user.name }}"
-  loop:
-    - "/home/{{ user.name }}/.local/bin/pi"
-    - "/home/{{ user.name }}/.local/lib/node_modules/@earendil-works/pi-coding-agent"
   when: ai_pi_agent_enabled | default(true)
-  failed_when: false
 
-# Run as root because:
-#   1. The asdf nodejs install dir (/opt/asdf/installs/nodejs) is root:devtools.
-#      The primary user is added to `devtools` by the asdf/system role, but group
-#      membership only takes effect on the NEXT login — the running ansible
-#      process doesn't have it yet, so a non-root install fails with EACCES.
-#   2. The `npm` shim is `exec asdf exec "npm" "$@"`, which needs ASDF_DIR /
-#      ASDF_DATA_DIR to locate the /opt/asdf data dir; without them asdf looks in
-#      the default ~/.asdf and the shim fails (rc=126). sudo's env_reset wipes
-#      inherited vars, so we set them explicitly here.
-- name: Install pi-agent via npm (system-wide)
+- name: Install pi-agent per-user via npm
   ansible.builtin.command:
-    cmd: npm install -g --unsafe-perm @earendil-works/pi-coding-agent
+    cmd: npm install -g @earendil-works/pi-coding-agent
   environment:
-    PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "/opt/asdf/bin:/opt/asdf/shims:{{ ai_user_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
     ASDF_DIR: "/opt/asdf"
     ASDF_DATA_DIR: "/opt/asdf"
+    HOME: "/home/{{ user.name }}"
+    NPM_CONFIG_PREFIX: "{{ ai_user_bin_dir | dirname }}"
   become: true
+  become_user: "{{ user.name }}"
   when: ai_pi_agent_enabled | default(true)
   register: ai_pi_agent_result
   changed_when: ai_pi_agent_result.rc == 0
   failed_when: false
 
-- name: Reshim asdf nodejs (keeps node/npm shims current)
-  ansible.builtin.command:
-    cmd: asdf reshim nodejs
-  environment:
-    PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
-    ASDF_DIR: "/opt/asdf"
-    ASDF_DATA_DIR: "/opt/asdf"
-  become: true
-  when: ai_pi_agent_enabled | default(true)
-  changed_when: false
-  failed_when: false
-
-# pi's built-in updater (`pi update --all`, used by the user's update-all zsh
-# function) runs as the primary user, so it needs write access to the
-# npm-global paths inside the asdf node install. Those paths are created by
-# the root npm install above with a 022 umask (0755 root:root), which would
-# force every future pi update through sudo. Grant the devtools group write
-# access, but SCOPE it to what npm touches for a global update:
-#   - lib/node_modules/** (package code; setgid dirs so files created by
-#     later root runs re-inherit the group)
-#   - the version bin/ DIRECTORY, with the sticky bit and bin/pi chowned to
-#     the primary user, so devtools members manage their own entries but can
-#     never replace root-owned runtime executables (node, npm, ...).
-# The runtime executables themselves stay non-group-writable: a group-writable
-# node/npm would let a devtools member inject code that root executes via the
-# npm install / pi verify tasks above. Also revokes any broader grant left by
-# older revisions of this task. Mirrors the linuxbrew migration below; group
-# membership applies on the NEXT login.
-#
-# Residual trust note: devtools members remain able to modify npm-global
-# package code — that is inherent to sudo-free updates — and the root
-# `npm install -g` task executes the npm CLI from this tree. This matches the
-# repo's existing trust model: devtools membership is granted by an admin via
-# sudo, and the asdf tree is already root:devtools, so members are co-admins
-# by policy. Narrowing further to the pi package alone would break npm's
-# reify, which writes outside the package path (top-level lockfile, staging).
-- name: Ensure devtools group exists
-  ansible.builtin.group:
-    name: devtools
-    state: present
-  become: true
-  when: ai_pi_agent_enabled | default(true)
-
-- name: Add primary user to the devtools group (user-level pi updates)
-  ansible.builtin.user:
-    name: "{{ user.name }}"
-    groups: devtools
-    append: true
-  become: true
-  when: ai_pi_agent_enabled | default(true)
-
-- name: Grant devtools scoped write access for npm-global pi updates
+# Clean cutover from the earlier system-wide flow: machines that ran it have
+# a root-owned pi under the asdf node tree, a /usr/local/bin/pi symlink, a
+# legacy asdf shim, and (from one revision of this role) group-write grants on
+# the node tree. Remove all of them so ~/.local/bin/pi is the only pi entry
+# point, and revoke the group write/setgid bits so the asdf tree returns to
+# admin-managed root-only modes.
+- name: Remove superseded system-wide pi install and access grants
   ansible.builtin.shell: |
     set -e
     shopt -s nullglob
-    installs=(/opt/asdf/installs/nodejs)
-    if [ -d "${installs[0]}" ]; then
-      chown root:devtools "${installs[0]}"
-      chmod g-ws "${installs[0]}"
-    fi
+    rm -f /usr/local/bin/pi
     for v in /opt/asdf/installs/nodejs/*/; do
       [ -d "$v" ] || continue
-      # Revoke group write/setgid everywhere, then re-grant scoped.
-      chown -R root:devtools "$v"
-      chmod -R g-ws "$v"
-      if [ -d "$v/lib/node_modules" ]; then
-        chown -R root:devtools "$v/lib/node_modules"
-        chmod -R g+rwX "$v/lib/node_modules"
-        find "$v/lib/node_modules" -type d -exec chmod g+s {} +
-      fi
-      if [ -d "$v/bin" ]; then
-        chown root:devtools "$v/bin"
-        chmod g+rwx "$v/bin"
-        chmod +t "$v/bin"
-        find "$v/bin" -maxdepth 1 -type f -exec chown root:root {} +
-        find "$v/bin" -maxdepth 1 -type f -exec chmod g-w {} +
-        if [ -e "$v/bin/pi" ]; then
-          chown -h "{{ user.name }}:devtools" "$v/bin/pi"
-        fi
-      fi
+      rm -rf "${v}lib/node_modules/@earendil-works/pi-coding-agent"
+      rmdir "${v}lib/node_modules/@earendil-works" 2>/dev/null || true
+      rm -f "${v}bin/pi"
     done
+    rm -f /opt/asdf/shims/pi
+    if [ -d /opt/asdf/installs/nodejs ]; then
+      chown -R root:devtools /opt/asdf/installs/nodejs
+      chmod -R g-ws /opt/asdf/installs/nodejs
+    fi
   args:
     executable: /bin/bash
   become: true
   changed_when: false
-  when: ai_pi_agent_enabled | default(true)
-
-# asdf 0.16+ (Go rewrite) only shims the executables a plugin DECLARES
-# (node, npm, npx, ...) — NOT arbitrary npm-global binaries like `pi`. The old
-# bash asdf shimmed everything in bin/, so the asdf-shim approach for pi broke
-# under 0.18 ("unknown command: pi. Perhaps you have to reshim?"). Expose pi via
-# a stable symlink in /usr/local/bin instead. Its #!/usr/bin/env node shebang
-# resolves to the asdf node shim on PATH, so it runs under the managed Node.
-# This mirrors how ForgeCode is symlinked below.
-- name: Locate the asdf-installed pi binary
-  ansible.builtin.shell: "set -o pipefail; ls /opt/asdf/installs/nodejs/*/bin/pi 2>/dev/null | sort -V | tail -1"
-  args:
-    # pipefail is a bash-ism; /bin/sh is dash on Debian and would abort
-    # this pipeline (silently, via failed_when) leaving stdout empty.
-    executable: /bin/bash
-  register: ai_pi_asdf_binary
-  changed_when: false
-  failed_when: false
-  when: ai_pi_agent_enabled | default(true)
-
-- name: Symlink pi into /usr/local/bin
-  ansible.builtin.file:
-    src: "{{ ai_pi_asdf_binary.stdout }}"
-    dest: "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi"
-    state: link
-    force: true
-    owner: root
-    group: root
-  become: true
-  register: ai_pi_symlink_result
   when:
     - ai_pi_agent_enabled | default(true)
-    - ai_pi_asdf_binary.stdout | default('') | length > 0
-  failed_when: false
-
-# Machines migrated from bash asdf (<= 0.15) still carry a legacy
-# /opt/asdf/shims/pi from when reshim shimmed every bin/ executable. The shim
-# resolves through the version-selected install dir, so it shadows the stable
-# symlink above and breaks ("No version is set for command pi") whenever the
-# selected nodejs version has no npm-global pi installed. Remove it so PATH
-# resolution falls through to the /usr/local/bin symlink.
-- name: Remove legacy asdf pi shim (superseded by /usr/local/bin symlink)
-  ansible.builtin.file:
-    path: /opt/asdf/shims/pi
-    state: absent
-  become: true
-  when:
-    - ai_pi_agent_enabled | default(true)
-    # Only drop the fallback when the npm install succeeded, a replacement
-    # binary was located AND the /usr/local/bin symlink was created
-    # successfully, so any failure along that chain keeps a working pi
-    # (either the legacy shim or a previously installed version).
+    # Keep the superseded system-wide copies until the per-user install has
+    # actually succeeded, so a failed install never leaves the machine
+    # without a working pi.
     - ai_pi_agent_result.rc | default(1) == 0
-    - ai_pi_asdf_binary.stdout | default('') | length > 0
-    - ai_pi_symlink_result is defined and not (ai_pi_symlink_result.failed | default(false))
-  failed_when: false
 
 # asdf 0.16+ (Go rewrite) removed the static completion files (completions are
 # now dynamic via `asdf completion`). Older dotfiles source
@@ -263,13 +159,11 @@
     creates: /opt/asdf/completions/asdf.bash
   become: true
 
-# Run the verification as the primary user, not root: root would execute pi
-# from the npm-global tree that devtools members can write (sudo-free updates),
-# and running it as the invoking user keeps that exposure one hop smaller.
+# Run the verification as the primary user against the per-user install.
 - name: Verify pi-agent installation
-  ansible.builtin.command: "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi --version"
+  ansible.builtin.command: "{{ ai_user_bin_dir }}/pi --version"
   environment:
-    PATH: "/opt/asdf/bin:/opt/asdf/shims:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "/opt/asdf/bin:/opt/asdf/shims:{{ ai_user_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
     ASDF_DIR: "/opt/asdf"
     ASDF_DATA_DIR: "/opt/asdf"
     HOME: "/home/{{ user.name }}"
