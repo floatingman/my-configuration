@@ -24,12 +24,26 @@
 
 # ai_user_bin_dir is chowned to the primary user below; if a machine-local
 # override pointed it at a system directory (e.g. /usr/local/bin), that
-# chown would hand the directory to the user. Fail the play before that.
-- name: Assert ai_user_bin_dir is under the primary user's home
+# chown would hand the directory to the user. A substring search is not a
+# containment check — `/tmp/home/<user>/x` and `/home/<user>/../../usr/local/bin`
+# both sneak past it, and an in-home symlink can resolve outside the home —
+# so resolve the path first and require the canonical form to be anchored
+# directly under /home/<user>/ before allowing the chown.
+- name: Resolve ai_user_bin_dir to its canonical path
+  ansible.builtin.command: realpath -m "{{ ai_user_bin_dir }}"
+  register: ai_user_bin_dir_real
+  changed_when: false
+  failed_when: false
+
+- name: Assert ai_user_bin_dir resolves under the primary user's home
   ansible.builtin.assert:
     that:
-      - ai_user_bin_dir is search("/home/{{ user.name }}/")
-    fail_msg: "ai_user_bin_dir must be inside /home/{{ user.name }}; refusing to chown a system directory."
+      - ai_user_bin_dir_real.stdout is match("/home/" ~ (user.name | regex_escape) ~ "/")
+    success_msg: "ai_user_bin_dir resolves to {{ ai_user_bin_dir_real.stdout }}, inside /home/{{ user.name }}"
+    fail_msg: >-
+      ai_user_bin_dir must resolve inside /home/{{ user.name }} (got
+      {{ ai_user_bin_dir_real.stdout | default('<unresolved>') }});
+      refusing to chown a system directory.
 
 # Per-user install dir for the self-updating tools (pi, omp, herdr — see
 # header). Runs as root (no become_user) so a pre-existing root-owned

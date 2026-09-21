@@ -33,6 +33,17 @@
     follow: false
   register: ai_forgecode_link_stat
 
+# The first stat above follows links, so a stale symlink to a valid file
+# counts as "exists" even though the cleanup task below removes it. Treat
+# that case as needing a fresh install instead of gating the installer (and
+# the root copy below) on raw stat.exists, which would leave the system
+# without forge entirely.
+- name: Determine whether ForgeCode needs (re)installing
+  ansible.builtin.set_fact:
+    ai_forgecode_needs_install: >-
+      {{ (not ai_forgecode_stat.stat.exists)
+         or (ai_forgecode_link_stat.stat.islnk | default(false)) }}
+
 - name: Remove stale forge symlink from system bin dir
   ansible.builtin.file:
     path: "{{ ai_system_bin_dir }}/forge"
@@ -65,14 +76,37 @@
   changed_when: ai_forgecode_install.rc == 0
   when:
     - ai_forgecode_enabled | default(true)
-    - not ai_forgecode_stat.stat.exists
+    - ai_forgecode_needs_install
 
 # Root's only action in the whole flow: read the user-staged binary and
 # install it as a real root-owned file in the system bin dir (a copy, not a
 # link, so nothing in the system PATH resolves into user-controlled space).
-# Gated on the same stat as the install task: a skipped register passes
-# `is succeeded`, which would otherwise make this copy run every play
-# against a staging file that no longer exists.
+# The guard task below first proves the staged entry is a regular file
+# owned by the primary user, so a symlink planted at the staging path can
+# never be promoted into a root-owned, world-readable system file.
+- name: Stat staged ForgeCode binary
+  ansible.builtin.stat:
+    path: "/home/{{ user.name }}/.local/share/forge-install/forge"
+  register: ai_forgecode_staged_stat
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_needs_install
+
+- name: Refuse to promote anything but the primary user's regular staged file
+  ansible.builtin.assert:
+    that:
+      - ai_forgecode_staged_stat.stat.exists
+      - ai_forgecode_staged_stat.stat.isreg
+      - ai_forgecode_staged_stat.stat.pw_name == user.name
+    fail_msg: >-
+      Expected a regular file owned by {{ user.name }} at
+      /home/{{ user.name }}/.local/share/forge-install/forge; refusing to
+      promote it into {{ ai_system_bin_dir }}.
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_needs_install
+    - ai_forgecode_install is succeeded
+
 - name: Install ForgeCode binary into system bin dir
   ansible.builtin.copy:
     src: "/home/{{ user.name }}/.local/share/forge-install/forge"
@@ -84,7 +118,7 @@
   become: true
   when:
     - ai_forgecode_enabled | default(true)
-    - not ai_forgecode_stat.stat.exists
+    - ai_forgecode_needs_install
     - ai_forgecode_install is succeeded
 
 # The trap in the install task only removes the mktemp dir, so remove the
