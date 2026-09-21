@@ -22,11 +22,21 @@
   ansible.builtin.set_fact:
     ai_homebrew_available: "{{ ai_homebrew_stat.stat.exists }}"
 
+# ai_user_bin_dir is chowned to the primary user below; if a machine-local
+# override pointed it at a system directory (e.g. /usr/local/bin), that
+# chown would hand the directory to the user. Fail the play before that.
+- name: Assert ai_user_bin_dir is under the primary user's home
+  ansible.builtin.assert:
+    that:
+      - ai_user_bin_dir is search("/home/{{ user.name }}/")
+    fail_msg: "ai_user_bin_dir must be inside /home/{{ user.name }}; refusing to chown a system directory."
+
 # Per-user install dir for the self-updating tools (pi, omp, herdr — see
 # header). Runs as root (no become_user) so a pre-existing root-owned
 # directory gets chowned to the primary user; the become_user'd installers
 # below need the dir user-writable or every self-update would still require
 # sudo.
+
 - name: Ensure user bin dir exists and is owned by the primary user
   ansible.builtin.file:
     path: "{{ ai_user_bin_dir }}"
@@ -132,7 +142,7 @@
     rm -f "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi"
     rm -f /opt/asdf/shims/pi
     if [ -d /opt/asdf/installs/nodejs ]; then
-      if [ -n "$(find /opt/asdf/installs/nodejs -perm -g+w -print -quit 2>/dev/null)" ]; then
+      if [ -n "$(find /opt/asdf/installs/nodejs -perm -g+w ! -type l -print -quit 2>/dev/null)" ]; then
         chown -R root:devtools /opt/asdf/installs/nodejs
         chmod -R g-ws /opt/asdf/installs/nodejs
       fi
@@ -169,6 +179,28 @@
     # actually succeeded, so a failed install never leaves the machine
     # without a working pi.
     - ai_pi_agent_result.rc | default(1) == 0
+
+# One-time migration outside the pi flow: an older gcloud install left the
+# /opt/asdf/installs/gcloud tree root:devtools mode 775, so any devtools
+# member could rewrite binaries that every user executes. Revoke group write
+# and setgid, same probe style as the pi cleanup above (the ! -type l guard
+# keeps the find from matching symlinks, which are always mode 0777). Once no
+# group-writable entry remains this is a no-op, so steady-state plays skip
+# the recursive chown/chmod entirely. `gcloud components update` must now run
+# as root — that is the intended tradeoff.
+- name: Remove group-write from gcloud install tree (one-time migration)
+  ansible.builtin.shell: |
+    set -e
+    if [ -d /opt/asdf/installs/gcloud ]; then
+      if [ -n "$(find /opt/asdf/installs/gcloud -perm -g+w ! -type l -print -quit 2>/dev/null)" ]; then
+        chown -R root:root /opt/asdf/installs/gcloud
+        chmod -R g-ws /opt/asdf/installs/gcloud
+      fi
+    fi
+  args:
+    executable: /bin/bash
+  become: true
+  changed_when: false
 
 # asdf 0.16+ (Go rewrite) removed the static completion files (completions are
 # now dynamic via `asdf completion`). Older dotfiles source
