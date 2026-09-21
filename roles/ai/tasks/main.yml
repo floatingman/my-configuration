@@ -87,7 +87,9 @@
     line: "prefix={{ ai_user_bin_dir | dirname }}"
     state: present
     create: true
-    mode: "0644"
+    # 0600: npm config files commonly hold private-registry _authToken
+    # entries; keep the file owner-only regardless of prior mode.
+    mode: "0600"
     owner: "{{ user.name }}"
     group: "{{ user.group | default(user.name) }}"
   become: true
@@ -119,7 +121,8 @@
   ansible.builtin.shell: |
     set -e
     shopt -s nullglob
-    rm -f /usr/local/bin/pi
+    # ai_system_bin_dir is where the superseded flow created its symlink.
+    rm -f "{{ ai_system_bin_dir | default('/usr/local/bin') }}/pi"
     for v in /opt/asdf/installs/nodejs/*/; do
       [ -d "$v" ] || continue
       rm -rf "${v}lib/node_modules/@earendil-works/pi-coding-agent"
