@@ -109,16 +109,16 @@ asdf_group: "devtools"
 asdf_plugins:
   - name: "awscli"
     versions:
-      - 2.36.40
-    global: 2.36.40
+      - 2.36.50
+    global: 2.36.50
   - name: "concourse"
     versions:
       - 8.3.0
     global: 8.3.0
   - name: "dotnet-core"
     versions:
-      - 10.0.400
-    global: 10.0.400
+      - 10.0.401
+    global: 10.0.401
   - name: "gcloud"
     versions:
       - 560.0.0
@@ -129,8 +129,8 @@ asdf_plugins:
     global: 1.27.1
   - name: "helm"
     versions:
-      - 4.2.4
-    global: 4.2.4
+      - 4.3.0
+    global: 4.3.0
   - name: "kubectl"
     versions:
       - 1.37.0
@@ -141,24 +141,24 @@ asdf_plugins:
     global: 1.39.0
   - name: "nodejs"
     versions:
-      - 26.8.1
-    global: 26.8.1
+      - 26.10.0
+    global: 26.10.0
   - name: "opentofu"
     versions:
       - 1.12.6
     global: 1.12.6
   - name: "packer"
     versions:
-      - 1.16.0
-    global: 1.16.0
-  - name: "ruby"
-    versions:
-      - 4.0.6
-    global: 4.0.6
-  - name: "terraform"
-    versions:
       - 1.16.1
     global: 1.16.1
+  - name: "ruby"
+    versions:
+      - 4.0.7
+    global: 4.0.7
+  - name: "terraform"
+    versions:
+      - 1.16.3
+    global: 1.16.3
 
 base_packages:
   - abiword
@@ -446,7 +446,7 @@ laptop_power_management: "tuned"
 #   illuminance_file:   /sys/bus/iio/devices/iio:device0/in_illuminance_raw
 #   min_backlight: 60
 
-aws_vault_version: 7.13.6
+aws_vault_version: 7.14.0
 gh_md_toc_version: 0.10.0
 git_quick_stats_version: 2.11.0
 prettyping_version: v1.1.0
