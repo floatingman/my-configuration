@@ -109,12 +109,12 @@ asdf_group: "devtools"
 asdf_plugins:
   - name: "awscli"
     versions:
-      - 2.36.50
-    global: 2.36.50
+      - 2.37.7
+    global: 2.37.7
   - name: "concourse"
     versions:
-      - 8.3.0
-    global: 8.3.0
+      - 8.3.1
+    global: 8.3.1
   - name: "dotnet-core"
     versions:
       - 10.0.401
@@ -133,8 +133,8 @@ asdf_plugins:
     global: 4.3.0
   - name: "kubectl"
     versions:
-      - 1.37.0
-    global: 1.37.0
+      - 1.37.1
+    global: 1.37.1
   - name: "minikube"
     versions:
       - 1.39.0
@@ -145,8 +145,8 @@ asdf_plugins:
     global: 26.10.0
   - name: "opentofu"
     versions:
-      - 1.12.6
-    global: 1.12.6
+      - 1.13.0
+    global: 1.13.0
   - name: "packer"
     versions:
       - 1.16.1
@@ -157,8 +157,8 @@ asdf_plugins:
     global: 4.0.7
   - name: "terraform"
     versions:
-      - 1.16.3
-    global: 1.16.3
+      - 1.16.4
+    global: 1.16.4
 
 base_packages:
   - abiword
@@ -446,13 +446,12 @@ laptop_power_management: "tuned"
 #   illuminance_file:   /sys/bus/iio/devices/iio:device0/in_illuminance_raw
 #   min_backlight: 60
 
-aws_vault_version: 7.14.0
+aws_vault_version: 7.15.1
 gh_md_toc_version: 0.10.0
 git_quick_stats_version: 2.11.0
 prettyping_version: v1.1.0
 rke_version: v1.8.14
-tfswitch_version: 1.19.0
-
+tfswitch_version: 1.20.0
 # Homebrew packages - applications installed via Homebrew
 homebrew_packages:
   - argocd
