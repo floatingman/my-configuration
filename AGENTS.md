@@ -138,3 +138,9 @@ Default in the role's `defaults/main.yml`; machine value in `group_vars/all/loca
 ## Mistakes
 
 Follow guidelines listed in @MISTAKES.md
+
+## Memory Routing (cognee)
+
+- remember → dataset_name: "repo:<this-repo>" (repo knowledge) or "global" (cross-cutting lessons)
+- recall → datasets: "repo:<this-repo>,global"
+- remember takes `data`, not `content`; datasets is a comma-separated string
