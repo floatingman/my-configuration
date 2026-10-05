@@ -15,6 +15,20 @@
     mode: '0440'
     validate: "visudo -cf %s"
 
+- name: Remove haskell-linked pandoc and shellcheck (replaced by -bin builds)
+  # The repo pandoc-cli/shellcheck builds link against the GHC library stack:
+  # 200+ haskell-* packages that re-release on every GHC bump, so every -Syu
+  # drags hundreds of unrelated updates. The static pandoc-bin/shellcheck-bin
+  # AUR builds below replace them; --recursive drops the orphaned haskell tree.
+  ansible.builtin.pacman:
+    name:
+      - pandoc-cli
+      - shellcheck
+    state: absent
+    extra_args: "--recursive --unneeded"
+  become: true
+  when: ansible_facts['os_family'] == "Archlinux" and aur is defined
+
 - name: Install Yay
   kewlfft.aur.aur:
     name: yay
