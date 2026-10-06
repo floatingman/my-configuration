@@ -5,6 +5,20 @@ them.
 
 This is my attempt at fully automating the setup of my linux machines with it.
 
+## Installing a new machine
+
+For a fresh Arch machine, run [scripts/arch-install.sh](scripts/arch-install.sh)
+from the Arch installer ISO (root shell, network up). It performs the full
+[INSTALL.md](INSTALL.md) flow — LUKS2 + LVM, encrypted `/boot`, dual
+UEFI/legacy-BIOS boot — and prompts for disk, passwords, hostname, and user:
+
+    # curl -fL https://raw.githubusercontent.com/floatingman/my-configuration/main/scripts/arch-install.sh -o /tmp/arch-install.sh
+    # bash /tmp/arch-install.sh
+
+After reboot the repo is pre-cloned at `~/my-configuration`; continue with
+`make setup && exec $SHELL -l && make configure`. The manual step-by-step
+equivalent lives in [INSTALL.md](INSTALL.md).
+
 ## What's here?
 
 This is my [Ansible](https://www.ansible.com/) playbook to automatically configure a new Linux installation on an Arch or Debian system. The following roles are being used:
