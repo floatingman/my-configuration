@@ -176,6 +176,24 @@ genfstab -U -p /mnt >> /mnt/etc/fstab
 grep -q '/dev/mapper/arch-root' /mnt/etc/fstab \
   || err 'fstab generation failed (no root entry)'
 
+# --- wifi carry-over (laptops) -----------------------------------------------
+#
+# iwd (the ISO's wireless tool) stores every network you connected to in the
+# live environment as a profile under /var/lib/iwd. Copy them into the new
+# system so iwd auto-connects on first boot; dhcpcd (enabled below) does DHCP.
+shopt -s nullglob
+WIFI_PROFILES=(/var/lib/iwd/*.psk /var/lib/iwd/*.open /var/lib/iwd/*.8021x)
+shopt -u nullglob
+INSTALL_WIFI=0
+if ((${#WIFI_PROFILES[@]})); then
+  log "Copying ${#WIFI_PROFILES[@]} wifi profile(s) from the live environment"
+  install -d -m 700 /mnt/var/lib/iwd
+  for _profile in "${WIFI_PROFILES[@]}"; do
+    install -m 600 "${_profile}" "/mnt/var/lib/iwd/${_profile##*/}"
+  done
+  INSTALL_WIFI=1
+fi
+
 # --- hand off values to the chroot stage ------------------------------------
 
 # printf %q keeps arbitrary passwords safe to source; the file is chmod 600
@@ -189,7 +207,7 @@ grep -q '/dev/mapper/arch-root' /mnt/etc/fstab \
   printf 'INSTALL_DEVCRYPT=%q\n' "${DEVCRYPT}"
   printf 'INSTALL_LUKS_PASSPHRASE=%q\n' "${LUKS_PASSPHRASE}"
   printf 'INSTALL_ROOT_PASSWORD=%q\n' "${ROOT_PASSWORD}"
-  printf 'INSTALL_USER_PASSWORD=%q\n' "${USER_PASSWORD}"
+  printf 'INSTALL_WIFI=%q\n' "${INSTALL_WIFI}"
 } > /mnt/.install-env
 chmod 600 /mnt/.install-env
 
@@ -223,6 +241,10 @@ hwclock --systohc --utc
 log "Hostname: ${INSTALL_HOSTNAME}"
 echo "${INSTALL_HOSTNAME}" > /etc/hostname
 systemctl enable dhcpcd.service
+# Auto-connect to wifi networks configured in the live environment (if any)
+if [[ ${INSTALL_WIFI:-0} == 1 ]]; then
+  systemctl enable iwd.service
+fi
 
 log 'Root and regular user accounts'
 printf 'root:%s\n' "${INSTALL_ROOT_PASSWORD}" | chpasswd

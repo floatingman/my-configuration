@@ -15,12 +15,13 @@ pacstrap, locales, GRUB, the wheel user, and a pre-clone of this repo into
 
     # bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)
     (GitHub fallback: https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh)
-
 or run it from a second USB stick holding this repo. It prompts for the
 target disk (typing `YES` is required; the disk is wiped), LUKS/root/user
 passwords, hostname, username, swap size (default calculated as RAM x 1.5,
-rounded up to the next GiB), and timezone. The rest of this
-document is the manual equivalent, kept for reference and debugging.
+rounded up to the next GiB), and timezone. Wifi networks you connected to in
+the live environment (via iwctl) are carried over and auto-connect on first
+boot. The rest of this document is the manual equivalent, kept for reference
+and debugging.
 
 ## Manual install
 
