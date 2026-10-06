@@ -13,9 +13,9 @@
 #     ~<user>/my-configuration for the playbook
 #
 # Usage — from the Arch install ISO root shell, with network up:
-#   # curl -fsSL https://zipline.thenewmans.casa/go/arch | bash
+#   # bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)
 #   # (same script via GitHub, if the shortener is ever down:)
-#   # curl -fsSL https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh | bash
+#   # bash <(curl -fsSL https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh)
 #   # (download-first equivalent, if you prefer inspecting before running:)
 #   # curl -fsSL .../install.sh -o /tmp/install.sh && less /tmp/install.sh && bash /tmp/install.sh
 #   # or copy this repo to a second USB stick and run:
@@ -42,6 +42,10 @@ command -v pacstrap >/dev/null 2>&1 \
   || err 'pacstrap not found — run from the Arch install ISO, not a live system'
 curl -fsSI --max-time 10 https://archlinux.org/ >/dev/null 2>&1 \
   || err 'no network — connect first (wifi: iwctl; see INSTALL.md)'
+# Interactive prompts need the terminal on stdin; piping the script into bash
+# (curl ... | bash) makes the first `read` hit EOF and die. Fail with a
+# usable message instead.
+[[ -t 0 ]] || err 'stdin is not a terminal — run as: bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)'
 
 timedatectl set-ntp true
 

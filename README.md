@@ -12,7 +12,7 @@ from the Arch installer ISO (root shell, network up). It performs the full
 [INSTALL.md](INSTALL.md) flow — LUKS2 + LVM, encrypted `/boot`, dual
 UEFI/legacy-BIOS boot — and prompts for disk, passwords, hostname, and user:
 
-    # curl -fsSL https://zipline.thenewmans.casa/go/arch | bash
+    # bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)
 
 After reboot the repo is pre-cloned at `~/my-configuration`; continue with
 `make setup && exec $SHELL -l && make configure`. The manual step-by-step
