@@ -49,12 +49,14 @@
 
 # highlight-pointer-git and slack-term-bin were previously installed from the
 # AUR but are no longer managed here (unused; the `binaries` fallback is
-# Debian-only). Remove them so leftover builds don't linger on existing hosts.
+# Debian-only). warp-terminal was dropped from the shell role: its AUR build
+# is enormous and regularly times out. Remove all so leftovers don't linger.
 - name: Remove deprecated AUR packages
   kewlfft.aur.aur:
     name:
       - highlight-pointer-git
       - slack-term-bin
+      - warp-terminal
     use: auto
     state: absent
   become: true

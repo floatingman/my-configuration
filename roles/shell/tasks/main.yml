@@ -9,5 +9,3 @@
   ansible.builtin.include_tasks: tmux.yml
 - name: Include fzf tasks
   ansible.builtin.include_tasks: fzf.yml
-- name: Include warp tasks
-  ansible.builtin.include_tasks: warp.yml
