@@ -7,6 +7,22 @@ legacy BIOS.
 
 On some newer systems (e.g. Dell XPS 15), set SATA operation mode to AHCI.
 
+## Automated install
+
+`scripts/arch-install.sh` automates everything below: partitioning, LUKS+LVM,
+pacstrap, locales, GRUB, the wheel user, and a pre-clone of this repo into
+`~<user>/my-configuration`. From the installer ISO (root shell, network up):
+
+    # curl -fL https://raw.githubusercontent.com/floatingman/my-configuration/main/scripts/arch-install.sh -o /tmp/arch-install.sh
+    # bash /tmp/arch-install.sh
+
+or run it from a second USB stick holding this repo. It prompts for the
+target disk (typing `YES` is required; the disk is wiped), LUKS/root/user
+passwords, hostname, username, swap size, and timezone. The rest of this
+document is the manual equivalent, kept for reference and debugging.
+
+## Manual install
+
 Boot into the Arch installer.
 
 If your console font is tiny ([HiDPI][5] systems), set a new font.
