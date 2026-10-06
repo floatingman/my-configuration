@@ -20,7 +20,7 @@
   # 200+ haskell-* packages that re-release on every GHC bump, so every -Syu
   # drags hundreds of unrelated updates. The static pandoc-bin/shellcheck-bin
   # AUR builds below replace them; --recursive drops the orphaned haskell tree.
-  ansible.builtin.pacman:
+  community.general.pacman:
     name:
       - pandoc-cli
       - shellcheck

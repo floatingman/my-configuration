@@ -7,6 +7,32 @@
   tags:
     - packages
 
+# Bootstrap the `aur_builder` user + its sudoers rule HERE, not only in the
+# aur role: on a first-ever run the aur role (packages section) executes
+# AFTER grub and archive, whose AUR tasks become aur_builder — without this
+# they fail with "failed to set permissions on the temporary files ... when
+# becoming an unprivileged user" (setfacl cannot name a user that does not
+# exist yet). The aur role repeats both tasks idempotently for tag-scoped
+# runs; combined with ansible_remote_tmp under /tmp (see group_vars/all/
+# base.yml) the AUR become path works on pristine machines.
+- name: Create the `aur_builder` user (early, before first AUR task)
+  ansible.builtin.user:
+    name: aur_builder
+    create_home: true
+    group: wheel
+  become: true
+  when: ansible_facts['os_family'] == "Archlinux"
+
+- name: Allow `aur_builder` to run sudo pacman without a password (early)
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-install-aur_builder
+    line: "aur_builder ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    create: true
+    mode: '0440'
+    validate: "visudo -cf %s"
+  become: true
+  when: ansible_facts['os_family'] == "Archlinux"
+
 - name: Create pacman hook directory
   ansible.builtin.file:
     path: /etc/pacman.d/hooks
