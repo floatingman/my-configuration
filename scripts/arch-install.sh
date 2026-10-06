@@ -188,7 +188,10 @@ set -a
 set +a
 
 log "Locale and timezone (${INSTALL_TIMEZONE})"
-ln -s /usr/share/i18n/locales/en_DK /usr/share/i18n/locales/en_SE
+# glibc >= 2.33 ships a real en_SE locale; the en_DK symlink is only the
+# fallback for older systems (INSTALL.md's original trick).
+[[ -e /usr/share/i18n/locales/en_SE ]] \
+  || ln -s /usr/share/i18n/locales/en_DK /usr/share/i18n/locales/en_SE
 printf 'en_US.UTF-8 UTF-8\nen_SE.UTF-8 UTF-8\n' >> /etc/locale.gen
 locale-gen
 printf 'LANG=en_US.UTF-8\nLC_TIME=en_SE.UTF-8\n' > /etc/locale.conf

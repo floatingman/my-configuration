@@ -97,6 +97,8 @@ Generate and verify fstab.
 Change root into the base install and perform base configuration tasks.
 
     $ arch-chroot /mnt /bin/bash
+    # Skip on glibc >= 2.33: a real en_SE locale is shipped and the symlink
+    # fails with "File exists".
     $ ln -s /usr/share/i18n/locales/en_DK /usr/share/i18n/locales/en_SE
     $ export LANG=en_US.UTF-8
     $ export TIME=en_SE.UTF-8
