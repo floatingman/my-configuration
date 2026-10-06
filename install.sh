@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# scripts/arch-install.sh — automated Arch Linux base install (INSTALL.md).
+# install.sh — automated Arch Linux base install (INSTALL.md).
 #
 # Produces the exact layout INSTALL.md describes:
 #   * GPT with a 1MiB BIOS-boot partition, 512MiB EFI (FAT32), and a
@@ -13,10 +13,11 @@
 #     ~<user>/my-configuration for the playbook
 #
 # Usage — from the Arch install ISO root shell, with network up:
-#   # curl -fL https://raw.githubusercontent.com/floatingman/my-configuration/main/scripts/arch-install.sh -o /tmp/arch-install.sh
-#   # bash /tmp/arch-install.sh
-# or copy this repo to a second USB stick and run:
-#   # bash /mnt/my-configuration/scripts/arch-install.sh
+#   # curl -fsSL https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh | bash
+#   # (download-first equivalent, if you prefer inspecting before running:)
+#   # curl -fsSL .../install.sh -o /tmp/install.sh && less /tmp/install.sh && bash /tmp/install.sh
+#   # or copy this repo to a second USB stick and run:
+#   # bash /mnt/my-configuration/install.sh
 #
 # Everything is prompted; nothing is written until you confirm the target
 # disk by typing YES (this wipes the disk). HiDPI consoles: run
