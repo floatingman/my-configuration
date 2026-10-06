@@ -26,6 +26,10 @@
 # `setfont sun12x22` first. On newer systems (e.g. Dell XPS 15), set SATA
 # operation mode to AHCI before booting the ISO.
 #
+# Safe to re-run after a mid-install failure: stale mounts, the open LUKS
+# container, and LVM volumes from a previous run are torn down automatically —
+# no need to reboot the ISO between attempts.
+#
 # Never run this on a working system: it destroys the target disk's partition
 # table and filesystems.
 
@@ -46,6 +50,21 @@ curl -fsSI --max-time 10 https://archlinux.org/ >/dev/null 2>&1 \
 # (curl ... | bash) makes the first `read` hit EOF and die. Fail with a
 # usable message instead.
 [[ -t 0 ]] || err 'stdin is not a terminal — run as: bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)'
+
+# --- recover from a previous partial run --------------------------------------
+#
+# If an earlier run failed after the disk was wiped, the LUKS container is
+# open, the `arch` volume group is active, and /mnt is mounted — re-running
+# from the top would fail on every step. Tear the conventional names down
+# first (every command is a no-op when there is nothing to clean), so a
+# failed install can be retried without rebooting the ISO.
+if grep -qs ' /mnt ' /proc/mounts || [[ -e /dev/mapper/lvm ]]; then
+  log 'Cleaning up state from a previous partial run'
+  swapoff /dev/mapper/arch-swap 2>/dev/null || true
+  umount -R /mnt 2>/dev/null || true
+  vgchange -an arch 2>/dev/null || true
+  cryptsetup close lvm 2>/dev/null || true
+fi
 
 timedatectl set-ntp true
 
