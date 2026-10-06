@@ -18,7 +18,8 @@ pacstrap, locales, GRUB, the wheel user, and a pre-clone of this repo into
 
 or run it from a second USB stick holding this repo. It prompts for the
 target disk (typing `YES` is required; the disk is wiped), LUKS/root/user
-passwords, hostname, username, swap size, and timezone. The rest of this
+passwords, hostname, username, swap size (default calculated as RAM x 1.5,
+rounded up to the next GiB), and timezone. The rest of this
 document is the manual equivalent, kept for reference and debugging.
 
 ## Manual install

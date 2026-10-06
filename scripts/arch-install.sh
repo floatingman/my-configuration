@@ -63,8 +63,12 @@ read -rp 'Username for the regular (wheel/sudo) user: ' USERNAME_IN
 [[ ${USERNAME_IN} =~ ^[a-z_][a-z0-9_-]*$ ]] \
   || err "invalid username: ${USERNAME_IN}"
 
-read -rp 'Swap size (tip: RAM x 1.5 for hibernate) [8G]: ' SWAP_SIZE
-SWAP_SIZE=${SWAP_SIZE:-8G}
+# Swap default: RAM x 1.5 (INSTALL.md's hibernate rule), rounded up to the
+# next whole GiB — e.g. 32GiB RAM -> 48G. Override by typing another size.
+MEM_BYTES=$(awk '/^MemTotal:/{print $2 * 1024}' /proc/meminfo)
+SWAP_DEFAULT=$(( (MEM_BYTES * 3 + (1 << 30)) / 2 >> 30 ))G
+read -rp "Swap size [${SWAP_DEFAULT}]: " SWAP_SIZE
+SWAP_SIZE=${SWAP_SIZE:-${SWAP_DEFAULT}}
 
 read -rp 'Timezone [America/Los_Angeles]: ' TIMEZONE_IN
 TIMEZONE_IN=${TIMEZONE_IN:-America/Los_Angeles}
