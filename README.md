@@ -14,9 +14,17 @@ UEFI/legacy-BIOS boot — and prompts for disk, passwords, hostname, and user:
 
     # bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)
 
-After reboot the repo is pre-cloned at `~/my-configuration`; continue with
-`make setup && exec $SHELL -l && make configure`. The manual step-by-step
-equivalent lives in [INSTALL.md](INSTALL.md).
+After reboot, log in as your user and finish with the playbook (these steps
+are also saved as `~/NEXT_STEPS.txt` on the new machine):
+
+```bash
+cd ~/my-configuration
+make setup && exec $SHELL -l      # pipx + ansible, then reload PATH
+make install                      # ansible role requirements
+cp group_vars/templates/desktop.yml group_vars/all/local.yml
+# edit local.yml: set hostname and machine-specific variables
+make configure                    # runs the playbook (sudo password asked)
+```
 
 ## What's here?
 

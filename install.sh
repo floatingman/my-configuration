@@ -268,6 +268,22 @@ runuser -u "${INSTALL_USERNAME}" -- \
   https://github.com/floatingman/my-configuration.git \
   || echo 'warning: pre-clone failed — clone the repo manually after reboot'
 
+# The post-reboot steps are easy to lose after the ISO console goes away;
+# leave them in the user's home directory.
+cat > "/home/${INSTALL_USERNAME}/NEXT_STEPS.txt" <<'EOF'
+Next steps after first boot (log in as your regular user):
+
+  cd ~/my-configuration
+  make setup && exec $SHELL -l
+  make install
+  cp group_vars/templates/desktop.yml group_vars/all/local.yml
+  # edit local.yml: set hostname and any machine-specific variables
+  make configure
+
+Details: README.md + INSTALL.md in this repository.
+EOF
+chown "${INSTALL_USERNAME}:${INSTALL_USERNAME}" "/home/${INSTALL_USERNAME}/NEXT_STEPS.txt"
+
 shred -u /.install-env
 echo 'Chroot stage complete.'
 #__CHROOT_END__
@@ -288,7 +304,8 @@ Install complete. Next steps:
 
   1. reboot (remove the USB stick). The GRUB/disk passphrase is your LUKS
      passphrase.
-  2. Log in as ${USERNAME_IN} and run the playbook:
+  2. Log in as ${USERNAME_IN}; the next steps are also saved in
+     ~/NEXT_STEPS.txt on the new system:
 
          cd ~/my-configuration
          make setup && exec \$SHELL -l
