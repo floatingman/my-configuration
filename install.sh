@@ -50,9 +50,24 @@ timedatectl set-ntp true
 log 'Disks on this machine'
 lsblk -dno NAME,SIZE,TYPE,MODEL
 
-read -rp 'Target disk (e.g. /dev/nvme0n1): ' DISK
-[[ ${DISK} == /dev/* ]] || DISK="/dev/${DISK}"
-[[ -b ${DISK} ]] || err "${DISK} is not a block device"
+while :; do
+  read -rp 'Target disk (e.g. /dev/nvme0n1): ' DISK
+  DISK="${DISK//[[:space:]]/}" # tolerate stray spaces
+  [[ ${DISK} == /dev/* ]] || DISK="/dev/${DISK}"
+  if [[ ! -e ${DISK} ]]; then
+    echo "  ${DISK} does not exist — pick a NAME from the list above"
+    continue
+  fi
+  if [[ ! -b ${DISK} ]]; then
+    echo "  ${DISK} is not a disk — use a NAME from the list above, e.g. nvme0n1 or sda"
+    continue
+  fi
+  if [[ $(lsblk -dno TYPE "${DISK}") != 'disk' ]]; then
+    echo "  ${DISK} is a partition or loop device — use the whole-disk name, e.g. /dev/nvme0n1"
+    continue
+  fi
+  break
+done
 
 read -rp "THIS WIPES ${DISK} COMPLETELY. Type YES to continue: " CONFIRM
 [[ ${CONFIRM} == 'YES' ]] || err 'aborted (nothing was written)'
