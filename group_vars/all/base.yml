@@ -238,7 +238,6 @@ aur:
     - git-quick-stats
     - gita
     - google-cloud-cli
-    - hey-bin
     - k6
     - kind
     - kops-bin

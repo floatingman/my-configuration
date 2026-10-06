@@ -9,3 +9,5 @@
   ansible.builtin.include_tasks: tmux.yml
 - name: Include fzf tasks
   ansible.builtin.include_tasks: fzf.yml
+- name: Include hey tasks
+  ansible.builtin.include_tasks: hey.yml

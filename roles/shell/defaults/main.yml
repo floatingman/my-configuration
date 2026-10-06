@@ -11,6 +11,11 @@
 # Tmux Plugin Manager (cloned by tasks/tmux.yml).
 shell_tpm_version: "v3.1.0"
 
+# Direct-download URL for hey (tasks/hey.yml). rakyll ships no GitHub
+# release assets; this GCS bucket is the only live binary source (the AUR
+# hey-bin S3 source 403s). Same URL as the Debian-side `binaries` entry.
+shell_hey_url: "https://storage.googleapis.com/hey-releases/hey_linux_amd64"
+
 # Zsh plugins cloned into ~/.shell (tasks/zsh-plugins.yml). dest names match
 # the legacy external role exactly so existing dotfile references keep
 # working (note the original `fast-syntax-Highlighting` casing). Your
