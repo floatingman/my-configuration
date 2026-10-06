@@ -13,7 +13,8 @@ On some newer systems (e.g. Dell XPS 15), set SATA operation mode to AHCI.
 pacstrap, locales, GRUB, the wheel user, and a pre-clone of this repo into
 `~<user>/my-configuration`. From the installer ISO (root shell, network up):
 
-    # curl -fsSL https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh | bash
+    # curl -fsSL https://zipline.thenewmans.casa/go/arch | bash
+    (GitHub fallback: https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh)
 
 or run it from a second USB stick holding this repo. It prompts for the
 target disk (typing `YES` is required; the disk is wiped), LUKS/root/user

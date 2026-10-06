@@ -13,6 +13,8 @@
 #     ~<user>/my-configuration for the playbook
 #
 # Usage — from the Arch install ISO root shell, with network up:
+#   # curl -fsSL https://zipline.thenewmans.casa/go/arch | bash
+#   # (same script via GitHub, if the shortener is ever down:)
 #   # curl -fsSL https://raw.githubusercontent.com/floatingman/my-configuration/main/install.sh | bash
 #   # (download-first equivalent, if you prefer inspecting before running:)
 #   # curl -fsSL .../install.sh -o /tmp/install.sh && less /tmp/install.sh && bash /tmp/install.sh
