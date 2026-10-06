@@ -1,4 +1,17 @@
 ---
+# Ansible creates per-module tmp dirs as the BECOME user (e.g. aur_builder),
+# but the base dir (ansible_remote_tmp, /tmp/ansible-$USER) is 0700 owned by
+# the invoking user — unprivileged become users then fail with "failed to
+# create remote module tmp path ... permission denied". The invoking user and
+# aur_builder share the wheel group, so make the base dir group-traversable.
+- name: Make ansible module tmp dir writable by unprivileged become users
+  ansible.builtin.file:
+    path: "{{ ansible_remote_tmp }}"
+    state: directory
+    mode: "0770"
+    group: wheel
+  when: ansible_facts['os_family'] == 'Archlinux'
+
 - name: Copy pacman configuration file
   ansible.builtin.copy:
     src: pacman.conf
