@@ -9,6 +9,13 @@
 # every user can execute.
 ansible_python_interpreter: /usr/bin/python3
 
+# Same 0700-home problem, second symptom: Ansible stages module files in
+# ~/.ansible/tmp, and becoming an unprivileged user (aur_builder) fails there
+# with "failed to set permissions on the temporary files Ansible needs to
+# create when becoming an unprivileged user" (first hit: the grub-hook AUR
+# task). Stage under /tmp instead, where the permission fixups work.
+ansible_remote_tmp: "/tmp/ansible-{{ user.name }}"
+
 user:
   name: dnewman
   uid: 1000
