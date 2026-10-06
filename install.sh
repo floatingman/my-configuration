@@ -227,8 +227,19 @@ fi
   printf 'INSTALL_LUKS_PASSPHRASE=%q\n' "${LUKS_PASSPHRASE}"
   printf 'INSTALL_ROOT_PASSWORD=%q\n' "${ROOT_PASSWORD}"
   printf 'INSTALL_WIFI=%q\n' "${INSTALL_WIFI}"
+  printf 'INSTALL_USER_PASSWORD=%q\n' "${USER_PASSWORD}"
 } > /mnt/.install-env
 chmod 600 /mnt/.install-env
+
+# Guard: every value the chroot stage needs must be in the handoff file — a
+# missing key would otherwise die mid-install under `set -u` far from the
+# actual bug. This check catches it the moment the file is written.
+for _key in INSTALL_HOSTNAME INSTALL_USERNAME INSTALL_TIMEZONE INSTALL_DISK \
+            INSTALL_DEVEFI INSTALL_DEVCRYPT INSTALL_LUKS_PASSPHRASE \
+            INSTALL_ROOT_PASSWORD INSTALL_USER_PASSWORD INSTALL_WIFI; do
+  grep -q "^${_key}=" /mnt/.install-env \
+    || err "internal error: ${_key} missing from handoff file"
+done
 
 # The chroot stage runs via `arch-chroot /mnt bash /arch-chroot-stage.sh`,
 # so it needs no shebang; the shellcheck directive keeps it lintable.
