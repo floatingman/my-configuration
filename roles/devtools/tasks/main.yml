@@ -43,38 +43,8 @@
   tags:
     - aur
 
-- name: Install Clion
-  become: true
-  kewlfft.aur.aur:
-    name: clion
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
-
-- name: Install Clion GDB
-  become: true
-  kewlfft.aur.aur:
-    name: clion-gdb
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
-
-- name: Install Clion LLDB
-  become: true
-  kewlfft.aur.aur:
-    name: clion-lldb
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
+- name: Clion tasks
+  ansible.builtin.include_tasks: clion.yml
 
 - name: Install Goland
   become: true

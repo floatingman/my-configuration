@@ -51,7 +51,9 @@
 # AUR but are no longer managed here (unused; the `binaries` fallback is
 # Debian-only). warp-terminal was dropped from the shell role (huge AUR build
 # that times out); hey-bin's S3 source 403s — hey now installs via direct
-# download in the shell role. Remove all so leftovers don't linger.
+# download in the shell role; clion/clion-gdb/clion-lldb sources 404 on the
+# dead download-cf.jetbrains.com CDN — clion now installs via a direct
+# tarball in the devtools role (which bundles its own debuggers).
 - name: Remove deprecated AUR packages
   kewlfft.aur.aur:
     name:
@@ -59,6 +61,9 @@
       - slack-term-bin
       - warp-terminal
       - hey-bin
+      - clion
+      - clion-gdb
+      - clion-lldb
     use: auto
     state: absent
   become: true

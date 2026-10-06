@@ -1,0 +1,57 @@
+---
+# Install CLion directly from JetBrains (see defaults/main.yml for why not
+# AUR). CLion bundles its own GDB and LLDB under bin/, which is why the
+# separate clion-gdb/clion-lldb AUR packages are not replaced.
+- name: Fetch CLion tarball
+  ansible.builtin.get_url:
+    url: "https://download.jetbrains.com/cpp/CLion-{{ devtools_clion_version }}.tar.gz"
+    dest: "/tmp/CLion-{{ devtools_clion_version }}.tar.gz"
+    checksum: "sha256:{{ devtools_clion_sha256 }}"
+    mode: '0644'
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags:
+    - devtools
+    - clion
+
+- name: Extract CLion to /opt
+  ansible.builtin.unarchive:
+    src: "/tmp/CLion-{{ devtools_clion_version }}.tar.gz"
+    dest: /opt
+    creates: "/opt/clion-{{ devtools_clion_version }}"
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags:
+    - devtools
+    - clion
+
+- name: Symlink CLion launcher
+  ansible.builtin.file:
+    src: "/opt/clion-{{ devtools_clion_version }}/bin/clion.sh"
+    dest: /usr/local/bin/clion
+    state: link
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags:
+    - devtools
+    - clion
+
+- name: Install CLion desktop entry
+  ansible.builtin.copy:
+    dest: /usr/local/share/applications/clion.desktop
+    mode: '0644'
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=CLion
+      Icon=/opt/clion-{{ devtools_clion_version }}/bin/clion.svg
+      Exec="/usr/local/bin/clion" %f
+      Comment=CLion C/C++ IDE
+      Categories=Development;IDE;
+      Terminal=false
+      StartupWMClass=jetbrains-clion
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags:
+    - devtools
+    - clion
