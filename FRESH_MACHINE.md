@@ -72,12 +72,14 @@ reason `gitconfig.j2` forces HTTP/1.1 — but that file doesn't exist yet at
 first init).
 
 **Fix in place:** the chezmoi init task runs hermetically:
-`GIT_CONFIG_GLOBAL=/dev/null` (ignore the insteadOf rewrite) plus an
-env-scoped `http.https://github.com/.version=HTTP/1.1`, so the init clone
-is always anonymous HTTPS over HTTP/1.1. Verified A/B: clone with the
-rewrite active and no key fails exactly as reported; hermetic clone
-succeeds. Note this requires the dotfiles repo to stay public (or provide
-credentials another way).
+`GIT_CONFIG_GLOBAL=/dev/null` (ignore the insteadOf rewrite), an env-scoped
+`http.https://github.com/.version=HTTP/1.1`, and an env-scoped reverse
+rewrite `url.https://github.com/.insteadOf = git@github.com:` — because
+`.chezmoiexternal` (nvim, tmux) declares SSH URLs and anonymous SSH does
+not exist. Init and externals are always anonymous HTTPS over HTTP/1.1;
+verified A/B both ways (rewrite active + no key fails exactly as reported;
+hermetic clone succeeds). Requires the dotfiles repo and its externals to
+stay public.
 
 ### Dead upstream sources behind healthy AUR packages
 
