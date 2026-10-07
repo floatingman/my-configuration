@@ -67,6 +67,16 @@
   environment:
     HOME: "/home/{{ user.name }}"
     PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
+    # Hermetic first clone. ~/.gitconfig rewrites github.com HTTPS to SSH
+    # (url.insteadOf), which fails before the user's SSH key exists, and
+    # anonymous protocol-v2 requests over HTTP/2 get 401-challenged by
+    # GitHub (see the http.version workaround in templates/gitconfig.j2).
+    # Ignore the global gitconfig and force HTTP/1.1 for the init clone
+    # only; the public repo needs no credentials this way.
+    GIT_CONFIG_GLOBAL: /dev/null
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: http.https://github.com/.version
+    GIT_CONFIG_VALUE_0: HTTP/1.1
 
 # ~/.tool-versions is DERIVED from group_vars/all/base.yml (asdf_plugins),
 # not dotfiles-managed: the chezmoi copy drifted and pinned uninstalled

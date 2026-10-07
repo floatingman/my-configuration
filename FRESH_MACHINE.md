@@ -58,6 +58,27 @@ and break the ordering, CI fails with the offenders listed.
   normal runs cannot use. Fix: the path is keyed on the invoking `$USER`.
   If a machine ever shows this, `sudo rm -rf /tmp/ansible-*` once.
 
+### The dotfiles first-clone chicken-and-egg
+
+**Symptom:** `Initialize user dotfiles with chezmoi` fails with git's
+"could not read from remote repository" on a fresh machine.
+
+**Cause:** `~/.gitconfig` (from the dotfiles themselves) rewrites
+`https://github.com/<you>/...` to `git@github.com:<you>/...` via
+`url.insteadOf` — SSH, which needs the private key that lives *inside* the
+dotfiles you are trying to clone. Independently, anonymous protocol-v2 git
+over HTTP/2 gets 401-challenged by GitHub, breaking unattended clones (the
+reason `gitconfig.j2` forces HTTP/1.1 — but that file doesn't exist yet at
+first init).
+
+**Fix in place:** the chezmoi init task runs hermetically:
+`GIT_CONFIG_GLOBAL=/dev/null` (ignore the insteadOf rewrite) plus an
+env-scoped `http.https://github.com/.version=HTTP/1.1`, so the init clone
+is always anonymous HTTPS over HTTP/1.1. Verified A/B: clone with the
+rewrite active and no key fails exactly as reported; hermetic clone
+succeeds. Note this requires the dotfiles repo to stay public (or provide
+credentials another way).
+
 ### Dead upstream sources behind healthy AUR packages
 
 **Symptom:** an AUR package fails to build with a 404/403 on its `source=`
