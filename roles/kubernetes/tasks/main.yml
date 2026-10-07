@@ -17,6 +17,13 @@
     name: kubeadm
     state: present
 
+
+- name: Install kind
+  become: true
+  community.general.pacman:
+    name: kind
+    state: present
+
 # kubecm was removed from the AUR (all kubecm* variants); install the
 # upstream release binary directly (see kubernetes role defaults for the
 # pin).

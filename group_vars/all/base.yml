@@ -239,7 +239,6 @@ aur:
     - gita
     - google-cloud-cli
     - k6
-    - kind
     - kops-bin
     - kubeval-bin
     - masterpdfeditor

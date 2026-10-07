@@ -54,7 +54,7 @@
 - name: Install autotiling
   become: true
   kewlfft.aur.aur:
-    name: autotiling
+    name: autotiling-git
     use: auto
     state: present
   become_user: aur_builder

@@ -7,11 +7,9 @@
 
 - name: Install Syncthingtray
   become: true
-  kewlfft.aur.aur:
-    name: syncthingtray-qt6
-    use: auto
+  community.general.pacman:
+    name: syncthingtray
     state: present
-  become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur

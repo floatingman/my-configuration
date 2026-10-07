@@ -3,8 +3,8 @@
   become: true
   kewlfft.aur.aur:
     name:
-      - protonmail-bridge-core
-      - protonmail-bridge
+      - protonmail-bridge-free-core
+      - protonmail-bridge-free
     use: auto
     state: present
   become_user: aur_builder

@@ -410,7 +410,7 @@
   become: true
   become_user: aur_builder
   kewlfft.aur.aur:
-    name: llmfit
+    name: llmfit-git
     use: auto
     state: present
   when:

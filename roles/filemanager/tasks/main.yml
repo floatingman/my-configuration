@@ -21,11 +21,9 @@
 
 - name: Install ueberzugpp
   become: true
-  kewlfft.aur.aur:
+  community.general.pacman:
     name: ueberzugpp
-    use: auto
     state: present
-  become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux" and (_has_display | default(false))
   tags:
     - filemanager

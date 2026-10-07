@@ -1,11 +1,9 @@
 ---
 - name: Install chezmoi on Arch
   become: true
-  kewlfft.aur.aur:
+  community.general.pacman:
     name: chezmoi
-    use: auto
     state: present
-  become_user: aur_builder
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
