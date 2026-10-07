@@ -44,8 +44,15 @@ log() { printf '\n==> %s\n' "$*"; }
 [[ ${EUID} -eq 0 ]] || err 'run this as root from the Arch install ISO shell'
 command -v pacstrap >/dev/null 2>&1 \
   || err 'pacstrap not found — run from the Arch install ISO, not a live system'
-curl -fsSI --max-time 10 https://archlinux.org/ >/dev/null 2>&1 \
-  || err 'no network — connect first (wifi: iwctl; see INSTALL.md)'
+# Canaries must be hosts the install itself uses: the pacman mirror
+# (pacstrap) and github.com (the SSH-keys fetch). archlinux.org is NOT
+# used by the install and can be independently unreachable (observed:
+# TLS reset from some networks while mirrors and GitHub work fine), so
+# it must not be the sole network check.
+if ! curl -fsS --max-time 10 -o /dev/null https://geo.mirror.pkgbuild.com/ \
+   && ! curl -fsS --max-time 10 -o /dev/null https://github.com/; then
+  err 'no network — connect first (wifi: iwctl; see INSTALL.md)'
+fi
 # Interactive prompts need the terminal on stdin; piping the script into bash
 # (curl ... | bash) makes the first `read` hit EOF and die. Fail with a
 # usable message instead.
