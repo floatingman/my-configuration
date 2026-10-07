@@ -70,7 +70,7 @@
       - clion-gdb
       - clion-lldb
       - taskopen
-      - vapoursynth-plugin-vmaf-git
+      - vapoursynth-plugin-svpflow
     state: absent
   become: true
   become_user: aur_builder

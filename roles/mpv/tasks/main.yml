@@ -42,13 +42,7 @@
   tags:
     - aur
 
-- name: Install vapoursynth-plugin-svpflow
-  become: true
-  kewlfft.aur.aur:
-    name: vapoursynth-plugin-svpflow
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
+# vapoursynth-plugin-svpflow dropped 2026-10: its PKGBUILD compiles against
+# /usr/include/vapoursynth, but VapourSynth 80 ships headers under
+# /usr/lib/python3.x/site-packages/vapoursynth/include — the build fails on
+# every current Arch box. Re-add when the AUR package adapts.
