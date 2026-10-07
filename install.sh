@@ -284,25 +284,6 @@ printf '%%wheel ALL=(ALL) ALL\n' > /etc/sudoers.d/01_wheel
 chmod 440 /etc/sudoers.d/01_wheel
 visudo -cf /etc/sudoers.d/01_wheel >/dev/null
 
-# Debugging a fresh machine from its console is painful; enable key-only SSH
-# from the very first boot so the rest of the setup can be driven (and its
-# errors read) from another machine. Keys come from the GitHub account that
-# owns this repo. Only if the keys land do we disable password auth — never
-# lock out both paths at once.
-log 'Enabling early SSH access'
-systemctl enable sshd.service
-_ssh_dir="/home/${INSTALL_USERNAME}/.ssh"
-install -d -m 700 -o "${INSTALL_USERNAME}" -g "${INSTALL_USERNAME}" "${_ssh_dir}"
-if curl -fsSL --max-time 15 -o /tmp/github.keys "https://github.com/floatingman.keys" \
-  && test -s /tmp/github.keys; then
-  install -m 600 -o "${INSTALL_USERNAME}" -g "${INSTALL_USERNAME}" \
-    /tmp/github.keys "${_ssh_dir}/authorized_keys"
-  rm -f /tmp/github.keys
-  install -d -m 755 /etc/ssh/sshd_config.d
-  printf 'PasswordAuthentication no\n' > /etc/ssh/sshd_config.d/99-early-install.conf
-else
-  echo 'warning: could not fetch GitHub keys; password SSH remains enabled'
-fi
 
 log 'mkinitcpio: encrypt/lvm2 hooks + LUKS keyfile'
 # Match commented defaults (#HOOKS=(...)/#FILES=()) as well as uncommented ones.
@@ -371,6 +352,27 @@ __CHROOT_STAGE__
 log 'Running chroot configuration stage'
 arch-chroot /mnt bash /arch-chroot-stage.sh
 rm -f /mnt/arch-chroot-stage.sh
+
+# Debugging a fresh machine from its console is painful; enable key-only SSH
+# from the very first boot so the rest of the setup can be driven (and its
+# errors read) from another machine. Keys come from the GitHub account that
+# owns this repo. This runs ISO-side on /mnt — NOT in the chroot — because a
+# fresh chroot can lack /etc/resolv.conf and silently fail DNS. Only if the
+# keys land do we disable password auth: never lock out both paths at once.
+log 'Enabling early SSH access'
+arch-chroot /mnt systemctl enable sshd.service
+_ssh_dir="/mnt/home/${USERNAME_IN}/.ssh"
+install -d -m 700 "${_ssh_dir}"
+if curl -fsSL --max-time 15 -o /tmp/github.keys "https://github.com/floatingman.keys" \
+  && test -s /tmp/github.keys; then
+  install -m 600 /tmp/github.keys "${_ssh_dir}/authorized_keys"
+  rm -f /tmp/github.keys
+  arch-chroot /mnt chown -R "${USERNAME_IN}:${USERNAME_IN}" "/home/${USERNAME_IN}/.ssh"
+  install -d -m 755 /mnt/etc/ssh/sshd_config.d
+  printf 'PasswordAuthentication no\n' > /mnt/etc/ssh/sshd_config.d/99-early-install.conf
+else
+  echo 'warning: could not fetch GitHub keys; password SSH stays enabled'
+fi
 
 # --- done -------------------------------------------------------------------
 
