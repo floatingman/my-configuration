@@ -1,18 +1,9 @@
 ---
-- name: Remove old versions of neovim
-  become: true
-  ansible.builtin.file:
-    path: "/home/{{ user.name }}/git/neovim"
-    state: absent
-
-
-- name: Clone neovim
-  ansible.builtin.git:
-    repo: https://github.com/neovim/neovim.git
-    dest: "/home/{{ user.name }}/git/neovim"
-    depth: 1
-    version: stable
-
+# Build neovim from source (works on Arch and Debian), but only when the
+# upstream master actually moved: `git ls-remote` per run is one cheap
+# network call, and the recorded-built-commit marker prevents the old
+# delete-clone-rebuild-every-run behavior. The clone persists so make can
+# build incrementally.
 - name: Install common neovim dependencies
   become: true
   ansible.builtin.package:
@@ -21,7 +12,7 @@
       - gettext
       - luarocks
 
-- name: "Install neovim deps on Debian"
+- name: Install neovim deps on Debian
   become: true
   ansible.builtin.package:
     name:
@@ -30,7 +21,7 @@
       - black
   when: ansible_facts["os_family"] != "Archlinux"
 
-- name: "Install neovim deps on Arch"
+- name: Install neovim deps on Arch
   become: true
   ansible.builtin.package:
     name:
@@ -38,9 +29,44 @@
       - python-black
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Neovim Make Install
-  ansible.builtin.command: make install CMAKE_BUILD_TYPE=Release
-  args:
+- name: Query latest neovim master commit
+  ansible.builtin.command:
+    cmd: git ls-remote https://github.com/neovim/neovim.git refs/heads/master # noqa: command-instead-of-module
+  register: editors_nvim_remote
+  changed_when: false
+
+- name: Read the locally built neovim commit
+  ansible.builtin.slurp:
+    src: /usr/local/share/nvim-built-commit
+  register: editors_nvim_built_raw
+  failed_when: false
+
+- name: Decide whether neovim needs rebuilding
+  ansible.builtin.set_fact:
+    editors_nvim_needs_build: >-
+      {{ (editors_nvim_built_raw.content | default('') | b64decode | trim)
+         != editors_nvim_remote.stdout.split()[0] }}
+
+- name: Update neovim clone
+  ansible.builtin.git:
+    repo: https://github.com/neovim/neovim.git
+    dest: "/home/{{ user.name }}/git/neovim"
+    depth: 1
+    version: master
+  when: editors_nvim_needs_build
+
+- name: Build and install neovim
+  ansible.builtin.command:
+    cmd: make install CMAKE_BUILD_TYPE=Release
     chdir: "/home/{{ user.name }}/git/neovim"
+  when: editors_nvim_needs_build
   changed_when: true
+  become: true
+
+- name: Record built neovim commit
+  ansible.builtin.copy:
+    content: "{{ editors_nvim_remote.stdout.split()[0] }}\n"
+    dest: /usr/local/share/nvim-built-commit
+    mode: '0644'
+  when: editors_nvim_needs_build
   become: true
