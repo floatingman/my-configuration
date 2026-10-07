@@ -16,7 +16,9 @@
 - name: Install taskopen
   become: true
   kewlfft.aur.aur:
-    name: taskopen
+    # AUR `taskopen` pins a sha256 for the codeberg source archive that
+    # upstream regenerated; -git builds from source and is immune to that.
+    name: taskopen-git
     use: auto
     state: present
   become_user: aur_builder

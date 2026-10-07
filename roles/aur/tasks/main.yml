@@ -68,7 +68,7 @@
       - hey-bin
       - clion
       - clion-gdb
-      - clion-lldb
+      - taskopen
     state: absent
   become: true
   become_user: aur_builder
