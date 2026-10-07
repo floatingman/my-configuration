@@ -1,9 +1,21 @@
 ---
-- name: Install xautolock
+- name: Install xautolock on Arch
+  become: true
+  kewlfft.aur.aur:
+    name: xautolock
+    use: auto
+    state: present
+  become_user: aur_builder
+  when: ansible_facts["os_family"] == "Archlinux"
+  tags:
+    - aur
+
+- name: Install xautolock on Debian
   ansible.builtin.package:
     name: xautolock
     state: present
   become: true
+  when: ansible_facts["os_family"] != "Archlinux"
 
 - name: Install xidlehook
   become: true
