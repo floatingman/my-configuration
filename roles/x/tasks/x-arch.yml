@@ -66,6 +66,7 @@
 # - name: Install video driver(s) (removed)
 
 - name: Add user to video group
+  become: true
   ansible.builtin.user:
     name: "{{ user.name }}"
     groups: video
