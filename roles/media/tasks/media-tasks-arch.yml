@@ -40,7 +40,10 @@
   kewlfft.aur.aur:
     name:
       - vapoursynth-plugin-mvtools-git
-      - vapoursynth-plugin-vmaf-git
+      # vapoursynth-plugin-vmaf-git dropped 2026-10: its PKGBUILD references
+      # a meson checkasm.wrap subproject it doesn't ship, so every build
+      # fails under makepkg's --wrap-mode nodownload. For VMAF scoring use
+      # ffmpeg's libvmaf filter instead.
     use: auto
     state: present
   when: ansible_facts["os_family"] == "Archlinux"

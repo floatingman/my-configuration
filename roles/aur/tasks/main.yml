@@ -68,7 +68,9 @@
       - hey-bin
       - clion
       - clion-gdb
+      - clion-lldb
       - taskopen
+      - vapoursynth-plugin-vmaf-git
     state: absent
   become: true
   become_user: aur_builder
