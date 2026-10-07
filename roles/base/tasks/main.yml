@@ -33,7 +33,12 @@
 - name: Set the hostname
   ansible.builtin.hostname:
     name: "{{ hostname }}"
-  when: hostname is defined
+  # hostnamectl cannot change a container's UTS namespace ("Device or
+  # resource busy"); set the hostname with `docker run --hostname` instead.
+  when:
+    - hostname is defined
+    - not (ansible_facts['virtualization_role'] | default('') == 'guest' and
+           ansible_facts['virtualization_type'] | default('') == 'docker')
   become: true
 
 - name: User tasks

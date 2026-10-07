@@ -1,0 +1,119 @@
+name: Fresh install
+
+# Boots a pristine Arch and Ubuntu container (systemd only), seeds the
+# user + sudo exactly like install.sh does, then runs the playbook INSIDE
+# the container the way a real machine does (clone, ansible, local
+# connection) — including the aur_builder bootstrap, tmp-dir semantics and
+# a real (small) AUR build on Arch. Catches the fresh-machine failure
+# classes: bootstrapping order, become/permission mistakes, null guards,
+# dead or moved packages, Debian-branch rot.
+#
+# Monthly plus manual dispatch — too heavy for per-push CI.
+# Note: the playbook must run on the machine itself (the manifest pre-task
+# executes scripts/profile_dispatcher.py from playbook_dir on the target).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 1 * *"
+
+permissions:
+  contents: read
+
+env:
+  PLAY_TAGS: base,ssh,shell,aur,system
+
+jobs:
+  playbook:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: arch
+            image: archlinux:base-devel
+          - name: ubuntu
+            image: ubuntu:24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Boot pristine container
+        run: |
+          docker run -d --name fresh --privileged ${{ matrix.image }} /sbin/init
+          for i in $(seq 1 60); do
+            docker exec fresh systemctl is-system-running >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec fresh systemctl --no-pager --failed || true
+
+      - name: Seed user and tooling (mirrors install.sh)
+        run: |
+          if [ "${{ matrix.name }}" = arch ]; then
+            docker exec fresh pacman -Sy --noconfirm python python-pip git sudo
+            docker exec fresh useradd -m -u 1000 -G wheel -s /bin/bash dnewman
+          else
+            docker exec fresh apt-get update
+            docker exec fresh env DEBIAN_FRONTEND=noninteractive \
+              apt-get install -y python3 python3-venv python3-pip git sudo
+            docker exec fresh useradd -m -u 1000 -G sudo -s /bin/bash dnewman
+          fi
+          # 99- prefix: sudo uses the LAST matching rule, so this must sort
+          # after the playbook's own /etc/sudoers.d/01_wheel or a password
+          # wheel rule would override it mid-run.
+          docker exec fresh bash -c 'echo "dnewman ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-ci-nopasswd'
+          docker exec fresh chmod 440 /etc/sudoers.d/99-ci-nopasswd
+          # Ansible in a venv, like the pipx install make setup provides.
+          docker exec fresh python3 -m venv /opt/ansible-venv
+          docker exec fresh /opt/ansible-venv/bin/pip install --quiet ansible-core pyyaml
+
+      - name: Copy repo in and install requirements
+        run: |
+          docker cp "$GITHUB_WORKSPACE" fresh:/home/dnewman/my-configuration
+          docker exec fresh chown -R dnewman:dnewman /home/dnewman/my-configuration
+          docker exec -u dnewman fresh /opt/ansible-venv/bin/ansible-galaxy \
+            install -r /home/dnewman/my-configuration/requirements.yml -f
+          docker exec -u dnewman fresh /opt/ansible-venv/bin/ansible-galaxy \
+            collection install -r /home/dnewman/my-configuration/requirements.yml
+
+      - name: Seed minimal machine vars
+        run: |
+          # dotfiles_config intentionally omitted: the dotfiles role skips,
+          # keeping CI off personal-dotfiles network dependencies. The AUR
+          # list is trimmed to one small build so the aur_builder path is
+          # exercised without compiling the world.
+          docker exec -u dnewman fresh bash -c 'cat > /home/dnewman/my-configuration/group_vars/all/local.yml <<EOF
+          ---
+          hostname: fresh-ci
+          aur:
+            packages:
+              - scc
+          user:
+            name: dnewman
+            uid: 1000
+            gid: 1000
+            group: dnewman
+            shell: /bin/bash
+            email: ci@example.com
+          EOF'
+
+      - name: Run playbook subset (fresh machine)
+        run: |
+          docker exec -u dnewman -w /home/dnewman/my-configuration fresh \
+            /opt/ansible-venv/bin/ansible-playbook -i localhost play.yml \
+            --tags "$PLAY_TAGS" 2>&1 | tee playbook.log
+          docker cp fresh:/home/dnewman/.ansible playbook-artifacts || true
+
+      - name: Second run must stay quiet (idempotency smoke)
+        run: |
+          docker exec -u dnewman -w /home/dnewman/my-configuration fresh \
+            /opt/ansible-venv/bin/ansible-playbook -i localhost play.yml \
+            --tags "$PLAY_TAGS" 2>&1 | tee -a playbook.log | tail -3
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-install-${{ matrix.name }}
+          path: playbook.log
+          if-no-files-found: ignore

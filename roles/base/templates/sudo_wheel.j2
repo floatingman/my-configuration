@@ -1,1 +1,1 @@
-%wheel ALL=(ALL) ALL
+{{ '%wheel ALL=(ALL) NOPASSWD: ALL' if (sudo_without_password | default(false)) else '%wheel ALL=(ALL) ALL' }}

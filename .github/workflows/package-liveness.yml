@@ -1,0 +1,33 @@
+name: Package liveness
+
+# Monthly (plus manual dispatch): verifies every package name the playbook
+# installs on Arch against the live repos and AUR — catches dead sources,
+# removals, and repo<->AUR migrations before they break a fresh machine.
+# See scripts/package_liveness.py for the rules.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  liveness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install pyyaml
+        run: pip install pyyaml
+
+      - name: Extractor selftest
+        run: python3 scripts/package_liveness.py --selftest
+
+      - name: Check all package names
+        run: python3 scripts/package_liveness.py
