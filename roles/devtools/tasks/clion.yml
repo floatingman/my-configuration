@@ -35,6 +35,19 @@
     - devtools
     - clion
 
+# copy does not create parent directories; fresh installs have no
+# /usr/local/share/applications until something makes it.
+- name: Ensure applications directory exists
+  ansible.builtin.file:
+    path: /usr/local/share/applications
+    state: directory
+    mode: '0755'
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags:
+    - devtools
+    - clion
+
 - name: Install CLion desktop entry
   ansible.builtin.copy:
     dest: /usr/local/share/applications/clion.desktop
