@@ -17,12 +17,28 @@
     name: kubeadm
     state: present
 
-- name: Install kubecm
+# kubecm was removed from the AUR (all kubecm* variants); install the
+# upstream release binary directly (see kubernetes role defaults for the
+# pin).
+- name: Fetch kubecm release tarball
+  ansible.builtin.get_url:
+    url: "{{ kubernetes_kubecm_url }}"
+    dest: "/tmp/{{ kubernetes_kubecm_url | basename }}"
+    checksum: "sha256:{{ kubernetes_kubecm_sha256 }}"
+    mode: '0644'
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Extract kubecm to /usr/local/bin
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ kubernetes_kubecm_url | basename }}"
+    dest: /usr/local/bin
+    include: kubecm
   become: true
-  become_user: aur_builder
-  kewlfft.aur.aur:
-    name: kubecm-git
-    use: auto
-    state: present
-  tags:
-    - aur
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Ensure kubecm is executable
+  ansible.builtin.file:
+    path: /usr/local/bin/kubecm
+    mode: '0755'
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'

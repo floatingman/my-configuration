@@ -1,0 +1,8 @@
+---
+# kubecm pin (tasks/main.yml). kubecm was removed from the AUR (all kubecm*
+# variants), so the upstream release tarball is installed directly. Bump
+# version, url and sha256 together on updates.
+kubernetes_kubecm_version: "v0.35.1"
+kubernetes_kubecm_base: "https://github.com/sunny0826/kubecm/releases/download"
+kubernetes_kubecm_url: "{{ kubernetes_kubecm_base }}/{{ kubernetes_kubecm_version }}/kubecm_{{ kubernetes_kubecm_version }}_Linux_x86_64.tar.gz"
+kubernetes_kubecm_sha256: "65dbe79901d95f68fc9ddbe38acb3ee34acdfa3d71e69ff326bd972fc0525a85"
