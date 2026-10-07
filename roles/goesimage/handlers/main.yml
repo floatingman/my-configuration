@@ -1,9 +1,13 @@
 ---
 - name: Restart GOESImage
-  become: true
-  ansible.builtin.service:
-    name: "goesimage@{{ user.name }}.timer"
+  ansible.builtin.systemd:
+    name: goesimage.timer
+    scope: user
     state: restarted
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: goesimage.run_on == "all"
 
 - name: Reload user systemd config
