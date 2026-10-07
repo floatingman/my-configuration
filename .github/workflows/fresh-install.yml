@@ -49,6 +49,12 @@ jobs:
               /bin/bash -c 'apt-get update && \
                 env DEBIAN_FRONTEND=noninteractive apt-get install -y systemd systemd-sysv && \
                 exec /sbin/init'
+          if [ "${{ matrix.name }}" != arch ]; then
+            # The boot step's apt (systemd install) may still hold the lock.
+            for i in $(seq 1 60); do
+              docker exec fresh pgrep -x apt-get >/dev/null 2>&1 || break
+              sleep 2
+            done
           fi
           for i in $(seq 1 60); do
             docker exec fresh systemctl is-system-running >/dev/null 2>&1 && break
