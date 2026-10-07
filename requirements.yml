@@ -16,4 +16,5 @@ roles:
     version: master
 
 collections:
+  - name: community.general
   - name: kewlfft.aur
