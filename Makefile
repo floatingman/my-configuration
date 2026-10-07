@@ -111,6 +111,11 @@ install: req-galaxy ## Install roles via ansible-galaxy
 	ansible-galaxy collection install -r requirements.yml
 
 .PHONY: configure
+.PHONY: first-boot
+first-boot: req-playbook validate-deps ## Minimal first run: base + ssh + shell + dotfiles (usable machine fast)
+	@echo 'Run ansible-playbook (first-boot subset)'
+	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) --tags base,ssh,shell,dotfiles
+
 configure: req-playbook validate-deps ## Run ansible (optionally with TAGS="tag1,tag2")
 	@echo 'Run ansible-playbook'
 ifdef TAGS

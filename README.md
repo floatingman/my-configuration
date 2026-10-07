@@ -23,7 +23,14 @@ make setup && exec $SHELL -l      # pipx + ansible, then reload PATH
 make install                      # ansible role requirements
 cp group_vars/templates/desktop.yml group_vars/all/local.yml
 # edit local.yml: set hostname and machine-specific variables
-make configure                    # runs the playbook (sudo password asked)
+make first-boot                   # minutes: base + ssh + shell + dotfiles
+make configure 2>&1 | tee configure.log   # everything else, with a readable log
+
+```
+
+After the first boot, SSH is already enabled with your GitHub public keys
+(seeded by the installer), so you can finish setup — and read any errors —
+from another machine.
 ```
 
 ## What's here?

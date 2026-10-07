@@ -284,6 +284,26 @@ printf '%%wheel ALL=(ALL) ALL\n' > /etc/sudoers.d/01_wheel
 chmod 440 /etc/sudoers.d/01_wheel
 visudo -cf /etc/sudoers.d/01_wheel >/dev/null
 
+# Debugging a fresh machine from its console is painful; enable key-only SSH
+# from the very first boot so the rest of the setup can be driven (and its
+# errors read) from another machine. Keys come from the GitHub account that
+# owns this repo. Only if the keys land do we disable password auth — never
+# lock out both paths at once.
+log 'Enabling early SSH access'
+systemctl enable sshd.service
+_ssh_dir="/home/${INSTALL_USERNAME}/.ssh"
+install -d -m 700 -o "${INSTALL_USERNAME}" -g "${INSTALL_USERNAME}" "${_ssh_dir}"
+if curl -fsSL --max-time 15 -o /tmp/github.keys "https://github.com/floatingman.keys" \
+  && test -s /tmp/github.keys; then
+  install -m 600 -o "${INSTALL_USERNAME}" -g "${INSTALL_USERNAME}" \
+    /tmp/github.keys "${_ssh_dir}/authorized_keys"
+  rm -f /tmp/github.keys
+  install -d -m 755 /etc/ssh/sshd_config.d
+  printf 'PasswordAuthentication no\n' > /etc/ssh/sshd_config.d/99-early-install.conf
+else
+  echo 'warning: could not fetch GitHub keys; password SSH remains enabled'
+fi
+
 log 'mkinitcpio: encrypt/lvm2 hooks + LUKS keyfile'
 # Match commented defaults (#HOOKS=(...)/#FILES=()) as well as uncommented ones.
 sed -i -e 's|^HOOKS=.*|HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)|' \
@@ -323,14 +343,21 @@ runuser -u "${INSTALL_USERNAME}" -- \
 # The post-reboot steps are easy to lose after the ISO console goes away;
 # leave them in the user's home directory.
 cat > "/home/${INSTALL_USERNAME}/NEXT_STEPS.txt" <<'EOF'
-Next steps after first boot (log in as your regular user):
+Next steps after first boot (SSH is already enabled with your GitHub keys —
+you can finish this from another machine):
 
   cd ~/my-configuration
   make setup && exec $SHELL -l
   make install
   cp group_vars/templates/desktop.yml group_vars/all/local.yml
   # edit local.yml: set hostname and any machine-specific variables
-  make configure
+
+  # Phase 1 (minutes): base + ssh + shell + dotfiles — usable machine fast
+  make first-boot
+
+  # Phase 2: everything else (desktop, editors, ...). Keep a log you can
+  # read over SSH when something fails:
+  make configure 2>&1 | tee configure.log
 
 Details: README.md + INSTALL.md in this repository.
 EOF
