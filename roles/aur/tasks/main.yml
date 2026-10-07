@@ -69,6 +69,17 @@
       - clion
       - clion-gdb
       - clion-lldb
+    state: absent
+  become: true
+  become_user: aur_builder
+  when: ansible_facts['os_family'] == "Archlinux" and aur is defined
+
+# Names that no longer exist in ANY repo cannot go through yay -R: on
+# machines where they were never installed, yay aborts with "target not
+# found". The pacman module treats absent-and-missing as a clean no-op.
+- name: Remove packages dropped from the AUR entirely
+  community.general.pacman:
+    name:
       - windsurf-next
       - llmfit
       - autotiling
@@ -78,5 +89,4 @@
       - gdm-plymouth
     state: absent
   become: true
-  become_user: aur_builder
   when: ansible_facts['os_family'] == "Archlinux" and aur is defined
