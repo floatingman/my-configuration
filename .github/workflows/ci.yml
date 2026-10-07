@@ -29,3 +29,27 @@ jobs:
 
       - name: Check play.yml sync
         run: python scripts/profile_dispatcher.py sync-playbook --check
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ansible tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core ansible-lint yamllint
+
+      - name: Install roles and collections
+        run: |
+          ansible-galaxy install -r requirements.yml -f
+          ansible-galaxy collection install -r requirements.yml
+
+      - name: Lint (yamllint + ansible-lint)
+        run: |
+          yamllint .
+          ansible-lint play.yml

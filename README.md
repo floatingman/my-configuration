@@ -31,7 +31,10 @@ make configure 2>&1 | tee configure.log   # everything else, with a readable log
 After the first boot, SSH is already enabled with your GitHub public keys
 (seeded by the installer), so you can finish setup — and read any errors —
 from another machine.
-```
+
+Frequent provisioner? [FRESH_MACHINE.md](FRESH_MACHINE.md) collects the
+failure modes that only appear on pristine machines and the fixes that
+guard them.
 
 ## What's here?
 
