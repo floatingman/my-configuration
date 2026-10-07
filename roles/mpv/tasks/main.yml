@@ -30,16 +30,6 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Install vapoursynth-plugin-vmaf-git
-  become: true
-  kewlfft.aur.aur:
-    name: vapoursynth-plugin-vmaf-git
-    use: auto
-    state: present
-  become_user: aur_builder
-  when: ansible_facts["os_family"] == "Archlinux"
-  tags:
-    - aur
 
 - name: Install vapoursynth-plugin-mvtools-git
   become: true
