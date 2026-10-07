@@ -72,6 +72,8 @@ jobs:
             docker exec fresh apt-get update
             docker exec fresh env DEBIAN_FRONTEND=noninteractive \
               apt-get install -y python3 python3-venv python3-pip git sudo
+            # The stock image ships an 'ubuntu' user occupying uid 1000.
+            docker exec fresh userdel -r ubuntu 2>/dev/null || true
             docker exec fresh useradd -m -u 1000 -G sudo -s /bin/bash dnewman
           fi
           # 99- prefix: sudo uses the LAST matching rule, so this must sort
