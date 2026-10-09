@@ -154,6 +154,11 @@
 #   when: ansible_facts["os_family"] == "Archlinux"
 #   tags:
 #     - aur
+- name: Install tailscale
+  become: true
+  ansible.builtin.package:
+    name: tailscale
+    state: present
 
 - name: Install axel
   become: true
