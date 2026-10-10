@@ -140,6 +140,52 @@ else
 	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS)
 endif
 
+
+# Quick-apply shortcuts: <name>=<tags,...>. 'make apply WHAT=<name>' resolves
+# the name against this table; anything else is passed through as a raw
+# playbook tag (validated by the configure target, which lists valid tags on
+# failure). Add a line here and it shows up in 'make apply' automatically.
+APPLY_SHORTCUTS := \
+	asdf=asdf \
+	gpu=gpu_detect,gpu_drivers \
+	homebrew=homebrew \
+	nmtrust=nmtrust \
+	update-tools=asdf,dotfiles,homebrew
+
+.PHONY: apply
+ifeq ($(strip $(WHAT)),)
+# Listing branch: no prerequisites. req-playbook/validate-deps would require
+# ansible (and may pipx-inject deps) before a bare 'make apply' can even
+# print the shortcut list; the WHAT branch below enforces them instead.
+apply: ## Quick-apply a config subset: make apply WHAT=nmtrust (shortcut name or raw tags; no WHAT lists shortcuts)
+	@echo 'Quick-apply shortcuts (make apply WHAT=<name>, comma-separated names or raw tags also work):'; \
+	for entry in $(APPLY_SHORTCUTS); do \
+		printf '  %-14s -> %s\n' "$${entry%%=*}" "$${entry#*=}"; \
+	done; \
+	echo ''; \
+	echo 'Any playbook tag also works: make apply WHAT=rust,python'; \
+	echo 'All tags: make list-tags'
+else
+apply: req-playbook validate-deps
+	@tags=''; \
+	for item in $$(echo "$(WHAT)" | tr ',' ' '); do \
+		[ -n "$$item" ] || continue; \
+		match=''; \
+		for entry in $(APPLY_SHORTCUTS); do \
+			if [ "$$item" = "$${entry%%=*}" ]; then match="$${entry#*=}"; break; fi; \
+		done; \
+		[ -n "$$match" ] || match="$$item"; \
+		if [ -n "$$tags" ]; then tags="$$tags,$$match"; else tags="$$match"; fi; \
+	done; \
+	if [ -z "$$tags" ]; then \
+		echo "Error: WHAT='$(WHAT)' resolves to no tags (empty or delimiters only)."; \
+		echo "Run 'make apply' to list shortcuts."; \
+		exit 1; \
+	fi; \
+	echo "Applying '$(WHAT)' -> tags: $$tags"; \
+	$(MAKE) --no-print-directory configure TAGS="$$tags"
+endif
+
 .PHONY: pip-deps
 pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
 	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
@@ -264,3 +310,8 @@ help:  ## print this help
 	@for profile in $$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format names 2>/dev/null); do \
 		printf "\033[36m%-30s\033[0m Run $$profile profile\n" "profile-$$profile"; \
 	done || true
+	@echo ""
+	@echo "Apply shortcuts (make apply WHAT=<name>):"
+	@for entry in $(APPLY_SHORTCUTS); do \
+		printf "\033[36m%-30s\033[0m -> %s\n" "$${entry%%=*}" "$${entry#*=}"; \
+	done
