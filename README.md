@@ -325,6 +325,13 @@ not active or no polkit agent is running — start the agent and retry.
 > first — it installs pipx (and puts `~/.local/bin` on PATH) and then installs
 > Ansible via pipx, all in one shot. (See [Quick start](#running-the-playbook)
 > below.)
+>
+> The Python deps for the repo's own tooling (`pyyaml`, `jinja2`, `pytest`) are
+> provisioned automatically: `make setup`/`make bootstrap` inject them into the
+> pipx Ansible venv, and any make target that needs them (`make pytest`,
+> `make check-sync`, …) self-heals via `make pip-deps` — on machines running
+> system-wide Ansible it falls back to distro packages (`python-yaml`
+> `python-jinja` `python-pytest` on Arch, `python3-*` equivalents on Debian).
 
 ## Use
 

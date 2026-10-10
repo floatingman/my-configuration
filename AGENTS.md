@@ -20,8 +20,8 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 
 | Command                                 | Purpose                                                            |
 | --------------------------------------- | ------------------------------------------------------------------ |
-| `make setup`                            | One-shot fresh system: pipx + PATH + ansible                       |
-| `make bootstrap`                        | Install ansible via pipx (requires pipx)                           |
+| `make setup`                            | One-shot fresh system: pipx + PATH + ansible + script deps          |
+| `make bootstrap`                        | Install ansible via pipx (requires pipx), then inject script deps  |
 | `make install`                          | `ansible-galaxy install` roles + collections from requirements.yml |
 | `make configure`                        | Run the playbook (prompts for sudo password)                       |
 | `make configure TAGS="rust,python"`     | Run only tagged roles (tags validated first)                       |
@@ -35,7 +35,7 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 | `make list-tags` / `make list-profiles` | Discovery                                                          |
 | `VERBOSE=1 make configure`              | Non-silent output for troubleshooting                              |
 
-Dispatcher CLI (`scripts/profile_dispatcher.py`, pure Python — needs pyyaml + jinja2, no Ansible). **Prefer the make targets**: they resolve the pipx-managed ansible-venv interpreter and inject missing deps (`make pip-deps`). A bare `python` is often not on PATH, and system `python3` lacks jinja2. CI pip-installs the deps, so direct invocation works there.
+Dispatcher CLI (`scripts/profile_dispatcher.py`, pure Python — needs pyyaml + jinja2, no Ansible). **Prefer the make targets**: they resolve the pipx-managed ansible-venv interpreter and provision deps (`make pip-deps`): `pipx inject` into the venv when it exists, otherwise distro packages (pacman `python-yaml python-jinja python-pytest` / apt `python3-yaml python3-jinja2 python3-pytest`) into system python3, which is then the scripts interpreter — machines running system-wide ansible work too. `make bootstrap`/`make setup` run `pip-deps` at the end, so fresh machines never hit the gap. A bare `python` is often not on PATH, and system `python3` lacks jinja2. CI pip-installs the deps, so direct invocation works there.
 
 ```bash
 make validate-profiles                # validate all profiles + overlays (includes sync check)

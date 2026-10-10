@@ -27,8 +27,10 @@ UNAME_S  := $(shell uname -s)
 # too old to support --value). If that fails entirely (pipx missing from the
 # make shell PATH, or a PIPX_HOME mismatch), also probe both well-known venv
 # locations — pipx moved from ~/.local/pipx to ~/.local/share/pipx (XDG).
-# A wrong resolution silently uses system python3, which `pipx inject` can
-# never fix, producing the confusing "PyYAML not installed" validate error.
+# `make pip-deps` provisions pyyaml/jinja2/pytest for whichever interpreter
+# wins: `pipx inject` into the venv when found, otherwise distro packages
+# (pacman/apt) into system python3 — the fallback interpreter — so machines
+# running system-wide ansible work too instead of failing on `pipx inject`.
 PIPX_VENVS      := $(shell pipx environment --value PIPX_LOCAL_VENVS 2>/dev/null || pipx environment 2>/dev/null | grep -o 'PIPX_LOCAL_VENVS=[^[:space:]]*' | cut -d= -f2)
 ANSIBLE_VENV_PY := $(firstword $(wildcard $(PIPX_VENVS)/ansible/bin/python3 $(HOME)/.local/pipx/venvs/ansible/bin/python3 $(HOME)/.local/share/pipx/venvs/ansible/bin/python3))
 SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),python3)
@@ -89,6 +91,7 @@ bootstrap-pipx: ## Install pipx and add ~/.local/bin to PATH (run FIRST on a fre
 bootstrap: req-pipx ## Install ansible (pipx required)
 	@echo 'Bootstraping your system for ansible'
 	pipx install --include-deps ansible
+	@$(MAKE) --no-print-directory pip-deps
 
 .PHONY: setup
 setup: ## One-shot fresh-system setup: install pipx + PATH, then ansible
@@ -100,6 +103,8 @@ setup: ## One-shot fresh-system setup: install pipx + PATH, then ansible
 			echo 'Installing ansible via pipx...'; \
 			pipx install --include-deps ansible; \
 		fi
+	@export PATH="$$HOME/.local/bin:$$PATH"; \
+		$(MAKE) --no-print-directory pip-deps
 	@echo ''
 	@echo 'Setup complete. Open a new shell (or: exec $$SHELL -l), then run:'
 	@echo '  make install && make configure'
@@ -187,14 +192,29 @@ apply: req-playbook validate-deps
 endif
 
 .PHONY: pip-deps
-pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
-	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
-	@if ! $(SCRIPT_PYTHON) -c "import yaml" >/dev/null 2>&1; then \
-		echo 'ERROR: scripts interpreter cannot import pyyaml even after pipx inject.'; \
+pip-deps: ## Ensure pyyaml/jinja2/pytest for the scripts interpreter (pipx inject, or distro packages)
+	@if $(SCRIPT_PYTHON) -c "import yaml, jinja2, pytest" >/dev/null 2>&1; then \
+		exit 0; \
+	elif [ -n "$(ANSIBLE_VENV_PY)" ]; then \
+		echo 'Injecting python deps into the pipx ansible venv...'; \
+		pipx inject ansible pyyaml jinja2 pytest || exit 1; \
+	elif command -v pacman >/dev/null 2>&1; then \
+		echo 'No pipx ansible venv; installing python deps via pacman (system python3 is the scripts interpreter)...'; \
+		sudo pacman -S --needed --noconfirm python-yaml python-jinja python-pytest || exit 1; \
+	elif command -v apt-get >/dev/null 2>&1; then \
+		echo 'No pipx ansible venv; installing python deps via apt (system python3 is the scripts interpreter)...'; \
+		sudo apt-get update -qq && sudo apt-get install -y python3-yaml python3-jinja2 python3-pytest || exit 1; \
+	else \
+		echo 'ERROR: cannot provision python deps: no pipx ansible venv, neither pacman nor apt-get found.' >&2; \
+		echo 'Install pyyaml, jinja2 and pytest for python3, or run: make bootstrap' >&2; \
+		exit 1; \
+	fi
+	@if ! $(SCRIPT_PYTHON) -c "import yaml, jinja2, pytest" >/dev/null 2>&1; then \
+		echo 'ERROR: scripts interpreter still cannot import pyyaml/jinja2/pytest.'; \
 		echo '  interpreter : $(SCRIPT_PYTHON)'; \
 		echo '  pipx venvs  : $(PIPX_VENVS)'; \
 		echo 'This usually means the pipx ansible venv was not found and the interpreter'; \
-		echo 'fell back to system python3, which pipx inject cannot fix.'; \
+		echo 'fell back to system python3, but the distro packages did not land there.'; \
 		echo 'Check: pipx list   (venv "ansible" must exist)   then: make bootstrap'; \
 		exit 1; \
 	fi
@@ -211,7 +231,6 @@ check-sync: pip-deps ## Check play.yml sync with profile definitions (CI gate)
 
 .PHONY: pytest
 pytest: pip-deps ## Run Python test suite with pytest
-	@$(SCRIPT_PYTHON) -c "import pytest" 2>/dev/null || pipx inject ansible pytest
 	@echo 'Running pytest...'
 	@$(SCRIPT_PYTHON) -m pytest tests/ -v
 
