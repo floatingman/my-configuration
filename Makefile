@@ -153,19 +153,23 @@ APPLY_SHORTCUTS := \
 	update-tools=asdf,dotfiles,homebrew
 
 .PHONY: apply
-apply: req-playbook validate-deps ## Quick-apply a config subset: make apply WHAT=nmtrust (shortcut name or raw tags; no WHAT lists shortcuts)
-	@if [ -z "$(WHAT)" ]; then \
-		echo 'Quick-apply shortcuts (make apply WHAT=<name>, comma-separated names or raw tags also work):'; \
-		for entry in $(APPLY_SHORTCUTS); do \
-			printf '  %-14s -> %s\n' "$${entry%%=*}" "$${entry#*=}"; \
-		done; \
-		echo ''; \
-		echo 'Any playbook tag also works: make apply WHAT=rust,python'; \
-		echo 'All tags: make list-tags'; \
-		exit 0; \
-	fi; \
-	tags=''; \
+ifeq ($(strip $(WHAT)),)
+# Listing branch: no prerequisites. req-playbook/validate-deps would require
+# ansible (and may pipx-inject deps) before a bare 'make apply' can even
+# print the shortcut list; the WHAT branch below enforces them instead.
+apply: ## Quick-apply a config subset: make apply WHAT=nmtrust (shortcut name or raw tags; no WHAT lists shortcuts)
+	@echo 'Quick-apply shortcuts (make apply WHAT=<name>, comma-separated names or raw tags also work):'; \
+	for entry in $(APPLY_SHORTCUTS); do \
+		printf '  %-14s -> %s\n' "$${entry%%=*}" "$${entry#*=}"; \
+	done; \
+	echo ''; \
+	echo 'Any playbook tag also works: make apply WHAT=rust,python'; \
+	echo 'All tags: make list-tags'
+else
+apply: req-playbook validate-deps
+	@tags=''; \
 	for item in $$(echo "$(WHAT)" | tr ',' ' '); do \
+		[ -n "$$item" ] || continue; \
 		match=''; \
 		for entry in $(APPLY_SHORTCUTS); do \
 			if [ "$$item" = "$${entry%%=*}" ]; then match="$${entry#*=}"; break; fi; \
@@ -173,8 +177,14 @@ apply: req-playbook validate-deps ## Quick-apply a config subset: make apply WHA
 		[ -n "$$match" ] || match="$$item"; \
 		if [ -n "$$tags" ]; then tags="$$tags,$$match"; else tags="$$match"; fi; \
 	done; \
+	if [ -z "$$tags" ]; then \
+		echo "Error: WHAT='$(WHAT)' resolves to no tags (empty or delimiters only)."; \
+		echo "Run 'make apply' to list shortcuts."; \
+		exit 1; \
+	fi; \
 	echo "Applying '$(WHAT)' -> tags: $$tags"; \
 	$(MAKE) --no-print-directory configure TAGS="$$tags"
+endif
 
 .PHONY: pip-deps
 pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
@@ -300,3 +310,8 @@ help:  ## print this help
 	@for profile in $$($(SCRIPT_PYTHON) $(CURDIR)/scripts/profile_dispatcher.py list-profiles --format names 2>/dev/null); do \
 		printf "\033[36m%-30s\033[0m Run $$profile profile\n" "profile-$$profile"; \
 	done || true
+	@echo ""
+	@echo "Apply shortcuts (make apply WHAT=<name>):"
+	@for entry in $(APPLY_SHORTCUTS); do \
+		printf "\033[36m%-30s\033[0m -> %s\n" "$${entry%%=*}" "$${entry#*=}"; \
+	done

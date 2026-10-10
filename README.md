@@ -352,6 +352,7 @@ setup                         One-shot fresh-system setup: install pipx + PATH, 
 sync-playbook                 Show drift between play.yml and profile definitions
 syntax-check                  Check playbook syntax
 test                          Run all tests (lint + syntax check + profile validation + sync check + pytest)
+```
 
 ### Running the playbook
 
