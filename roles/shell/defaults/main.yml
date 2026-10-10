@@ -23,7 +23,7 @@ shell_hey_url: "https://storage.googleapis.com/hey-releases/hey_linux_amd64"
 shell_zsh_plugins:
   - repo: "https://github.com/wfxr/forgit.git"
     dest: "forgit"
-    version: "26.09.1"
+    version: "26.10.0"
   - repo: "https://github.com/zsh-users/zsh-autosuggestions"
     dest: "zsh-autosuggestions"
     version: "v0.7.1"
