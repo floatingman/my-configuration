@@ -29,11 +29,13 @@ UNAME_S  := $(shell uname -s)
 # locations — pipx moved from ~/.local/pipx to ~/.local/share/pipx (XDG).
 # `make pip-deps` provisions pyyaml/jinja2/pytest for whichever interpreter
 # wins: `pipx inject` into the venv when found, otherwise distro packages
-# (pacman/apt) into system python3 — the fallback interpreter — so machines
-# running system-wide ansible work too instead of failing on `pipx inject`.
+# (pacman/apt) into /usr/bin/python3 — the pinned fallback interpreter (a
+# bare `python3` would let an activated venv in the invoking shell shadow
+# the interpreter the distro packages land in) — so machines running
+# system-wide ansible work too instead of failing on `pipx inject`.
 PIPX_VENVS      := $(shell pipx environment --value PIPX_LOCAL_VENVS 2>/dev/null || pipx environment 2>/dev/null | grep -o 'PIPX_LOCAL_VENVS=[^[:space:]]*' | cut -d= -f2)
 ANSIBLE_VENV_PY := $(firstword $(wildcard $(PIPX_VENVS)/ansible/bin/python3 $(HOME)/.local/pipx/venvs/ansible/bin/python3 $(HOME)/.local/share/pipx/venvs/ansible/bin/python3))
-SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),python3)
+SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),/usr/bin/python3)
 
 # Ansible runs via pipx under a mode-0700 home directory. Non-root become users
 # (e.g. aur_builder) cannot traverse the home dir to reach the pipx venv python,
@@ -197,7 +199,7 @@ pip-deps: ## Ensure pyyaml/jinja2/pytest for the scripts interpreter (pipx injec
 		exit 0; \
 	elif [ -n "$(ANSIBLE_VENV_PY)" ]; then \
 		echo 'Injecting python deps into the pipx ansible venv...'; \
-		pipx inject ansible pyyaml jinja2 pytest || exit 1; \
+		PATH="$$HOME/.local/bin:$$PATH" pipx inject ansible pyyaml jinja2 pytest || exit 1; \
 	elif command -v pacman >/dev/null 2>&1; then \
 		echo 'No pipx ansible venv; installing python deps via pacman (system python3 is the scripts interpreter)...'; \
 		sudo pacman -S --needed --noconfirm python-yaml python-jinja python-pytest || exit 1; \
