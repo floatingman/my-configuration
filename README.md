@@ -331,24 +331,27 @@ not active or no polkit agent is running — start the agent and retry.
 The playbook is designed to be run by a non-superuser account. It will automatically escalate privileges (via sudo) for tasks that require root access, such as package installations and system configuration.
 
 ```sh
-> make
+> make help
 all                           Run all goals
-bootstrap-pipx               Install pipx and add ~/.local/bin to PATH (run FIRST on a fresh system)
+apply                         Quick-apply a config subset: make apply WHAT=nmtrust (shortcut name or raw tags; no WHAT lists shortcuts)
+bootstrap-pipx                Install pipx and add ~/.local/bin to PATH (run FIRST on a fresh system)
 bootstrap                     Install ansible (pipx required)
+check-sync                    Check play.yml sync with profile definitions (CI gate)
 configure                     Run ansible (optionally with TAGS="tag1,tag2")
+first-boot                    Minimal first run: base + ssh + shell + dotfiles (usable machine fast)
+generate-playbook             Regenerate play.yml from profile definitions
 gpu-info                      Display detected GPU information
 help                          print this help
 install                       Install roles via ansible-galaxy
+lint                          Run yamllint and ansible-lint
 list-profiles                 List all available configuration profiles
 list-tags                     List all available tags in the playbook
-profile-awesomewm             Run AwesomeWM tiling window manager profile
-profile-gnome                 Run GNOME desktop environment profile
-profile-headless              Run headless profile (CLI-only, no display)
-profile-hyprland              Run Hyprland Wayland compositor profile
-profile-i3                    Run i3 window manager profile
-profile-kde                   Run KDE Plasma desktop profile
+pip-deps                      Ensure pyyaml is available (injects into pipx ansible environment)
+pytest                        Run Python test suite with pytest
 setup                         One-shot fresh-system setup: install pipx + PATH, then ansible
-```
+sync-playbook                 Show drift between play.yml and profile definitions
+syntax-check                  Check playbook syntax
+test                          Run all tests (lint + syntax check + profile validation + sync check + pytest)
 
 ### Running the playbook
 
@@ -383,6 +386,23 @@ setup                         One-shot fresh-system setup: install pipx + PATH, 
    ```
 
 The playbook uses `--ask-become-pass` to prompt for your sudo password when privilege escalation is needed. This ensures that the playbook can be run by any user with sudo privileges, not just root.
+
+### Quick-apply shortcuts
+
+For frequently re-applied subsets, `make apply WHAT=<name>` saves you from
+remembering tag names. Bare `make apply` lists every shortcut with the tags it
+runs; any raw playbook tag (or comma-separated mix) also works and is
+validated against `play.yml` before anything runs.
+
+```sh
+make apply                    # list shortcuts
+make apply WHAT=nmtrust       # re-render /etc/nmtrust trusted networks
+make apply WHAT=update-tools  # apply new version pins: asdf + ~/.tool-versions + homebrew
+make apply WHAT=rust,python   # raw tags still work
+```
+
+Shortcut definitions live in `APPLY_SHORTCUTS` in the `Makefile` — one
+`name=tags` line each, picked up by `make apply` and `make help` automatically.
 
 ### Running specific tags
 

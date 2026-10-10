@@ -25,6 +25,7 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 | `make install`                          | `ansible-galaxy install` roles + collections from requirements.yml |
 | `make configure`                        | Run the playbook (prompts for sudo password)                       |
 | `make configure TAGS="rust,python"`     | Run only tagged roles (tags validated first)                       |
+| `make apply WHAT=nmtrust`             | Quick-apply named shortcuts (or raw tags) — no tag memorizing; bare `make apply` lists them |
 | `make profile-i3`                       | Run one profile; see `make list-profiles`                          |
 | `make test`                             | lint + syntax-check + validate-profiles + check-sync + pytest      |
 | `make check-sync`                       | CI gate: `play.yml` vs `profiles/` drift                           |

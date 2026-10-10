@@ -140,6 +140,42 @@ else
 	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS)
 endif
 
+
+# Quick-apply shortcuts: <name>=<tags,...>. 'make apply WHAT=<name>' resolves
+# the name against this table; anything else is passed through as a raw
+# playbook tag (validated by the configure target, which lists valid tags on
+# failure). Add a line here and it shows up in 'make apply' automatically.
+APPLY_SHORTCUTS := \
+	asdf=asdf \
+	gpu=gpu_detect,gpu_drivers \
+	homebrew=homebrew \
+	nmtrust=nmtrust \
+	update-tools=asdf,dotfiles,homebrew
+
+.PHONY: apply
+apply: req-playbook validate-deps ## Quick-apply a config subset: make apply WHAT=nmtrust (shortcut name or raw tags; no WHAT lists shortcuts)
+	@if [ -z "$(WHAT)" ]; then \
+		echo 'Quick-apply shortcuts (make apply WHAT=<name>, comma-separated names or raw tags also work):'; \
+		for entry in $(APPLY_SHORTCUTS); do \
+			printf '  %-14s -> %s\n' "$${entry%%=*}" "$${entry#*=}"; \
+		done; \
+		echo ''; \
+		echo 'Any playbook tag also works: make apply WHAT=rust,python'; \
+		echo 'All tags: make list-tags'; \
+		exit 0; \
+	fi; \
+	tags=''; \
+	for item in $$(echo "$(WHAT)" | tr ',' ' '); do \
+		match=''; \
+		for entry in $(APPLY_SHORTCUTS); do \
+			if [ "$$item" = "$${entry%%=*}" ]; then match="$${entry#*=}"; break; fi; \
+		done; \
+		[ -n "$$match" ] || match="$$item"; \
+		if [ -n "$$tags" ]; then tags="$$tags,$$match"; else tags="$$match"; fi; \
+	done; \
+	echo "Applying '$(WHAT)' -> tags: $$tags"; \
+	$(MAKE) --no-print-directory configure TAGS="$$tags"
+
 .PHONY: pip-deps
 pip-deps: ## Ensure pyyaml is available (injects into pipx ansible environment)
 	@$(SCRIPT_PYTHON) -c "import yaml" 2>/dev/null || pipx inject ansible pyyaml
