@@ -47,7 +47,7 @@ Store your EFI and crypt devices in environment variables.
 
 Create and mount the encrypted root filesystem.
 
-    $ cryptsetup luksFormat --type luks2 --pbkdf pbkdf2 $DEVCRYPT
+    $ cryptsetup luksFormat --type luks2 $DEVCRYPT
     $ cryptsetup luksOpen $DEVCRYPT lvm
     $ pvcreate /dev/mapper/lvm
     $ vgcreate arch /dev/mapper/lvm
@@ -104,15 +104,15 @@ passphrase prompt through Plymouth automatically, so no keyfile is needed.
     $ sed -i 's/^HOOKS=.*/HOOKS=(base udev plymouth autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)/' /etc/mkinitcpio.conf
     $ mkinitcpio -P
 
-Install the Vimix theme (generated from [grub2-themes][6]) and configure
-GRUB. `chmod -x 31_efi_bootnext` stops GRUB from mirroring the firmware's
-~20 native boot entries (Setup, diagnostics, USB/NVMe/ATA, ...) into the
-menu; `quiet splash` hands the console over to Plymouth early.
+Install the Vimix theme (vendored in this repository under
+`roles/grub/files/grub-themes/`; originally from [grub2-themes][6]) and
+configure GRUB. `chmod -x 31_efi_bootnext` stops GRUB from mirroring the
+firmware's ~20 native boot entries (Setup, diagnostics, USB/NVMe/ATA, ...)
+into the menu; `quiet splash` hands the console over to Plymouth early.
 
-    $ git clone --depth 1 https://github.com/vinceliuice/grub2-themes /tmp/grub2-themes
-    $ /tmp/grub2-themes/install.sh -t vimix -i color -s 1080p -g /tmp/theme
+    $ git clone --depth 1 https://github.com/floatingman/my-configuration /tmp/my-configuration
     $ mkdir -p /boot/grub/themes
-    $ cp -r /tmp/theme/vimix /boot/grub/themes/
+    $ cp -r /tmp/my-configuration/roles/grub/files/grub-themes/vimix /boot/grub/themes/
     $ chmod -x /etc/grub.d/31_efi_bootnext
     $ ROOTUUID=$(blkid -s UUID -o value $DEVCRYPT)
     $ sed -i "s/^GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=\"cryptdevice=UUID="$ROOTUUID":lvm:allow-discards root=\/dev\/mapper\/arch-root resume=\/dev\/mapper\/arch-swap\"/" /etc/default/grub

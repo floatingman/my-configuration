@@ -10,6 +10,33 @@
   notify:
     - Rebuild grub
 
+- name: Read mkinitcpio hooks
+  ansible.builtin.command: grep -E "^HOOKS=" /etc/mkinitcpio.conf
+  register: grub_mkinitcpio_hooks
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is search("splash")
+
+- name: Add plymouth mkinitcpio hook
+  # The plymouth package never edits HOOKS; without this task, existing
+  # machines would keep the raw passphrase prompt and a silent console.
+  ansible.builtin.replace:
+    path: /etc/mkinitcpio.conf
+    # Tempered so the match fails if plymouth appears anywhere before
+    # encrypt: never inserts a second plymouth regardless of placement.
+    regexp: '^(HOOKS=\((?:(?!plymouth)[^)])*?)encrypt\b'
+    replace: '\1plymouth encrypt'
+  become: true
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is search("splash")
+    - grub_mkinitcpio_hooks.stdout is defined
+    - "'plymouth' not in grub_mkinitcpio_hooks.stdout"
+  notify:
+    - Rebuild initramfs
+
 - name: Disable Grub submenus
   ansible.builtin.lineinfile:
     dest: /etc/default/grub
@@ -41,13 +68,14 @@
     - Rebuild grub
 
 - name: Set GRUB theme
+  # Unguarded on purpose: grub_theme: null removes a previously set
+  # GRUB_THEME line instead of leaving the old theme active.
   ansible.builtin.lineinfile:
     dest: /etc/default/grub
     regexp: "^GRUB_THEME="
-    state: present
+    state: "{{ 'present' if grub_theme is not none else 'absent' }}"
     line: 'GRUB_THEME="/boot/grub/themes/{{ grub_theme }}/theme.txt"'
   become: true
-  when: grub_theme is not none
   notify:
     - Rebuild grub
 

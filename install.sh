@@ -4,7 +4,7 @@
 #
 # Produces the exact layout INSTALL.md describes:
 #   * GPT with a 1MiB BIOS-boot partition, 512MiB EFI (FAT32), and a
-#     LUKS2 (pbkdf2) root partition holding LVM volume group `arch`
+#     LUKS2 root partition holding LVM volume group `arch`
 #     (swap + ext4 root)
 #   * /boot on the 512MiB EFI partition (kernel, initramfs, GRUB, theme):
 #     Plymouth — not GRUB's unthemeable cryptodisk prompt — asks for the
@@ -174,7 +174,7 @@ done
 
 log "Creating LUKS2 container on ${DEVCRYPT}"
 printf '%s' "${LUKS_PASSPHRASE}" \
-  | cryptsetup luksFormat -q --type luks2 --pbkdf pbkdf2 -d - "${DEVCRYPT}"
+  | cryptsetup luksFormat -q --type luks2 -d - "${DEVCRYPT}"
 printf '%s' "${LUKS_PASSPHRASE}" | cryptsetup luksOpen -d - "${DEVCRYPT}" lvm
 
 log 'Creating LVM volumes (arch/swap + arch/root)'

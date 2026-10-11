@@ -4,3 +4,9 @@
   changed_when: true
   become: true
   when: bootloader == "grub"
+
+- name: Rebuild initramfs
+  ansible.builtin.command: mkinitcpio -P
+  changed_when: true
+  become: true
+  when: ansible_facts["distribution"] == "Archlinux"
