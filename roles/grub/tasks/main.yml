@@ -10,6 +10,18 @@
   notify:
     - Rebuild grub
 
+- name: Install plymouth
+  # TAGS=grub runs skip the base role that otherwise installs the
+  # package; mkinitcpio -P fails on a hook whose package is missing.
+  ansible.builtin.package:
+    name: plymouth
+    state: present
+  become: true
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - grub_kernel_parameters is search("splash")
+
 - name: Read mkinitcpio hooks
   ansible.builtin.command: grep -E "^HOOKS=" /etc/mkinitcpio.conf
   register: grub_mkinitcpio_hooks
@@ -17,6 +29,7 @@
   failed_when: false
   when:
     - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
     - grub_kernel_parameters is search("splash")
 
 - name: Add plymouth mkinitcpio hook
@@ -25,12 +38,14 @@
   ansible.builtin.replace:
     path: /etc/mkinitcpio.conf
     # Tempered so the match fails if plymouth appears anywhere before
-    # encrypt: never inserts a second plymouth regardless of placement.
-    regexp: '^(HOOKS=\((?:(?!plymouth)[^)])*?)encrypt\b'
+    # encrypt (never inserts a second one), and encrypt must be a whole
+    # token: not the suffix of sd-encrypt.
+    regexp: '^(HOOKS=\((?:(?!plymouth)[^)])*?)(?<=\(| )encrypt\b'
     replace: '\1plymouth encrypt'
   become: true
   when:
     - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
     - grub_kernel_parameters is search("splash")
     - grub_mkinitcpio_hooks.stdout is defined
     - "'plymouth' not in grub_mkinitcpio_hooks.stdout"
