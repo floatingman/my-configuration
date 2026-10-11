@@ -15,6 +15,28 @@
   when:
     - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
 
+- name: Read mkinitcpio configuration
+  ansible.builtin.slurp:
+    src: /etc/mkinitcpio.conf
+  register: grub_mkinitcpio_conf
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
+
+- name: Require no legacy LUKS keyfile in the initramfs
+  # Old installs embedded /crypto_keyfile.bin via FILES=. With /boot on
+  # the ESP the rebuilt initramfs would expose that key unencrypted.
+  ansible.builtin.assert:
+    that: grub_mkinitcpio_conf.content is not defined or "crypto_keyfile.bin" not in (grub_mkinitcpio_conf.content | b64decode)
+    fail_msg: >-
+      /etc/mkinitcpio.conf still references the legacy crypto_keyfile.bin
+      keyfile. Strip the FILES= entry, delete /crypto_keyfile.bin, and drop
+      its keyslot (cryptsetup luksKillSlot with your passphrase) before
+      enabling themed boot: the rebuilt initramfs lives unencrypted on the
+      ESP and must not carry a LUKS key.
+  when:
+    - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
+
 - name: Set kernel parameters
   ansible.builtin.lineinfile:
     dest: /etc/default/grub
