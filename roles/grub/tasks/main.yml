@@ -13,7 +13,7 @@
       setting grub_theme: null and removing splash from
       grub_kernel_parameters in group_vars/all/local.yml.
   when:
-    - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
+    - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
 
 - name: Read mkinitcpio configuration
   ansible.builtin.slurp:
@@ -21,7 +21,7 @@
   register: grub_mkinitcpio_conf
   when:
     - ansible_facts["distribution"] == "Archlinux"
-    - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
+    - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
 
 - name: Require no legacy LUKS keyfile in the initramfs
   # Old installs embedded /crypto_keyfile.bin via FILES=. With /boot on
@@ -35,7 +35,7 @@
       enabling themed boot: the rebuilt initramfs lives unencrypted on the
       ESP and must not carry a LUKS key.
   when:
-    - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
+    - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
 
 - name: Set kernel parameters
   ansible.builtin.lineinfile:
@@ -58,7 +58,7 @@
   when:
     - ansible_facts["distribution"] == "Archlinux"
     - grub_kernel_parameters is not none
-    - grub_kernel_parameters is search("splash")
+    - '"splash" in grub_kernel_parameters.split()'
 
 - name: Read mkinitcpio hooks
   ansible.builtin.command: grep -E "^HOOKS=" /etc/mkinitcpio.conf
@@ -68,7 +68,7 @@
   when:
     - ansible_facts["distribution"] == "Archlinux"
     - grub_kernel_parameters is not none
-    - grub_kernel_parameters is search("splash")
+    - '"splash" in grub_kernel_parameters.split()'
 
 - name: Add plymouth mkinitcpio hook
   # The plymouth package never edits HOOKS; without this task, existing
@@ -84,7 +84,7 @@
   when:
     - ansible_facts["distribution"] == "Archlinux"
     - grub_kernel_parameters is not none
-    - grub_kernel_parameters is search("splash")
+    - '"splash" in grub_kernel_parameters.split()'
     - grub_mkinitcpio_hooks.stdout is defined
     - "'plymouth' not in grub_mkinitcpio_hooks.stdout"
   notify:
