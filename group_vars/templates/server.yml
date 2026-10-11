@@ -21,7 +21,8 @@ laptop: false # No power mgmt or trackpad config on servers
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Boot
-# kernel_parameters:        # Kernel cmdline params used for GRUB_CMDLINE_LINUX_DEFAULT (replaces default, e.g. "quiet")
+# grub_kernel_parameters: "quiet"   # GRUB_CMDLINE_LINUX_DEFAULT override; omit "splash" to skip the Plymouth splash path
+# grub_theme: null          # GRUB menu theme (vendored: vimix). null disables theming and removes GRUB_THEME
 
 # Manual mode display toggles — dispatcher applies these only in manual mode.
 # Typically irrelevant for headless/server configs; kept here for reference.

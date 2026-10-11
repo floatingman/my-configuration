@@ -70,23 +70,35 @@
     - grub_kernel_parameters is not none
     - '"splash" in grub_kernel_parameters.split()'
 
-- name: Add plymouth mkinitcpio hook
-  # The plymouth package never edits HOOKS; without this task, existing
-  # machines would keep the raw passphrase prompt and a silent console.
-  ansible.builtin.replace:
-    path: /etc/mkinitcpio.conf
-    # Tempered so the match fails if plymouth appears anywhere before
-    # encrypt (never inserts a second one), and encrypt must be a whole
-    # token: not the suffix of sd-encrypt.
-    regexp: '^(HOOKS=\((?:(?!plymouth)[^)])*?)(?<=\(| )encrypt\b'
-    replace: '\1plymouth encrypt'
-  become: true
+- name: Compute HOOKS with plymouth directly before encrypt
+  # The plymouth package never edits HOOKS. Normalize instead of patching:
+  # drop any existing plymouth token and re-insert it immediately before
+  # encrypt, wherever it sits today (missing, or stranded after encrypt).
+  ansible.builtin.set_fact:
+    grub_mkinitcpio_hooks_line: >-
+      {% set tokens = (grub_mkinitcpio_hooks.stdout | regex_replace("^HOOKS=\\((.*)\\)", "\\1") | trim).split() | reject("equalto", "plymouth") | list -%}
+      HOOKS=({% for h in tokens %}{{ " " if not loop.first }}{% if h == "encrypt" %}plymouth {% endif %}{{ h }}{% endfor %})
   when:
     - ansible_facts["distribution"] == "Archlinux"
     - grub_kernel_parameters is not none
     - '"splash" in grub_kernel_parameters.split()'
     - grub_mkinitcpio_hooks.stdout is defined
-    - "'plymouth' not in grub_mkinitcpio_hooks.stdout"
+    - '"encrypt" in grub_mkinitcpio_hooks.stdout.split()'
+
+- name: Position plymouth hook before encrypt
+  # lineinfile is a no-op when the computed line already matches, so this
+  # inserts a missing hook, moves one stranded after encrypt, and stays
+  # idempotent; whole-token comparison leaves sd-encrypt hosts untouched.
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^HOOKS="
+    line: "{{ grub_mkinitcpio_hooks_line }}"
+  become: true
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - '"splash" in grub_kernel_parameters.split()'
+    - grub_mkinitcpio_hooks_line is defined
   notify:
     - Rebuild initramfs
 
@@ -101,20 +113,20 @@
     - Rebuild grub
 
 - name: Create GRUB themes directory
+  # No explicit mode: /boot is the vfat ESP; effective permissions come
+  # from the mount's umask/dmask options and cannot be enforced from here.
   ansible.builtin.file:
     path: /boot/grub/themes
     state: directory
-    mode: "0755"
   become: true
   when: grub_theme is not none
 
 - name: Deploy GRUB theme
-  # mode 0755 for everything: /boot is vfat (ESP), which reports every file
-  # as 0755; any narrower mode would read back changed on every run.
+  # No explicit mode: vfat synthesizes permissions from mount options
+  # (umask/fmask/dmask); forcing a mode would flap or fail every run.
   ansible.builtin.copy:
     src: "grub-themes/{{ grub_theme }}"
     dest: /boot/grub/themes/
-    mode: "0755"
   become: true
   when: grub_theme is not none
   notify:
