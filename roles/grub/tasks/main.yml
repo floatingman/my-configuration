@@ -20,6 +20,53 @@
   notify:
     - Rebuild grub
 
+- name: Create GRUB themes directory
+  ansible.builtin.file:
+    path: /boot/grub/themes
+    state: directory
+    mode: "0755"
+  become: true
+  when: grub_theme is not none
+
+- name: Deploy GRUB theme
+  # mode 0755 for everything: /boot is vfat (ESP), which reports every file
+  # as 0755; any narrower mode would read back changed on every run.
+  ansible.builtin.copy:
+    src: "grub-themes/{{ grub_theme }}"
+    dest: /boot/grub/themes/
+    mode: "0755"
+  become: true
+  when: grub_theme is not none
+  notify:
+    - Rebuild grub
+
+- name: Set GRUB theme
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_THEME="
+    state: present
+    line: 'GRUB_THEME="/boot/grub/themes/{{ grub_theme }}/theme.txt"'
+  become: true
+  when: grub_theme is not none
+  notify:
+    - Rebuild grub
+
+- name: Check for EFI BootNext helper
+  # grub >= 2.12 ships 31_efi_bootnext, which mirrors every firmware boot
+  # entry (Setup, diagnostics, USB/NVMe/ATA, ...) into the GRUB menu.
+  ansible.builtin.stat:
+    path: /etc/grub.d/31_efi_bootnext
+  register: grub_efi_bootnext
+
+- name: Disable EFI BootNext menu entries
+  ansible.builtin.file:
+    path: /etc/grub.d/31_efi_bootnext
+    mode: u-x,g-x,o-x
+  become: true
+  when: grub_efi_bootnext.stat.exists
+  notify:
+    - Rebuild grub
+
 - name: Install Grub Pacman hook
   kewlfft.aur.aur:
     name: grub-hook

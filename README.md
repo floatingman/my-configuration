@@ -9,8 +9,9 @@ This is my attempt at fully automating the setup of my linux machines with it.
 
 For a fresh Arch machine, run [install.sh](install.sh)
 from the Arch installer ISO (root shell, network up). It performs the full
-[INSTALL.md](INSTALL.md) flow — LUKS2 + LVM, encrypted `/boot`, dual
-UEFI/legacy-BIOS boot — and prompts for disk, passwords, hostname, and user:
+[INSTALL.md](INSTALL.md) flow — LUKS2 + LVM, Plymouth-themed boot with a
+Vimix GRUB menu (`/boot` on the ESP), dual UEFI/legacy-BIOS boot — and
+prompts for disk, passwords, hostname, and user:
 
     # bash <(curl -fsSL https://zipline.thenewmans.casa/go/arch)
 

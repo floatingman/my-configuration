@@ -90,7 +90,11 @@ gitconfig:
   neovim_remote: true
   meld: true
 
-grub_kernel_parameters: "quiet consoleblank=60"
+grub_kernel_parameters: "quiet splash consoleblank=60"
+
+# GRUB gfxtheme deployed by the grub role from vendored files under
+# roles/grub/files/grub-themes/. null disables theming.
+grub_theme: vimix
 
 # GPU configuration
 # Options: auto, amd, nvidia, intel
@@ -189,7 +193,7 @@ base_packages:
   - minicom
   - moreutils
   - pacman-contrib
-  - pv
+  - plymouth
   - python-keyring
   - python-secretstorage
   - qalculate-gtk
