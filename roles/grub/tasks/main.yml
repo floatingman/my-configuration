@@ -1,4 +1,20 @@
 ---
+- name: Require /boot on the EFI partition for themed boot
+  # Old installs kept /boot on the encrypted root (GRUB cryptodisk):
+  # there GRUB shows its unthemed passphrase prompt before any theme
+  # loads, so theming and splash can never work as documented. Fail
+  # before mutating anything instead of deploying a broken theme.
+  ansible.builtin.assert:
+    that: ansible_facts["mounts"] | selectattr("mount", "equalto", "/boot") | map(attribute="fstype") | join("") == "vfat"
+    fail_msg: >-
+      /boot is not the vfat EFI partition this role's themed-boot path
+      assumes. Migrate the machine by reinstalling with the current
+      install.sh (see INSTALL.md), or disable the path for this host by
+      setting grub_theme: null and removing splash from
+      grub_kernel_parameters in group_vars/all/local.yml.
+  when:
+    - grub_theme is not none or (grub_kernel_parameters is not none and grub_kernel_parameters is search("splash"))
+
 - name: Set kernel parameters
   ansible.builtin.lineinfile:
     dest: /etc/default/grub
