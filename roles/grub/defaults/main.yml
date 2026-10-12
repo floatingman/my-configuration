@@ -3,3 +3,10 @@
 # Set to null (default) to leave GRUB configuration unchanged.
 # Example: "quiet splash loglevel=3"
 grub_kernel_parameters: null
+
+# GRUB gfxtheme deployed to /boot/grub/themes/<name> and set as GRUB_THEME.
+# Vendored under roles/grub/files/grub-themes/<name>/ (vimix, color icons,
+# 1080p assets from https://github.com/vinceliuice/grub2-themes).
+# Set to null (default) to disable theming: GRUB_THEME is removed from
+# /etc/default/grub (any previously deployed theme files are left in place).
+grub_theme: null

@@ -4,9 +4,12 @@
 #
 # Produces the exact layout INSTALL.md describes:
 #   * GPT with a 1MiB BIOS-boot partition, 512MiB EFI (FAT32), and a
-#     LUKS2 (pbkdf2) root partition holding LVM volume group `arch`
+#     LUKS2 root partition holding LVM volume group `arch`
 #     (swap + ext4 root)
-#   * encrypted /boot via GRUB cryptodisk; bootable via UEFI and legacy BIOS
+#   * /boot on the 512MiB EFI partition (kernel, initramfs, GRUB, theme):
+#     Plymouth — not GRUB's unthemeable cryptodisk prompt — asks for the
+#     LUKS passphrase behind a themed splash; Vimix GRUB menu theme;
+#     bootable via UEFI and legacy BIOS
 #   * pacstrap package list from INSTALL.md, en_US.UTF-8 + en_SE.UTF-8
 #     (LC_TIME) locales, prompted timezone (default America/Los_Angeles)
 #   * wheel-sudo regular user; my-configuration pre-cloned to
@@ -171,7 +174,7 @@ done
 
 log "Creating LUKS2 container on ${DEVCRYPT}"
 printf '%s' "${LUKS_PASSPHRASE}" \
-  | cryptsetup luksFormat -q --type luks2 --pbkdf pbkdf2 -d - "${DEVCRYPT}"
+  | cryptsetup luksFormat -q --type luks2 -d - "${DEVCRYPT}"
 printf '%s' "${LUKS_PASSPHRASE}" | cryptsetup luksOpen -d - "${DEVCRYPT}" lvm
 
 log 'Creating LVM volumes (arch/swap + arch/root)'
@@ -186,16 +189,16 @@ mkswap -L swap /dev/mapper/arch-swap
 mkfs.ext4 -F /dev/mapper/arch-root
 mount /dev/mapper/arch-root /mnt
 swapon /dev/mapper/arch-swap
-mkdir /mnt/efi
+mkdir /mnt/boot
 mkfs.fat -F32 "${DEVEFI}"
-mount "${DEVEFI}" /mnt/efi
+mount "${DEVEFI}" /mnt/boot
 
 # --- base system ------------------------------------------------------------
 
 log 'pacstrap base system (this takes a while)'
 pacstrap /mnt base base-devel linux linux-firmware lvm2 dhcpcd net-tools \
-  wireless_tools dialog wpa_supplicant efibootmgr vim git grub ansible iwd \
-  openssh sudo
+  wireless_tools dialog wpa_supplicant efibootmgr vim git grub plymouth \
+  ansible iwd openssh sudo
 
 log 'Generating /etc/fstab'
 genfstab -U -p /mnt >> /mnt/etc/fstab
@@ -231,7 +234,6 @@ fi
   printf 'INSTALL_DISK=%q\n' "${DISK}"
   printf 'INSTALL_DEVEFI=%q\n' "${DEVEFI}"
   printf 'INSTALL_DEVCRYPT=%q\n' "${DEVCRYPT}"
-  printf 'INSTALL_LUKS_PASSPHRASE=%q\n' "${LUKS_PASSPHRASE}"
   printf 'INSTALL_ROOT_PASSWORD=%q\n' "${ROOT_PASSWORD}"
   printf 'INSTALL_WIFI=%q\n' "${INSTALL_WIFI}"
   printf 'INSTALL_USER_PASSWORD=%q\n' "${USER_PASSWORD}"
@@ -242,7 +244,7 @@ chmod 600 /mnt/.install-env
 # missing key would otherwise die mid-install under `set -u` far from the
 # actual bug. This check catches it the moment the file is written.
 for _key in INSTALL_HOSTNAME INSTALL_USERNAME INSTALL_TIMEZONE INSTALL_DISK \
-            INSTALL_DEVEFI INSTALL_DEVCRYPT INSTALL_LUKS_PASSPHRASE \
+            INSTALL_DEVEFI INSTALL_DEVCRYPT \
             INSTALL_ROOT_PASSWORD INSTALL_USER_PASSWORD INSTALL_WIFI; do
   grep -q "^${_key}=" /mnt/.install-env \
     || err "internal error: ${_key} missing from handoff file"
@@ -292,41 +294,53 @@ chmod 440 /etc/sudoers.d/01_wheel
 visudo -cf /etc/sudoers.d/01_wheel >/dev/null
 
 
-log 'mkinitcpio: encrypt/lvm2 hooks + LUKS keyfile'
-# Match commented defaults (#HOOKS=(...)/#FILES=()) as well as uncommented ones.
-sed -i -e 's|^HOOKS=.*|HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)|' \
-       -e 's|^#HOOKS=.*|HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)|' \
+log 'mkinitcpio: plymouth + encrypt/lvm2 hooks'
+# Match commented defaults (#HOOKS=(...)) as well as uncommented ones. The
+# plymouth hook draws the splash + LUKS password dialog; the encrypt hook
+# routes its passphrase prompt through it, so no keyfile is embedded.
+sed -i -e 's|^HOOKS=.*|HOOKS=(base udev plymouth autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)|' \
+       -e 's|^#HOOKS=.*|HOOKS=(base udev plymouth autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)|' \
        /etc/mkinitcpio.conf
-grep -q '^HOOKS=.*encrypt' /etc/mkinitcpio.conf \
-  || echo 'HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)' >> /etc/mkinitcpio.conf
-
-dd bs=512 count=8 if=/dev/urandom of=/crypto_keyfile.bin status=none
-printf '%s' "${INSTALL_LUKS_PASSPHRASE}" \
-  | cryptsetup luksAddKey -q -d - "${INSTALL_DEVCRYPT}" /crypto_keyfile.bin
-chmod 000 /crypto_keyfile.bin
-
-sed -i -e 's|^FILES=.*|FILES=(/crypto_keyfile.bin)|' \
-       -e 's|^#FILES=.*|FILES=(/crypto_keyfile.bin)|' /etc/mkinitcpio.conf
-grep -q '^FILES=(/crypto_keyfile.bin)' /etc/mkinitcpio.conf \
-  || echo 'FILES=(/crypto_keyfile.bin)' >> /etc/mkinitcpio.conf
+grep -q '^HOOKS=.*plymouth.*encrypt' /etc/mkinitcpio.conf \
+  || echo 'HOOKS=(base udev plymouth autodetect microcode modconf kms keyboard keymap consolefont block encrypt lvm2 resume filesystems fsck)' >> /etc/mkinitcpio.conf
 
 mkinitcpio -P
 
-log 'GRUB: encrypted /boot, UEFI + legacy BIOS'
-grep -q '^GRUB_ENABLE_CRYPTODISK=y' /etc/default/grub \
-  || echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub
-ROOTUUID=$(blkid -s UUID -o value "${INSTALL_DEVCRYPT}")
-sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"cryptdevice=UUID=${ROOTUUID}:lvm:allow-discards root=/dev/mapper/arch-root resume=/dev/mapper/arch-swap\"|" /etc/default/grub
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB --recheck --removable
-grub-install --target=i386-pc --recheck "${INSTALL_DISK}"
-grub-mkconfig -o /boot/grub/grub.cfg
-chmod -R g-rwx,o-rwx /boot
-
 log "Pre-cloning my-configuration for ${INSTALL_USERNAME}"
+# Early (before GRUB): the chroot stage deploys the GRUB theme vendored in
+# the repo's grub role, so installer and playbook converge on identical bytes.
 runuser -u "${INSTALL_USERNAME}" -- \
   git -C "/home/${INSTALL_USERNAME}" clone \
   https://github.com/floatingman/my-configuration.git \
   || echo 'warning: pre-clone failed — clone the repo manually after reboot'
+
+log 'GRUB: themed menu on the ESP, UEFI + legacy BIOS'
+# Plymouth owns the LUKS prompt; quiet splash hands the console over early.
+sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash consoleblank=60"|' /etc/default/grub
+grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub \
+  || echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash consoleblank=60"' >> /etc/default/grub
+ROOTUUID=$(blkid -s UUID -o value "${INSTALL_DEVCRYPT}")
+sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"cryptdevice=UUID=${ROOTUUID}:lvm:allow-discards root=/dev/mapper/arch-root resume=/dev/mapper/arch-swap\"|" /etc/default/grub
+
+# 31_efi_bootnext mirrors every firmware boot entry (Setup, diagnostics,
+# USB/NVMe/ATA, ...) into the GRUB menu; disable it persistently via the
+# setting the script itself honors (the package owns the file, so chmod -x
+# would be reverted by the next grub upgrade).
+grep -q '^GRUB_DISABLE_BOOTNEXT=' /etc/default/grub \
+  || echo 'GRUB_DISABLE_BOOTNEXT=true' >> /etc/default/grub
+
+THEME_SRC="/home/${INSTALL_USERNAME}/my-configuration/roles/grub/files/grub-themes/vimix"
+if [[ -d ${THEME_SRC} ]]; then
+  mkdir -p /boot/grub/themes
+  cp -r "${THEME_SRC}" /boot/grub/themes/
+  echo 'GRUB_THEME="/boot/grub/themes/vimix/theme.txt"' >> /etc/default/grub
+else
+  echo 'warning: theme source missing — GRUB menu stays unthemed'
+fi
+
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB --recheck --removable
+grub-install --target=i386-pc --recheck "${INSTALL_DISK}"
+grub-mkconfig -o /boot/grub/grub.cfg
 
 # The post-reboot steps are easy to lose after the ISO console goes away;
 # leave them in the user's home directory.
@@ -390,8 +404,8 @@ cat <<EOF
 
 Install complete. Next steps:
 
-  1. reboot (remove the USB stick). The GRUB/disk passphrase is your LUKS
-     passphrase.
+  1. reboot (remove the USB stick). The Plymouth password prompt accepts
+     your LUKS passphrase.
   2. Log in as ${USERNAME_IN}; the next steps are also saved in
      ~/NEXT_STEPS.txt on the new system:
 

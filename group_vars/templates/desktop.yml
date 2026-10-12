@@ -32,7 +32,8 @@ display_manager: lightdm    # lightdm | gdm | sddm
 # disable_kde: false        # Set true to skip KDE install (manual dual-desktop mode only)
 
 # Boot
-# kernel_parameters: "quiet consoleblank=60"   # Kernel cmdline for GRUB (overrides default GRUB_CMDLINE_LINUX_DEFAULT)
+# grub_kernel_parameters: "quiet consoleblank=60"   # GRUB_CMDLINE_LINUX_DEFAULT override; drop "splash" here to skip the Plymouth splash path
+# grub_theme: null          # GRUB menu theme (vendored: vimix). null disables theming and removes GRUB_THEME
 
 dotfiles_config:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"

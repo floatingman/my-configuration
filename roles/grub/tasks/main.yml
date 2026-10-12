@@ -1,4 +1,42 @@
 ---
+- name: Require /boot on the EFI partition for themed boot
+  # Old installs kept /boot on the encrypted root (GRUB cryptodisk):
+  # there GRUB shows its unthemed passphrase prompt before any theme
+  # loads, so theming and splash can never work as documented. Fail
+  # before mutating anything instead of deploying a broken theme.
+  ansible.builtin.assert:
+    that: ansible_facts["mounts"] | selectattr("mount", "equalto", "/boot") | map(attribute="fstype") | join("") == "vfat"
+    fail_msg: >-
+      /boot is not the vfat EFI partition this role's themed-boot path
+      assumes. Migrate the machine by reinstalling with the current
+      install.sh (see INSTALL.md), or disable the path for this host by
+      setting grub_theme: null and removing splash from
+      grub_kernel_parameters in group_vars/all/local.yml.
+  when:
+    - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
+
+- name: Read mkinitcpio configuration
+  ansible.builtin.slurp:
+    src: /etc/mkinitcpio.conf
+  register: grub_mkinitcpio_conf
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
+
+- name: Require no legacy LUKS keyfile in the initramfs
+  # Old installs embedded /crypto_keyfile.bin via FILES=. With /boot on
+  # the ESP the rebuilt initramfs would expose that key unencrypted.
+  ansible.builtin.assert:
+    that: grub_mkinitcpio_conf.content is not defined or "crypto_keyfile.bin" not in (grub_mkinitcpio_conf.content | b64decode)
+    fail_msg: >-
+      /etc/mkinitcpio.conf still references the legacy crypto_keyfile.bin
+      keyfile. Strip the FILES= entry, delete /crypto_keyfile.bin, and drop
+      its keyslot (cryptsetup luksKillSlot with your passphrase) before
+      enabling themed boot: the rebuilt initramfs lives unencrypted on the
+      ESP and must not carry a LUKS key.
+  when:
+    - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
+
 - name: Set kernel parameters
   ansible.builtin.lineinfile:
     dest: /etc/default/grub
@@ -10,12 +48,120 @@
   notify:
     - Rebuild grub
 
+- name: Install plymouth
+  # TAGS=grub runs skip the base role that otherwise installs the
+  # package; mkinitcpio -P fails on a hook whose package is missing.
+  ansible.builtin.package:
+    name: plymouth
+    state: present
+  become: true
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - '"splash" in grub_kernel_parameters.split()'
+
+- name: Read mkinitcpio hooks
+  ansible.builtin.command: grep -E "^HOOKS=" /etc/mkinitcpio.conf
+  register: grub_mkinitcpio_hooks
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - '"splash" in grub_kernel_parameters.split()'
+
+- name: Parse HOOKS token list
+  # Strip the HOOKS=( ... ) wrapper: raw stdout.split() would yield
+  # 'HOOKS=(encrypt' / 'encrypt)' and miss encrypt at array boundaries.
+  ansible.builtin.set_fact:
+    grub_mkinitcpio_hooks_tokens: >-
+      {{ (grub_mkinitcpio_hooks.stdout | default('') | regex_replace('^HOOKS=\\((.*)\\)', '\\1') | trim).split() }}
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - '"splash" in grub_kernel_parameters.split()'
+    - grub_mkinitcpio_hooks.stdout is defined
+
+- name: Compute HOOKS with plymouth directly before encrypt
+  # The plymouth package never edits HOOKS. Normalize instead of patching:
+  # drop any existing plymouth token and re-insert it immediately before
+  # encrypt, wherever it sits today (missing, or stranded after encrypt).
+  ansible.builtin.set_fact:
+    grub_mkinitcpio_hooks_line: >-
+      {% set tokens = grub_mkinitcpio_hooks_tokens | reject("equalto", "plymouth") | list -%}
+      HOOKS=({% for h in tokens %}{{ " " if not loop.first }}{% if h == "encrypt" %}plymouth {% endif %}{{ h }}{% endfor %})
+  when:
+    - grub_mkinitcpio_hooks_tokens is defined
+    - '"encrypt" in grub_mkinitcpio_hooks_tokens'
+
+- name: Position plymouth hook before encrypt
+  # lineinfile is a no-op when the computed line already matches, so this
+  # inserts a missing hook, moves one stranded after encrypt, and stays
+  # idempotent; whole-token comparison leaves sd-encrypt hosts untouched.
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^HOOKS="
+    line: "{{ grub_mkinitcpio_hooks_line }}"
+  become: true
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - '"splash" in grub_kernel_parameters.split()'
+    - grub_mkinitcpio_hooks_line is defined
+  notify:
+    - Rebuild initramfs
+
 - name: Disable Grub submenus
   ansible.builtin.lineinfile:
     dest: /etc/default/grub
     regexp: "^GRUB_DISABLE_SUBMENU"
     state: present
     line: "GRUB_DISABLE_SUBMENU=y"
+  become: true
+  notify:
+    - Rebuild grub
+
+- name: Create GRUB themes directory  # noqa: risky-file-permissions
+  # No explicit mode: /boot is the vfat ESP; effective permissions come
+  # from the mount's umask/dmask options and cannot be enforced from here.
+  ansible.builtin.file:
+    path: /boot/grub/themes
+    state: directory
+  become: true
+  when: grub_theme is not none
+
+- name: Deploy GRUB theme  # noqa: risky-file-permissions
+  # No explicit mode: vfat synthesizes permissions from mount options
+  # (umask/fmask/dmask); forcing a mode would flap or fail every run.
+  ansible.builtin.copy:
+    src: "grub-themes/{{ grub_theme }}"
+    dest: /boot/grub/themes/
+  become: true
+  when: grub_theme is not none
+  notify:
+    - Rebuild grub
+
+- name: Set GRUB theme
+  # Unguarded on purpose: grub_theme: null removes a previously set
+  # GRUB_THEME line instead of leaving the old theme active.
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_THEME="
+    state: "{{ 'present' if grub_theme is not none else 'absent' }}"
+    line: 'GRUB_THEME="/boot/grub/themes/{{ grub_theme }}/theme.txt"'
+  become: true
+  notify:
+    - Rebuild grub
+
+- name: Disable EFI BootNext menu entries
+  # grub >= 2.12 ships 31_efi_bootnext, which mirrors every firmware boot
+  # entry (Setup, diagnostics, USB/NVMe/ATA, ...) into the GRUB menu.
+  # The grub package owns the script, so chmod -x reverts on the next
+  # upgrade; the script itself honors this persistent setting instead.
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_DISABLE_BOOTNEXT="
+    line: "GRUB_DISABLE_BOOTNEXT=true"
   become: true
   notify:
     - Rebuild grub
