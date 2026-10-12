@@ -121,7 +121,7 @@
   notify:
     - Rebuild grub
 
-- name: Create GRUB themes directory
+- name: Create GRUB themes directory  # noqa: risky-file-permissions
   # No explicit mode: /boot is the vfat ESP; effective permissions come
   # from the mount's umask/dmask options and cannot be enforced from here.
   ansible.builtin.file:
@@ -130,7 +130,7 @@
   become: true
   when: grub_theme is not none
 
-- name: Deploy GRUB theme
+- name: Deploy GRUB theme  # noqa: risky-file-permissions
   # No explicit mode: vfat synthesizes permissions from mount options
   # (umask/fmask/dmask); forcing a mode would flap or fail every run.
   ansible.builtin.copy:
