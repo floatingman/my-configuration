@@ -106,14 +106,16 @@ passphrase prompt through Plymouth automatically, so no keyfile is needed.
 
 Install the Vimix theme (vendored in this repository under
 `roles/grub/files/grub-themes/`; originally from [grub2-themes][6]) and
-configure GRUB. `chmod -x 31_efi_bootnext` stops GRUB from mirroring the
-firmware's ~20 native boot entries (Setup, diagnostics, USB/NVMe/ATA, ...)
-into the menu; `quiet splash` hands the console over to Plymouth early.
+configure GRUB. `GRUB_DISABLE_BOOTNEXT=true` stops GRUB from mirroring
+the firmware's ~20 native boot entries (Setup, diagnostics,
+USB/NVMe/ATA, ...) into the menu, persistently (the grub package owns
+the script, so chmod -x would be reverted on the next upgrade);
+`quiet splash` hands the console over to Plymouth early.
 
     $ git clone --depth 1 https://github.com/floatingman/my-configuration /tmp/my-configuration
     $ mkdir -p /boot/grub/themes
     $ cp -r /tmp/my-configuration/roles/grub/files/grub-themes/vimix /boot/grub/themes/
-    $ chmod -x /etc/grub.d/31_efi_bootnext
+    $ echo 'GRUB_DISABLE_BOOTNEXT=true' >> /etc/default/grub
     $ ROOTUUID=$(blkid -s UUID -o value $DEVCRYPT)
     $ sed -i "s/^GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=\"cryptdevice=UUID="$ROOTUUID":lvm:allow-discards root=\/dev\/mapper\/arch-root resume=\/dev\/mapper\/arch-swap\"/" /etc/default/grub
     $ sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash consoleblank=60"/' /etc/default/grub

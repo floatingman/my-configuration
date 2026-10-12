@@ -323,8 +323,11 @@ ROOTUUID=$(blkid -s UUID -o value "${INSTALL_DEVCRYPT}")
 sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"cryptdevice=UUID=${ROOTUUID}:lvm:allow-discards root=/dev/mapper/arch-root resume=/dev/mapper/arch-swap\"|" /etc/default/grub
 
 # 31_efi_bootnext mirrors every firmware boot entry (Setup, diagnostics,
-# USB/NVMe/ATA, ...) into the GRUB menu — disable it to keep the menu clean.
-chmod -x /etc/grub.d/31_efi_bootnext 2>/dev/null || true
+# USB/NVMe/ATA, ...) into the GRUB menu; disable it persistently via the
+# setting the script itself honors (the package owns the file, so chmod -x
+# would be reverted by the next grub upgrade).
+grep -q '^GRUB_DISABLE_BOOTNEXT=' /etc/default/grub \
+  || echo 'GRUB_DISABLE_BOOTNEXT=true' >> /etc/default/grub
 
 THEME_SRC="/home/${INSTALL_USERNAME}/my-configuration/roles/grub/files/grub-themes/vimix"
 if [[ -d ${THEME_SRC} ]]; then

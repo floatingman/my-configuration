@@ -70,20 +70,29 @@
     - grub_kernel_parameters is not none
     - '"splash" in grub_kernel_parameters.split()'
 
+- name: Parse HOOKS token list
+  # Strip the HOOKS=( ... ) wrapper: raw stdout.split() would yield
+  # 'HOOKS=(encrypt' / 'encrypt)' and miss encrypt at array boundaries.
+  ansible.builtin.set_fact:
+    grub_mkinitcpio_hooks_tokens: >-
+      {{ (grub_mkinitcpio_hooks.stdout | default('') | regex_replace('^HOOKS=\\((.*)\\)', '\\1') | trim).split() }}
+  when:
+    - ansible_facts["distribution"] == "Archlinux"
+    - grub_kernel_parameters is not none
+    - '"splash" in grub_kernel_parameters.split()'
+    - grub_mkinitcpio_hooks.stdout is defined
+
 - name: Compute HOOKS with plymouth directly before encrypt
   # The plymouth package never edits HOOKS. Normalize instead of patching:
   # drop any existing plymouth token and re-insert it immediately before
   # encrypt, wherever it sits today (missing, or stranded after encrypt).
   ansible.builtin.set_fact:
     grub_mkinitcpio_hooks_line: >-
-      {% set tokens = (grub_mkinitcpio_hooks.stdout | regex_replace("^HOOKS=\\((.*)\\)", "\\1") | trim).split() | reject("equalto", "plymouth") | list -%}
+      {% set tokens = grub_mkinitcpio_hooks_tokens | reject("equalto", "plymouth") | list -%}
       HOOKS=({% for h in tokens %}{{ " " if not loop.first }}{% if h == "encrypt" %}plymouth {% endif %}{{ h }}{% endfor %})
   when:
-    - ansible_facts["distribution"] == "Archlinux"
-    - grub_kernel_parameters is not none
-    - '"splash" in grub_kernel_parameters.split()'
-    - grub_mkinitcpio_hooks.stdout is defined
-    - '"encrypt" in grub_mkinitcpio_hooks.stdout.split()'
+    - grub_mkinitcpio_hooks_tokens is defined
+    - '"encrypt" in grub_mkinitcpio_hooks_tokens'
 
 - name: Position plymouth hook before encrypt
   # lineinfile is a no-op when the computed line already matches, so this
@@ -144,19 +153,16 @@
   notify:
     - Rebuild grub
 
-- name: Check for EFI BootNext helper
+- name: Disable EFI BootNext menu entries
   # grub >= 2.12 ships 31_efi_bootnext, which mirrors every firmware boot
   # entry (Setup, diagnostics, USB/NVMe/ATA, ...) into the GRUB menu.
-  ansible.builtin.stat:
-    path: /etc/grub.d/31_efi_bootnext
-  register: grub_efi_bootnext
-
-- name: Disable EFI BootNext menu entries
-  ansible.builtin.file:
-    path: /etc/grub.d/31_efi_bootnext
-    mode: u-x,g-x,o-x
+  # The grub package owns the script, so chmod -x reverts on the next
+  # upgrade; the script itself honors this persistent setting instead.
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_DISABLE_BOOTNEXT="
+    line: "GRUB_DISABLE_BOOTNEXT=true"
   become: true
-  when: grub_efi_bootnext.stat.exists
   notify:
     - Rebuild grub
 
