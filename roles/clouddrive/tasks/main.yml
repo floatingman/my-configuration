@@ -45,9 +45,49 @@
     scope: user
     name: synology-drive.service
     enabled: true
+    daemon_reload: true
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: clouddrive_stop_on_battery | default(false) | bool
+
+- name: Check gated Synology Drive unit state
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.command: systemctl --user is-active synology-drive.service
+  register: _clouddrive_unit_state
+  changed_when: false
+  failed_when: false
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: clouddrive_stop_on_battery | default(false) | bool
+
+- name: Gracefully stop vendor-autostarted Synology Drive tree
+  # migration: the autostart-spawned tree runs outside any unit, so gate
+  # stops would miss it and it would survive on battery until logout.
+  # Only runs when the gated unit is not active, so an AC-managed tree is
+  # never touched.
+  become: true
+  ansible.builtin.command: pkill -TERM -u {{ user.name }} -f SynologyDrive.app/bin/cloud-drive
+  register: _clouddrive_migrate_term
+  changed_when: _clouddrive_migrate_term.rc == 0
+  failed_when: _clouddrive_migrate_term.rc not in [0, 1]
+  when:
+    - clouddrive_stop_on_battery | default(false) | bool
+    - _clouddrive_unit_state.stdout | default('inactive') != 'active'
+  notify:
+    - Apply Synology power gate
+
+- name: Force-stop surviving Synology Drive processes
+  # cloud-drive-ui ignores SIGTERM; give the graceful signal a moment
+  become: true
+  ansible.builtin.command: pkill -KILL -u {{ user.name }} -f SynologyDrive.app/bin/cloud-drive
+  register: _clouddrive_migrate_kill
+  changed_when: _clouddrive_migrate_kill.rc == 0
+  failed_when: _clouddrive_migrate_kill.rc not in [0, 1]
+  when:
+    - clouddrive_stop_on_battery | default(false) | bool
+    - _clouddrive_unit_state.stdout | default('inactive') != 'active'
+    - _clouddrive_migrate_term.rc | default(1) == 0
 
 - name: Remove XDG autostart entry superseded by the user unit
   become: true
@@ -64,6 +104,7 @@
     scope: user
     name: synology-drive.service
     enabled: false
+    daemon_reload: true
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: not (clouddrive_stop_on_battery | default(false) | bool)

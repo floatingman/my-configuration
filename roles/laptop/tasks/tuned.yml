@@ -7,6 +7,15 @@
   tags:
     - tuned
 
+- name: Install iw
+  become: true
+  ansible.builtin.package:
+    name: iw
+    state: present
+  when: laptop_wifi_powersave | bool
+  tags:
+    - tuned
+
 - name: Install iwlwifi power save module option
   become: true
   ansible.builtin.copy:
@@ -23,6 +32,24 @@
   loop: "{{ ansible_facts['interfaces'] | select('match', '^wl') | list }}"
   changed_when: false
   when: laptop_wifi_powersave | bool
+  tags:
+    - tuned
+
+- name: Remove iwlwifi power save module option
+  become: true
+  ansible.builtin.file:
+    path: /etc/modprobe.d/iwlwifi-powersave.conf
+    state: absent
+  when: not (laptop_wifi_powersave | bool)
+  tags:
+    - tuned
+
+- name: Disable WiFi power save now
+  become: true
+  ansible.builtin.command: iw dev {{ item }} set power_save off
+  loop: "{{ ansible_facts['interfaces'] | select('match', '^wl') | list }}"
+  changed_when: false
+  when: not (laptop_wifi_powersave | bool)
   tags:
     - tuned
 
