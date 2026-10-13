@@ -3,3 +3,29 @@
 # Valid values: "tlp" | "tuned"
 # Override in group_vars/all/local.yml for machine-specific selection.
 laptop_power_management: tuned
+
+# --- power_monitor.sh policy (tuned backend only) ---
+# TuneD profiles switched between by power source; names must appear in
+# `tuned-adm list`.
+laptop_ac_profile: desktop
+laptop_battery_profile: balanced
+laptop_low_bat_profile: laptop-battery-powersave
+
+# Aggregate battery percentage at or below which the low-battery profile is
+# used instead of laptop_battery_profile.
+laptop_low_bat_percent: 70
+
+# Backlight percent applied on power-source/profile transitions only, so
+# manual brightness tweaks in between are kept. AC is capped below 100 to
+# work around a Framework 16 amdgpu panel bug (see power_monitor.sh.j2).
+laptop_ac_brightness_percent: 96
+laptop_battery_brightness_percent: 50
+
+# --- generic charge thresholds (tuned backend, non-Framework laptops) ---
+# Written to charge_control_{start,end}_threshold on every battery whose
+# driver exposes them (ThinkPad, Dell, ASUS, ...) to slow battery wear.
+# Framework laptops are excluded by the role (ectool via
+# chargecontrol.service); the TLP backend manages thresholds itself via
+# /etc/tlp.d/20-battery.conf.
+laptop_charge_start_threshold: 80
+laptop_charge_stop_threshold: 90

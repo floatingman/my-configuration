@@ -18,12 +18,47 @@
 
 - name: Install power monitor script
   become: true
-  ansible.builtin.copy:
-    src: power_monitor.sh
-    dest: /usr/local/bin/
+  ansible.builtin.template:
+    src: power_monitor.sh.j2
+    dest: /usr/local/bin/power_monitor.sh
     mode: '0755'
   notify:
     - Restart power monitor
+  tags:
+    - tuned
+
+- name: Install battery charge threshold script
+  become: true
+  ansible.builtin.template:
+    src: charge-thresholds.sh.j2
+    dest: /usr/local/bin/charge-thresholds.sh
+    mode: '0755'
+  when: ansible_facts['system_vendor'] != "Framework"
+  notify:
+    - Restart charge thresholds
+  tags:
+    - tuned
+
+- name: Copy battery charge thresholds service
+  become: true
+  ansible.builtin.copy:
+    src: charge-thresholds.service
+    dest: /etc/systemd/system/
+    mode: '0644'
+  when: ansible_facts['system_vendor'] != "Framework"
+  notify:
+    - Reload systemd config
+    - Restart charge thresholds
+  tags:
+    - tuned
+
+- name: Enable and start battery charge thresholds service
+  become: true
+  ansible.builtin.service:
+    name: charge-thresholds.service
+    enabled: true
+    state: started
+  when: ansible_facts['system_vendor'] != "Framework"
   tags:
     - tuned
 
@@ -34,7 +69,7 @@
     dest: /etc/systemd/system/
     mode: '0644'
   notify:
-    - reload systemd config
+    - Reload systemd config
     - Restart power monitor
   tags:
     - tuned

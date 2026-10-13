@@ -18,6 +18,15 @@ user:
   githubuser: yourgithubusername
 # Hardware
 laptop: false # No power mgmt or trackpad config on servers
+# Laptop power policy knobs (role defaults shown; only used when laptop: true):
+# laptop_battery_profile: balanced           # TuneD profile on battery above the low-bat threshold
+# laptop_ac_profile: desktop                 # TuneD profile on external power
+# laptop_low_bat_profile: laptop-battery-powersave  # TuneD profile at/below laptop_low_bat_percent
+# laptop_low_bat_percent: 70                 # aggregate battery % that triggers the low-battery profile
+# laptop_ac_brightness_percent: 96           # backlight % on AC (96 works around a Framework 16 panel bug)
+# laptop_battery_brightness_percent: 50      # backlight % on battery
+# laptop_charge_start_threshold: 80          # charge thresholds for batteries exposing sysfs files
+# laptop_charge_stop_threshold: 90           # (Framework uses ectool; the TLP backend has its own conf)
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Boot

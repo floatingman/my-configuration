@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply battery charge thresholds
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/charge-thresholds.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
