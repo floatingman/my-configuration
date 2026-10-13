@@ -50,27 +50,31 @@ BL_MAX=0
 
 # True when the machine is on external power. Mains supplies are named ACAD
 # (Framework), AC (ThinkPad), ADP1, ... depending on vendor, so detect by
-# type instead of name.
+# type instead of name. USB* covers USB, USB_C and USB_PD sources: USB-C
+# docks on machines whose Mains supply tracks the barrel jack only, and
+# USB-C-only laptops that expose no Mains entry at all. When no
+# external-capable supply exists the machine is desktop hardware: assume
+# always on AC.
 on_ac() {
-    local psy type found_mains=0
+    local psy type found_external=0
     for psy in /sys/class/power_supply/*; do
         type=$(cat "$psy/type" 2>/dev/null) || continue
-        if [[ $type == "Mains" ]]; then
-            found_mains=1
+        if [[ $type == "Mains" || $type == USB* ]]; then
+            found_external=1
             [[ $(cat "$psy/online" 2>/dev/null) == "1" ]] && return 0
-        elif [[ $type == "USB" && $(cat "$psy/online" 2>/dev/null) == "1" ]]; then
-            return 0
         fi
     done
-    # no Mains supply found at all: desktop hardware, assume always on AC
-    [[ $found_mains -eq 0 ]]
+    # no external power supply found at all: desktop hardware, assume on AC
+    [[ $found_external -eq 0 ]]
 }
 
-# Print aggregate state of charge (percent) across all batteries; energy
-# counters first with charge counters as fallback. Returns 1 when no battery
-# reports anything.
+# Print aggregate state of charge (percent) across all batteries. All
+# counters are normalized to µWh: energy_* batteries count directly, and a
+# battery reporting only charge_* (µAh) is converted with its voltage_now
+# (µAh * µV / 1e6 = µWh), because summing µWh with µAh would be meaningless.
+# Returns 1 when no battery reports anything.
 battery_percent() {
-    local psy now full now_sum=0 full_sum=0
+    local psy now full volt now_sum=0 full_sum=0
     for psy in /sys/class/power_supply/BAT*; do
         [[ -d $psy ]] || continue
         now=$(cat "$psy/energy_now" 2>/dev/null)
@@ -78,6 +82,11 @@ battery_percent() {
         if [[ -z $now || -z $full || $full -eq 0 ]]; then
             now=$(cat "$psy/charge_now" 2>/dev/null)
             full=$(cat "$psy/charge_full" 2>/dev/null)
+            volt=$(cat "$psy/voltage_now" 2>/dev/null)
+            if [[ -n $now && -n $full && -n $volt && $full -gt 0 ]]; then
+                now=$((now * volt / 1000000))
+                full=$((full * volt / 1000000))
+            fi
         fi
         if [[ -n $now && -n $full && $full -gt 0 ]]; then
             now_sum=$((now_sum + now))

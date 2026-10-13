@@ -1,4 +1,11 @@
 ---
+# Handlers run in definition order: daemon-reload must precede any unit
+# restarts so restarted services pick up freshly installed unit files.
+- name: Reload systemd config
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
 - name: Restart tlp
   become: true
   ansible.builtin.service:
@@ -14,13 +21,8 @@
 - name: Restart charge control
   become: true
   ansible.builtin.service:
-    name: charge_control.service
+    name: chargecontrol.service
     state: restarted
-
-- name: Reload systemd config
-  become: true
-  ansible.builtin.systemd:
-    daemon_reload: true
 
 - name: Restart charge thresholds
   become: true

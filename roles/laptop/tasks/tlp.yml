@@ -66,3 +66,34 @@
     enabled: true
   tags:
     - tlp
+
+- name: Check for leftover TuneD charge thresholds unit
+  ansible.builtin.stat:
+    path: /etc/systemd/system/charge-thresholds.service
+  register: _laptop_tuned_thresholds_unit
+  tags:
+    - tlp
+
+- name: Stop and disable leftover TuneD charge thresholds service
+  become: true
+  ansible.builtin.systemd:
+    name: charge-thresholds.service
+    state: stopped
+    enabled: false
+  when: _laptop_tuned_thresholds_unit.stat.exists
+  tags:
+    - tlp
+
+- name: Remove leftover TuneD charge thresholds unit and script
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/charge-thresholds.service
+    - /usr/local/bin/charge-thresholds.sh
+  when: _laptop_tuned_thresholds_unit.stat.exists
+  notify:
+    - Reload systemd config
+  tags:
+    - tlp

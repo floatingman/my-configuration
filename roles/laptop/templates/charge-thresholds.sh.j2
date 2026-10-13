@@ -14,9 +14,13 @@ rc=0
 
 for bat in /sys/class/power_supply/BAT*; do
     [[ -d $bat ]] || continue
-    for iface in charge_control charge; do
+    # <start iface>:<end suffix>; both interfaces name the start file
+    # ..._start_threshold, but the end file is ..._end_threshold on the
+    # standard interface and ..._stop_threshold on the legacy one
+    for pair in charge_control:end charge:stop; do
+        iface=${pair%%:*}
         start_file="$bat/${iface}_start_threshold"
-        end_file="$bat/${iface}_end_threshold"
+        end_file="$bat/${iface}_${pair##*:}_threshold"
         [[ -w $start_file ]] || continue
         if echo "$START" > "$start_file" 2>/dev/null \
             && echo "$STOP" > "$end_file" 2>/dev/null; then
