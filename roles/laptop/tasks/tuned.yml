@@ -47,7 +47,7 @@
     mode: '0644'
   when: ansible_facts['system_vendor'] != "Framework"
   notify:
-    - reload systemd config
+    - Reload systemd config
     - Restart charge thresholds
   tags:
     - tuned
@@ -69,7 +69,7 @@
     dest: /etc/systemd/system/
     mode: '0644'
   notify:
-    - reload systemd config
+    - Reload systemd config
     - Restart power monitor
   tags:
     - tuned

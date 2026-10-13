@@ -17,7 +17,7 @@
     name: charge_control.service
     state: restarted
 
-- name: reload systemd config
+- name: Reload systemd config
   become: true
   ansible.builtin.systemd:
     daemon_reload: true
