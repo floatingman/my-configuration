@@ -1,0 +1,152 @@
+#! /bin/bash
+# Original stolen from Kobus van Schoor:
+# https://kobusvs.co.za/blog/power-profile-switching/
+#
+# 2026-08-20: display policy added.
+#   - Force AMD panel_power_savings (ABM / "Vari-Bright") to 0 in every state.
+#     TuneD's "powersave" profile (pulled in by laptop-battery-powersave when
+#     battery < LOW_BAT_PERCENT) sets it to 3, which dynamically reduces panel
+#     backlight based on on-screen content over a few minutes -- perceived as
+#     "brightness keeps dropping". Re-zero it after every profile switch.
+#   - Backlight: near-max on AC, BAT_BRIGHT_PERCENT on battery. Applied only on
+#     power-source/profile transitions so manual brightness tweaks are kept.
+#   - AC is capped at AC_BRIGHT_PERCENT, not true max: this panel (Framework 16
+#     amdgpu, kernel ~7.1.6+) has a bug where brightness at/near 100% drives the
+#     panel DARKER. ~96% is the known-good top of the range. Proper fix is the
+#     amdgpu.dcdebugmask=0x40000 kernel parameter.
+#
+# 2026-10-12: power-source detection made generic; knobs templated.
+#   - The old script hardcoded /sys/class/power_supply/ACAD/online
+#     (Framework's supply name). On laptops whose mains supply is named AC,
+#     ADP1, ... the read returned empty, never equalled "0", and the script
+#     permanently sat on the AC profile -- zero power saving on battery.
+#     Every supply of type Mains is now checked, plus online USB sources
+#     (USB-C docks on machines whose Mains supply tracks the barrel jack
+#     only); with no Mains supply at all the machine is assumed to be on AC.
+#   - The old script globbed BAT* into one path, so with two batteries
+#     ("BAT0 BAT1/capacity") the capacity test silently failed and always
+#     took the low-battery branch. Charge is now aggregated across all
+#     batteries, weighting dead secondary cells by their remaining capacity.
+#   - Policy constants moved to laptop_* role variables (defaults/main.yml).
+
+LOW_BAT_PERCENT={{ laptop_low_bat_percent }}
+
+AC_PROFILE="{{ laptop_ac_profile }}"
+BAT_PROFILE="{{ laptop_battery_profile }}"
+LOW_BAT_PROFILE="{{ laptop_low_bat_profile }}"
+
+# --- display policy ---
+AC_BRIGHT_PERCENT={{ laptop_ac_brightness_percent }}
+BAT_BRIGHT_PERCENT={{ laptop_battery_brightness_percent }}
+BL=
+for _bl in /sys/class/backlight/*; do
+    if [[ -r "$_bl/max_brightness" ]]; then
+        BL=$_bl
+        break
+    fi
+done
+BL_MAX=0
+[[ -z $BL ]] || BL_MAX=$(cat "$BL/max_brightness")
+
+# True when the machine is on external power. Mains supplies are named ACAD
+# (Framework), AC (ThinkPad), ADP1, ... depending on vendor, so detect by
+# type instead of name.
+on_ac() {
+    local psy type found_mains=0
+    for psy in /sys/class/power_supply/*; do
+        type=$(cat "$psy/type" 2>/dev/null) || continue
+        if [[ $type == "Mains" ]]; then
+            found_mains=1
+            [[ $(cat "$psy/online" 2>/dev/null) == "1" ]] && return 0
+        elif [[ $type == "USB" && $(cat "$psy/online" 2>/dev/null) == "1" ]]; then
+            return 0
+        fi
+    done
+    # no Mains supply found at all: desktop hardware, assume always on AC
+    [[ $found_mains -eq 0 ]]
+}
+
+# Print aggregate state of charge (percent) across all batteries; energy
+# counters first with charge counters as fallback. Returns 1 when no battery
+# reports anything.
+battery_percent() {
+    local psy now full now_sum=0 full_sum=0
+    for psy in /sys/class/power_supply/BAT*; do
+        [[ -d $psy ]] || continue
+        now=$(cat "$psy/energy_now" 2>/dev/null)
+        full=$(cat "$psy/energy_full" 2>/dev/null)
+        if [[ -z $now || -z $full || $full -eq 0 ]]; then
+            now=$(cat "$psy/charge_now" 2>/dev/null)
+            full=$(cat "$psy/charge_full" 2>/dev/null)
+        fi
+        if [[ -n $now && -n $full && $full -gt 0 ]]; then
+            now_sum=$((now_sum + now))
+            full_sum=$((full_sum + full))
+        fi
+    done
+    [[ $full_sum -gt 0 ]] || return 1
+    echo $((now_sum * 100 / full_sum))
+}
+
+kill_panel_abm() {
+    # 0 disables content-adaptive backlight dimming on all amdgpu panels
+    local pps
+    for pps in /sys/class/drm/*/amdgpu/panel_power_savings; do
+        [[ -e $pps ]] && echo 0 > "$pps" 2>/dev/null
+    done
+}
+
+apply_display() {
+    local level=0 source
+    if on_ac; then
+        level=$(( BL_MAX * AC_BRIGHT_PERCENT / 100 ))
+        source="AC"
+    else
+        level=$(( BL_MAX * BAT_BRIGHT_PERCENT / 100 ))
+        source="battery"
+    fi
+    if [[ -n $BL ]]; then
+        echo "$level" > "$BL/brightness"
+        echo "setting brightness to $level/$BL_MAX ($source)"
+    fi
+    kill_panel_abm
+}
+
+# wait a while if needed
+[[ -z $STARTUP_WAIT ]] || sleep "$STARTUP_WAIT"
+
+# start the monitor loop
+prev=$(tuned-adm active | tr -s ' ' | cut -d' ' -f4)
+first=true
+
+while true; do
+    # read the current state
+    if on_ac; then
+        profile=$AC_PROFILE
+    else
+        percent=$(battery_percent)
+        if [[ -n $percent && $percent -gt $LOW_BAT_PERCENT ]]; then
+            profile=$BAT_PROFILE
+        else
+            profile=$LOW_BAT_PROFILE
+        fi
+    fi
+
+    # set the new profile
+    if [[ $prev != "$profile" ]]; then
+        echo setting power profile to $profile
+        # powerprofilesctl set $profile
+        tuned-adm profile $profile
+    fi
+
+    # apply display policy on every transition (and once at startup); must run
+    # after tuned-adm so any panel_power_savings the profile set gets zeroed
+    if [[ $prev != "$profile" || $first == true ]]; then
+        apply_display
+        first=false
+    fi
+
+    prev=$profile
+
+    sleep 10s
+done

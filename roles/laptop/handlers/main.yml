@@ -16,3 +16,14 @@
   ansible.builtin.service:
     name: charge_control.service
     state: restarted
+
+- name: reload systemd config
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart charge thresholds
+  become: true
+  ansible.builtin.service:
+    name: charge-thresholds.service
+    state: restarted

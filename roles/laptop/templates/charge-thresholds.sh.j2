@@ -1,0 +1,31 @@
+#!/bin/bash
+# Write vendor-generic battery charge thresholds to every battery that
+# exposes them, to slow battery wear. Two kernel interfaces exist:
+# charge_control_{start,end}_threshold (standard) and the legacy ThinkPad
+# charge_{start,stop}_threshold; prefer the standard one when present.
+# Most ECs keep the values across reboots; the service re-applies them at
+# boot regardless. Framework laptops never see this script (the role deploys
+# ectool chargecontrol.service there) and the TLP backend manages thresholds
+# via /etc/tlp.d/20-battery.conf instead.
+set -u
+START={{ laptop_charge_start_threshold }}
+STOP={{ laptop_charge_stop_threshold }}
+rc=0
+
+for bat in /sys/class/power_supply/BAT*; do
+    [[ -d $bat ]] || continue
+    for iface in charge_control charge; do
+        start_file="$bat/${iface}_start_threshold"
+        end_file="$bat/${iface}_end_threshold"
+        [[ -w $start_file ]] || continue
+        if echo "$START" > "$start_file" 2>/dev/null \
+            && echo "$STOP" > "$end_file" 2>/dev/null; then
+            echo "$(basename "$bat"): ${iface}_* thresholds -> $START/$STOP"
+        else
+            echo "failed to set ${iface}_* thresholds on $(basename "$bat")" >&2
+            rc=1
+        fi
+        break
+    done
+done
+exit $rc
