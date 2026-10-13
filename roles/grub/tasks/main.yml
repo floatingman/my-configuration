@@ -71,11 +71,16 @@
     - '"splash" in grub_kernel_parameters.split()'
 
 - name: Parse HOOKS token list
-  # Strip the HOOKS=( ... ) wrapper: raw stdout.split() would yield
-  # 'HOOKS=(encrypt' / 'encrypt)' and miss encrypt at array boundaries.
+  # Reduce to the bare token list before splitting: raw stdout.split()
+  # would yield 'HOOKS=(encrypt' / 'encrypt)' and miss encrypt at array
+  # boundaries. Strip every HOOKS= marker and wrapper parenthesis rather
+  # than unwrapping exactly one layer: earlier versions of this task
+  # re-wrapped an already-nested line on every run (HOOKS=(HOOKS=(...)),
+  # breaking mkinitcpio), so the parse must converge from any nesting
+  # depth, not just a well-formed line.
   ansible.builtin.set_fact:
     grub_mkinitcpio_hooks_tokens: >-
-      {{ (grub_mkinitcpio_hooks.stdout | default('') | regex_replace('^HOOKS=\\((.*)\\)', '\\1') | trim).split() }}
+      {{ (grub_mkinitcpio_hooks.stdout | default('') | regex_replace('HOOKS=', '') | regex_replace('[()]', '') | trim).split() }}
   when:
     - ansible_facts["distribution"] == "Archlinux"
     - grub_kernel_parameters is not none
