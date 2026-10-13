@@ -1,0 +1,13 @@
+---
+- name: Reload udev rules
+  become: true
+  ansible.builtin.command: udevadm control --reload
+
+- name: Reload Synology user systemd config
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.systemd:
+    scope: user
+    daemon_reload: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"

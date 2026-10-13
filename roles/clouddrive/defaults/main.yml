@@ -1,0 +1,9 @@
+---
+# Stop the Synology Drive client while on battery (power gating).
+# true: replaces the app's XDG autostart entry with a systemd user unit
+# (cgroup owns the whole cloud-drive process tree) that a udev power gate
+# stops on battery and starts on external power; logins on battery stay off
+# via an ExecStartPre check.
+# null/false: plain vendor autostart; unit, gate script and udev rule are
+# removed and the autostart entry restored.
+clouddrive_stop_on_battery: null

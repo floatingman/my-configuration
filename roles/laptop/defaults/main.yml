@@ -2,7 +2,13 @@
 # Power management backend to install and configure.
 # Valid values: "tlp" | "tuned"
 # Override in group_vars/all/local.yml for machine-specific selection.
+
 laptop_power_management: tuned
+
+# Enable iwlwifi WiFi power saving (module option + immediate runtime
+# apply). Saves ~0.3-0.7 W on battery for slightly higher WiFi latency.
+# Only used by the tuned backend; TLP manages WiFi power itself.
+laptop_wifi_powersave: true
 
 # --- power_monitor.sh policy (tuned backend only) ---
 # TuneD profiles switched between by power source; names must appear in

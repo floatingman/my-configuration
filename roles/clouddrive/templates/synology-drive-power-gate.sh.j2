@@ -1,0 +1,31 @@
+#!/bin/bash
+# Power gate for the Synology Drive user service: stop it on battery, start
+# it on external power. Runs from a udev rule on Mains supply events (as
+# root, no session environment) and as ExecStartPre --check when the unit
+# starts, so a graphical login on battery leaves the client off.
+set -u
+on_ac=0
+for psy in /sys/class/power_supply/*; do
+    type=$(cat "$psy/type" 2>/dev/null) || continue
+    if [[ $type == "Mains" || $type == USB* ]] && [[ $(cat "$psy/online" 2>/dev/null) == "1" ]]; then
+        on_ac=1
+        break
+    fi
+done
+
+if [[ ${1:-} == "--check" ]]; then
+    # ExecStartPre: refuse to start the client on battery
+    [[ $on_ac -eq 1 ]]
+    exit $?
+fi
+
+# tolerate failures: the user manager does not exist before first login
+run() {
+    runuser -u {{ user.name }} -- env XDG_RUNTIME_DIR=/run/user/{{ user.uid }} \
+        systemctl --user "$1" synology-drive.service || true
+}
+if [[ $on_ac -eq 1 ]]; then
+    run start
+else
+    run stop
+fi

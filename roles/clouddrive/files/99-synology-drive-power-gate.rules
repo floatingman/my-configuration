@@ -1,0 +1,4 @@
+# Power-gate Synology Drive on external-power events (plug, unplug, boot).
+# ATTR type Mains filters out battery supplies: their capacity updates fire
+# change events roughly every minute and would spam the gate.
+ACTION=="add|change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/local/bin/synology-drive-power-gate.sh"

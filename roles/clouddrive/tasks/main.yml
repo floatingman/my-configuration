@@ -9,3 +9,93 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+- name: Install Synology Drive power gate script
+  become: true
+  ansible.builtin.template:
+    src: synology-drive-power-gate.sh.j2
+    dest: /usr/local/bin/synology-drive-power-gate.sh
+    mode: '0755'
+  when: clouddrive_stop_on_battery | default(false) | bool
+
+- name: Install Synology Drive power gate udev rule
+  become: true
+  ansible.builtin.copy:
+    src: 99-synology-drive-power-gate.rules
+    dest: /etc/udev/rules.d/
+    mode: '0644'
+  when: clouddrive_stop_on_battery | default(false) | bool
+  notify:
+    - Reload udev rules
+
+- name: Install power-gated Synology Drive user unit
+  become: true
+  ansible.builtin.template:
+    src: synology-drive.service.j2
+    dest: /etc/systemd/user/synology-drive.service
+    mode: '0644'
+  when: clouddrive_stop_on_battery | default(false) | bool
+  notify:
+    - Reload Synology user systemd config
+
+- name: Enable power-gated Synology Drive user unit
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.systemd:
+    scope: user
+    name: synology-drive.service
+    enabled: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: clouddrive_stop_on_battery | default(false) | bool
+
+- name: Remove XDG autostart entry superseded by the user unit
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/autostart/synology-drive-autostart.desktop"
+    state: absent
+  when: clouddrive_stop_on_battery | default(false) | bool
+
+- name: Disable power-gated Synology Drive user unit
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.systemd:
+    scope: user
+    name: synology-drive.service
+    enabled: false
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: not (clouddrive_stop_on_battery | default(false) | bool)
+
+- name: Remove power gate artifacts
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/user/synology-drive.service
+    - /etc/udev/rules.d/99-synology-drive-power-gate.rules
+    - /usr/local/bin/synology-drive-power-gate.sh
+  when: not (clouddrive_stop_on_battery | default(false) | bool)
+  notify:
+    - Reload udev rules
+    - Reload Synology user systemd config
+
+- name: Ensure autostart directory exists
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/autostart"
+    state: directory
+    mode: '0755'
+  when: not (clouddrive_stop_on_battery | default(false) | bool)
+
+- name: Restore Synology Drive XDG autostart entry
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.template:
+    src: synology-drive-autostart.desktop.j2
+    dest: "/home/{{ user.name }}/.config/autostart/synology-drive-autostart.desktop"
+    mode: '0644'
+  when: not (clouddrive_stop_on_battery | default(false) | bool)
