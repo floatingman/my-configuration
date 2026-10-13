@@ -49,8 +49,7 @@
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
   when: clouddrive_stop_on_battery | default(false) | bool
-
-- name: Check gated Synology Drive unit state
+- name: Check gated Synology Drive unit state  # noqa: command-instead-of-module
   become: true
   become_user: "{{ user.name }}"
   ansible.builtin.command: systemctl --user is-active synology-drive.service
