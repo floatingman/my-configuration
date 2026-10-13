@@ -1,0 +1,17 @@
+[Unit]
+Description=Synology Drive client (power-gated on battery)
+# WantedBy starts the unit at graphical login; ExecStartPre refuses the
+# start while on battery so a battery login leaves the client off. Plug
+# events re-start it via the udev power gate.
+
+[Service]
+Environment=LD_LIBRARY_PATH=/home/{{ user.name }}/.SynologyDrive/SynologyDrive.app/lib:/opt/Synology/SynologyDrive/lib
+Environment=QT_QPA_PLATFORMTHEME=gnome
+ExecStartPre=/usr/local/bin/synology-drive-power-gate.sh --check
+ExecStart=/home/{{ user.name }}/.SynologyDrive/SynologyDrive.app/bin/cloud-drive-ui
+# cloud-drive-ui ignores SIGTERM; keep the stop window short so plug/unplug
+# transitions do not leave the old tree alive for the 90s default
+TimeoutStopSec=5
+
+[Install]
+WantedBy=graphical-session.target

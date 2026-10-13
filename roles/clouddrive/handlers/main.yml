@@ -1,0 +1,19 @@
+---
+- name: Reload udev rules
+  become: true
+  ansible.builtin.command: udevadm control --reload
+  changed_when: false
+
+- name: Apply Synology power gate
+  become: true
+  ansible.builtin.command: /usr/local/bin/synology-drive-power-gate.sh
+  changed_when: false
+
+- name: Reload Synology user systemd config
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.systemd:
+    scope: user
+    daemon_reload: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"

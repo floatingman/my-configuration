@@ -97,3 +97,12 @@
     - Reload systemd config
   tags:
     - tlp
+
+- name: Remove TuneD-era iwlwifi power save module option
+  # TLP is the sole WiFi power manager on this backend
+  become: true
+  ansible.builtin.file:
+    path: /etc/modprobe.d/iwlwifi-powersave.conf
+    state: absent
+  tags:
+    - tlp

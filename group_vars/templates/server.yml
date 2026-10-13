@@ -27,6 +27,8 @@ laptop: false # No power mgmt or trackpad config on servers
 # laptop_battery_brightness_percent: 50      # backlight % on battery
 # laptop_charge_start_threshold: 80          # charge thresholds for batteries exposing sysfs files
 # laptop_charge_stop_threshold: 90           # (Framework uses ectool; the TLP backend has its own conf)
+# laptop_wifi_powersave: true                # iwlwifi power saving (tuned backend only)
+# clouddrive_stop_on_battery: true           # stop Synology Drive on battery (udev power gate + user unit)
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
 # Boot
