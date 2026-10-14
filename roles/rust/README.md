@@ -6,12 +6,12 @@ This role installs Rust and Cargo **system-wide** so that every user on the mach
 
 | Path | Contents |
 |------|----------|
-| `/opt/rust` (`RUSTUP_HOME`) | rustup data + toolchains (owner `root:devtools`, mode `2775`) |
+| `/opt/rust` (`RUSTUP_HOME`) | rustup data + toolchains (owner `root:devtools`; directories mode `2775`, files keep rustup's modes — never setgid on files) |
 | `/opt/rust/cargo` (`CARGO_HOME`) | cargo registry, cache, and the rustup-managed proxy binaries (`cargo`, `rustc`, `rustup`) |
 | `/opt/rust/cargo/bin` | The executables placed on PATH |
 | `/etc/profile.d/rust.sh` | Exports `RUSTUP_HOME`, `CARGO_HOME`, and adds `$CARGO_HOME/bin` to PATH for all login shells |
 
-The installation is owned by `root:devtools` with mode `2775` (group-writable + setgid). Add users to the `devtools` group to grant them write access for installing additional crates; all users can read and execute the tools.
+The installation is owned by `root:devtools`. Directories are mode `2775` (group-writable + setgid so new entries inherit the `devtools` group); files keep the modes rustup installed them with. Setgid must never be applied to the files themselves — a setgid `rustc` triggers secure-execution mode (`AT_SECURE`), which makes glibc refuse to expand `$ORIGIN` in rustc's RUNPATH, and every compile fails with `librustc_driver-*.so: cannot open shared object file` (see MISTAKES.md, 2026-10-14). Add users to the `devtools` group to grant them write access for `rustup update` / installing additional crates (file creation/replacement goes through the group-writable directories); all users can read and execute the tools.
 
 ## What This Role Does
 
@@ -19,7 +19,7 @@ The installation is owned by `root:devtools` with mode `2775` (group-writable + 
 2. **Checks for an existing install** — by testing for `/opt/rust/cargo/bin/rustup` (where rustup actually installs its own binary; *not* `$RUSTUP_HOME/bin/rustup`).
 3. **Creates** `/opt/rust`, `/opt/rust/cargo`, and `/opt/rust/cargo/bin` with the correct ownership.
 4. **Downloads and runs rustup-init** with `--default-toolchain stable --no-modify-path --profile minimal`, pinned to the system-wide `RUSTUP_HOME`/`CARGO_HOME`.
-5. **Sets ownership** of the whole tree to `root:devtools` (mode `2775`).
+5. **Sets ownership** of the whole tree to `root:devtools`, and mode `2775` on **directories only** (setgid on files would break rustc; see above).
 6. **Writes `/etc/profile.d/rust.sh`** so the tools are on PATH for every user.
 7. **Installs cargo packages** from `rust_cargo_packages`, skipping any that are already installed. A single failing crate does **not** abort the playbook — failures are reported as warnings at the end.
 

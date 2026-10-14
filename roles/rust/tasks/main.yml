@@ -81,14 +81,38 @@
   become: true
   when: not rust_rustup_installed.stat.exists
 
+# Ownership/group recursion is fine, but mode "2775" must NEVER be applied
+# recursively: setgid on regular files (rustc, cargo, librustc_driver-*.so)
+# makes the kernel mark the process AT_SECURE at exec (egid devtools != rgid),
+# so glibc refuses to expand $ORIGIN in rustc's RUNPATH and every compile dies
+# with "librustc_driver-*.so: cannot open shared object file" (see
+# MISTAKES.md 2026-10-14). Only directories get setgid + group write; that is
+# still enough for devtools members to run `rustup update` / `cargo install`,
+# because those create/replace files through group-writable directories.
 - name: Set ownership of Rust installation
   ansible.builtin.file:
     path: "{{ rust_rustup_home }}"
     owner: root
     group: devtools
-    mode: "2775"
     state: directory
     recurse: true
+  become: true
+
+- name: Find Rust installation directories
+  ansible.builtin.find:
+    path: "{{ rust_rustup_home }}"
+    file_type: directory
+    hidden: true
+    recurse: true
+  register: rust_install_dirs
+
+- name: Set setgid and group-write on Rust directories only
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "2775"
+  loop: "{{ rust_install_dirs.files }}"
+  loop_control:
+    label: "{{ item.path }}"
   become: true
 
 - name: Create /etc/profile.d/rust.sh for system-wide PATH
