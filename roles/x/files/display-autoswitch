@@ -1,0 +1,29 @@
+#!/bin/sh
+# display-autoswitch — root entry point for automatic display switching.
+#
+# Started by the packaged udev rule 40-monitor-hotplug.rules on every DRM
+# change event (monitor plugged/unplugged), by systemd after resume
+# (autorandr.service is enabled for sleep.target), and by the lid watcher
+# (autorandr-lid-watcher.service) when the laptop lid opens or closes.
+#
+# It applies the best-matching autorandr profile in every open X11 session
+# (existing profiles in ~/.config/autorandr stay the source of truth for
+# layout, resolutions and per-output options) and then enforces the lid rule
+# on the internal panel (lid closed -> panel off, lid open -> panel back on),
+# which also covers the cases where autorandr has no matching profile and
+# would otherwise keep the current configuration untouched.
+#
+# Deployed by the x role (x_display_autoswitch).
+
+set -u
+
+# Give DRM connector storms time to settle: plugging a dock fires several
+# udev change events and the kernel takes a moment to expose all outputs.
+sleep 1
+
+# --batch dispatches to every open X11 session itself and refuses to run
+# when DISPLAY is set in our own environment, so scrub it.
+env -u DISPLAY -u WAYLAND_DISPLAY /usr/bin/autorandr --batch --change
+
+# Enforce the lid rule even when no profile was (re)loaded above.
+/usr/local/bin/display-session-exec /usr/local/bin/display-lid-enforce

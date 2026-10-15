@@ -1,0 +1,18 @@
+# Laptop lid watcher: starts autorandr.service whenever the lid opens or
+# closes, so display switching reacts to the lid even though lid toggles do
+# not produce DRM udev events on most hardware.
+#
+# Deployed by the x role on laptops only (x_display_autoswitch + laptop).
+[Unit]
+Description=Watch laptop lid state and trigger autorandr display switching
+ConditionPathExists=/proc/acpi/button/lid
+After=systemd-udevd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/display-lid-watch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

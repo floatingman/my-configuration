@@ -42,6 +42,7 @@ laptop: false # No power mgmt or trackpad config on servers
 # disable_gnome: false      # Manual mode: set true to skip GNOME install
 # disable_awesomewm: false  # Manual mode: set true to skip AwesomeWM install
 # disable_kde: false        # Manual mode: set true to skip KDE install
+# x_display_autoswitch: true  # auto-apply autorandr profiles on hotplug/resume; laptop lid turns the internal panel off/on (roles/x)
 dotfiles_config:
   repo_url: "https://github.com/{{ user.githubuser }}/dotfiles.git"
   branch: main              # Git branch for dotfiles

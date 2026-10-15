@@ -1,0 +1,28 @@
+# Our override of the autorandr package's systemd unit.
+#
+# The packaged unit (in /usr/lib/systemd/system) runs plain
+# `autorandr --batch --change --default default`. This copy in
+# /etc/systemd/system shadows it and runs display-autoswitch instead, which
+# additionally enforces the lid rule on the internal panel (lid closed ->
+# panel off, lid open -> panel back on), including the cases where no saved
+# autorandr profile matches and autorandr would keep the current setup.
+#
+# Started by the packaged 40-monitor-hotplug.rules udev rule on DRM change
+# events (monitor hotplug) and, via the sleep.target enablement done by the
+# x role, after every resume from suspend. The lid watcher
+# (autorandr-lid-watcher.service) starts it on lid open/close.
+#
+# No StartLimitIntervalSec/Burst override: the packaged 5s/1 limit would drop
+# legitimate re-triggers (a dock fires several udev events); systemd merges
+# concurrent start requests for a running oneshot anyway.
+[Unit]
+Description=autorandr display auto-switch (monitor hotplug, lid, resume)
+Documentation=man:autorandr(1)
+After=sleep.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/display-autoswitch
+
+[Install]
+WantedBy=sleep.target

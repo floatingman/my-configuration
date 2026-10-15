@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Run a command inside every open local X11 session, as the session user.
+
+Mirrors what `autorandr --batch` does to reach X sessions from a root
+systemd unit: scan /proc/<pid>/environ for DISPLAY + XAUTHORITY, then fork,
+drop privileges to the owning user, and exec the command with that process
+environment. Used by display-autoswitch to enforce the laptop lid rule after
+autorandr has (or has not) applied a profile.
+
+Usage: display-session-exec <command> [args ...]
+
+Exits 0 when no X11 session is found (e.g. at the login prompt or on
+headless machines); prints one line per dispatched session for the journal.
+
+Deployed by the x role (x_display_autoswitch).
+"""
+
+import os
+import pwd
+import sys
+
+# First "real" user uid, same default autorandr --batch uses. Override with
+# AUTORANDR_UID_MIN for systems whose users start below 1000.
+UID_MIN = int(os.environ.get("AUTORANDR_UID_MIN", "1000"))
+
+
+def x11_sessions():
+    """Yield (uid, env) for every distinct local X11 session found in /proc."""
+    seen = set()
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        environ = os.path.join("/proc", entry, "environ")
+        try:
+            if not os.path.isfile(environ):
+                continue
+            uid = os.stat(environ).st_uid
+            if uid < UID_MIN:
+                continue
+            with open(environ, "rb") as f:
+                env = {}
+                for item in f.read().split(b"\0"):
+                    try:
+                        name, sep, value = item.decode("ascii").partition("=")
+                    except UnicodeDecodeError:
+                        continue
+                    if name and sep:
+                        env[name] = value
+        except (OSError, ValueError):
+            continue
+        display = env.get("DISPLAY")
+        if not display:
+            continue
+        if env.get("WAYLAND_DISPLAY"):
+            # Wayland sessions have no xrandr; leave them alone.
+            continue
+        if "XAUTHORITY" not in env:
+            # Without a cookie we cannot talk to the server anyway.
+            continue
+        # :0.0 and :0 are the same server; deduplicate.
+        display = display.split(".", 1)[0]
+        env["DISPLAY"] = display
+        key = (uid, display)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield uid, env
+
+
+def run_as(uid, env, command):
+    try:
+        pwent = pwd.getpwuid(uid)
+    except KeyError:
+        return
+    print("display-session-exec: running %s as %s on display %s"
+          % (" ".join(command), pwent.pw_name, env["DISPLAY"]))
+    child = os.fork()
+    if child == 0:
+        try:
+            os.setgroups(os.getgrouplist(pwent.pw_name, pwent.pw_gid))
+            os.setresgid(pwent.pw_gid, pwent.pw_gid, pwent.pw_gid)
+            os.setresuid(pwent.pw_uid, pwent.pw_uid, pwent.pw_uid)
+            os.chdir(pwent.pw_dir)
+            os.environ.clear()
+            os.environ.update(env)
+            os.execv(command[0], command)
+        except Exception as exc:  # noqa: BLE001 - report and fail the child
+            print("display-session-exec: %s" % exc, file=sys.stderr)
+        os._exit(1)
+    _, status = os.waitpid(child, 0)
+    if status != 0:
+        print("display-session-exec: %s exited with status %d"
+              % (command[0], status), file=sys.stderr)
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit("usage: display-session-exec <command> [args ...]")
+    if os.getuid() != 0:
+        sys.exit("display-session-exec: must run as root")
+    command = sys.argv[1:]
+    for uid, env in x11_sessions():
+        run_as(uid, env, command)
+
+
+if __name__ == "__main__":
+    main()

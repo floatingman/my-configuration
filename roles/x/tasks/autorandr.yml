@@ -15,10 +15,128 @@
   tags:
     - autorandr
 
+# ---------------------------------------------------------------------------
+# Automatic display switching (x_display_autoswitch)
+# ---------------------------------------------------------------------------
+# The autorandr package ships a udev rule (40-monitor-hotplug.rules) that
+# starts autorandr.service on every DRM change event, i.e. whenever a monitor
+# is plugged in or removed. We shadow the packaged unit with our own that
+# runs display-autoswitch: apply the best autorandr profile in every open
+# X11 session, then enforce the laptop lid rule on the internal panel (lid
+# closed -> panel off, lid open -> panel back on). The saved autorandr
+# profiles (dotfiles, ~/.config/autorandr) stay the source of truth for
+# layouts and per-output settings; nothing below saves or edits profiles.
+# The i3 session itself starts with `exec_always autorandr --change` (i3
+# config), and the postswitch hook below enforces the lid rule right after
+# that login-time application.
+
+- name: Install display auto-switch wrapper script
+  become: true
+  ansible.builtin.copy:
+    src: display-autoswitch
+    dest: /usr/local/bin/display-autoswitch
+    mode: '0755'
+  when: x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Install X11 session dispatcher for display scripts
+  become: true
+  ansible.builtin.copy:
+    src: display-session-exec
+    dest: /usr/local/bin/display-session-exec
+    mode: '0755'
+  when: x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Install lid rule enforcement script
+  become: true
+  ansible.builtin.copy:
+    src: display-lid-enforce
+    dest: /usr/local/bin/display-lid-enforce
+    mode: '0755'
+  when: x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Override packaged autorandr.service with display auto-switch hook
+  become: true
+  ansible.builtin.copy:
+    src: autorandr.service
+    dest: /etc/systemd/system/autorandr.service
+    mode: '0644'
+  when: x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Create system-wide autorandr postswitch hook directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/xdg/autorandr/postswitch.d
+    state: directory
+    mode: '0755'
+  when: x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Enforce lid rule after every autorandr profile switch
+  become: true
+  ansible.builtin.file:
+    src: /usr/local/bin/display-lid-enforce
+    dest: /etc/xdg/autorandr/postswitch.d/10-lid-enforce
+    state: link
+    force: true
+  when: x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+# --- laptop lid watcher (lid toggles produce no DRM udev events) -----------
+
+- name: Install lid state watcher script
+  become: true
+  ansible.builtin.copy:
+    src: display-lid-watch
+    dest: /usr/local/bin/display-lid-watch
+    mode: '0755'
+  when:
+    - x_display_autoswitch | bool
+    - laptop | default(false) | bool
+  notify: Restart autorandr lid watcher
+  tags:
+    - autorandr
+
+- name: Install autorandr lid watcher unit
+  become: true
+  ansible.builtin.copy:
+    src: autorandr-lid-watcher.service
+    dest: /etc/systemd/system/autorandr-lid-watcher.service
+    mode: '0644'
+  when:
+    - x_display_autoswitch | bool
+    - laptop | default(false) | bool
+  notify: Restart autorandr lid watcher
+  tags:
+    - autorandr
+
+- name: Enable and start autorandr lid watcher
+  become: true
+  ansible.builtin.systemd:
+    name: autorandr-lid-watcher.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - x_display_autoswitch | bool
+    - laptop | default(false) | bool
+  tags:
+    - autorandr
+
 - name: Enable autorandr.service to ensure it starts after wake from suspend
   become: true
   ansible.builtin.systemd:
     name: autorandr
     enabled: true
+    daemon_reload: true
   tags:
     - autorandr

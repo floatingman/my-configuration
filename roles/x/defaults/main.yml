@@ -1,0 +1,16 @@
+---
+# Automatic display switching for X11 sessions (monitor hotplug + lid).
+#
+# When true, the x role:
+#   * shadows the packaged autorandr.service with a wrapper that applies the
+#     best autorandr profile in every open X11 session on monitor
+#     plug/unplug (packaged udev rule) and on resume (sleep.target);
+#   * installs a system-wide autorandr postswitch hook that enforces the lid
+#     rule after every profile application (lid closed → internal panel off,
+#     lid open → back on);
+#   * on laptops (`laptop: true`), runs a lid watcher service that triggers
+#     the same switch when the lid opens or closes.
+#
+# Set false to keep only the packaged behaviour (autorandr.service re-runs
+# `autorandr --change` after resume; nothing reacts to hotplug or the lid).
+x_display_autoswitch: true

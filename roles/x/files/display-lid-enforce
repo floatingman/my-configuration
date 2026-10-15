@@ -1,0 +1,107 @@
+#!/bin/sh
+# display-lid-enforce — enforce the laptop lid rule on the internal panel.
+#
+#   lid closed -> internal panel(s) off
+#   lid open   -> internal panel(s) back on (preferred mode; placed right of
+#                 the primary external output when one is active)
+#
+# autorandr already treats a closed lid as "internal panel disconnected"
+# while external monitors are attached, but only when a matching saved
+# profile exists for that exact connectivity. This script closes the gaps:
+# lid closed with no matching profile (panel would stay on) and lid opened
+# after a profile that keeps the panel off was applied (panel would stay
+# off). It is idempotent and only calls xrandr when something must change.
+#
+# Runs inside the X11 session (needs DISPLAY/XAUTHORITY):
+#   * /etc/xdg/autorandr/postswitch.d/10-lid-enforce — after every profile
+#     application, including the `exec_always autorandr --change` line in
+#     the i3 config at login;
+#   * display-autoswitch via display-session-exec — on monitor hotplug,
+#     resume and lid toggles.
+#
+# Exits 0 silently on desktops (no lid or no internal panel) and outside X.
+#
+# Deployed by the x role (x_display_autoswitch).
+
+set -u
+
+DRY_RUN=false
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=true
+
+# --- lid state (same source autorandr's is_closed_lid reads) ---------------
+lid=unknown
+if [ -d /proc/acpi/button/lid ]; then
+    lid=open
+    for state_file in /proc/acpi/button/lid/*/state; do
+        if [ -r "$state_file" ] && grep -q close "$state_file"; then
+            lid=closed
+        fi
+    done
+fi
+[ "$lid" = unknown ] && exit 0
+
+# --- current output layout --------------------------------------------------
+# One line per connected output: "<name> <active 0|1> <primary 0|1> <internal 0|1>".
+# An output is active when its xrandr status line carries a geometry
+# ("1920x1080+0+0"); connected-but-disabled outputs have none.
+layout=$(xrandr --query 2>/dev/null | awk '
+    $2 == "connected" {
+        internal = ($1 ~ /^(eDP|LVDS)/) ? 1 : 0
+        active = ($0 ~ /[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/) ? 1 : 0
+        primary = ($0 ~ / primary /) ? 1 : 0
+        print $1, active, primary, internal
+    }')
+[ -n "$layout" ] || exit 0
+
+primary=""
+anchor=""
+internals_on=""
+internals_off=""
+while read -r name active prim internal; do
+    if [ "$internal" = 1 ]; then
+        if [ "$active" = 1 ]; then
+            internals_on="$internals_on $name"
+        else
+            internals_off="$internals_off $name"
+        fi
+    else
+        if [ "$prim" = 1 ] && [ "$active" = 1 ]; then
+            primary="$name"
+        fi
+        if [ -z "$anchor" ] && [ "$active" = 1 ]; then
+            anchor="$name"
+        fi
+    fi
+done <<EOF
+$layout
+EOF
+
+apply() {
+    if [ "$DRY_RUN" = true ]; then
+        echo "display-lid-enforce: (dry-run) $*"
+    else
+        echo "display-lid-enforce: $*"
+        xrandr "$@"
+    fi
+}
+
+if [ "$lid" = closed ]; then
+    for panel in $internals_on; do
+        apply --output "$panel" --off
+    done
+else
+    # Lid open: fall back to right-of-primary so the panel never comes back
+    # overlapping an external output; a saved profile that places it
+    # explicitly wins because then the panel is already on.
+    ref="$primary"
+    [ -z "$ref" ] && ref="$anchor"
+    for panel in $internals_off; do
+        if [ -n "$ref" ]; then
+            apply --output "$panel" --auto --right-of "$ref"
+        else
+            apply --output "$panel" --auto --primary
+        fi
+    done
+fi
+
+exit 0
