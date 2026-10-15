@@ -21,8 +21,10 @@
 # The script never sees the LUKS passphrase: cryptsetup luksKillSlot prompts
 # for it directly. Safe to re-run after a mid-migration failure — preflights
 # tolerate already-completed steps. The pre-migration /boot survives as
-# /boot.old inside the encrypted root; delete it once the new layout boots.
-# Recovery from a failed reboot: installer ISO, unlock, chroot (INSTALL.md).
+# /boot.old inside the encrypted root and is the only rollback while the
+# migration is unverified: delete it only after the new layout has booted
+# successfully. Recovery from a failed reboot: installer ISO, unlock,
+# chroot (INSTALL.md).
 
 set -euo pipefail
 trap 'echo "ERROR: migration failed at line $LINENO" >&2' ERR
@@ -60,12 +62,15 @@ log 'Preflight: layout checks'
 
 if findmnt -n /boot >/dev/null; then
   if [[ $(findmnt -no FSTYPE /boot) == vfat ]]; then
-    err '/boot is already a vfat mount — this machine looks migrated (delete /boot.old if it lingers)'
+    if compgen -G '/boot/vmlinuz-*' >/dev/null && [[ -f /boot/grub/grub.cfg ]]; then
+      err '/boot is already a vfat ESP mount with kernels and grub.cfg — this machine looks fully migrated; delete /boot.old only after a successful reboot, if it lingers'
+    fi
+    err '/boot is a vfat ESP mount without kernels/grub.cfg — an earlier migration did not complete. Keep /boot.old (it holds the only kernels) and finish the runbook in INSTALL.md: mount the ESP at /boot, copy vmlinuz-* from /boot.old, rebuild the initramfs, reinstall GRUB, regenerate grub.cfg'
   fi
   err '/boot is an unexpected mountpoint; refusing'
 fi
 [[ -e /boot.old ]] \
-  && err '/boot.old exists — resolve it first (delete it, or restore a partial attempt by hand)'
+  && err '/boot.old exists — resolve it first (delete it only after a verified boot, or finish the partial migration per INSTALL.md)'
 
 if ! findmnt -n /efi >/dev/null; then
   err 'the ESP is not mounted at /efi — mount it (mount /efi) and re-run'
@@ -216,9 +221,9 @@ log '3/8 move /boot onto the ESP'
 umount /efi
 mv /boot /boot.old
 mkdir /boot
-sed -i -E 's|^([^#[:space:]]+)[[:space:]]+/efi([[:space:]])|\1 /boot\2|' "$FSTAB"
+sed -i -E 's|^([[:space:]]*[^#[:space:]]+)[[:space:]]+/efi([[:space:]])|\1 /boot\2|' "$FSTAB"
 awk '$2 == "/boot" { found = 1 } END { exit !found }' "$FSTAB" \
-  || err 'fstab edit failed — point the ESP line at /boot by hand, mount /boot, and continue from the grub-install step (INSTALL.md)'
+  || err 'fstab edit failed — point the ESP line at /boot by hand (watch leading whitespace), mount /boot, then continue from the kernel-copy step of the runbook in INSTALL.md (kernels, initramfs, GRUB)'
 rmdir /efi 2>/dev/null || warn 'could not remove the now-empty /efi directory — remove it manually'
 mount /boot
 [[ $(findmnt -no FSTYPE /boot) == vfat ]] || err '/boot did not mount as vfat — check the fstab line'
@@ -237,11 +242,10 @@ esp_free_kb=$(df --output=avail /boot | awk 'NR == 2 { print $1 }')
   || warn "only $((esp_free_kb / 1024))MiB free on the ESP — future kernel updates will be tight"
 
 log '6/8 reinstall GRUB (UEFI)'
-if [[ -d /sys/firmware/efi/efivars ]]; then
-  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB --recheck --removable
-else
-  warn 'no efivars (BIOS boot?) — skipping the UEFI install; the BIOS one below still applies'
-fi
+# Unconditional, matching install.sh: --removable targets the fallback loader
+# path on the ESP and does not touch NVRAM, so it needs no EFI runtime vars
+# and refreshes the UEFI boot path even when this session booted legacy BIOS.
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB --recheck --removable
 
 log '7/8 reinstall GRUB (legacy BIOS)'
 grub-install --target=i386-pc --recheck "$DISK"
@@ -255,5 +259,5 @@ echo '     on the console (the plymouth hook is not in place yet)'
 echo '  2. set grub_theme and grub_kernel_parameters in group_vars/all/local.yml'
 echo '     (Boot section of the machine templates), then run make configure —'
 echo '     the grub role converges plymouth, the theme, and quiet splash'
-echo '  3. once the new layout boots, reclaim space with: rm -rf /boot.old'
+echo '  3. only after that reboot succeeds, reclaim space with: rm -rf /boot.old'
 echo '  recovery, if the reboot fails: installer ISO, unlock, chroot (INSTALL.md)'
