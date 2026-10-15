@@ -30,3 +30,24 @@ host always sets together. If a dict must self-merge, do it with an explicit
 `set_fact` + `combine()` before first use.
 **Verification:** `make configure TAGS=<role>` renders templates without
 "object of type 'dict' has no attribute" errors.
+
+### [2026-10-14] Recursive mode "2775" put setgid on Rust toolchain files
+
+**Mistake:** The rust role set `mode: "2775"` with `recurse: true` on
+`/opt/rust`, assuming the mode would only affect directories.
+**Root cause:** `ansible.builtin.file` applies `mode` literally to every file
+and directory when recursing. setgid on executables makes the kernel set
+`AT_SECURE` at exec (egid `devtools` != rgid), so glibc refuses to expand
+`$ORIGIN` in rustc's RUNPATH — every `cargo build`/`rustc` invocation fails
+with `librustc_driver-*.so: cannot open shared object file` even though the
+library exists (`ldd` misleadingly resolves it, because it never execs the
+binary).
+**Prevention:** Never recurse a mode containing setuid/setgid bits over a
+tree with executables. Recurse ownership only; apply `2775` to directories
+explicitly (`find` + `file` loop). File creation/replacement by group
+members still works through the group-writable directories. The role also
+carries an idempotent repair pass that strips setuid/setgid from regular
+files, so rerunning the playbook heals hosts broken by the old mode.
+**Verification:** `rustc --version` works as a non-root user after the role
+runs; `find /opt/rust -type f -perm /6000` returns nothing; `find /opt/rust
+-type d -perm /2000` still lists the directories.
