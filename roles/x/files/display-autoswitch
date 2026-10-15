@@ -13,6 +13,12 @@
 # which also covers the cases where autorandr has no matching profile and
 # would otherwise keep the current configuration untouched.
 #
+# autorandr itself is run per session through display-session-exec rather
+# than via `autorandr --batch`: our dispatcher scans /proc the same way but
+# tolerates processes exiting mid-scan, while autorandr 1.15's batch
+# dispatch dies with a "ProcessLookupError: /proc/<pid>/environ" traceback
+# in the journal whenever that race hits.
+#
 # Deployed by the x role (x_display_autoswitch).
 
 set -u
@@ -21,9 +27,7 @@ set -u
 # udev change events and the kernel takes a moment to expose all outputs.
 sleep 1
 
-# --batch dispatches to every open X11 session itself and refuses to run
-# when DISPLAY is set in our own environment, so scrub it.
-env -u DISPLAY -u WAYLAND_DISPLAY /usr/bin/autorandr --batch --change
+/usr/local/bin/display-session-exec /usr/bin/autorandr --change
 
 # Enforce the lid rule even when no profile was (re)loaded above.
 /usr/local/bin/display-session-exec /usr/local/bin/display-lid-enforce
