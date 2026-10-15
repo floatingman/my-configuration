@@ -162,6 +162,80 @@ Cleanup and reboot!
 
 After rebooting into your new system, log in as a regular user and run the Ansible playbook!
 
+## Migrating an existing machine
+
+Machines installed before the themed-boot change keep `/boot` on the encrypted
+root: GRUB unlocks it as a cryptodisk (its unthemeable passphrase prompt shows
+before any theme loads) using a LUKS keyfile embedded in the initramfs. The
+grub role's preflight asserts refuse to deploy onto that layout, so those
+machines need a one-time migration to the current layout (`/boot` on the ESP,
+no keyfile). Everything else (plymouth package and hook, theme, `quiet
+splash`, BootNext disable) is converged by the playbook after the migration.
+
+`scripts/migrate-boot-esp.sh` automates the steps below, with the same
+preflights and ordering (device walk from the mounted root, keyslot
+discovery, ESP free-space check). `--dry-run` prints the plan without
+mutating anything and works as a regular user; the real run needs root and
+prompts for the LUKS passphrase only inside `cryptsetup luksKillSlot`.
+
+Run the following as root on the running machine, then reboot once. If the
+reboot fails, recover the usual way (installer ISO, unlock, chroot); the
+pre-migration `/boot` survives as `/boot.old` inside the encrypted root and
+can be deleted once the new layout boots.
+
+Identify the disk and crypt device with `lsblk -f`; `/.install-env` on the
+installed system still records `INSTALL_DISK` and `INSTALL_DEVEFI` from
+install day when present.
+
+    $ export DISK=/dev/nvme0n1
+    $ export DEVCRYPT="$DISK"p3
+
+Drop the LUKS keyfile: strip it from `mkinitcpio.conf`, kill its keyslot
+(prompts for your real passphrase), and delete the file. The keyslot must go
+before the initramfs is rebuilt onto the unencrypted ESP.
+
+    $ sed -i -e 's|^FILES=.*|FILES=()|' -e 's|^#FILES=.*|FILES=()|' /etc/mkinitcpio.conf
+    $ for s in $(seq 0 31); do cryptsetup open --test-passphrase \
+        --key-slot "$s" --key-file /crypto_keyfile.bin "$DEVCRYPT" 2>/dev/null \
+        && echo "keyfile is slot $s"; done
+    $ cryptsetup luksKillSlot "$DEVCRYPT" <slot>
+    $ rm /crypto_keyfile.bin
+
+Move `/boot` onto the ESP (mounted at `/efi` on the old layout):
+
+    $ umount /efi
+    $ mv /boot /boot.old
+    $ mkdir /boot
+    $ sed -i 's|[[:space:]]/efi[[:space:]]| /boot |' /etc/fstab
+    $ rmdir /efi
+    $ mount /boot
+
+Copy the kernel images (and microcode images, when present) across —
+`mkinitcpio -P` only rebuilds initramfs images and never places kernels.
+Never copy the old initramfs: it embeds the keyfile.
+
+    $ cp -a /boot.old/vmlinuz-* /boot/
+    $ for f in /boot.old/*-ucode.img; do [[ -f "$f" ]] && cp -a "$f" /boot/; done
+
+Regenerate the boot artifacts in their new location. `mkinitcpio -P` writes
+keyfile-free images to the ESP; verify everything fits (512MiB holds one
+kernel, two initramfs images, GRUB, and the theme).
+
+    $ sed -i '/^GRUB_ENABLE_CRYPTODISK=/d' /etc/default/grub
+    $ mkinitcpio -P
+    $ df -h /boot
+    $ grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB --recheck --removable
+    $ grub-install --target=i386-pc --recheck "$DISK"
+    $ grub-mkconfig -o /boot/grub/grub.cfg
+
+Reboot: the GRUB menu is still unthemed and the LUKS prompt appears on the
+console (the plymouth hook is not in place yet). Log in, set `grub_theme` and
+`grub_kernel_parameters` in `group_vars/all/local.yml` (see the Boot section
+of the machine templates), and run `make configure`: both preflight asserts
+now pass and the grub role finishes the job; the next boot shows the themed
+splash. Machines installed from the older INSTALL_DUAL_BOOT.md layout follow
+the same steps.
+
 ## Running the Ansible Playbook
 
 The playbook is designed to be run by a non-superuser account with sudo privileges.
