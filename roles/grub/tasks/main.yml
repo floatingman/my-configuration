@@ -8,9 +8,10 @@
     that: ansible_facts["mounts"] | selectattr("mount", "equalto", "/boot") | map(attribute="fstype") | join("") == "vfat"
     fail_msg: >-
       /boot is not the vfat EFI partition this role's themed-boot path
-      assumes. Migrate the machine by reinstalling with the current
-      install.sh (see INSTALL.md), or disable the path for this host by
-      setting grub_theme: null and removing splash from
+      assumes. Migrate the machine (scripts/migrate-boot-esp.sh automates
+      it; see "Migrating an existing machine" in INSTALL.md; reinstalling
+      with the current install.sh also works), or disable the path for
+      this host by setting grub_theme: null and removing splash from
       grub_kernel_parameters in group_vars/all/local.yml.
   when:
     - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
@@ -31,9 +32,11 @@
     fail_msg: >-
       /etc/mkinitcpio.conf still references the legacy crypto_keyfile.bin
       keyfile. Strip the FILES= entry, delete /crypto_keyfile.bin, and drop
-      its keyslot (cryptsetup luksKillSlot with your passphrase) before
-      enabling themed boot: the rebuilt initramfs lives unencrypted on the
-      ESP and must not carry a LUKS key.
+      its keyslot (cryptsetup luksKillSlot with your passphrase;
+      scripts/migrate-boot-esp.sh automates it, or see "Migrating an
+      existing machine" in INSTALL.md) before enabling themed boot: the
+      rebuilt initramfs lives unencrypted on the ESP and must not carry a
+      LUKS key.
   when:
     - grub_theme is not none or (grub_kernel_parameters is not none and "splash" in grub_kernel_parameters.split())
 
