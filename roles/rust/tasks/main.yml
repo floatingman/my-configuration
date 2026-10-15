@@ -115,6 +115,26 @@
     label: "{{ item.path }}"
   become: true
 
+# Repair pass for hosts damaged by the OLD recursive "2775": regular files
+# that already carry setgid keep it forever, because the tasks above set
+# modes on directories only and never clear existing file modes. rustup
+# installs files with sane modes, so on healthy hosts this finds nothing
+# and changes nothing (idempotent no-op).
+- name: Find Rust regular files still carrying setuid/setgid bits
+  ansible.builtin.command:
+    cmd: find {{ rust_rustup_home }} -type f -perm /6000
+  register: rust_files_with_setid_bits
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Strip setuid/setgid bits from Rust regular files (legacy repair)
+  ansible.builtin.command:
+    cmd: find {{ rust_rustup_home }} -type f -perm /6000 -exec chmod a-s {} +
+  when: rust_files_with_setid_bits.stdout_lines | default([]) | length > 0
+  changed_when: true
+  become: true
+
 - name: Create /etc/profile.d/rust.sh for system-wide PATH
   ansible.builtin.copy:
     dest: /etc/profile.d/rust.sh

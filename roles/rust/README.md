@@ -19,7 +19,7 @@ The installation is owned by `root:devtools`. Directories are mode `2775` (group
 2. **Checks for an existing install** — by testing for `/opt/rust/cargo/bin/rustup` (where rustup actually installs its own binary; *not* `$RUSTUP_HOME/bin/rustup`).
 3. **Creates** `/opt/rust`, `/opt/rust/cargo`, and `/opt/rust/cargo/bin` with the correct ownership.
 4. **Downloads and runs rustup-init** with `--default-toolchain stable --no-modify-path --profile minimal`, pinned to the system-wide `RUSTUP_HOME`/`CARGO_HOME`.
-5. **Sets ownership** of the whole tree to `root:devtools`, and mode `2775` on **directories only** (setgid on files would break rustc; see above).
+5. **Sets ownership** of the whole tree to `root:devtools`, and mode `2775` on **directories only** (setgid on files would break rustc; see above). A repair pass also strips any setuid/setgid bits left on regular files by the old recursive mode, so rerunning the role heals previously broken hosts (no-op on healthy installs).
 6. **Writes `/etc/profile.d/rust.sh`** so the tools are on PATH for every user.
 7. **Installs cargo packages** from `rust_cargo_packages`, skipping any that are already installed. A single failing crate does **not** abort the playbook — failures are reported as warnings at the end.
 

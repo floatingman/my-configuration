@@ -45,7 +45,9 @@ binary).
 **Prevention:** Never recurse a mode containing setuid/setgid bits over a
 tree with executables. Recurse ownership only; apply `2775` to directories
 explicitly (`find` + `file` loop). File creation/replacement by group
-members still works through the group-writable directories.
+members still works through the group-writable directories. The role also
+carries an idempotent repair pass that strips setuid/setgid from regular
+files, so rerunning the playbook heals hosts broken by the old mode.
 **Verification:** `rustc --version` works as a non-root user after the role
 runs; `find /opt/rust -type f -perm /6000` returns nothing; `find /opt/rust
 -type d -perm /2000` still lists the directories.
