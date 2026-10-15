@@ -172,6 +172,12 @@ machines need a one-time migration to the current layout (`/boot` on the ESP,
 no keyfile). Everything else (plymouth package and hook, theme, `quiet
 splash`, BootNext disable) is converged by the playbook after the migration.
 
+`scripts/migrate-boot-esp.sh` automates the steps below, with the same
+preflights and ordering (device walk from the mounted root, keyslot
+discovery, ESP free-space check). `--dry-run` prints the plan without
+mutating anything and works as a regular user; the real run needs root and
+prompts for the LUKS passphrase only inside `cryptsetup luksKillSlot`.
+
 Run the following as root on the running machine, then reboot once. If the
 reboot fails, recover the usual way (installer ISO, unlock, chroot); the
 pre-migration `/boot` survives as `/boot.old` inside the encrypted root and
@@ -204,9 +210,16 @@ Move `/boot` onto the ESP (mounted at `/efi` on the old layout):
     $ rmdir /efi
     $ mount /boot
 
+Copy the kernel images (and microcode images, when present) across —
+`mkinitcpio -P` only rebuilds initramfs images and never places kernels.
+Never copy the old initramfs: it embeds the keyfile.
+
+    $ cp -a /boot.old/vmlinuz-* /boot/
+    $ for f in /boot.old/*-ucode.img; do [[ -f "$f" ]] && cp -a "$f" /boot/; done
+
 Regenerate the boot artifacts in their new location. `mkinitcpio -P` writes
-keyfile-free images to the ESP; verify they fit (512MiB holds one kernel, two
-initramfs images, GRUB, and the theme).
+keyfile-free images to the ESP; verify everything fits (512MiB holds one
+kernel, two initramfs images, GRUB, and the theme).
 
     $ sed -i '/^GRUB_ENABLE_CRYPTODISK=/d' /etc/default/grub
     $ mkinitcpio -P
