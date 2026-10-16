@@ -94,7 +94,7 @@
   tags:
     - autorandr
 
-- name: Enforce lid rule on every autorandr invocation, including login
+- name: Enforce lid rule whenever autorandr applies, including login
   # autorandr does not run postswitch hooks when no profile matches or the
   # configuration is already loaded. predetect hooks run unconditionally
   # on every invocation (before fingerprinting), so the login-time
@@ -102,12 +102,15 @@
   # when it ends up applying nothing — closing the gap where a user logs
   # in with the lid closed, no earlier event saw their X session yet, and
   # the internal panel would stay enabled until the next lid transition.
+  # The deployed wrapper is a script (not a symlink): autorandr gives
+  # hooks no CLI arguments, so the wrapper gates on autorandr's own argv
+  # (read from /proc/<ppid>/cmdline) and skips --save, --dry-run and the
+  # inspection commands, which must not mutate displays.
   become: true
-  ansible.builtin.file:
-    src: /usr/local/bin/display-lid-enforce
+  ansible.builtin.copy:
+    src: predetect-lid-enforce
     dest: /etc/xdg/autorandr/predetect.d/10-lid-enforce
-    state: link
-    force: true
+    mode: '0755'
   when: x_display_autoswitch | bool
   tags:
     - autorandr

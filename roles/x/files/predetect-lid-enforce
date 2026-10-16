@@ -1,0 +1,38 @@
+#!/bin/sh
+# autorandr predetect hook: enforce the lid rule before autorandr decides
+# what to do, so it also runs when no profile ends up being applied (the
+# login-time `autorandr --change`, unknown arrangements, already-loaded
+# configurations) — the cases where autorandr skips its postswitch hooks.
+#
+# autorandr runs predetect hooks on EVERY invocation, including --dry-run,
+# --save and the inspection commands, and it does not forward its CLI
+# arguments to hooks. Mutating displays there would corrupt dry runs and
+# recorded layouts, so this wrapper inspects the parent autorandr
+# process's own command line (/proc/<ppid>/cmdline — hooks run as direct
+# children of autorandr) and enforces only when autorandr is actually
+# applying a profile.
+#
+# Deployed by the x role (x_display_autoswitch) as
+# /etc/xdg/autorandr/predetect.d/10-lid-enforce.
+
+set -u
+
+parent_cmd=$(tr '\0' '\n' < "/proc/${PPID}/cmdline" 2>/dev/null) || exit 0
+
+applying=
+for arg in $parent_cmd; do
+    case "$arg" in
+        --change|-c|--cycle|--load|-l)
+            applying=1
+            ;;
+        --dry-run|--save|-s|--remove|-r|--fingerprint|--config|--list|--current|--detected)
+            # Inspection, dry runs and saves must never mutate displays.
+            exit 0
+            ;;
+    esac
+done
+
+# Bare `autorandr` and unknown invocations only print information; skip.
+[ "$applying" = 1 ] || exit 0
+
+exec /usr/local/bin/display-lid-enforce
