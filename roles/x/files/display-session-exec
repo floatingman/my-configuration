@@ -18,7 +18,8 @@ fallback only when the explicit ones fail.
 Usage: display-session-exec <command> [args ...]
 
 Exits 0 when no X11 session is found (e.g. at the login prompt or on
-headless machines); prints one line per dispatched session for the journal.
+headless machines) and 1 when a session exhausts all of its candidates;
+prints one line per dispatched session for the journal.
 
 Deployed by the x role (x_display_autoswitch).
 """
@@ -30,6 +31,18 @@ import sys
 # First "real" user uid, same default autorandr --batch uses. Override with
 # AUTORANDR_UID_MIN for systems whose users start below 1000.
 UID_MIN = int(os.environ.get("AUTORANDR_UID_MIN", "1000"))
+
+
+def normalize_display(display):
+    """Collapse ":0.0" to ":0" but preserve nonzero screen numbers.
+
+    ":0.0" and ":0" are the same screen, but ":0.1" is a DIFFERENT screen
+    (different root window and RandR outputs) and must be kept; only a
+    trailing ".0" is dropped.
+    """
+    if display.endswith(".0"):
+        return display[:-2]
+    return display
 
 
 def x11_session_candidates():
@@ -71,8 +84,8 @@ def x11_session_candidates():
         if env.get("WAYLAND_DISPLAY"):
             # Wayland sessions have no xrandr; leave them alone.
             continue
-        # :0.0 and :0 are the same server.
-        display = display.split(".", 1)[0]
+        # ":0.0" and ":0" are the same screen; ":0.1" is a different one.
+        display = normalize_display(display)
         env["DISPLAY"] = display
         explicit = True
         if "XAUTHORITY" not in env:
@@ -142,15 +155,24 @@ def main():
         sys.exit("display-session-exec: must run as root")
     command = sys.argv[1:]
     groups = group_candidates(x11_session_candidates())
+    any_session_failed = False
     for (uid, display), candidates in groups.items():
+        status = None
         for index, env in enumerate(candidates):
             status = run_as(uid, env, command)
-            if status is None or status == 0:
+            if status == 0:
                 break
             if index < len(candidates) - 1:
-                print("display-session-exec: XAUTHORITY=%s failed (status %d)"
+                print("display-session-exec: XAUTHORITY=%s failed (status %s)"
                       " on display %s; trying next candidate"
                       % (env["XAUTHORITY"], status, display), file=sys.stderr)
+        if status != 0:
+            # Every candidate for this session failed (or the uid has no
+            # passwd entry): report it so the calling service does not
+            # record a green run for work that never happened. A machine
+            # with no X11 sessions at all still exits 0.
+            any_session_failed = True
+    sys.exit(1 if any_session_failed else 0)
 
 
 if __name__ == "__main__":

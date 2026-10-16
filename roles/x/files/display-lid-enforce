@@ -83,12 +83,16 @@ done <<EOF
 $layout
 EOF
 
+failed=0
 apply() {
     if [ "$DRY_RUN" = true ]; then
         echo "display-lid-enforce: (dry-run) $*"
     else
         echo "display-lid-enforce: $*"
-        xrandr "$@"
+        # A failed mode change must exit nonzero so display-session-exec
+        # retries the next session candidate instead of treating failed
+        # lid enforcement as success (same contract as the query above).
+        xrandr "$@" || failed=1
     fi
 }
 
@@ -111,4 +115,6 @@ else
     done
 fi
 
-exit 0
+# Nonzero when any panel mode change failed, so callers (the dispatcher's
+# candidate failover, the systemd service) see the failure.
+exit "$failed"

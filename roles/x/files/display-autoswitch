@@ -15,19 +15,47 @@
 #
 # autorandr itself is run per session through display-session-exec rather
 # than via `autorandr --batch`: our dispatcher scans /proc the same way but
-# tolerates processes exiting mid-scan, while autorandr 1.15's batch
-# dispatch dies with a "ProcessLookupError: /proc/<pid>/environ" traceback
-# in the journal whenever that race hits.
+# tolerates processes exiting mid-scan, groups session candidates so a
+# stale credential cannot shadow a valid one, and reports failure when a
+# session exhausts its candidates (autorandr 1.15's batch dispatch dies with
+# a "ProcessLookupError: /proc/<pid>/environ" traceback besides).
+#
+# Outputs that change WHILE this oneshot is running would otherwise be lost:
+# their DRM events merge into this activation without re-running it. The
+# connector state is therefore compared before and after the switch, and a
+# follow-up run is queued when it moved (systemd's default start-rate limit
+# is the circuit breaker against endlessly flapping connectors).
 #
 # Deployed by the x role (x_display_autoswitch).
 
 set -u
 
+connector_state() {
+    grep -H . /sys/class/drm/card*-*/status 2>/dev/null | sort
+}
+
+before=$(connector_state)
+
 # Give DRM connector storms time to settle: plugging a dock fires several
 # udev change events and the kernel takes a moment to expose all outputs.
 sleep 1
 
-/usr/local/bin/display-session-exec /usr/bin/autorandr --change
+rc_autorandr=0
+/usr/local/bin/display-session-exec /usr/bin/autorandr --change || rc_autorandr=$?
 
-# Enforce the lid rule even when no profile was (re)loaded above.
-/usr/local/bin/display-session-exec /usr/local/bin/display-lid-enforce
+# Enforce the lid rule even when no profile was (re)loaded above, and even
+# when the profile stage failed — both stages always run.
+rc_enforce=0
+/usr/local/bin/display-session-exec /usr/local/bin/display-lid-enforce || rc_enforce=$?
+
+after=$(connector_state)
+if [ "$before" != "$after" ]; then
+    echo "display-autoswitch: connector state changed during the switch;" \
+         "queueing a follow-up run"
+    # systemd-run delays the start until this unit has deactivated (a
+    # start request from inside the running ExecStart would merge).
+    systemd-run --quiet --collect --on-active=1 -- \
+        systemctl start --no-block autorandr.service
+fi
+
+[ "$rc_autorandr" -eq 0 ] && [ "$rc_enforce" -eq 0 ] || exit 1
