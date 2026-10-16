@@ -48,23 +48,28 @@ xrandr_output=$(xrandr --query 2>/dev/null) || {
     echo "display-lid-enforce: xrandr query failed on display ${DISPLAY:-unknown}" >&2
     exit 1
 }
-# One line per connected output: "<name> <active 0|1> <primary 0|1> <internal 0|1>".
+# One line per connected output:
+# "<name> <active 0|1> <internal 0|1> <right-edge px>".
 # An output is active when its xrandr status line carries a geometry
-# ("1920x1080+0+0"); connected-but-disabled outputs have none.
+# ("1920x1080+0+0"); connected-but-disabled outputs have none. The right
+# edge (x + width) is 0 for inactive outputs.
 layout=$(printf '%s\n' "$xrandr_output" | awk '
     $2 == "connected" {
         internal = ($1 ~ /^(eDP|LVDS)/) ? 1 : 0
-        active = ($0 ~ /[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/) ? 1 : 0
-        primary = ($0 ~ / primary /) ? 1 : 0
-        print $1, active, primary, internal
+        right = 0
+        if (match($0, /[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/)) {
+            split(substr($0, RSTART, RLENGTH), g, /[x+]/)
+            right = g[3] + g[1]
+        }
+        active = (right > 0) ? 1 : 0
+        print $1, active, internal, right
     }')
 [ -n "$layout" ] || exit 0
 
-primary=""
-anchor=""
+max_right=0
 internals_on=""
 internals_off=""
-while read -r name active prim internal; do
+while read -r name active internal right; do
     if [ "$internal" = 1 ]; then
         if [ "$active" = 1 ]; then
             internals_on="$internals_on $name"
@@ -72,11 +77,8 @@ while read -r name active prim internal; do
             internals_off="$internals_off $name"
         fi
     else
-        if [ "$prim" = 1 ] && [ "$active" = 1 ]; then
-            primary="$name"
-        fi
-        if [ -z "$anchor" ] && [ "$active" = 1 ]; then
-            anchor="$name"
+        if [ "$active" = 1 ] && [ "$right" -gt "$max_right" ]; then
+            max_right=$right
         fi
     fi
 done <<EOF
@@ -101,14 +103,13 @@ if [ "$lid" = closed ]; then
         apply --output "$panel" --off
     done
 else
-    # Lid open: fall back to right-of-primary so the panel never comes back
-    # overlapping an external output; a saved profile that places it
-    # explicitly wins because then the panel is already on.
-    ref="$primary"
-    [ -z "$ref" ] && ref="$anchor"
+    # Lid open: place the panel beyond the rightmost edge of ALL active
+    # external outputs (--right-of <primary> alone can land on top of a
+    # second monitor to the right of the primary). A saved profile that
+    # places the panel explicitly wins, because then it is already on.
     for panel in $internals_off; do
-        if [ -n "$ref" ]; then
-            apply --output "$panel" --auto --right-of "$ref"
+        if [ "$max_right" -gt 0 ]; then
+            apply --output "$panel" --auto --pos "${max_right}x0"
         else
             apply --output "$panel" --auto --primary
         fi

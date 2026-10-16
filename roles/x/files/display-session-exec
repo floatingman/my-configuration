@@ -129,6 +129,20 @@ def run_as(uid, env, command):
         pwent = pwd.getpwuid(uid)
     except KeyError:
         return None
+    env = dict(env)
+    # Sanitize snapd sandbox redirects (as current upstream autorandr's
+    # session dispatch does): snap-confined processes carry a redirected
+    # HOME (~/snap/<app>/...) and XDG_*_HOME paths inside the snap
+    # namespace. autorandr resolves its profile directory from those, so
+    # an unsanitized snap candidate would search outside the user's real
+    # configuration, find no profiles, and exit 0 — looking like success.
+    # Only snap-redirected values are touched; legitimate paths pass.
+    if "/snap/" in env.get("HOME", "") and env["HOME"] != pwent.pw_dir:
+        env["HOME"] = pwent.pw_dir
+        for var in ("XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
+                    "XDG_STATE_HOME"):
+            if "/snap/" in env.get(var, ""):
+                del env[var]
     print("display-session-exec: running %s as %s on display %s"
           % (" ".join(command), pwent.pw_name, env["DISPLAY"]))
     child = os.fork()
