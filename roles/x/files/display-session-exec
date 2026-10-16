@@ -2,10 +2,18 @@
 """Run a command inside every open local X11 session, as the session user.
 
 Mirrors what `autorandr --batch` does to reach X sessions from a root
-systemd unit: scan /proc/<pid>/environ for DISPLAY + XAUTHORITY, then fork,
-drop privileges to the owning user, and exec the command with that process
-environment. Used by display-autoswitch to enforce the laptop lid rule after
-autorandr has (or has not) applied a profile.
+systemd unit: scan /proc/<pid>/environ for DISPLAY, then fork, drop
+privileges to the owning user, and exec the command with that process
+environment. Used by display-autoswitch to apply autorandr profiles and
+enforce the laptop lid rule from system units.
+
+Candidates are collected before deduplication: several processes usually
+map to the same (uid, DISPLAY) with differing credentials (a display
+manager keeps its cookie under /run or /tmp, while stray processes may
+carry a stale XAUTHORITY or none at all), so /proc enumeration order must
+not decide which one claims the session. Per session, explicit
+XAUTHORITY candidates are tried first and the Xlib $HOME/.Xauthority
+fallback only when the explicit ones fail.
 
 Usage: display-session-exec <command> [args ...]
 
@@ -24,9 +32,13 @@ import sys
 UID_MIN = int(os.environ.get("AUTORANDR_UID_MIN", "1000"))
 
 
-def x11_sessions():
-    """Yield (uid, env) for every distinct local X11 session found in /proc."""
-    seen = set()
+def x11_session_candidates():
+    """Yield (uid, env, explicit) for every process that looks like an open
+    local X11 session, without deduplicating.
+
+    explicit is True when the process carried its own XAUTHORITY and False
+    when it was filled in with the Xlib $HOME/.Xauthority default.
+    """
     for entry in os.listdir("/proc"):
         if not entry.isdigit():
             continue
@@ -54,6 +66,10 @@ def x11_sessions():
         if env.get("WAYLAND_DISPLAY"):
             # Wayland sessions have no xrandr; leave them alone.
             continue
+        # :0.0 and :0 are the same server.
+        display = display.split(".", 1)[0]
+        env["DISPLAY"] = display
+        explicit = True
         if "XAUTHORITY" not in env:
             # Xlib falls back to $HOME/.Xauthority when XAUTHORITY is unset
             # (e.g. xinit/startx sessions); mirror that instead of skipping.
@@ -62,21 +78,39 @@ def x11_sessions():
                 # No cookie path we can reason about; skip this session.
                 continue
             env["XAUTHORITY"] = os.path.join(home, ".Xauthority")
-        # :0.0 and :0 are the same server; deduplicate.
-        display = display.split(".", 1)[0]
-        env["DISPLAY"] = display
-        key = (uid, display)
-        if key in seen:
-            continue
-        seen.add(key)
-        yield uid, env
+            explicit = False
+        yield uid, env, explicit
+
+
+def group_candidates(candidates):
+    """Group candidates by (uid, DISPLAY), deduplicated, explicit
+    credentials first.
+
+    Returns {(uid, display): [env, ...]} with explicit-XAUTHORITY envs
+    ordered before fallback ones, so a DISPLAY-only or stale process
+    enumerated first cannot suppress a later process holding the valid
+    session cookie.
+    """
+    groups = {}
+    for uid, env, explicit in candidates:
+        key = (uid, env["DISPLAY"])
+        explicit_tier, fallback_tier = groups.setdefault(key, ([], []))
+        tier = explicit_tier if explicit else fallback_tier
+        if env not in tier:
+            tier.append(env)
+    return {key: explicit_tier + fallback_tier
+            for key, (explicit_tier, fallback_tier) in groups.items()}
 
 
 def run_as(uid, env, command):
+    """Run command as uid with env.
+
+    Returns the exit status, or None when the uid has no passwd entry.
+    """
     try:
         pwent = pwd.getpwuid(uid)
     except KeyError:
-        return
+        return None
     print("display-session-exec: running %s as %s on display %s"
           % (" ".join(command), pwent.pw_name, env["DISPLAY"]))
     child = os.fork()
@@ -93,9 +127,7 @@ def run_as(uid, env, command):
             print("display-session-exec: %s" % exc, file=sys.stderr)
         os._exit(1)
     _, status = os.waitpid(child, 0)
-    if status != 0:
-        print("display-session-exec: %s exited with status %d"
-              % (command[0], status), file=sys.stderr)
+    return status
 
 
 def main():
@@ -104,8 +136,16 @@ def main():
     if os.getuid() != 0:
         sys.exit("display-session-exec: must run as root")
     command = sys.argv[1:]
-    for uid, env in x11_sessions():
-        run_as(uid, env, command)
+    groups = group_candidates(x11_session_candidates())
+    for (uid, display), candidates in groups.items():
+        for index, env in enumerate(candidates):
+            status = run_as(uid, env, command)
+            if status is None or status == 0:
+                break
+            if index < len(candidates) - 1:
+                print("display-session-exec: XAUTHORITY=%s failed (status %d)"
+                      " on display %s; trying next candidate"
+                      % (env["XAUTHORITY"], status, display), file=sys.stderr)
 
 
 if __name__ == "__main__":

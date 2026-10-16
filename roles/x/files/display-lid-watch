@@ -37,6 +37,12 @@ while :; do
     if [ "$current" != "$last" ]; then
         echo "display-lid-watch: lid state changed: $last -> $current"
         last=$current
-        systemctl start --no-block autorandr.service
+        # Block until the switch finishes. If autorandr.service is already
+        # activating, systemd merges this start request with the running
+        # oneshot and will NOT execute it a second time, so a lid transition
+        # arriving mid-switch would otherwise be lost. Once start returns,
+        # the loop re-reads the lid state within a second and triggers again
+        # if it moved while the switch was running.
+        systemctl start autorandr.service
     fi
 done
