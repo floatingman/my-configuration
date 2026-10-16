@@ -43,12 +43,21 @@ while :; do
         # again, and that activation may already have read the lid state
         # from before the transition. So: wait for any in-flight switch to
         # finish, then start one that is guaranteed to read the current
-        # state. The final start blocks, so transitions that happen during
-        # our own switch are caught by the next poll.
+        # state. `systemctl is-active` returns nonzero for an EXECUTING
+        # oneshot ("activating"), so ActiveState is queried explicitly.
+        # The final start blocks, so transitions that happen during our own
+        # switch are caught by the next poll.
         waited=0
-        while systemctl is-active --quiet autorandr.service && [ "$waited" -lt 60 ]; do
-            sleep 1
-            waited=$((waited + 1))
+        while [ "$waited" -lt 60 ]; do
+            case "$(systemctl show -P ActiveState --value autorandr.service)" in
+                activating|active|reloading)
+                    sleep 1
+                    waited=$((waited + 1))
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
         done
         systemctl start autorandr.service
     fi
