@@ -55,8 +55,13 @@ def x11_sessions():
             # Wayland sessions have no xrandr; leave them alone.
             continue
         if "XAUTHORITY" not in env:
-            # Without a cookie we cannot talk to the server anyway.
-            continue
+            # Xlib falls back to $HOME/.Xauthority when XAUTHORITY is unset
+            # (e.g. xinit/startx sessions); mirror that instead of skipping.
+            home = env.get("HOME")
+            if not home:
+                # No cookie path we can reason about; skip this session.
+                continue
+            env["XAUTHORITY"] = os.path.join(home, ".Xauthority")
         # :0.0 and :0 are the same server; deduplicate.
         display = display.split(".", 1)[0]
         env["DISPLAY"] = display

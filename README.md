@@ -234,9 +234,9 @@ When neither opt-out variables nor `desktop_environment` are set, both i3 and Hy
 
 ## Display Management (monitors and laptop lid)
 
-Display switching is automatic: no commands need to be run when docking or undocking (enabled by default, `x_display_autoswitch: false` in `group_vars/all/local.yml` turns it off).
+Display switching is automatic: no commands need to be run when docking or undocking (enabled by default; `x_display_autoswitch: false` in `group_vars/all/local.yml` turns it off and removes the deployed override, hook, watcher and scripts).
 
-The [autorandr](https://github.com/phillipberndt/autorandr) profiles in `~/.config/autorandr` (deployed from the dotfiles) remain the source of truth for which outputs are active, their resolutions and per-output settings. On top of them the `x` role wires up:
+The [autorandr](https://github.com/phillipberndt/autorandr) profiles in `~/.config/autorandr` (deployed from the dotfiles) remain the source of truth for which outputs are active, their resolutions and per-output settings — with one deliberate exception: the lid rule below always turns the internal panel off/on with the lid, regardless of what the matching profile says. On top of them the `x` role wires up:
 
 - **Monitor hotplug** — the udev rule shipped by the autorandr package (`40-monitor-hotplug.rules`) starts `autorandr.service` on every DRM change event. The role shadows that unit with one that runs `/usr/local/bin/display-autoswitch`: apply the best matching profile in every open X11 session, then enforce the lid rule.
 - **Resume** — `autorandr.service` is enabled for `sleep.target`, so the best profile is re-applied after waking from suspend.

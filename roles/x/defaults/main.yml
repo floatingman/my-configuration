@@ -13,4 +13,12 @@
 #
 # Set false to keep only the packaged behaviour (autorandr.service re-runs
 # `autorandr --change` after resume; nothing reacts to hotplug or the lid).
+# Turning this off after a previous enabled run also removes the deployed
+# override, hook, watcher and scripts.
 x_display_autoswitch: true
+
+# Host flag owned by group_vars/all/local.yml (see the laptop overlay),
+# read through an x_-prefixed default to satisfy the repo rule that every
+# variable a role reads has a default here (ansible-lint requires role vars
+# to carry the role prefix). group_vars win precedence at use time.
+x_laptop: "{{ laptop | default(false) }}"

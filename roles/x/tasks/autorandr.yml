@@ -101,7 +101,7 @@
     mode: '0755'
   when:
     - x_display_autoswitch | bool
-    - laptop | default(false) | bool
+    - x_laptop | bool
   notify: Restart autorandr lid watcher
   tags:
     - autorandr
@@ -114,7 +114,7 @@
     mode: '0644'
   when:
     - x_display_autoswitch | bool
-    - laptop | default(false) | bool
+    - x_laptop | bool
   notify: Restart autorandr lid watcher
   tags:
     - autorandr
@@ -128,7 +128,7 @@
     daemon_reload: true
   when:
     - x_display_autoswitch | bool
-    - laptop | default(false) | bool
+    - x_laptop | bool
   tags:
     - autorandr
 
@@ -138,5 +138,58 @@
     name: autorandr
     enabled: true
     daemon_reload: true
+  tags:
+    - autorandr
+
+# --- cleanup when disabled --------------------------------------------------
+# x_display_autoswitch: false must actually turn the automation off, also on
+# machines that previously ran with it true: stop the lid watcher, drop our
+# autorandr.service override (which restores the packaged unit), the
+# postswitch hook and the scripts. Everything below is a no-op on hosts that
+# never had the automation deployed.
+
+- name: Check for deployed lid watcher unit
+  become: true
+  ansible.builtin.stat:
+    path: /etc/systemd/system/autorandr-lid-watcher.service
+  register: x_lid_watcher_unit
+  when: not x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Stop and disable autorandr lid watcher
+  become: true
+  ansible.builtin.systemd:
+    name: autorandr-lid-watcher.service
+    enabled: false
+    state: stopped
+  when:
+    - not x_display_autoswitch | bool
+    - x_lid_watcher_unit.stat.exists | default(false) | bool
+  tags:
+    - autorandr
+
+- name: Remove display auto-switch artifacts
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/autorandr.service
+    - /etc/systemd/system/autorandr-lid-watcher.service
+    - /etc/xdg/autorandr/postswitch.d/10-lid-enforce
+    - /usr/local/bin/display-autoswitch
+    - /usr/local/bin/display-session-exec
+    - /usr/local/bin/display-lid-enforce
+    - /usr/local/bin/display-lid-watch
+  when: not x_display_autoswitch | bool
+  tags:
+    - autorandr
+
+- name: Reload systemd after removing display auto-switch units
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: not x_display_autoswitch | bool
   tags:
     - autorandr
