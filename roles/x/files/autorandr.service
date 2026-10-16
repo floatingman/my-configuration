@@ -22,6 +22,11 @@ After=sleep.target
 
 [Service]
 Type=oneshot
+# Match the packaged unit: hook processes (and anything a user hook
+# backgrounds, like a bar or wallpaper setter) must survive the end of
+# this oneshot. The default KillMode=control-group would terminate them
+# the moment ExecStart exits.
+KillMode=process
 ExecStart=/usr/local/bin/display-autoswitch
 
 [Install]
