@@ -63,6 +63,11 @@ def x11_session_candidates():
         display = env.get("DISPLAY")
         if not display:
             continue
+        if not (display.startswith(":") or display.startswith("unix:")):
+            # SSH-forwarded (localhost:10.0) or remote displays: the X
+            # server sits on the other end of the tunnel, not on this host,
+            # and display changes here must never reach it.
+            continue
         if env.get("WAYLAND_DISPLAY"):
             # Wayland sessions have no xrandr; leave them alone.
             continue

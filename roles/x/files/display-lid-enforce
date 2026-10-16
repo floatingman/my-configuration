@@ -41,10 +41,17 @@ fi
 [ "$lid" = unknown ] && exit 0
 
 # --- current output layout --------------------------------------------------
+# A failed xrandr query (e.g. stale XAUTHORITY) must exit nonzero so that
+# display-session-exec tries the next session candidate instead of treating
+# an empty layout as "nothing to do".
+xrandr_output=$(xrandr --query 2>/dev/null) || {
+    echo "display-lid-enforce: xrandr query failed on display ${DISPLAY:-unknown}" >&2
+    exit 1
+}
 # One line per connected output: "<name> <active 0|1> <primary 0|1> <internal 0|1>".
 # An output is active when its xrandr status line carries a geometry
 # ("1920x1080+0+0"); connected-but-disabled outputs have none.
-layout=$(xrandr --query 2>/dev/null | awk '
+layout=$(printf '%s\n' "$xrandr_output" | awk '
     $2 == "connected" {
         internal = ($1 ~ /^(eDP|LVDS)/) ? 1 : 0
         active = ($0 ~ /[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/) ? 1 : 0

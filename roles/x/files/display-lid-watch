@@ -37,12 +37,19 @@ while :; do
     if [ "$current" != "$last" ]; then
         echo "display-lid-watch: lid state changed: $last -> $current"
         last=$current
-        # Block until the switch finishes. If autorandr.service is already
-        # activating, systemd merges this start request with the running
-        # oneshot and will NOT execute it a second time, so a lid transition
-        # arriving mid-switch would otherwise be lost. Once start returns,
-        # the loop re-reads the lid state within a second and triggers again
-        # if it moved while the switch was running.
+        # Run a FRESH switch for this transition. A start request while
+        # autorandr.service is already activating (a hotplug or resume run,
+        # for example) is merged into that activation without executing
+        # again, and that activation may already have read the lid state
+        # from before the transition. So: wait for any in-flight switch to
+        # finish, then start one that is guaranteed to read the current
+        # state. The final start blocks, so transitions that happen during
+        # our own switch are caught by the next poll.
+        waited=0
+        while systemctl is-active --quiet autorandr.service && [ "$waited" -lt 60 ]; do
+            sleep 1
+            waited=$((waited + 1))
+        done
         systemctl start autorandr.service
     fi
 done
