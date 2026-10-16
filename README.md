@@ -232,6 +232,18 @@ disable_hyprland: true
 
 When neither opt-out variables nor `desktop_environment` are set, both i3 and Hyprland are installed automatically.
 
+## Display Management (monitors and laptop lid)
+
+Display switching is automatic: no commands need to be run when docking or undocking (enabled by default; `x_display_autoswitch: false` in `group_vars/all/local.yml` turns it off and removes the deployed override, hook, watcher and scripts).
+
+The [autorandr](https://github.com/phillipberndt/autorandr) profiles in `~/.config/autorandr` (deployed from the dotfiles) remain the source of truth for which outputs are active, their resolutions and per-output settings — with one deliberate exception: the lid rule below always turns the internal panel off/on with the lid, regardless of what the matching profile says. On top of them the `x` role wires up:
+
+- **Monitor hotplug** — the udev rule shipped by the autorandr package (`40-monitor-hotplug.rules`) starts `autorandr.service` on every DRM change event. The role shadows that unit with one that runs `/usr/local/bin/display-autoswitch`: apply the best matching profile in every open X11 session, then enforce the lid rule.
+- **Resume** — `autorandr.service` is enabled for `sleep.target`, so the best profile is re-applied after waking from suspend.
+- **Laptop lid** — a small watcher service (`autorandr-lid-watcher.service`, laptops only) notices lid open/close (lid toggles produce no DRM udev events on most hardware) and triggers the same switch. The internal panel (`eDP*`/`LVDS*`) is turned off when the lid closes and turned back on — preferred mode, placed just beyond the rightmost edge of all active external outputs so it never overlaps a second monitor — when it opens, via `/usr/local/bin/display-lid-enforce`. That lid rule runs as two system-wide autorandr hooks: `predetect.d/10-lid-enforce` fires whenever autorandr actually applies a profile (`--change`/`--cycle`/`--load`) — including the login-time `exec_always autorandr --change` in the i3 config when no profile matches or the configuration is already loaded, which is exactly when autorandr skips its other hooks — while skipping `--save`, `--dry-run` and the inspection commands, which must never mutate displays; `postswitch.d/10-lid-enforce` re-checks after every profile application.
+
+Saving a **new** monitor arrangement still takes one manual step the first time you use it (`arandr` to arrange, then `autorandr --save <name>` and commit the profile in the dotfiles); every later plug/unplug of that arrangement is applied automatically.
+
 ## GPU Driver Management
 
 The playbook automatically detects and installs GPU drivers on Arch Linux systems.

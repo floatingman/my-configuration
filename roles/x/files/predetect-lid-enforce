@@ -1,0 +1,60 @@
+#!/bin/sh
+# autorandr predetect hook: enforce the lid rule before autorandr decides
+# what to do, so it also runs when no profile ends up being applied (the
+# login-time `autorandr --change`, unknown arrangements, already-loaded
+# configurations) — the cases where autorandr skips its postswitch hooks.
+#
+# autorandr runs predetect hooks on EVERY invocation, including --dry-run,
+# --save and the inspection commands, and it does not forward its CLI
+# arguments to hooks. Mutating displays there would corrupt dry runs and
+# recorded layouts, so this wrapper inspects the parent autorandr
+# process's own command line (/proc/<ppid>/cmdline — hooks run as direct
+# children of autorandr) before doing anything.
+#
+# The gate FAILS CLOSED: it enforces only for an exact `autorandr
+# --change` invocation — the exact form both automated consumers use (the
+# i3 login line and /usr/local/bin/display-autoswitch). Because the
+# /usr/bin/autorandr script uses a `#!/usr/bin/env python3` shebang, its
+# /proc cmdline reads `python3 /usr/bin/autorandr --change`; tokens before
+# the autorandr program token are interpreters and are ignored. After the
+# program token, EVERY token must be exactly `--change` (at least one).
+# Anything else — abbreviations (--dry), attached values (--save=office,
+# -soffice), other options, profile names — skips the hook. Invocations
+# that DO apply a profile are already followed by the postswitch hook and
+# the dispatcher-side enforcement, so skipping them loses no coverage.
+#
+# Deployed by the x role (x_display_autoswitch) as
+# /etc/xdg/autorandr/predetect.d/10-lid-enforce.
+
+set -u
+
+parent_cmd=$(tr '\0' '\n' < "/proc/${PPID}/cmdline" 2>/dev/null) || exit 0
+
+applying=
+seen_program=
+for arg in $parent_cmd; do
+    if [ "$seen_program" != 1 ]; then
+        case "$arg" in
+            */autorandr | autorandr)
+                seen_program=1
+                ;;
+            *)
+                # Interpreter tokens before the script (python3, env).
+                ;;
+        esac
+        continue
+    fi
+    case "$arg" in
+        --change)
+            applying=1
+            ;;
+        *)
+            # Any other token after the program: skip.
+            exit 0
+            ;;
+    esac
+done
+
+[ "$applying" = 1 ] || exit 0
+
+exec /usr/local/bin/display-lid-enforce

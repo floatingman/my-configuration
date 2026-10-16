@@ -41,6 +41,7 @@ display_manager: lightdm    # lightdm | gdm | sddm
 # disable_gnome: false      # Set true to skip GNOME install (manual dual-desktop mode only)
 # disable_awesomewm: false  # Set true to skip AwesomeWM install (manual dual-desktop mode only)
 # disable_kde: false        # Set true to skip KDE install (manual dual-desktop mode only)
+# x_display_autoswitch: true  # auto-apply autorandr profiles on hotplug/resume; laptop lid turns the internal panel off/on (roles/x)
 
 # Boot
 # grub_kernel_parameters: "quiet consoleblank=60"   # GRUB_CMDLINE_LINUX_DEFAULT override; drop "splash" here to skip the Plymouth splash path

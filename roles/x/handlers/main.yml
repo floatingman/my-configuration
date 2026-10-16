@@ -1,0 +1,9 @@
+---
+# Restart the laptop lid watcher when its unit or script changes. Only ever
+# notified from tasks that are themselves gated on laptop machines.
+- name: Restart autorandr lid watcher
+  become: true
+  ansible.builtin.systemd:
+    name: autorandr-lid-watcher.service
+    state: restarted
+    daemon_reload: true

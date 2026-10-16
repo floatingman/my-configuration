@@ -1,0 +1,64 @@
+#!/bin/sh
+# display-lid-watch — trigger display auto-switching when the lid moves.
+#
+# Polls the ACPI lid state (the same /proc/acpi/button/lid/*/state files
+# autorandr reads) once per second and starts autorandr.service on every
+# state change. autorandr.service runs display-autoswitch, which applies the
+# best autorandr profile and then enforces the lid rule on the internal
+# panel. Closing/opening the lid generates no DRM udev event on most
+# hardware, so the packaged 40-monitor-hotplug.rules rule alone is not
+# enough; something has to watch the switch itself.
+#
+# Runs as a system service (autorandr-lid-watcher.service) on laptops only;
+# exits immediately when the machine has no ACPI lid (desktops, VMs).
+#
+# Deployed by the x role (x_display_autoswitch, laptops only).
+
+set -u
+
+[ -d /proc/acpi/button/lid ] || exit 0
+
+lid_state() {
+    state=open
+    for state_file in /proc/acpi/button/lid/*/state; do
+        if [ -r "$state_file" ] && grep -q close "$state_file"; then
+            state=closed
+        fi
+    done
+    echo "$state"
+}
+
+last=$(lid_state)
+echo "display-lid-watch: watching lid state (currently: $last)"
+
+while :; do
+    sleep 1
+    current=$(lid_state)
+    if [ "$current" != "$last" ]; then
+        echo "display-lid-watch: lid state changed: $last -> $current"
+        last=$current
+        # Run a FRESH switch for this transition. A start request while
+        # autorandr.service is already activating (a hotplug or resume run,
+        # for example) is merged into that activation without executing
+        # again, and that activation may already have read the lid state
+        # from before the transition. So: wait for any in-flight switch to
+        # finish, then start one that is guaranteed to read the current
+        # state. `systemctl is-active` returns nonzero for an EXECUTING
+        # oneshot ("activating"), so ActiveState is queried explicitly.
+        # The final start blocks, so transitions that happen during our own
+        # switch are caught by the next poll.
+        waited=0
+        while [ "$waited" -lt 60 ]; do
+            case "$(systemctl show -P ActiveState --value autorandr.service)" in
+                activating|active|reloading)
+                    sleep 1
+                    waited=$((waited + 1))
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+        done
+        systemctl start autorandr.service
+    fi
+done

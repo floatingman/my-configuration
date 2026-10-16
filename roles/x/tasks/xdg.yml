@@ -8,8 +8,25 @@
     - xdg
 
 - name: Create user directories
-  ansible.builtin.command: /usr/bin/xdg-user-dirs-update
-  changed_when: true
+  # xdg-user-dirs-update creates missing ~/ subdirs and rewrites
+  # ~/.config/user-dirs.dirs only when its content changes; report changed
+  # only when it actually did something (a directory was missing or the
+  # dirs file changed), so repeat runs stay idempotent. The pre-update
+  # reads are guarded ("|| true") because the file does not exist on a
+  # fresh account and set -e -o pipefail would abort on the failed read.
+  ansible.builtin.shell:
+    cmd: |
+      set -e -o pipefail
+      home=/home/{{ user.name }}
+      dirs_file="$home/.config/user-dirs.dirs"
+      before=$(sha256sum "$dirs_file" 2>/dev/null | cut -d' ' -f1 || true)
+      missing=$(sed -n 's/^XDG_[A-Z_]*DIR="\$HOME\/\(.*\)"$/\1/p' "$dirs_file" 2>/dev/null | while read -r d; do [ -e "$home/$d" ] || echo "$d"; done || true)
+      /usr/bin/xdg-user-dirs-update >/dev/null
+      after=$(sha256sum "$dirs_file" 2>/dev/null | cut -d' ' -f1 || true)
+      if [ "$before" != "$after" ] || [ -n "$missing" ]; then echo changed; fi
+    executable: /bin/bash
+  register: x_xdg_user_dirs
+  changed_when: x_xdg_user_dirs.stdout == 'changed'
   become: true
   become_user: "{{ user.name }}"
   tags:

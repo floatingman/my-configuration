@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Run a command inside every open local X11 session, as the session user.
+
+Mirrors what `autorandr --batch` does to reach X sessions from a root
+systemd unit: scan /proc/<pid>/environ for DISPLAY, then fork, drop
+privileges to the owning user, and exec the command with that process
+environment. Used by display-autoswitch to apply autorandr profiles and
+enforce the laptop lid rule from system units.
+
+Candidates are collected before deduplication: several processes usually
+map to the same (uid, DISPLAY) with differing credentials (a display
+manager keeps its cookie under /run or /tmp, while stray processes may
+carry a stale XAUTHORITY or none at all), so /proc enumeration order must
+not decide which one claims the session. Per session, explicit
+XAUTHORITY candidates are tried first and the Xlib $HOME/.Xauthority
+fallback only when the explicit ones fail.
+
+Usage: display-session-exec <command> [args ...]
+
+Exits 0 when no X11 session is found (e.g. at the login prompt or on
+headless machines) and 1 when a session exhausts all of its candidates;
+prints one line per dispatched session for the journal.
+
+Deployed by the x role (x_display_autoswitch).
+"""
+
+import os
+import pwd
+import sys
+
+# First "real" user uid, same default autorandr --batch uses. Override with
+# AUTORANDR_UID_MIN for systems whose users start below 1000.
+UID_MIN = int(os.environ.get("AUTORANDR_UID_MIN", "1000"))
+
+
+def normalize_display(display):
+    """Collapse ":0.0" to ":0" but preserve nonzero screen numbers.
+
+    ":0.0" and ":0" are the same screen, but ":0.1" is a DIFFERENT screen
+    (different root window and RandR outputs) and must be kept; only a
+    trailing ".0" is dropped.
+    """
+    if display.endswith(".0"):
+        return display[:-2]
+    return display
+
+
+def x11_session_candidates():
+    """Yield (uid, env, explicit) for every process that looks like an open
+    local X11 session, without deduplicating.
+
+    explicit is True when the process carried its own XAUTHORITY and False
+    when it was filled in with the Xlib $HOME/.Xauthority default.
+    """
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        environ = os.path.join("/proc", entry, "environ")
+        try:
+            if not os.path.isfile(environ):
+                continue
+            uid = os.stat(environ).st_uid
+            if uid < UID_MIN:
+                continue
+            with open(environ, "rb") as f:
+                env = {}
+                for item in f.read().split(b"\0"):
+                    try:
+                        name, sep, value = item.decode("ascii").partition("=")
+                    except UnicodeDecodeError:
+                        continue
+                    if name and sep:
+                        env[name] = value
+        except (OSError, ValueError):
+            continue
+        display = env.get("DISPLAY")
+        if not display:
+            continue
+        if not (display.startswith(":") or display.startswith("unix:")):
+            # SSH-forwarded (localhost:10.0) or remote displays: the X
+            # server sits on the other end of the tunnel, not on this host,
+            # and display changes here must never reach it.
+            continue
+        if env.get("WAYLAND_DISPLAY"):
+            # Wayland sessions have no xrandr; leave them alone.
+            continue
+        # ":0.0" and ":0" are the same screen; ":0.1" is a different one.
+        display = normalize_display(display)
+        env["DISPLAY"] = display
+        explicit = True
+        if "XAUTHORITY" not in env:
+            # Xlib falls back to $HOME/.Xauthority when XAUTHORITY is unset
+            # (e.g. xinit/startx sessions); mirror that instead of skipping.
+            home = env.get("HOME")
+            if not home:
+                # No cookie path we can reason about; skip this session.
+                continue
+            env["XAUTHORITY"] = os.path.join(home, ".Xauthority")
+            explicit = False
+        yield uid, env, explicit
+
+
+def group_candidates(candidates):
+    """Group candidates by (uid, DISPLAY), deduplicated, explicit
+    credentials first.
+
+    Returns {(uid, display): [env, ...]} with explicit-XAUTHORITY envs
+    ordered before fallback ones, so a DISPLAY-only or stale process
+    enumerated first cannot suppress a later process holding the valid
+    session cookie.
+    """
+    groups = {}
+    for uid, env, explicit in candidates:
+        key = (uid, env["DISPLAY"])
+        explicit_tier, fallback_tier = groups.setdefault(key, ([], []))
+        tier = explicit_tier if explicit else fallback_tier
+        if env not in tier:
+            tier.append(env)
+    return {key: explicit_tier + fallback_tier
+            for key, (explicit_tier, fallback_tier) in groups.items()}
+
+
+def run_as(uid, env, command):
+    """Run command as uid with env.
+
+    Returns the exit status, or None when the uid has no passwd entry.
+    """
+    try:
+        pwent = pwd.getpwuid(uid)
+    except KeyError:
+        return None
+    env = dict(env)
+    # Sanitize snapd sandbox redirects (as current upstream autorandr's
+    # session dispatch does): snap-confined processes carry a redirected
+    # HOME (~/snap/<app>/...) and XDG_*_HOME paths inside the snap
+    # namespace. autorandr resolves its profile directory from those, so
+    # an unsanitized snap candidate would search outside the user's real
+    # configuration, find no profiles, and exit 0 — looking like success.
+    # Only snap-redirected values are touched; legitimate paths pass.
+    if "/snap/" in env.get("HOME", "") and env["HOME"] != pwent.pw_dir:
+        env["HOME"] = pwent.pw_dir
+        for var in ("XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
+                    "XDG_STATE_HOME"):
+            if "/snap/" in env.get(var, ""):
+                del env[var]
+    print("display-session-exec: running %s as %s on display %s"
+          % (" ".join(command), pwent.pw_name, env["DISPLAY"]))
+    child = os.fork()
+    if child == 0:
+        try:
+            os.setgroups(os.getgrouplist(pwent.pw_name, pwent.pw_gid))
+            os.setresgid(pwent.pw_gid, pwent.pw_gid, pwent.pw_gid)
+            os.setresuid(pwent.pw_uid, pwent.pw_uid, pwent.pw_uid)
+            os.chdir(pwent.pw_dir)
+            os.environ.clear()
+            os.environ.update(env)
+            os.execv(command[0], command)
+        except Exception as exc:  # noqa: BLE001 - report and fail the child
+            print("display-session-exec: %s" % exc, file=sys.stderr)
+        os._exit(1)
+    _, status = os.waitpid(child, 0)
+    return status
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit("usage: display-session-exec <command> [args ...]")
+    if os.getuid() != 0:
+        sys.exit("display-session-exec: must run as root")
+    command = sys.argv[1:]
+    groups = group_candidates(x11_session_candidates())
+    any_session_failed = False
+    for (uid, display), candidates in groups.items():
+        status = None
+        for index, env in enumerate(candidates):
+            status = run_as(uid, env, command)
+            if status == 0:
+                break
+            if index < len(candidates) - 1:
+                print("display-session-exec: XAUTHORITY=%s failed (status %s)"
+                      " on display %s; trying next candidate"
+                      % (env["XAUTHORITY"], status, display), file=sys.stderr)
+        if status != 0:
+            # Every candidate for this session failed (or the uid has no
+            # passwd entry): report it so the calling service does not
+            # record a green run for work that never happened. A machine
+            # with no X11 sessions at all still exits 0.
+            any_session_failed = True
+    sys.exit(1 if any_session_failed else 0)
+
+
+if __name__ == "__main__":
+    main()
