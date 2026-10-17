@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: floatingman
+  description: >-
+    Resilient Arch package installation: routes each package to whichever
+    source has it (official pacman repos first, AUR via yay second) and
+    records packages found in neither in the end-of-run resilience report
+    instead of aborting the playbook.
+  license: MIT
+
+# Included once per call site (base, aur, ...) with a different
+# resilient_packages_list each time.
+allow_duplicates: true
+
+dependencies: []

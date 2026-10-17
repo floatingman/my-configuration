@@ -1,9 +1,13 @@
 ---
-- name: Install universal base packages
-  ansible.builtin.package:
-    name: "{{ base_packages }}"
-    state: present
-  become: true
+- name: Install universal base packages resiliently
+  # base_packages entries that are missing from the official repos are tried
+  # in the AUR before being reported (see roles/resilient_packages), so a
+  # renamed or moved package no longer aborts the first-ever playbook run.
+  ansible.builtin.include_role:
+    name: resilient_packages
+  vars:
+    resilient_packages_list: "{{ base_packages }}"
+    resilient_packages_owner: base
   tags:
     - packages
 

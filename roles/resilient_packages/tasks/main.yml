@@ -1,0 +1,168 @@
+---
+# Resilient package installation for Arch Linux.
+#
+# Problem this solves: on a fresh machine a package has often been renamed or
+# has moved between the AUR and the official pacman repos; a plain batch
+# install then fails, and (before the resilience wrappers) aborted the whole
+# playbook at that point.
+#
+# Instead, every requested package is routed to whichever source actually
+# has it:
+#   1. already installed            -> nothing to do
+#   2. available in an official repo -> installed with pacman
+#   3. available in the AUR          -> installed with yay (kewlfft.aur.aur)
+#   4. found in neither source       -> recorded in the end-of-run
+#      resilience report (kind: package) as a likely rename/removal, and the
+#      run continues
+#
+# Usage (from any role):
+#   - name: Install my packages resiliently
+#     ansible.builtin.include_role:
+#       name: resilient_packages
+#     vars:
+#       resilient_packages_list: "{{ my_role_packages }}"
+#       resilient_packages_owner: my_role
+
+- name: Refresh the pacman database before probing package sources
+  community.general.pacman:
+    update_cache: true
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: List every installed package name
+  check_mode: false
+  ansible.builtin.command: pacman -Qq
+  register: _rp_installed
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: List every official-repo package name
+  check_mode: false
+  ansible.builtin.command: pacman -Slq
+  register: _rp_repo
+  changed_when: false
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Classify requested packages into repo and AUR candidates
+  ansible.builtin.set_fact:
+    _rp_missing: "{{ resilient_packages_list | difference(_rp_installed.stdout_lines) }}"
+    _rp_repo_missing: >-
+      {{ resilient_packages_list | difference(_rp_installed.stdout_lines)
+         | intersect(_rp_repo.stdout_lines) }}
+    _rp_aur_candidates: >-
+      {{ resilient_packages_list | difference(_rp_installed.stdout_lines)
+         | difference(_rp_repo.stdout_lines) }}
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Classify requested packages on non-Arch systems
+  ansible.builtin.set_fact:
+    _rp_missing: []
+    _rp_repo_missing: []
+    _rp_aur_candidates: []
+  when: ansible_facts['os_family'] != 'Archlinux'
+
+- name: Check whether yay is available for the AUR fallback
+  check_mode: false
+  ansible.builtin.command: yay --version
+  register: _rp_yay
+  failed_when: false
+  changed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Ensure yay is installed when AUR packages need it
+  community.general.pacman:
+    name: yay
+    state: present
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+    - _rp_yay.rc | default(1) != 0
+
+# Bootstrapped by the base role (and repeated by the aur role); repeated here
+# so tag-scoped runs of any consumer role can still install AUR packages.
+- name: Ensure the aur_builder user exists for AUR installs
+  ansible.builtin.user:
+    name: aur_builder
+    create_home: true
+    group: wheel
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Ensure aur_builder can run sudo pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-install-aur_builder
+    line: "aur_builder ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    create: true
+    mode: "0440"
+    validate: "visudo -cf %s"
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Probe which AUR candidates exist in the AUR
+  check_mode: false
+  ansible.builtin.command: yay -Si {{ item }}
+  loop: "{{ _rp_aur_candidates }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _rp_aur_probe
+  failed_when: false
+  changed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Split AUR candidates into installable and missing everywhere
+  ansible.builtin.set_fact:
+    _rp_aur_installable: "{{ _rp_aur_probe.results | default([])
+                             | selectattr('rc', 'equalto', 0)
+                             | map(attribute='item') | list }}"
+    _rp_missing_everywhere: "{{ _rp_aur_probe.results | default([])
+                                | rejectattr('rc', 'equalto', 0)
+                                | map(attribute='item') | list }}"
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Default the AUR classification when there are no candidates
+  ansible.builtin.set_fact:
+    _rp_aur_installable: []
+    _rp_missing_everywhere: []
+  when: (_rp_aur_candidates | default([])) | length == 0
+
+- name: Record packages missing from every source in the resilience report
+  ansible.builtin.set_fact:
+    _resilience_failures: >-
+      {{ _resilience_failures | default([])
+         + [{'kind': 'package', 'role': resilient_packages_owner, 'package': item,
+             'error': 'not found in any pacman repo or the AUR (renamed or removed?)'}] }}
+  loop: "{{ _rp_missing_everywhere | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  when: (_rp_missing_everywhere | default([])) | length > 0
+
+- name: Install packages that live in the official repos
+  community.general.pacman:
+    name: "{{ _rp_repo_missing }}"
+    state: present
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_repo_missing | length > 0
+
+- name: Install packages that live in the AUR
+  kewlfft.aur.aur:
+    name: "{{ _rp_aur_installable }}"
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_installable | default([]) | length > 0
