@@ -190,11 +190,8 @@ class TestReportPathResolution:
         assert rerun_failed.default_report_path() == rerun_failed.DEFAULT_REPORT
 
 
-class TestProfileRestoreArgs:
-    """--extra-vars-only must restore the failed run's selection context."""
-
-    # Explicit empty group_vars keeps the differ-filter deterministic.
-    NO_GV = {"__test__": True}
+class TestProfileRestoreDict:
+    """The rerun must restore the failed run's selection context."""
 
     def test_profile_keys_and_disable_flags(self):
         report = {
@@ -203,14 +200,12 @@ class TestProfileRestoreArgs:
             "desktop_environment": "hyprland",
             "disabled_roles": ["i3", "gnome"],
         }
-        args = rerun_failed.profile_restore_args(report, group_vars={})
-        # single compact-JSON -e argument (typed values, word-split safe)
-        assert len(args) == 1 and args[0].startswith("-e {")
-        assert "\"profile\":\"hyprland\"" in args[0]
-        assert "\"display_manager\":\"sddm\"" in args[0]
-        assert "\"desktop_environment\":\"hyprland\"" in args[0]
-        assert "\"disable_i3\":true" in args[0]
-        assert "\"disable_gnome\":true" in args[0]
+        restore = rerun_failed.profile_restore_dict(report, group_vars={})
+        assert restore["profile"] == "hyprland"
+        assert restore["display_manager"] == "sddm"
+        assert restore["desktop_environment"] == "hyprland"
+        assert restore["disable_i3"] is True
+        assert restore["disable_gnome"] is True
 
     def test_values_matching_group_vars_are_not_restored(self):
         """The rerun re-reads group_vars anyway; only CLI overrides come back."""
@@ -221,7 +216,7 @@ class TestProfileRestoreArgs:
             "user_environment": True,
             "bluetooth_disable": False,
         }
-        args = rerun_failed.profile_restore_args(
+        restore = rerun_failed.profile_restore_dict(
             report,
             group_vars={
                 "profile": "hyprland",
@@ -230,30 +225,35 @@ class TestProfileRestoreArgs:
                 "bluetooth": {"disable": False},
             },
         )
-        assert args == []  # everything matches what the rerun reads anyway
+        assert restore == {}  # everything matches what the rerun reads anyway
 
-    def test_overlay_selectors_are_restored(self):
+    def test_overlay_selectors_are_restored_with_native_types(self):
         report = {"laptop": True, "user_environment": False, "bluetooth_disable": True}
-        args = rerun_failed.profile_restore_args(report, group_vars={})
-        assert len(args) == 1 and args[0].startswith("-e {")
-        assert "\"laptop\":true" in args[0]
-        assert "\"user_environment\":false" in args[0]
-        # dict variables cannot be overridden with dot notation; the whole
-        # (single-key in practice) dict is restored with a native bool
-        assert "\"bluetooth\":{\"disable\":true}" in args[0]
+        restore = rerun_failed.profile_restore_dict(report, group_vars={})
+        assert restore["laptop"] is True
+        assert restore["user_environment"] is False
+        assert restore["bluetooth"] == {"disable": True}
+
+    def test_bluetooth_restore_keeps_other_group_vars_keys(self):
+        """The override merges over the machine's dict, not replaces it."""
+        restore = rerun_failed.profile_restore_dict(
+            {"bluetooth_disable": True},
+            group_vars={"bluetooth": {"disable": False, "future_key": "keep"}},
+        )
+        assert restore["bluetooth"] == {"disable": True, "future_key": "keep"}
 
     def test_overlay_defaults_matching_effective_state_are_skipped(self):
         # user_environment defaults to true; a report recording true on a
-        # host without a group_vars override needs no restore arg
-        args = rerun_failed.profile_restore_args(
+        # host without a group_vars override needs no restore
+        restore = rerun_failed.profile_restore_dict(
             {"user_environment": True, "laptop": False}, group_vars={}
         )
-        assert args == []
+        assert restore == {}
 
     def test_empty_context_yields_no_args(self):
-        assert rerun_failed.profile_restore_args({}, group_vars={}) == []
+        assert rerun_failed.profile_restore_dict({}, group_vars={}) == {}
         assert (
-            rerun_failed.profile_restore_args(
+            rerun_failed.profile_restore_dict(
                 {
                     "profile": "",
                     "display_manager": "",
@@ -264,22 +264,61 @@ class TestProfileRestoreArgs:
                 },
                 group_vars={},
             )
-            == []
+            == {}
         )
 
-    def test_extra_vars_only_mode_prints_args(self, tmp_path, capsys, monkeypatch):
+    def test_write_extra_vars_mode_prints_file_argument(self, tmp_path, capsys, monkeypatch):
         monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
         report = _write_report(
             tmp_path,
             [{"kind": "role", "role": "media", "error": "x"}],
             profile="hyprland",
             display_manager="sddm",
+            laptop=True,
         )
-        assert rerun_failed.main(["--report", str(report), "--extra-vars-only"]) == 0
+        assert rerun_failed.main(["--report", str(report), "--write-extra-vars"]) == 0
         out = capsys.readouterr().out.strip()
-        assert out.startswith("-e {")
-        assert "\"profile\":\"hyprland\"" in out
-        assert "\"display_manager\":\"sddm\"" in out
+        assert out.startswith("-e @")
+        assert out.endswith(rerun_failed.EXTRA_VARS_FILENAME)
+        # the file exists and carries native types
+        data = json.loads(Path(out.split("@", 1)[1]).read_text(encoding="utf-8"))
+        assert data["profile"] == "hyprland"
+        assert data["laptop"] is True
+
+    def test_write_extra_vars_removes_stale_file_when_no_overrides(self, tmp_path):
+        stale = tmp_path / rerun_failed.EXTRA_VARS_FILENAME
+        stale.write_text('{"stale": true}', encoding="utf-8")
+        report_path = _write_report(
+            tmp_path, [{"kind": "role", "role": "media", "error": "x"}]
+        )
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        arg = rerun_failed.write_extra_vars_file(report, report_path)
+        assert arg == ""
+        assert not stale.exists()
+
+    def test_extra_vars_argument_is_a_single_shell_word(self, tmp_path, monkeypatch):
+        """The -e argument must survive unquoted $(ANSIBLE_EXTRA) expansion.
+
+        Regression: inline JSON `{"a":1,"b":2}` is split by bash brace
+        expansion when the Makefile expands ANSIBLE_EXTRA unquoted, so any
+        multi-key restore crashed ansible-playbook with exit 2. A single
+        `-e @/abs/path` word cannot be split, brace-expanded or globbed.
+        """
+        monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
+        report_path = _write_report(
+            tmp_path,
+            [{"kind": "role", "role": "media", "error": "x"}],
+            profile="i3",
+            display_manager="lightdm",
+            desktop_environment="i3",
+            laptop=True,
+        )
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        arg = rerun_failed.write_extra_vars_file(report, report_path)
+        assert len(arg.split()) == 2  # exactly: -e @/abs/path
+        path_word = arg.split()[1]
+        assert "," not in path_word and "{" not in path_word
+        assert path_word.startswith("@/")
 
     def test_human_mode_shows_ansible_extra(self, tmp_path, capsys, monkeypatch):
         monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
@@ -290,7 +329,7 @@ class TestProfileRestoreArgs:
         )
         assert rerun_failed.main(["--report", str(report)]) == 0
         out = capsys.readouterr().out
-        assert 'TAGS="media" ANSIBLE_EXTRA="-e {\"profile\":\"hyprland\"}"' in out
+        assert 'TAGS="media" ANSIBLE_EXTRA="-e @' in out
 
     def test_incomplete_report_warns(self, tmp_path, capsys):
         report = _write_report(

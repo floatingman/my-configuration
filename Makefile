@@ -163,7 +163,7 @@ APPLY_SHORTCUTS := \
 rerun-failed: req-playbook pip-deps ## Rerun only the roles that failed in the last playbook run
 	@set -e; \
 		tags="$$($(SCRIPT_PYTHON) scripts/rerun_failed.py --tags-only)"; \
-		extra="$$($(SCRIPT_PYTHON) scripts/rerun_failed.py --extra-vars-only)"; \
+		extra="$$($(SCRIPT_PYTHON) scripts/rerun_failed.py --write-extra-vars)"; \
 		if [ -z "$$tags" ]; then \
 			echo 'Nothing to rerun: the last run recorded no failures (or left no report).'; \
 		else \

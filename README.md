@@ -499,8 +499,10 @@ and exits 0. Package-level failures are attributed to the role that owns the
 list (`base_packages` -> `base`, `aur.packages` -> `aur`). If the failed run
 was started with selection context (`make profile-hyprland`, or manual
 `-e profile=... desktop_environment=... display_manager=...`, or overlay
-selectors like `-e laptop=true`), the rerun restores it — as one compact
-JSON `-e` argument via `ANSIBLE_EXTRA` — so the failed roles are actually
+selectors like `-e laptop=true`), the rerun restores it: the overrides are
+written to `rerun-extra-vars.json` next to the failure report and loaded
+with a single `-e @<file>` argument (inline JSON cannot survive the
+Makefile's argument expansion), so the failed roles are actually
 re-selected instead of being skipped by their `when:`/overlay conditions.
 `make configure` accepts `ANSIBLE_EXTRA="-e key=value ..."` for any other
 ad-hoc extra vars the same way.

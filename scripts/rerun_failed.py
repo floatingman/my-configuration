@@ -45,16 +45,9 @@ GROUP_VARS_FILES = ("base.yml", "local.yml")
 # Profile context keys recorded in the report and restored via -e on rerun.
 PROFILE_KEYS = ("profile", "display_manager", "desktop_environment")
 DISABLE_FLAGS = ("i3", "hyprland", "gnome", "awesomewm", "kde")
-# Overlay selectors (see profiles/overlays/): recorded in the report and
-# restored the same way, so a rerun cannot silently skip overlay-gated roles
-# (e.g. a failed laptop role after `-e laptop=true` on a host whose local
-# vars leave laptop disabled).
-# Mapping of report field -> (extra-vars key, effective default when unset).
-OVERLAY_SELECTORS = {
-    "laptop": ("laptop", False),
-    "user_environment": ("user_environment", True),
-    "bluetooth_disable": (None, False),  # restored as the bluetooth dict
-}
+# Name of the extra-vars file written next to the failure report when a
+# rerun needs to restore selection context (see write_extra_vars_file).
+EXTRA_VARS_FILENAME = "rerun-extra-vars.json"
 
 _HOME_LOOKUP_RE = re.compile(
     r"\{\{\s*lookup\(\s*[\"']env[\"']\s*,\s*[\"']HOME[\"']\s*\)\s*\}\}", re.IGNORECASE
@@ -216,8 +209,8 @@ def _as_bool(value) -> Optional[bool]:
     return None
 
 
-def profile_restore_args(report: dict, group_vars: Optional[dict] = None) -> List[str]:
-    """-e arguments restoring the failed run's selection context.
+def profile_restore_dict(report: dict, group_vars: Optional[dict] = None) -> dict:
+    """Selection-context overrides to restore on rerun, as a plain dict.
 
     A plain `make configure` on a host whose local vars select a different
     (or no) profile would skip the very roles that failed -- e.g. a failed
@@ -227,9 +220,7 @@ def profile_restore_args(report: dict, group_vars: Optional[dict] = None) -> Lis
     match the machine's current group_vars are skipped: the rerun reads them
     from there anyway, so only real command-line overrides come back.
 
-    Returns a single `-e {compact JSON}` argument (or []): booleans and
-    nested dicts keep their native types, and the space-free value survives
-    the Makefile's unquoted ANSIBLE_EXTRA expansion word-splitting intact.
+    Returns {} when the rerun needs no overrides.
     """
     if group_vars is None:
         group_vars = load_group_vars()
@@ -261,13 +252,34 @@ def profile_restore_args(report: dict, group_vars: Optional[dict] = None) -> Lis
         _as_bool(gv_bt.get("disable")) if isinstance(gv_bt, dict) else None
     )
     if bt_disable is not None and bt_disable != (gv_bt_disable or False):
-        # Dot-notation extra vars do not override dict variables; restore the
-        # whole (single-key in practice) dict instead.
-        restore["bluetooth"] = {"disable": bt_disable}
+        # Merge over the machine's current bluetooth dict so other keys (if
+        # the dict ever grows beyond `disable`) survive the override.
+        restore["bluetooth"] = {
+            **(gv_bt if isinstance(gv_bt, dict) else {}),
+            "disable": bt_disable,
+        }
 
+    return restore
+
+
+def write_extra_vars_file(report: dict, report_path: Path) -> str:
+    """Write the restore overrides to a JSON file; return the -e argument.
+
+    The overrides are passed as `-e @<absolute path>` (a single word: no
+    spaces, commas or braces) because inline JSON is mangled by the shell
+    when the Makefile expands $(ANSIBLE_EXTRA) unquoted -- bash brace
+    expansion splits `{"a":1,"b":2}` into separate words -- and k=v strings
+    lose native types. The file is written next to the failure report and
+    removed again when no overrides are needed, so it never goes stale.
+    """
+    path = report_path.parent / EXTRA_VARS_FILENAME
+    restore = profile_restore_dict(report)
     if not restore:
-        return []
-    return ["-e " + json.dumps(restore, separators=(",", ":"), sort_keys=True)]
+        path.unlink(missing_ok=True)
+        return ""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(restore, indent=2, sort_keys=True), encoding="utf-8")
+    return f"-e @{path.resolve()}"
 
 
 def _warn_incomplete(report: dict) -> None:
@@ -302,16 +314,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Print only the comma-separated tag list (for scripting)",
     )
     parser.add_argument(
-        "--extra-vars-only",
+        "--write-extra-vars",
         action="store_true",
-        help="Print only the -e arguments restoring the failed run's profile context",
+        help="Write the selection-context overrides as JSON next to the report"
+        " and print the `-e @<file>` argument that loads them",
     )
     args = parser.parse_args(argv)
 
     report_path = Path(args.report).expanduser() if args.report else default_report_path()
     report = load_report(report_path)
     if report is None:
-        if not args.tags_only and not args.extra_vars_only:
+        if not args.tags_only and not args.write_extra_vars:
             print(
                 f"No failure report at {report_path}: the last run either had no"
                 " failures or did not reach the end-of-run report"
@@ -323,8 +336,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     _warn_incomplete(report)
 
-    if args.extra_vars_only:
-        print(" ".join(profile_restore_args(report)))
+    if args.write_extra_vars:
+        print(write_extra_vars_file(report, report_path))
         return 0
 
     tags = failed_role_tags(report, Path(args.playbook))
@@ -352,12 +365,12 @@ def main(argv: Optional[List[str]] = None) -> int:
                 where += f" (package {failure['package']})"
             print(f"  - {where}: {failure.get('error', '?')}")
     print()
-    extra = profile_restore_args(report)
+    extra = write_extra_vars_file(report, report_path)
     if tags:
         print("Rerun just the affected roles with:")
         line = f'  make configure TAGS="{",".join(tags)}"'
         if extra:
-            line += f' ANSIBLE_EXTRA="{" ".join(extra)}"'
+            line += f' ANSIBLE_EXTRA="{extra}"'
         print(line)
         print("or simply: make rerun-failed")
     else:
