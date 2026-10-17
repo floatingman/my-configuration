@@ -24,13 +24,30 @@ ROLES_DIR = REPO_ROOT / "roles"
 
 
 def _ordered_role_names(playbook_text: str) -> list[str]:
-    """Role names in generated play order from play.yml-shaped text."""
+    """Role names in generated play order from play.yml-shaped text.
+
+    Understands both playbook shapes: legacy ``roles:`` entries and the
+    resilient block/rescue wrappers (``tasks:`` with include_role) that
+    `make generate-playbook` emits today.
+    """
     play = yaml.safe_load(playbook_text)
     names = []
-    for entry in play[0].get("roles", []):
+    for entry in play[0].get("roles", []) or []:
         role = entry.get("role") if isinstance(entry, dict) else None
         if role:
             names.append(role)
+    for task in play[0].get("tasks", []) or []:
+        if not isinstance(task, dict) or "block" not in task:
+            continue
+        for sub in task["block"]:
+            if not isinstance(sub, dict):
+                continue
+            include = sub.get("ansible.builtin.include_role") or sub.get("include_role")
+            if not include:
+                continue
+            role = include.get("name") if isinstance(include, dict) else include
+            if role:
+                names.append(role)
     return names
 
 

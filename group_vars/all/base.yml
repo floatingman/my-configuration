@@ -9,6 +9,23 @@
 # every user can execute.
 ansible_python_interpreter: /usr/bin/python3
 
+# --- Error resilience -------------------------------------------------------
+# play.yml wraps every role in block/rescue: a failing role is recorded,
+# skipped, and summarized at the end of the run (see README "Error
+# resilience"); `make rerun-failed` re-runs just the failed roles.
+
+# Roles whose failure aborts the whole run instead of being rescued
+# (default: no role is fatal). Set per machine in group_vars/all/local.yml.
+resilience_fatal_roles: []
+
+# End with a failing task when failures were rescued, so `make configure`
+# exits non-zero (set false to always exit 0).
+resilience_exit_nonzero: true
+
+# Where the machine-readable failure report is written (default below;
+# override per machine in group_vars/all/local.yml if desired).
+# resilience_report_path: "{{ lookup('env','HOME') }}/.cache/my-configuration/failures.json"
+
 # Same 0700-home problem, second symptom: Ansible stages module files in
 # ~/.ansible/tmp, and becoming an unprivileged user (aur_builder) fails there
 # with "failed to set permissions on the temporary files Ansible needs to

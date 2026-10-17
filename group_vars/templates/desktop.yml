@@ -130,3 +130,8 @@ ai_llmfit_enabled: true           # Install llmfit (local LLM hardware-fit tool)
 # Proton Pass CLI (installed per-user via the official installer script)
 # pass_cli_channel: beta      # beta | stable  (beta enables release-track switching)
 # pass_cli_install_dir: "{{ lookup('env','HOME') }}/.local/bin"   # user-writable; required for self-update & track switching (facts aren't gathered, so use the HOME lookup)
+
+# Error resilience (see README "Error resilience"): where the end-of-run
+# failure report is written. `make rerun-failed` reads it to re-run only the
+# roles that failed.
+# resilience_report_path: "{{ lookup('env','HOME') }}/.cache/my-configuration/failures.json"

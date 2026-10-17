@@ -1,0 +1,19 @@
+---
+# Resilience initialization, included from play.yml pre_tasks (tags: always).
+#
+# Starts every run with an empty failure collector and removes the failure
+# report left by a previous run, so `make rerun-failed` always acts on the
+# report of the run that just finished and never on a stale one.
+#
+# Variables (all optional; see README section "Error resilience"):
+#   resilience_report_path - where the end-of-run report is written
+#     (default: ~/.cache/my-configuration/failures.json)
+
+- name: Start the run with an empty resilience failure collector
+  ansible.builtin.set_fact:
+    _resilience_failures: []
+
+- name: Remove the failure report from previous runs
+  ansible.builtin.file:
+    path: "{{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}"
+    state: absent

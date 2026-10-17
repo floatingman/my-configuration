@@ -1,0 +1,41 @@
+---
+# Record a rescued role failure, included from each role's rescue: block in
+# play.yml (tags: always). Requires the wrapper-provided variable:
+#   _resilience_role - name of the role that failed
+#
+# Reads the Ansible rescue magic variables ansible_failed_task /
+# ansible_failed_result to record which task failed and why, keeps the run
+# going, and only aborts when the role is listed in resilience_fatal_roles.
+#
+# Optional host variables (see README section "Error resilience"):
+#   resilience_fatal_roles - role names whose failure aborts the whole run
+
+- name: Record failure for the end-of-run report {{ _resilience_role }}
+  ansible.builtin.set_fact:
+    _resilience_failures: "{{ _resilience_failures | default([]) + [_resilience_entry] }}"
+    _resilience_last_error: "{{ _resilience_error_text }}"
+  vars:
+    _resilience_entry:
+      kind: role
+      role: "{{ _resilience_role }}"
+      task: "{{ ansible_failed_task.name | default('unknown task') }}"
+      action: "{{ ansible_failed_task.action | default('') }}"
+      error: "{{ _resilience_error_text | truncate(400, True) | trim }}"
+    _resilience_error_raw: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+    _resilience_error_text: "{{ _resilience_error_raw | string }}"
+
+- name: Show the rescued failure of role {{ _resilience_role }}
+  ansible.builtin.debug:
+    msg: >-
+      Continuing past role failure: role '{{ _resilience_role }}' failed at
+      task "{{ ansible_failed_task.name | default('unknown task') }}" --
+      {{ _resilience_last_error | truncate(300, True) | trim }}.
+      All failures are collected and summarized at the end of this run.
+
+- name: Abort the run, role is marked fatal {{ _resilience_role }}
+  ansible.builtin.fail:
+    msg: >-
+      Role '{{ _resilience_role }}' failed and is listed in resilience_fatal_roles,
+      so the run stops here. Remove it from resilience_fatal_roles to continue
+      past this failure instead (the failure is then only reported at the end).
+  when: _resilience_role in (resilience_fatal_roles | default([]))

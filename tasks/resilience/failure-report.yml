@@ -1,0 +1,84 @@
+---
+# End-of-run resilience report, included from play.yml post_tasks (tags: always).
+#
+# Summarizes every failure the run continued past (which role, task or
+# package failed and why), writes a machine-readable report consumed by
+# `make rerun-failed`, and finally fails the play so a run with rescued
+# failures still exits non-zero. The report file is also written in check
+# mode so a --check run surfaces what would fail where.
+#
+# Variables (all optional; see README section "Error resilience"):
+#   resilience_report_path  - where the report is written
+#     (default: ~/.cache/my-configuration/failures.json)
+#   resilience_exit_nonzero - end with a failing task when failures were
+#     rescued (default true); set false to always exit 0
+
+- name: Write the resilience report even if the filesystem objects
+  block:
+    - name: Ensure the resilience report directory exists
+      ansible.builtin.file:
+        path: "{{ (resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json')) | dirname }}"
+        state: directory
+      check_mode: false
+
+    - name: Write the resilience failure report
+      ansible.builtin.copy:
+        content: "{{ _resilience_report | to_nice_json }}"
+        dest: "{{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}"
+        mode: "0644"
+      vars:
+        _resilience_report:
+          generated_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+          check_mode: "{{ ansible_check_mode }}"
+          host: "{{ inventory_hostname }}"
+          playbook: "play.yml"
+          run_tags: "{{ ansible_run_tags }}"
+          skip_tags: "{{ ansible_skip_tags }}"
+          failure_count: "{{ (_resilience_failures | default([])) | length }}"
+          failures: "{{ _resilience_failures | default([]) }}"
+          rerun_hint: "make rerun-failed"
+      check_mode: false
+  rescue:
+    - name: Warn that the report file could not be written
+      ansible.builtin.debug:
+        msg: >-
+          Could not write the resilience report to
+          {{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}
+          ({{ ansible_failed_result.msg | default('unknown error') }});
+          the console summary below is the only record of this run's failures.
+
+- name: Report that the run completed without rescued failures
+  ansible.builtin.debug:
+    msg: >-
+      Run completed; no failures had to be rescued. (Roles skipped by profile
+      or host conditions do not count as failures.)
+  when: (_resilience_failures | default([])) | length == 0
+
+- name: Summarize each rescued failure at the end of the run
+  ansible.builtin.debug:
+    msg: >-
+      [{{ item.kind }}] {{ item.role }}{% if item.package is defined %} (package
+      {{ item.package }}){% endif %} -- {{ item.error | default('') }}
+      {%- if item.task is defined and item.task | length > 0 %} [task: {{ item.task }}]{% endif %}
+  loop: "{{ _resilience_failures | default([]) }}"
+  loop_control:
+    label: "{{ item.kind }}: {{ item.role }}"
+  when: (_resilience_failures | default([])) | length > 0
+
+- name: Show how to rerun the failed parts of this run
+  ansible.builtin.debug:
+    msg: >-
+      Rerun just the failed parts after fixing them: make rerun-failed
+      (full report: {{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }})
+  when: (_resilience_failures | default([])) | length > 0
+
+- name: End the run with a failing status because failures were rescued
+  ansible.builtin.fail:
+    msg: >-
+      The playbook ran to the end, but {{ (_resilience_failures | default([])) | length }}
+      failure(s) were rescued along the way (see the summary above and
+      {{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}).
+      Fix them, then rerun only the affected roles: make rerun-failed
+  when:
+    - (_resilience_failures | default([])) | length > 0
+    - resilience_exit_nonzero | default(true) | bool

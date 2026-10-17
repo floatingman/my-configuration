@@ -10,6 +10,13 @@
   hosts: localhost
 
   pre_tasks:
+    - name: Initialize resilience failure collection
+      ansible.builtin.include_tasks:
+        file: tasks/resilience/init.yml
+        apply:
+          tags: always
+      tags: always
+
     - name: Resolve unified role manifest
       ansible.builtin.command: >-
         {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}
@@ -70,132 +77,1485 @@
         _overlay_shell: "{{ _of._overlay_shell | default(false) }}"
       tags: always
 
-  roles:
+  tasks:
     # -------------------------------------------------------------------------
     # GPU Detection & Drivers (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: gpu_detect, tags: ["gpu_detect"], when: _is_arch }
-    - { role: gpu_drivers, tags: ["gpu_drivers"], when: _is_arch }
+    - name: Resilient role wrapper for gpu_detect
+      block:
+        - name: Run role gpu_detect
+          ansible.builtin.include_role:
+            name: gpu_detect
+            apply:
+              tags: ["gpu_detect"]
+          when: _is_arch
+          tags: ["gpu_detect"]
+      rescue:
+        - name: Record failure of role gpu_detect
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gpu_detect
+          tags: always
+    - name: Resilient role wrapper for gpu_drivers
+      block:
+        - name: Run role gpu_drivers
+          ansible.builtin.include_role:
+            name: gpu_drivers
+            apply:
+              tags: ["gpu_drivers"]
+          when: _is_arch
+          tags: ["gpu_drivers"]
+      rescue:
+        - name: Record failure of role gpu_drivers
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gpu_drivers
+          tags: always
     # -------------------------------------------------------------------------
     # Base System (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: base, tags: ["base"], when: _is_arch }
-    - { role: grub, tags: ["grub"], when: _is_arch }
-    - { role: microcode, tags: ["microcode"], when: _is_arch }
+    - name: Resilient role wrapper for base
+      block:
+        - name: Run role base
+          ansible.builtin.include_role:
+            name: base
+            apply:
+              tags: ["base"]
+          when: _is_arch
+          tags: ["base"]
+      rescue:
+        - name: Record failure of role base
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: base
+          tags: always
+    - name: Resilient role wrapper for grub
+      block:
+        - name: Run role grub
+          ansible.builtin.include_role:
+            name: grub
+            apply:
+              tags: ["grub"]
+          when: _is_arch
+          tags: ["grub"]
+      rescue:
+        - name: Record failure of role grub
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: grub
+          tags: always
+    - name: Resilient role wrapper for microcode
+      block:
+        - name: Run role microcode
+          ansible.builtin.include_role:
+            name: microcode
+            apply:
+              tags: ["microcode"]
+          when: _is_arch
+          tags: ["microcode"]
+      rescue:
+        - name: Record failure of role microcode
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: microcode
+          tags: always
     # -------------------------------------------------------------------------
     # Universal System Configuration
     # -------------------------------------------------------------------------
-    - { role: archive, tags: ["archive"] }
-    - { role: cron, tags: ["cron"] }
-    - { role: gnupg, tags: ["gnupg"], when: _overlay_user_environment }
-    - { role: shell, tags: ["shell"], when: _overlay_user_environment }
-    - { role: ssh, tags: ["ssh"] }
-    - { role: sysmon, tags: ["sysmon"] }
-    - { role: system, tags: ["system"] }
+    - name: Resilient role wrapper for archive
+      block:
+        - name: Run role archive
+          ansible.builtin.include_role:
+            name: archive
+            apply:
+              tags: ["archive"]
+          tags: ["archive"]
+      rescue:
+        - name: Record failure of role archive
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: archive
+          tags: always
+    - name: Resilient role wrapper for cron
+      block:
+        - name: Run role cron
+          ansible.builtin.include_role:
+            name: cron
+            apply:
+              tags: ["cron"]
+          tags: ["cron"]
+      rescue:
+        - name: Record failure of role cron
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: cron
+          tags: always
+    - name: Resilient role wrapper for gnupg
+      block:
+        - name: Run role gnupg
+          ansible.builtin.include_role:
+            name: gnupg
+            apply:
+              tags: ["gnupg"]
+          when: _overlay_user_environment
+          tags: ["gnupg"]
+      rescue:
+        - name: Record failure of role gnupg
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gnupg
+          tags: always
+    - name: Resilient role wrapper for shell
+      block:
+        - name: Run role shell
+          ansible.builtin.include_role:
+            name: shell
+            apply:
+              tags: ["shell"]
+          when: _overlay_user_environment
+          tags: ["shell"]
+      rescue:
+        - name: Record failure of role shell
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: shell
+          tags: always
+    - name: Resilient role wrapper for ssh
+      block:
+        - name: Run role ssh
+          ansible.builtin.include_role:
+            name: ssh
+            apply:
+              tags: ["ssh"]
+          tags: ["ssh"]
+      rescue:
+        - name: Record failure of role ssh
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: ssh
+          tags: always
+    - name: Resilient role wrapper for sysmon
+      block:
+        - name: Run role sysmon
+          ansible.builtin.include_role:
+            name: sysmon
+            apply:
+              tags: ["sysmon"]
+          tags: ["sysmon"]
+      rescue:
+        - name: Record failure of role sysmon
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: sysmon
+          tags: always
+    - name: Resilient role wrapper for system
+      block:
+        - name: Run role system
+          ansible.builtin.include_role:
+            name: system
+            apply:
+              tags: ["system"]
+          tags: ["system"]
+      rescue:
+        - name: Record failure of role system
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: system
+          tags: always
     # -------------------------------------------------------------------------
     # Package Management
     # -------------------------------------------------------------------------
-    - { role: ansible-role-asdf, tags: ["asdf"] }
-    - { role: ansible-role-binaries, tags: ["binaries"], when: not _is_arch }
-    - { role: ansible-role-packages, tags: ["packages"] }
-    - { role: aur, tags: ["aur"], when: _is_arch }
-    - { role: flatpak, tags: ["flatpak"] }
-    - { role: golang, tags: ["golang"], when: not _is_arch }
-    - { role: homebrew, tags: ["homebrew"], when: not _is_arch }
+    - name: Resilient role wrapper for ansible-role-asdf
+      block:
+        - name: Run role ansible-role-asdf
+          ansible.builtin.include_role:
+            name: ansible-role-asdf
+            apply:
+              tags: ["asdf"]
+          tags: ["asdf"]
+      rescue:
+        - name: Record failure of role ansible-role-asdf
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: ansible-role-asdf
+          tags: always
+    - name: Resilient role wrapper for ansible-role-binaries
+      block:
+        - name: Run role ansible-role-binaries
+          ansible.builtin.include_role:
+            name: ansible-role-binaries
+            apply:
+              tags: ["binaries"]
+          when: not _is_arch
+          tags: ["binaries"]
+      rescue:
+        - name: Record failure of role ansible-role-binaries
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: ansible-role-binaries
+          tags: always
+    - name: Resilient role wrapper for ansible-role-packages
+      block:
+        - name: Run role ansible-role-packages
+          ansible.builtin.include_role:
+            name: ansible-role-packages
+            apply:
+              tags: ["packages"]
+          tags: ["packages"]
+      rescue:
+        - name: Record failure of role ansible-role-packages
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: ansible-role-packages
+          tags: always
+    - name: Resilient role wrapper for aur
+      block:
+        - name: Run role aur
+          ansible.builtin.include_role:
+            name: aur
+            apply:
+              tags: ["aur"]
+          when: _is_arch
+          tags: ["aur"]
+      rescue:
+        - name: Record failure of role aur
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: aur
+          tags: always
+    - name: Resilient role wrapper for flatpak
+      block:
+        - name: Run role flatpak
+          ansible.builtin.include_role:
+            name: flatpak
+            apply:
+              tags: ["flatpak"]
+          tags: ["flatpak"]
+      rescue:
+        - name: Record failure of role flatpak
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: flatpak
+          tags: always
+    - name: Resilient role wrapper for golang
+      block:
+        - name: Run role golang
+          ansible.builtin.include_role:
+            name: golang
+            apply:
+              tags: ["golang"]
+          when: not _is_arch
+          tags: ["golang"]
+      rescue:
+        - name: Record failure of role golang
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: golang
+          tags: always
+    - name: Resilient role wrapper for homebrew
+      block:
+        - name: Run role homebrew
+          ansible.builtin.include_role:
+            name: homebrew
+            apply:
+              tags: ["homebrew"]
+          when: not _is_arch
+          tags: ["homebrew"]
+      rescue:
+        - name: Record failure of role homebrew
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: homebrew
+          tags: always
     # -------------------------------------------------------------------------
     # Development Tools
     # -------------------------------------------------------------------------
-    - { role: ai, tags: ["ai"], when: (ai_enabled | default(false) | bool) and _overlay_user_environment }
-    - { role: devtools, tags: ["devtools"], when: _is_arch and _has_display }
-    - { role: docker, tags: ["docker"], when: _is_arch }
-    - { role: editors, tags: ["editors"] }
-    - { role: filesystem, tags: ["filesystem"] }
-    - { role: kubernetes, tags: ["kubernetes"], when: _is_arch }
-    - { role: python, tags: ["python"] }
-    - { role: rust, tags: ["rust"] }
+    - name: Resilient role wrapper for ai
+      block:
+        - name: Run role ai
+          ansible.builtin.include_role:
+            name: ai
+            apply:
+              tags: ["ai"]
+          when: (ai_enabled | default(false) | bool) and _overlay_user_environment
+          tags: ["ai"]
+      rescue:
+        - name: Record failure of role ai
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: ai
+          tags: always
+    - name: Resilient role wrapper for devtools
+      block:
+        - name: Run role devtools
+          ansible.builtin.include_role:
+            name: devtools
+            apply:
+              tags: ["devtools"]
+          when: _is_arch and _has_display
+          tags: ["devtools"]
+      rescue:
+        - name: Record failure of role devtools
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: devtools
+          tags: always
+    - name: Resilient role wrapper for docker
+      block:
+        - name: Run role docker
+          ansible.builtin.include_role:
+            name: docker
+            apply:
+              tags: ["docker"]
+          when: _is_arch
+          tags: ["docker"]
+      rescue:
+        - name: Record failure of role docker
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: docker
+          tags: always
+    - name: Resilient role wrapper for editors
+      block:
+        - name: Run role editors
+          ansible.builtin.include_role:
+            name: editors
+            apply:
+              tags: ["editors"]
+          tags: ["editors"]
+      rescue:
+        - name: Record failure of role editors
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: editors
+          tags: always
+    - name: Resilient role wrapper for filesystem
+      block:
+        - name: Run role filesystem
+          ansible.builtin.include_role:
+            name: filesystem
+            apply:
+              tags: ["filesystem"]
+          tags: ["filesystem"]
+      rescue:
+        - name: Record failure of role filesystem
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: filesystem
+          tags: always
+    - name: Resilient role wrapper for kubernetes
+      block:
+        - name: Run role kubernetes
+          ansible.builtin.include_role:
+            name: kubernetes
+            apply:
+              tags: ["kubernetes"]
+          when: _is_arch
+          tags: ["kubernetes"]
+      rescue:
+        - name: Record failure of role kubernetes
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: kubernetes
+          tags: always
+    - name: Resilient role wrapper for python
+      block:
+        - name: Run role python
+          ansible.builtin.include_role:
+            name: python
+            apply:
+              tags: ["python"]
+          tags: ["python"]
+      rescue:
+        - name: Record failure of role python
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: python
+          tags: always
+    - name: Resilient role wrapper for rust
+      block:
+        - name: Run role rust
+          ansible.builtin.include_role:
+            name: rust
+            apply:
+              tags: ["rust"]
+          tags: ["rust"]
+      rescue:
+        - name: Record failure of role rust
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: rust
+          tags: always
     # -------------------------------------------------------------------------
     # Networking (Arch-only)
     # -------------------------------------------------------------------------
-    - { role: filesharing, tags: ["filesharing"], when: _is_arch }
-    - { role: mirrorlist, tags: ["mirrorlist"], when: _is_arch }
-    - { role: nettools, tags: ["nettools"], when: _is_arch }
-    - { role: networkmanager, tags: ["networkmanager"], when: _is_arch and _has_display }
-    - { role: nmtrust, tags: ["nmtrust"], when: _is_arch and _has_display }
+    - name: Resilient role wrapper for filesharing
+      block:
+        - name: Run role filesharing
+          ansible.builtin.include_role:
+            name: filesharing
+            apply:
+              tags: ["filesharing"]
+          when: _is_arch
+          tags: ["filesharing"]
+      rescue:
+        - name: Record failure of role filesharing
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: filesharing
+          tags: always
+    - name: Resilient role wrapper for mirrorlist
+      block:
+        - name: Run role mirrorlist
+          ansible.builtin.include_role:
+            name: mirrorlist
+            apply:
+              tags: ["mirrorlist"]
+          when: _is_arch
+          tags: ["mirrorlist"]
+      rescue:
+        - name: Record failure of role mirrorlist
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: mirrorlist
+          tags: always
+    - name: Resilient role wrapper for nettools
+      block:
+        - name: Run role nettools
+          ansible.builtin.include_role:
+            name: nettools
+            apply:
+              tags: ["nettools"]
+          when: _is_arch
+          tags: ["nettools"]
+      rescue:
+        - name: Record failure of role nettools
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: nettools
+          tags: always
+    - name: Resilient role wrapper for networkmanager
+      block:
+        - name: Run role networkmanager
+          ansible.builtin.include_role:
+            name: networkmanager
+            apply:
+              tags: ["networkmanager"]
+          when: _is_arch and _has_display
+          tags: ["networkmanager"]
+      rescue:
+        - name: Record failure of role networkmanager
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: networkmanager
+          tags: always
+    - name: Resilient role wrapper for nmtrust
+      block:
+        - name: Run role nmtrust
+          ansible.builtin.include_role:
+            name: nmtrust
+            apply:
+              tags: ["nmtrust"]
+          when: _is_arch and _has_display
+          tags: ["nmtrust"]
+      rescue:
+        - name: Record failure of role nmtrust
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: nmtrust
+          tags: always
     # -------------------------------------------------------------------------
     # Productivity & Utilities
     # -------------------------------------------------------------------------
-    - { role: clipboard, tags: ["clipboard"], when: _is_arch }
-    - { role: clouddrive, tags: ["clouddrive"], when: _is_arch }
-    - { role: pass, tags: ["pass"], when: _is_arch }
-    - { role: pass_cli, tags: ["pass_cli"] }
-    - { role: spell, tags: ["spell"] }
-    - { role: syncthing, tags: ["syncthing"] }
-    - { role: taskwarrior, tags: ["taskwarrior"], when: _is_arch }
+    - name: Resilient role wrapper for clipboard
+      block:
+        - name: Run role clipboard
+          ansible.builtin.include_role:
+            name: clipboard
+            apply:
+              tags: ["clipboard"]
+          when: _is_arch
+          tags: ["clipboard"]
+      rescue:
+        - name: Record failure of role clipboard
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: clipboard
+          tags: always
+    - name: Resilient role wrapper for clouddrive
+      block:
+        - name: Run role clouddrive
+          ansible.builtin.include_role:
+            name: clouddrive
+            apply:
+              tags: ["clouddrive"]
+          when: _is_arch
+          tags: ["clouddrive"]
+      rescue:
+        - name: Record failure of role clouddrive
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: clouddrive
+          tags: always
+    - name: Resilient role wrapper for pass
+      block:
+        - name: Run role pass
+          ansible.builtin.include_role:
+            name: pass
+            apply:
+              tags: ["pass"]
+          when: _is_arch
+          tags: ["pass"]
+      rescue:
+        - name: Record failure of role pass
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: pass
+          tags: always
+    - name: Resilient role wrapper for pass_cli
+      block:
+        - name: Run role pass_cli
+          ansible.builtin.include_role:
+            name: pass_cli
+            apply:
+              tags: ["pass_cli"]
+          tags: ["pass_cli"]
+      rescue:
+        - name: Record failure of role pass_cli
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: pass_cli
+          tags: always
+    - name: Resilient role wrapper for spell
+      block:
+        - name: Run role spell
+          ansible.builtin.include_role:
+            name: spell
+            apply:
+              tags: ["spell"]
+          tags: ["spell"]
+      rescue:
+        - name: Record failure of role spell
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: spell
+          tags: always
+    - name: Resilient role wrapper for syncthing
+      block:
+        - name: Run role syncthing
+          ansible.builtin.include_role:
+            name: syncthing
+            apply:
+              tags: ["syncthing"]
+          tags: ["syncthing"]
+      rescue:
+        - name: Record failure of role syncthing
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: syncthing
+          tags: always
+    - name: Resilient role wrapper for taskwarrior
+      block:
+        - name: Run role taskwarrior
+          ansible.builtin.include_role:
+            name: taskwarrior
+            apply:
+              tags: ["taskwarrior"]
+          when: _is_arch
+          tags: ["taskwarrior"]
+      rescue:
+        - name: Record failure of role taskwarrior
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: taskwarrior
+          tags: always
     # -------------------------------------------------------------------------
     # Display Manager
     # -------------------------------------------------------------------------
-    - { role: lightdm, tags: ["lightdm"], when: _has_display and _dm == 'lightdm' }
-    - { role: gdm, tags: ["gdm"], when: _has_display and _dm == 'gdm' }
-    - { role: sddm, tags: ["sddm"], when: _has_display and _dm == 'sddm' }
+    - name: Resilient role wrapper for lightdm
+      block:
+        - name: Run role lightdm
+          ansible.builtin.include_role:
+            name: lightdm
+            apply:
+              tags: ["lightdm"]
+          when: _has_display and _dm == 'lightdm'
+          tags: ["lightdm"]
+      rescue:
+        - name: Record failure of role lightdm
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: lightdm
+          tags: always
+    - name: Resilient role wrapper for gdm
+      block:
+        - name: Run role gdm
+          ansible.builtin.include_role:
+            name: gdm
+            apply:
+              tags: ["gdm"]
+          when: _has_display and _dm == 'gdm'
+          tags: ["gdm"]
+      rescue:
+        - name: Record failure of role gdm
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gdm
+          tags: always
+    - name: Resilient role wrapper for sddm
+      block:
+        - name: Run role sddm
+          ansible.builtin.include_role:
+            name: sddm
+            apply:
+              tags: ["sddm"]
+          when: _has_display and _dm == 'sddm'
+          tags: ["sddm"]
+      rescue:
+        - name: Record failure of role sddm
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: sddm
+          tags: always
     # -------------------------------------------------------------------------
     # Profile: i3 (X11 tiling window manager)
     # -------------------------------------------------------------------------
-    - { role: x, tags: ["x"], when: _is_awesomewm or _is_gnome or _is_i3 or _is_kde }
-    - { role: i3, tags: ["i3"], when: _is_i3 }
+    - name: Resilient role wrapper for x
+      block:
+        - name: Run role x
+          ansible.builtin.include_role:
+            name: x
+            apply:
+              tags: ["x"]
+          when: _is_awesomewm or _is_gnome or _is_i3 or _is_kde
+          tags: ["x"]
+      rescue:
+        - name: Record failure of role x
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: x
+          tags: always
+    - name: Resilient role wrapper for i3
+      block:
+        - name: Run role i3
+          ansible.builtin.include_role:
+            name: i3
+            apply:
+              tags: ["i3"]
+          when: _is_i3
+          tags: ["i3"]
+      rescue:
+        - name: Record failure of role i3
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: i3
+          tags: always
     # -------------------------------------------------------------------------
     # Profile: Hyprland (Wayland compositor)
     # -------------------------------------------------------------------------
-    - { role: hyprland, tags: ["hyprland"], when: _is_hyprland }
-    - { role: microtex, tags: ["microtex"], when: _is_hyprland }
-    - { role: oneui4_icons, tags: ["oneui4_icons"], when: _is_hyprland }
-    - { role: qt_gtk_toolkit, tags: ["qt_gtk_toolkit"], when: _is_hyprland }
-    - { role: screencapture, tags: ["screencapture"], when: _is_hyprland }
-    - { role: uv_python_packages, tags: ["uv_python_packages"], when: _is_hyprland }
-    - { role: wayland, tags: ["wayland"], when: _is_hyprland }
-    - { role: widgets, tags: ["widgets"], when: _is_hyprland }
+    - name: Resilient role wrapper for hyprland
+      block:
+        - name: Run role hyprland
+          ansible.builtin.include_role:
+            name: hyprland
+            apply:
+              tags: ["hyprland"]
+          when: _is_hyprland
+          tags: ["hyprland"]
+      rescue:
+        - name: Record failure of role hyprland
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: hyprland
+          tags: always
+    - name: Resilient role wrapper for microtex
+      block:
+        - name: Run role microtex
+          ansible.builtin.include_role:
+            name: microtex
+            apply:
+              tags: ["microtex"]
+          when: _is_hyprland
+          tags: ["microtex"]
+      rescue:
+        - name: Record failure of role microtex
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: microtex
+          tags: always
+    - name: Resilient role wrapper for oneui4_icons
+      block:
+        - name: Run role oneui4_icons
+          ansible.builtin.include_role:
+            name: oneui4_icons
+            apply:
+              tags: ["oneui4_icons"]
+          when: _is_hyprland
+          tags: ["oneui4_icons"]
+      rescue:
+        - name: Record failure of role oneui4_icons
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: oneui4_icons
+          tags: always
+    - name: Resilient role wrapper for qt_gtk_toolkit
+      block:
+        - name: Run role qt_gtk_toolkit
+          ansible.builtin.include_role:
+            name: qt_gtk_toolkit
+            apply:
+              tags: ["qt_gtk_toolkit"]
+          when: _is_hyprland
+          tags: ["qt_gtk_toolkit"]
+      rescue:
+        - name: Record failure of role qt_gtk_toolkit
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: qt_gtk_toolkit
+          tags: always
+    - name: Resilient role wrapper for screencapture
+      block:
+        - name: Run role screencapture
+          ansible.builtin.include_role:
+            name: screencapture
+            apply:
+              tags: ["screencapture"]
+          when: _is_hyprland
+          tags: ["screencapture"]
+      rescue:
+        - name: Record failure of role screencapture
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: screencapture
+          tags: always
+    - name: Resilient role wrapper for uv_python_packages
+      block:
+        - name: Run role uv_python_packages
+          ansible.builtin.include_role:
+            name: uv_python_packages
+            apply:
+              tags: ["uv_python_packages"]
+          when: _is_hyprland
+          tags: ["uv_python_packages"]
+      rescue:
+        - name: Record failure of role uv_python_packages
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: uv_python_packages
+          tags: always
+    - name: Resilient role wrapper for wayland
+      block:
+        - name: Run role wayland
+          ansible.builtin.include_role:
+            name: wayland
+            apply:
+              tags: ["wayland"]
+          when: _is_hyprland
+          tags: ["wayland"]
+      rescue:
+        - name: Record failure of role wayland
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: wayland
+          tags: always
+    - name: Resilient role wrapper for widgets
+      block:
+        - name: Run role widgets
+          ansible.builtin.include_role:
+            name: widgets
+            apply:
+              tags: ["widgets"]
+          when: _is_hyprland
+          tags: ["widgets"]
+      rescue:
+        - name: Record failure of role widgets
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: widgets
+          tags: always
     # -------------------------------------------------------------------------
     # Profile: GNOME
     # -------------------------------------------------------------------------
-    - { role: gnome, tags: ["gnome"], when: _is_gnome }
+    - name: Resilient role wrapper for gnome
+      block:
+        - name: Run role gnome
+          ansible.builtin.include_role:
+            name: gnome
+            apply:
+              tags: ["gnome"]
+          when: _is_gnome
+          tags: ["gnome"]
+      rescue:
+        - name: Record failure of role gnome
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gnome
+          tags: always
     # -------------------------------------------------------------------------
     # Profile: AwesomeWM
     # -------------------------------------------------------------------------
-    - { role: awesomewm, tags: ["awesomewm"], when: _is_awesomewm }
+    - name: Resilient role wrapper for awesomewm
+      block:
+        - name: Run role awesomewm
+          ansible.builtin.include_role:
+            name: awesomewm
+            apply:
+              tags: ["awesomewm"]
+          when: _is_awesomewm
+          tags: ["awesomewm"]
+      rescue:
+        - name: Record failure of role awesomewm
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: awesomewm
+          tags: always
     # -------------------------------------------------------------------------
     # Profile: KDE
     # -------------------------------------------------------------------------
-    - { role: kde, tags: ["kde"], when: _is_kde }
+    - name: Resilient role wrapper for kde
+      block:
+        - name: Run role kde
+          ansible.builtin.include_role:
+            name: kde
+            apply:
+              tags: ["kde"]
+          when: _is_kde
+          tags: ["kde"]
+      rescue:
+        - name: Record failure of role kde
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: kde
+          tags: always
     # -------------------------------------------------------------------------
     # Fonts & Theming (any desktop profile)
     # -------------------------------------------------------------------------
-    - { role: cursor-theme, tags: ["cursor-theme"], when: _has_display and cursor_theme.enabled }
-    - { role: fonts, tags: ["fonts"], when: _is_arch and _has_display }
-    - { role: nerd-fonts, tags: ["fonts"], when: _has_display }
+    - name: Resilient role wrapper for cursor-theme
+      block:
+        - name: Run role cursor-theme
+          ansible.builtin.include_role:
+            name: cursor-theme
+            apply:
+              tags: ["cursor-theme"]
+          when: _has_display and cursor_theme.enabled
+          tags: ["cursor-theme"]
+      rescue:
+        - name: Record failure of role cursor-theme
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: cursor-theme
+          tags: always
+    - name: Resilient role wrapper for fonts
+      block:
+        - name: Run role fonts
+          ansible.builtin.include_role:
+            name: fonts
+            apply:
+              tags: ["fonts"]
+          when: _is_arch and _has_display
+          tags: ["fonts"]
+      rescue:
+        - name: Record failure of role fonts
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: fonts
+          tags: always
+    - name: Resilient role wrapper for nerd-fonts
+      block:
+        - name: Run role nerd-fonts
+          ansible.builtin.include_role:
+            name: nerd-fonts
+            apply:
+              tags: ["fonts"]
+          when: _has_display
+          tags: ["fonts"]
+      rescue:
+        - name: Record failure of role nerd-fonts
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: nerd-fonts
+          tags: always
     # -------------------------------------------------------------------------
     # Desktop Applications (any desktop profile)
     # -------------------------------------------------------------------------
-    - { role: android, tags: ["android"], when: _has_display }
-    - { role: backlight, tags: ["backlight"], when: _has_display }
-    - { role: browsers, tags: ["browsers"], when: _has_display }
-    - { role: communication, tags: ["communication"], when: _is_arch and _has_display }
-    - { role: cups, tags: ["cups"], when: _is_arch and _has_display }
-    - { role: filemanager, tags: ["filemanager"], when: _has_display }
-    - { role: media, tags: ["media"], when: _has_display }
-    - { role: mpd, tags: ["mpd"], when: _has_display }
-    - { role: mpv, tags: ["mpv"], when: _has_display }
-    - { role: notes, tags: ["notes"], when: _has_display }
-    - { role: proton, tags: ["proton"], when: _has_display }
-    - { role: screensaver, tags: ["screensaver"], when: _has_display }
-    - { role: sound, tags: ["sound"], when: _has_display }
-    - { role: terminal, tags: ["terminal"], when: _has_display }
-    - { role: twitch, tags: ["twitch"], when: _has_display }
-    - { role: udisks, tags: ["udisks"], when: _is_arch and _has_display }
+    - name: Resilient role wrapper for android
+      block:
+        - name: Run role android
+          ansible.builtin.include_role:
+            name: android
+            apply:
+              tags: ["android"]
+          when: _has_display
+          tags: ["android"]
+      rescue:
+        - name: Record failure of role android
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: android
+          tags: always
+    - name: Resilient role wrapper for backlight
+      block:
+        - name: Run role backlight
+          ansible.builtin.include_role:
+            name: backlight
+            apply:
+              tags: ["backlight"]
+          when: _has_display
+          tags: ["backlight"]
+      rescue:
+        - name: Record failure of role backlight
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: backlight
+          tags: always
+    - name: Resilient role wrapper for browsers
+      block:
+        - name: Run role browsers
+          ansible.builtin.include_role:
+            name: browsers
+            apply:
+              tags: ["browsers"]
+          when: _has_display
+          tags: ["browsers"]
+      rescue:
+        - name: Record failure of role browsers
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: browsers
+          tags: always
+    - name: Resilient role wrapper for communication
+      block:
+        - name: Run role communication
+          ansible.builtin.include_role:
+            name: communication
+            apply:
+              tags: ["communication"]
+          when: _is_arch and _has_display
+          tags: ["communication"]
+      rescue:
+        - name: Record failure of role communication
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: communication
+          tags: always
+    - name: Resilient role wrapper for cups
+      block:
+        - name: Run role cups
+          ansible.builtin.include_role:
+            name: cups
+            apply:
+              tags: ["cups"]
+          when: _is_arch and _has_display
+          tags: ["cups"]
+      rescue:
+        - name: Record failure of role cups
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: cups
+          tags: always
+    - name: Resilient role wrapper for filemanager
+      block:
+        - name: Run role filemanager
+          ansible.builtin.include_role:
+            name: filemanager
+            apply:
+              tags: ["filemanager"]
+          when: _has_display
+          tags: ["filemanager"]
+      rescue:
+        - name: Record failure of role filemanager
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: filemanager
+          tags: always
+    - name: Resilient role wrapper for media
+      block:
+        - name: Run role media
+          ansible.builtin.include_role:
+            name: media
+            apply:
+              tags: ["media"]
+          when: _has_display
+          tags: ["media"]
+      rescue:
+        - name: Record failure of role media
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: media
+          tags: always
+    - name: Resilient role wrapper for mpd
+      block:
+        - name: Run role mpd
+          ansible.builtin.include_role:
+            name: mpd
+            apply:
+              tags: ["mpd"]
+          when: _has_display
+          tags: ["mpd"]
+      rescue:
+        - name: Record failure of role mpd
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: mpd
+          tags: always
+    - name: Resilient role wrapper for mpv
+      block:
+        - name: Run role mpv
+          ansible.builtin.include_role:
+            name: mpv
+            apply:
+              tags: ["mpv"]
+          when: _has_display
+          tags: ["mpv"]
+      rescue:
+        - name: Record failure of role mpv
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: mpv
+          tags: always
+    - name: Resilient role wrapper for notes
+      block:
+        - name: Run role notes
+          ansible.builtin.include_role:
+            name: notes
+            apply:
+              tags: ["notes"]
+          when: _has_display
+          tags: ["notes"]
+      rescue:
+        - name: Record failure of role notes
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: notes
+          tags: always
+    - name: Resilient role wrapper for proton
+      block:
+        - name: Run role proton
+          ansible.builtin.include_role:
+            name: proton
+            apply:
+              tags: ["proton"]
+          when: _has_display
+          tags: ["proton"]
+      rescue:
+        - name: Record failure of role proton
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: proton
+          tags: always
+    - name: Resilient role wrapper for screensaver
+      block:
+        - name: Run role screensaver
+          ansible.builtin.include_role:
+            name: screensaver
+            apply:
+              tags: ["screensaver"]
+          when: _has_display
+          tags: ["screensaver"]
+      rescue:
+        - name: Record failure of role screensaver
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: screensaver
+          tags: always
+    - name: Resilient role wrapper for sound
+      block:
+        - name: Run role sound
+          ansible.builtin.include_role:
+            name: sound
+            apply:
+              tags: ["sound"]
+          when: _has_display
+          tags: ["sound"]
+      rescue:
+        - name: Record failure of role sound
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: sound
+          tags: always
+    - name: Resilient role wrapper for terminal
+      block:
+        - name: Run role terminal
+          ansible.builtin.include_role:
+            name: terminal
+            apply:
+              tags: ["terminal"]
+          when: _has_display
+          tags: ["terminal"]
+      rescue:
+        - name: Record failure of role terminal
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: terminal
+          tags: always
+    - name: Resilient role wrapper for twitch
+      block:
+        - name: Run role twitch
+          ansible.builtin.include_role:
+            name: twitch
+            apply:
+              tags: ["twitch"]
+          when: _has_display
+          tags: ["twitch"]
+      rescue:
+        - name: Record failure of role twitch
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: twitch
+          tags: always
+    - name: Resilient role wrapper for udisks
+      block:
+        - name: Run role udisks
+          ansible.builtin.include_role:
+            name: udisks
+            apply:
+              tags: ["udisks"]
+          when: _is_arch and _has_display
+          tags: ["udisks"]
+      rescue:
+        - name: Record failure of role udisks
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: udisks
+          tags: always
     # -------------------------------------------------------------------------
     # Optional / Feature-gated
     # -------------------------------------------------------------------------
-    - { role: dotfiles, tags: ["dotfiles"], when: (dotfiles_config is defined) and _overlay_user_environment }
-    - { role: goesimage, tags: ["goesimage"], when: _has_display and goesimage is defined }
-    - { role: network_shares, tags: ["network_shares"], when: network_shares_config is defined }
-    - { role: regdomain, tags: ["regdomain"], when: regdomain is defined }
-    - { role: bluetooth, tags: ["bluetooth"], when: (_is_arch) and _overlay_bluetooth }
-    - { role: laptop, tags: ["laptop"], when: _overlay_laptop }
+    - name: Resilient role wrapper for dotfiles
+      block:
+        - name: Run role dotfiles
+          ansible.builtin.include_role:
+            name: dotfiles
+            apply:
+              tags: ["dotfiles"]
+          when: (dotfiles_config is defined) and _overlay_user_environment
+          tags: ["dotfiles"]
+      rescue:
+        - name: Record failure of role dotfiles
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: dotfiles
+          tags: always
+    - name: Resilient role wrapper for goesimage
+      block:
+        - name: Run role goesimage
+          ansible.builtin.include_role:
+            name: goesimage
+            apply:
+              tags: ["goesimage"]
+          when: _has_display and goesimage is defined
+          tags: ["goesimage"]
+      rescue:
+        - name: Record failure of role goesimage
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: goesimage
+          tags: always
+    - name: Resilient role wrapper for network_shares
+      block:
+        - name: Run role network_shares
+          ansible.builtin.include_role:
+            name: network_shares
+            apply:
+              tags: ["network_shares"]
+          when: network_shares_config is defined
+          tags: ["network_shares"]
+      rescue:
+        - name: Record failure of role network_shares
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: network_shares
+          tags: always
+    - name: Resilient role wrapper for regdomain
+      block:
+        - name: Run role regdomain
+          ansible.builtin.include_role:
+            name: regdomain
+            apply:
+              tags: ["regdomain"]
+          when: regdomain is defined
+          tags: ["regdomain"]
+      rescue:
+        - name: Record failure of role regdomain
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: regdomain
+          tags: always
+    - name: Resilient role wrapper for bluetooth
+      block:
+        - name: Run role bluetooth
+          ansible.builtin.include_role:
+            name: bluetooth
+            apply:
+              tags: ["bluetooth"]
+          when: (_is_arch) and _overlay_bluetooth
+          tags: ["bluetooth"]
+      rescue:
+        - name: Record failure of role bluetooth
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: bluetooth
+          tags: always
+    - name: Resilient role wrapper for laptop
+      block:
+        - name: Run role laptop
+          ansible.builtin.include_role:
+            name: laptop
+            apply:
+              tags: ["laptop"]
+          when: _overlay_laptop
+          tags: ["laptop"]
+      rescue:
+        - name: Record failure of role laptop
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: laptop
+          tags: always
+
+  post_tasks:
+    - name: Report resilience failures at the end of the run
+      ansible.builtin.include_tasks:
+        file: tasks/resilience/failure-report.yml
+        apply:
+          tags: always
+      tags: always

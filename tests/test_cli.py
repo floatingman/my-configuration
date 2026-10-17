@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from conftest import _PROFILES_DIR  # noqa: E402
-from profile_dispatcher import main  # noqa: E402
+from profile_dispatcher import extract_playbook_roles, main  # noqa: E402
 
 
 class TestCLIResolve:
@@ -510,14 +510,11 @@ class TestCLIGeneratePlaybook:
                 parsed = yaml.safe_load(f)
             assert isinstance(parsed, list)
             play = parsed[0]
-            assert "roles" in play
-            assert isinstance(play["roles"], list)
-            assert any(
-                (
-                    isinstance(role, dict) and role.get("role") in {"shell", "base"}
-                )
-                for role in play["roles"]
-            )
+            # Roles run as resilient block/rescue wrappers around include_role
+            assert "tasks" in play
+            assert isinstance(play["tasks"], list)
+            wrapped = extract_playbook_roles(parsed)
+            assert any(r.role in {"shell", "base"} for r in wrapped)
         finally:
             os.unlink(tmpfile)
 
@@ -549,15 +546,13 @@ class TestCLIGeneratePlaybook:
             main(["generate-playbook", "--write", tmpfile])
             with open(tmpfile) as f:
                 parsed = yaml.safe_load(f)
-            play = parsed[0]
-            dict_roles = [r for r in play["roles"] if isinstance(r, dict)]
+            wrapped = extract_playbook_roles(parsed)
             # Most roles should have tags
-            with_tags = [r for r in dict_roles if "tags" in r]
+            with_tags = [r for r in wrapped if r.tags]
             assert len(with_tags) > 0, "Expected at least one role with tags"
-            # Tags should be lists of strings
+            # Tags should be tuples of strings
             for role in with_tags:
-                assert isinstance(role["tags"], list)
-                assert all(isinstance(t, str) for t in role["tags"])
+                assert all(isinstance(t, str) for t in role.tags)
         finally:
             os.unlink(tmpfile)
 
@@ -574,7 +569,9 @@ class TestCLIGeneratePlaybook:
             assert rc == 0
             with open(outfile) as f:
                 parsed = yaml.safe_load(f)
-            assert "roles" in parsed[0]
+            # Structure is emitted even when the profile defines no roles
+            assert "tasks" in parsed[0]
+            assert "post_tasks" in parsed[0]
 
     def test_generate_playbook_bad_dir_exits_1(self, capsys):
         """generate-playbook with nonexistent profiles-dir exits 1."""
