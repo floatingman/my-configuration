@@ -49,6 +49,9 @@ DISABLE_FLAGS = ("i3", "hyprland", "gnome", "awesomewm", "kde")
 # Name of the extra-vars file written next to the failure report when a
 # rerun needs to restore selection context (see write_extra_vars_file).
 EXTRA_VARS_FILENAME = "rerun-extra-vars.json"
+# Prefix for the securely-created fallback file in the shared temp dir
+# (see _write_fallback_extra_vars).
+_FALLBACK_PREFIX = "rerun-extra-vars-"
 
 _HOME_LOOKUP_RE = re.compile(
     r"\{\{\s*lookup\(\s*[\"']env[\"']\s*,\s*[\"']HOME[\"']\s*\)\s*\}\}", re.IGNORECASE
@@ -202,10 +205,34 @@ def load_group_vars() -> dict:
     return merged
 
 
-def _fallback_extra_vars_path() -> Path:
-    """Space-free location for the extra-vars file when the report path is
-    not shell-safe (e.g. resilience_report_path containing spaces)."""
-    return Path(tempfile.gettempdir()) / f"rerun-extra-vars-{os.getuid()}.json"
+def _write_fallback_extra_vars(restore: dict) -> Path:
+    """Write the overrides into the shared temp dir, securely.
+
+    The fallback is only used when the report-path-derived location is not
+    shell-safe (e.g. spaces in resilience_report_path). The shared temp dir
+    is world-writable, so the file is created atomically with mkstemp
+    (O_EXCL, unpredictable name): another local user can neither pre-create
+    the path nor plant a symlink for Path.write_text to follow. Only the
+    newest fallback file is kept.
+    """
+    stale = _fallback_extra_vars_paths()
+    fd, name = tempfile.mkstemp(
+        prefix=f"{_FALLBACK_PREFIX}{os.getuid()}-",
+        suffix=".json",
+        dir=str(Path(tempfile.gettempdir())),
+    )
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(json.dumps(restore, indent=2, sort_keys=True))
+    for p in stale:
+        p.unlink(missing_ok=True)
+    return Path(name)
+
+
+def _fallback_extra_vars_paths() -> List[Path]:
+    """Fallback files previously written by this user (best-effort cleanup)."""
+    return sorted(
+        Path(tempfile.gettempdir()).glob(f"{_FALLBACK_PREFIX}{os.getuid()}-*.json")
+    )
 
 
 def _as_bool(value) -> Optional[bool]:
@@ -294,16 +321,20 @@ def write_extra_vars_file(report: dict, report_path: Path) -> str:
     """
     restore = profile_restore_dict(report)
     if not restore:
-        for candidate in (report_path.parent / EXTRA_VARS_FILENAME, _fallback_extra_vars_path()):
-            candidate.unlink(missing_ok=True)
+        (report_path.parent / EXTRA_VARS_FILENAME).unlink(missing_ok=True)
+        for p in _fallback_extra_vars_paths():
+            p.unlink(missing_ok=True)
         return ""
 
     path = report_path.parent / EXTRA_VARS_FILENAME
     if not _shell_safe(path.resolve()):
-        path = _fallback_extra_vars_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(restore, indent=2, sort_keys=True), encoding="utf-8")
-    return f"-e @{path.resolve()}"
+        path = _write_fallback_extra_vars(restore)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(restore, indent=2, sort_keys=True), encoding="utf-8")
+    resolved = path.resolve()
+    assert _shell_safe(resolved), f"extra-vars path is not shell-safe: {resolved}"
+    return f"-e @{resolved}"
 
 
 def _warn_incomplete(report: dict) -> None:

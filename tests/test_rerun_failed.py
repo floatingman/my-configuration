@@ -368,26 +368,42 @@ class TestProfileRestoreDict:
 
     def test_report_path_with_spaces_falls_back_to_safe_location(self, tmp_path, monkeypatch):
         """A resilience_report_path containing spaces must not split the
-        @file operand; the file moves to a space-free fallback path."""
+        @file operand; the file is created securely (mkstemp: unpredictable
+        name, no symlink exposure in the world-writable temp dir) in a
+        space-free location, and stale fallbacks are cleaned up."""
+        import tempfile as _tempfile
+
         monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
-        monkeypatch.setattr(
-            rerun_failed, "_fallback_extra_vars_path",
-            lambda: tmp_path / "safe" / "rerun-extra-vars.json",
-        )
         spacey_dir = tmp_path / "run reports"
         spacey_dir.mkdir()
         report_path = spacey_dir / "failures.json"
-        report_path.write_text(
-            json.dumps({"failures": [{"kind": "role", "role": "media", "error": "x"}],
-                        "profile": "hyprland"}),
-            encoding="utf-8",
-        )
-        report = json.loads(report_path.read_text(encoding="utf-8"))
-        arg = rerun_failed.write_extra_vars_file(report, report_path)
+
+        def _report_with(profile):
+            report_path.write_text(
+                json.dumps({"failures": [{"kind": "role", "role": "media", "error": "x"}],
+                            "profile": profile}),
+                encoding="utf-8",
+            )
+            return json.loads(report_path.read_text(encoding="utf-8"))
+
+        arg = rerun_failed.write_extra_vars_file(_report_with("hyprland"), report_path)
         assert len(arg.split()) == 2
         path_word = arg.split()[1]
         assert " " not in path_word
         assert path_word.startswith("@")
-        assert "safe/rerun-extra-vars.json" in path_word
-        # the JSON really is at the fallback location
-        assert json.loads(Path(path_word[1:]).read_text(encoding="utf-8"))["profile"] == "hyprland"
+        # secure fallback: unpredictable mkstemp name under the real temp dir
+        fallback = Path(path_word[1:])
+        assert fallback.parent == Path(_tempfile.gettempdir())
+        assert rerun_failed._FALLBACK_PREFIX in fallback.name
+        assert json.loads(fallback.read_text(encoding="utf-8"))["profile"] == "hyprland"
+
+        # a second write keeps only the newest fallback file
+        arg2 = rerun_failed.write_extra_vars_file(_report_with("i3"), report_path)
+        assert not fallback.exists()
+        assert json.loads(Path(arg2.split()[1][1:]).read_text(encoding="utf-8"))["profile"] == "i3"
+
+        # no overrides -> the fallback is cleaned up entirely
+        assert rerun_failed.write_extra_vars_file(
+            {"failures": [{"kind": "role", "role": "media", "error": "x"}]}, report_path
+        ) == ""
+        assert not Path(arg2.split()[1][1:]).exists()
