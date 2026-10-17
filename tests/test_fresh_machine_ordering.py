@@ -24,13 +24,35 @@ ROLES_DIR = REPO_ROOT / "roles"
 
 
 def _ordered_role_names(playbook_text: str) -> list[str]:
-    """Role names in generated play order from play.yml-shaped text."""
+    """Role names in generated play order from play.yml-shaped text.
+
+    Understands both playbook shapes: legacy ``roles:`` entries and the
+    resilient block/rescue wrappers (``tasks:`` with include_role) that
+    `make generate-playbook` emits today.
+    """
     play = yaml.safe_load(playbook_text)
     names = []
-    for entry in play[0].get("roles", []):
+    for entry in play[0].get("roles", []) or []:
         role = entry.get("role") if isinstance(entry, dict) else None
         if role:
             names.append(role)
+    for task in play[0].get("tasks", []) or []:
+        if not isinstance(task, dict) or "block" not in task:
+            continue
+        for sub in task["block"]:
+            if not isinstance(sub, dict):
+                continue
+            include = (
+                sub.get("ansible.builtin.import_role")
+                or sub.get("import_role")
+                or sub.get("ansible.builtin.include_role")
+                or sub.get("include_role")
+            )
+            if not include:
+                continue
+            role = include.get("name") if isinstance(include, dict) else include
+            if role:
+                names.append(role)
     return names
 
 
@@ -86,3 +108,33 @@ def test_checker_detects_reversed_order_on_synthetic_play():
         base_pos = names.index("base")
         offenders = [n for n in names[:base_pos] if _uses_aur_become(n)]
         assert bool(offenders) is expect_offenders, names
+
+
+def test_resilient_packages_repo_leg_runs_before_aur_bootstrap():
+    """Official-repo installs must not depend on the AUR bootstrap.
+
+    Regression: on a pristine machine the pacman-module install of yay
+    failed ("Failed to list package yay" -- yay is AUR-only), and because
+    the yay bootstrap ran first, base_packages repo entries (ripgrep,
+    cowsay, ...) never installed. The repo leg now runs before any
+    aur_builder/yay bootstrap task, so an AUR-side problem can only ever
+    block AUR packages.
+    """
+    path = ROLES_DIR / "resilient_packages" / "tasks" / "main.yml"
+    tasks = yaml.safe_load(path.read_text())
+    names = [t.get("name", "") for t in tasks if isinstance(t, dict)]
+
+    def pos(fragment):
+        indexes = [i for i, n in enumerate(names) if fragment in n]
+        assert indexes, f"task containing {fragment!r} not found in {path}"
+        return indexes[0]
+
+    repo_install = pos("Install packages that live in the official repos")
+    alias_move = pos("Move pacman-resolvable entries (aliases, version specs)")
+    aur_builder = pos("Ensure the aur_builder user exists")
+    yay_repo = pos("Ensure yay is installed from the official repos")
+    yay_aur = pos("Ensure yay is built from the AUR")
+    # aliases/version specs must join _rp_repo_missing BEFORE the repo install
+    # runs, and the repo leg stays ahead of every AUR bootstrap task
+    assert alias_move < repo_install < aur_builder < yay_repo
+    assert repo_install < yay_aur

@@ -1,0 +1,54 @@
+---
+# End-of-run resilience report, included from play.yml post_tasks (tags: always).
+#
+# Marks the report complete (it was written in-progress by init and after
+# every rescued failure), summarizes every failure the run continued past
+# (which role, task or package failed and why), and finally fails the play
+# so a run with rescued failures still exits non-zero.
+#
+# Variables (all optional; see README section "Error resilience"):
+#   resilience_report_path  - where the report is written
+#     (default: ~/.cache/my-configuration/failures.json)
+#   resilience_exit_nonzero - end with a failing task when failures were
+#     rescued (default true); set false to always exit 0
+
+- name: Write the final resilience report
+  ansible.builtin.include_tasks: tasks/resilience/write-report.yml
+  vars:
+    _resilience_report_status: complete
+
+- name: Report that the run completed without rescued failures
+  ansible.builtin.debug:
+    msg: >-
+      Run completed; no failures had to be rescued. (Roles skipped by profile
+      or host conditions do not count as failures.)
+  when: (_resilience_failures | default([])) | length == 0
+
+- name: Summarize each rescued failure at the end of the run
+  ansible.builtin.debug:
+    msg: >-
+      [{{ item.kind }}] {{ item.role }}{% if item.package is defined %} (package
+      {{ item.package }}){% endif %} -- {{ item.error | default('') }}
+      {%- if item.task is defined and item.task | length > 0 %} [task: {{ item.task }}]{% endif %}
+  loop: "{{ _resilience_failures | default([]) }}"
+  loop_control:
+    label: "{{ item.kind }}: {{ item.role }}"
+  when: (_resilience_failures | default([])) | length > 0
+
+- name: Show how to rerun the failed parts of this run
+  ansible.builtin.debug:
+    msg: >-
+      Rerun just the failed parts after fixing them: make rerun-failed
+      (full report: {{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }})
+  when: (_resilience_failures | default([])) | length > 0
+
+- name: End the run with a failing status because failures were rescued
+  ansible.builtin.fail:
+    msg: >-
+      The playbook ran to the end, but {{ (_resilience_failures | default([])) | length }}
+      failure(s) were rescued along the way (see the summary above and
+      {{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}).
+      Fix them, then rerun only the affected roles: make rerun-failed
+  when:
+    - (_resilience_failures | default([])) | length > 0
+    - resilience_exit_nonzero | default(true) | bool

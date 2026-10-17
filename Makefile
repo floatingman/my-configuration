@@ -123,7 +123,7 @@ first-boot: req-playbook validate-deps ## Minimal first run: base + ssh + shell 
 	@echo 'Run ansible-playbook (first-boot subset)'
 	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) --tags base,ssh,shell,dotfiles
 
-configure: req-playbook validate-deps ## Run ansible (optionally with TAGS="tag1,tag2")
+configure: req-playbook validate-deps ## Run ansible (optionally with TAGS="tag1,tag2"; ANSIBLE_EXTRA="-e key=val")
 	@echo 'Run ansible-playbook'
 ifdef TAGS
 	@available_tags=$$(grep -oP 'tags: \["\K[^"]+' play.yml | sort -u); \
@@ -142,9 +142,9 @@ ifdef TAGS
 		echo "Run 'make list-tags' to see all available tags."; \
 		exit 1; \
 	fi
-	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) --tags "$(TAGS)"
+	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) --tags "$(TAGS)" $(ANSIBLE_EXTRA)
 else
-	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS)
+	ansible-playbook -i localhost play.yml --ask-become-pass $(ANSIBLE_PYTHON_FLAGS) $(ANSIBLE_EXTRA)
 endif
 
 
@@ -158,6 +158,18 @@ APPLY_SHORTCUTS := \
 	homebrew=homebrew \
 	nmtrust=nmtrust \
 	update-tools=asdf,dotfiles,homebrew
+
+.PHONY: rerun-failed
+rerun-failed: req-playbook pip-deps ## Rerun only the roles that failed in the last playbook run
+	@set -e; \
+		tags="$$($(SCRIPT_PYTHON) scripts/rerun_failed.py --tags-only)"; \
+		extra="$$($(SCRIPT_PYTHON) scripts/rerun_failed.py --write-extra-vars)"; \
+		if [ -z "$$tags" ]; then \
+			echo 'Nothing to rerun: the last run recorded no failures (or left no report).'; \
+		else \
+			echo "Rerunning failed roles: $$tags$$([ -n "$$extra" ] && echo " (with: $$extra)")"; \
+			$(MAKE) --no-print-directory configure TAGS="$$tags" ANSIBLE_EXTRA="$$extra"; \
+		fi
 
 .PHONY: apply
 ifeq ($(strip $(WHAT)),)

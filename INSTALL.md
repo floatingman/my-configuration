@@ -271,6 +271,8 @@ The playbook is designed to be run by a non-superuser account with sudo privileg
 
 The playbook will automatically escalate privileges for tasks that require root access (package installations, system configuration, etc.) while running user-level tasks with your regular account privileges.
 
+A failing role does not abort the run: failures are rescued, collected, and summarized at the end (the run still exits non-zero). Fix what the summary lists and re-run just those roles with `make rerun-failed`. See [Error resilience](README.md#error-resilience-continue-past-minor-failures) in the README for the report format and tuning options.
+
 
 [1]: https://www.archlinux.org/
 [2]: https://wiki.archlinux.org/index.php/Installation_guide

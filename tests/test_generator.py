@@ -13,10 +13,12 @@ from conftest import _PROFILES_DIR  # noqa: E402
 from profile_dispatcher import (  # noqa: E402
     ManifestResolver,
     discover_overlay_variables,
+    extract_playbook_roles,
     generate_host_vars_template,
     generate_overlay_facts_task,
     PlaybookGenerator,
     PlaybookRole,
+    resilient_role_wrapper_lines,
     main,
 )
 
@@ -121,6 +123,124 @@ class TestSyncPlaybook:
         out = capsys.readouterr().out
         assert rc == 0
         assert "in sync" in out
+
+
+class TestResilientWrappers:
+    """Resilient block/rescue wrapper emission and parsing.
+
+    play.yml runs every profile role inside a block whose rescue records the
+    failure and lets the run continue (see tasks/resilience/). These tests pin
+    the emitted structure and that sync_check understands it.
+    """
+
+    def test_wrapper_lines_structure_without_condition(self):
+        lines = resilient_role_wrapper_lines("spell", None, ("spell",))
+        text = "\n".join(lines)
+        assert "block:" in text
+        assert "rescue:" in text
+        # Static import on purpose: keeps tasks tagged inside the role
+        # selectable via --tags (e.g. TAGS=asdf reaching system's asdf tasks)
+        assert "ansible.builtin.import_role:" in text
+        assert "name: spell" in text
+        assert 'tags: ["spell"]' in text
+        assert "when:" not in text
+        assert "tasks/resilience/record-role-failure.yml" in text
+        assert "apply:" not in text.split("rescue:")[0]
+        # Parses as valid YAML inside a play
+        play = yaml.safe_load(
+            "- hosts: localhost\n  tasks:\n" + "\n".join(lines) + "\n"
+        )
+        task = play[0]["tasks"][0]
+        imp = task["block"][0]["ansible.builtin.import_role"]
+        assert imp["name"] == "spell"
+        assert task["block"][0]["tags"] == ["spell"]
+        assert "rescue" in task
+
+    def test_wrapper_lines_include_condition(self):
+        lines = resilient_role_wrapper_lines("base", "_is_arch", ("base",))
+        text = "\n".join(lines)
+        assert "when: _is_arch" in text
+
+    def test_generated_playbook_wraps_every_role(self, tmp_path):
+        """_write_merged_playbook emits wrappers + init/report includes."""
+        rc = main(
+            ["generate-playbook", "--profiles-dir", _PROFILES_DIR, "--write", str(tmp_path / "play.yml")]
+        )
+        assert rc == 0
+        parsed = yaml.safe_load((tmp_path / "play.yml").read_text())
+        play = parsed[0]
+
+        # pre_tasks init + post_tasks report includes are present
+        pre = play["pre_tasks"][0]
+        assert pre["ansible.builtin.include_tasks"]["file"] == "tasks/resilience/init.yml"
+        assert pre["tags"] == "always"
+        post = play["post_tasks"][0]
+        assert post["ansible.builtin.include_tasks"]["file"] == "tasks/resilience/failure-report.yml"
+        assert post["tags"] == "always"
+
+        # Every expected role is wrapped in block/rescue with its tags
+        generator = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        wrapped = extract_playbook_roles(parsed)
+        expected = generator.generate()
+        assert {r.role for r in wrapped} == {r.role for r in expected}
+        for role in wrapped:
+            assert role.tags, f"{role.role} wrapper lost its tags"
+
+        # Every wrapper carries a rescue that records failures
+        rescues = [
+            t for t in play["tasks"]
+            if isinstance(t, dict) and "rescue" in t
+        ]
+        assert rescues
+        for wrapper in rescues:
+            record = wrapper["rescue"][0]
+            assert (
+                record["ansible.builtin.include_tasks"]["file"]
+                == "tasks/resilience/record-role-failure.yml"
+            )
+
+    def test_sync_check_accepts_generated_wrapper_format(self, tmp_path):
+        """A freshly generated playbook is in sync with the profiles."""
+        playbook = tmp_path / "play.yml"
+        rc = main(
+            ["generate-playbook", "--profiles-dir", _PROFILES_DIR, "--write", str(playbook)]
+        )
+        assert rc == 0
+        generator = PlaybookGenerator(profiles_dir=_PROFILES_DIR)
+        result = generator.sync_check(str(playbook))
+        assert result.in_sync is True, f"missing={result.missing_roles} extra={result.extra_roles}"
+
+    def test_extract_playbook_roles_mixed_formats(self):
+        """Legacy roles: entries and wrapper tasks are both understood."""
+        data = [
+            {
+                "hosts": "all",
+                "roles": [{"role": "legacy_role", "tags": ["legacy"], "when": "true"}],
+                "tasks": [
+                    {
+                        "name": "Resilient role wrapper for spell",
+                        "block": [
+                            {
+                                "name": "Run role spell",
+                                "ansible.builtin.include_role": {
+                                    "name": "spell",
+                                    "apply": {"tags": ["spell"]},
+                                },
+                                "when": "_is_arch",
+                                "tags": ["spell"],
+                            }
+                        ],
+                        "rescue": [],
+                    }
+                ],
+            }
+        ]
+        roles = extract_playbook_roles(data)
+        assert [r.role for r in roles] == ["legacy_role", "spell"]
+        assert roles[0].tags == ("legacy",)
+        assert roles[0].condition == "true"
+        assert roles[1].condition == "_is_arch"
+        assert roles[1].tags == ("spell",)
 
 
 class TestPlaybookGenerator:

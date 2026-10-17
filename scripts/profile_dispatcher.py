@@ -29,7 +29,7 @@ import sys
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Protocol, Sequence, Set, Tuple, Union
 
 import jinja2
 import yaml
@@ -40,6 +40,9 @@ __all__ = [
     "PlaybookGenerator",
     "PlaybookRole",
     "SyncResult",
+    # Playbook emission/parsing helpers (resilient wrappers, sync, rerun)
+    "resilient_role_wrapper_lines",
+    "extract_playbook_roles",
     # Condition translation
     "ConditionTranslator",
     "AnsibleConditionTranslator",
@@ -1735,6 +1738,59 @@ class ManifestResolver:
         )
 
 
+def resilient_role_wrapper_lines(
+    role_name: str,
+    condition: Optional[str],
+    tags: Sequence[str],
+) -> List[str]:
+    """Emit the block/rescue task lines that run one profile role resiliently.
+
+    Each role is statically imported inside a block whose rescue records the
+    failure (task name and error) via tasks/resilience/record-role-failure.yml
+    and lets the play continue, instead of aborting the whole run at the
+    first failing role.
+
+    ansible.builtin.import_role (not include_role) on purpose: the static
+    import keeps tasks tagged inside the role directly selectable with
+    --tags/--skip-tags (e.g. the system role's asdf-tagged tasks via
+    TAGS=asdf), preserves roles:-keyword `when` semantics (the condition is
+    ANDed into every imported task), and registers role handlers even when
+    the import itself is skipped. The import task carries the role's tags
+    (for the Makefile tag greps); imported tasks keep their own tags too.
+
+    Args:
+        role_name: Role to import
+        condition: Jinja2 when: expression (or None)
+        tags: Tags for the role (imported tasks keep their own tags as well)
+
+    Returns:
+        List of playbook text lines (no trailing blank line)
+    """
+    yaml_tags = "[" + ", ".join(f'"{t}"' for t in tags) + "]"
+    lines = [
+        f"    - name: Resilient role wrapper for {role_name}",
+        "      block:",
+        f"        - name: Run role {role_name}",
+        "          ansible.builtin.import_role:",
+        f"            name: {role_name}",
+    ]
+    if condition:
+        lines.append(f"          when: {condition}")
+    lines.extend([
+        f"          tags: {yaml_tags}",
+        "      rescue:",
+        f"        - name: Record failure of role {role_name}",
+        "          ansible.builtin.include_tasks:",
+        "            file: tasks/resilience/record-role-failure.yml",
+        "            apply:",
+        "              tags: always",
+        "          vars:",
+        f"            _resilience_role: {role_name}",
+        "          tags: always",
+    ])
+    return lines
+
+
 def manifest_to_json(manifest: RoleManifest, indent: int = 2) -> str:
     """Single owner of the wire format. Keys/order identical to today's hand-rolled dict."""
     output = {
@@ -1786,6 +1842,75 @@ class SyncResult:
     missing_roles: Tuple[PlaybookRole, ...]
     extra_roles: Tuple[PlaybookRole, ...]
     condition_mismatches: Tuple[Dict[str, Any], ...]
+
+
+def extract_playbook_roles(playbook_data: Any) -> List[PlaybookRole]:
+    """Extract roles (name, tags, condition) from parsed playbook data.
+
+    Understands both playbook shapes this repo has used:
+    - legacy ``roles:`` entries (``- role: x, when: ...``)
+    - resilient wrappers: ``tasks:`` blocks whose block runs
+      ``ansible.builtin.include_role`` and whose rescue records the failure
+
+    Args:
+        playbook_data: Parsed playbook (a play dict, or a list of plays)
+
+    Returns:
+        Roles in playbook order, one entry per role occurrence
+    """
+    plays = playbook_data if isinstance(playbook_data, list) else [playbook_data]
+
+    actual_roles: List[PlaybookRole] = []
+    for play in plays:
+        if not isinstance(play, dict):
+            continue
+
+        def _entry_from(role_name: str, entry: Dict[str, Any]) -> PlaybookRole:
+            raw_tags = entry.get("tags", [])
+            tags = tuple(raw_tags) if isinstance(raw_tags, list) else ()
+            return PlaybookRole(
+                role=role_name,
+                tags=tags,
+                condition=entry.get("when"),
+            )
+
+        # Legacy shape: roles: keyword entries
+        for role_entry in play.get("roles", []) or []:
+            if isinstance(role_entry, str):
+                actual_roles.append(
+                    PlaybookRole(role=role_entry, tags=(), condition=None)
+                )
+            elif isinstance(role_entry, dict):
+                role_name = role_entry.get("role")
+                if not role_name:
+                    continue
+                actual_roles.append(_entry_from(role_name, role_entry))
+
+        # Resilient shape: block/rescue wrappers around statically imported
+        # roles (import_role), and the earlier include_role-based wrappers
+        # from the first resilience iteration
+        for task in play.get("tasks", []) or []:
+            if not isinstance(task, dict) or "block" not in task:
+                continue
+            for sub in task["block"]:
+                if not isinstance(sub, dict):
+                    continue
+                include = (
+                    sub.get("ansible.builtin.import_role")
+                    or sub.get("import_role")
+                    or sub.get("ansible.builtin.include_role")
+                    or sub.get("include_role")
+                )
+                if not include:
+                    continue
+                role_name = (
+                    include.get("name") if isinstance(include, dict) else include
+                )
+                if not role_name:
+                    continue
+                actual_roles.append(_entry_from(role_name, sub))
+
+    return actual_roles
 
 
 class PlaybookGenerator:
@@ -2019,28 +2144,7 @@ class PlaybookGenerator:
         if playbook_data is None:
             playbook_data = []
 
-        # Extract roles from playbook (handle list of plays format)
-        if isinstance(playbook_data, list):
-            plays = playbook_data
-        else:
-            plays = [playbook_data]
-
-        actual_roles: List[PlaybookRole] = []
-        for play in plays:
-            if not isinstance(play, dict):
-                continue
-            if "roles" in play:
-                for role_entry in play["roles"]:
-                    if isinstance(role_entry, str):
-                        actual_roles.append(PlaybookRole(role=role_entry, tags=(), condition=None))
-                    elif isinstance(role_entry, dict):
-                        role_name = role_entry.get("role")
-                        if not role_name:
-                            continue
-                        condition = role_entry.get("when")
-                        raw_tags = role_entry.get("tags", [])
-                        tags = tuple(raw_tags) if isinstance(raw_tags, list) else ()
-                        actual_roles.append(PlaybookRole(role=role_name, tags=tags, condition=condition))
+        actual_roles = extract_playbook_roles(playbook_data)
 
         # Get expected roles
         expected_roles = self.generate()
@@ -2679,6 +2783,8 @@ def _write_merged_playbook(
     Preserves:
     - pre_tasks structure (resolve-role-manifest call)
     - Section comments in roles
+    - Resilient role wrappers (block/rescue per role, pre_tasks init and
+      post_tasks report includes; see resilient_role_wrapper_lines())
 
     The _host_vars_json template is auto-generated from discovered overlay variables.
 
@@ -2777,6 +2883,14 @@ def _write_merged_playbook(
 
         # Write pre_tasks
         f.write("  pre_tasks:\n")
+        # Resilience: every run starts with an empty failure collector and no
+        # stale report from a previous run (see tasks/resilience/init.yml).
+        f.write("    - name: Initialize resilience failure collection\n")
+        f.write("      ansible.builtin.include_tasks:\n")
+        f.write("        file: tasks/resilience/init.yml\n")
+        f.write("        apply:\n")
+        f.write("          tags: always\n")
+        f.write("      tags: always\n\n")
         f.write('    - name: Resolve unified role manifest\n')
         f.write("      ansible.builtin.command: >-\n")
         f.write("        {{ ansible_playbook_python | default(ansible_python_interpreter) | default('/usr/bin/python3') }}\n")
@@ -2845,8 +2959,10 @@ def _write_merged_playbook(
             f.write(f"        {flag}: \"{{{{ _of.{flag} | default(false) }}}}\"\n")
         f.write("      tags: always\n\n")
 
-        # Write roles
-        f.write("  roles:\n")
+        # Write roles as resilient task wrappers: each role runs inside a
+        # block/rescue so a failing role is recorded and skipped instead of
+        # aborting the whole run (see resilient_role_wrapper_lines()).
+        f.write("  tasks:\n")
         for section_name, section_roles in buckets.items():
             if section_roles:
                 # Add section comment
@@ -2855,11 +2971,18 @@ def _write_merged_playbook(
                 f.write("    # -------------------------------------------------------------------------\n")
                 # Write roles in this section (double-quoted tags for Makefile grep compat)
                 for role_name, condition, tags in section_roles:
-                    yaml_tags = '[' + ', '.join(f'"{t}"' for t in tags) + ']'
-                    if condition:
-                        f.write(f"    - {{ role: {role_name}, tags: {yaml_tags}, when: {condition} }}\n")
-                    else:
-                        f.write(f"    - {{ role: {role_name}, tags: {yaml_tags} }}\n")
+                    for line in resilient_role_wrapper_lines(role_name, condition, tags):
+                        f.write(line + "\n")
+
+        # End-of-run report: summarizes every rescued failure and writes the
+        # machine-readable report consumed by `make rerun-failed`.
+        f.write("\n  post_tasks:\n")
+        f.write("    - name: Report resilience failures at the end of the run\n")
+        f.write("      ansible.builtin.include_tasks:\n")
+        f.write("        file: tasks/resilience/failure-report.yml\n")
+        f.write("        apply:\n")
+        f.write("          tags: always\n")
+        f.write("      tags: always\n")
 
     print(f"Generated {playbook_path} from profile definitions")
     return 0

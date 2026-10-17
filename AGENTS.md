@@ -25,6 +25,7 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 | `make install`                          | `ansible-galaxy install` roles + collections from requirements.yml |
 | `make configure`                        | Run the playbook (prompts for sudo password)                       |
 | `make configure TAGS="rust,python"`     | Run only tagged roles (tags validated first)                       |
+| `make rerun-failed`                     | Rerun only the roles that failed in the last run (reads the failure report) |
 | `make apply WHAT=nmtrust`             | Quick-apply named shortcuts (or raw tags) — no tag memorizing; bare `make apply` lists them |
 | `make profile-i3`                       | Run one profile; see `make list-profiles`                          |
 | `make test`                             | lint + syntax-check + validate-profiles + check-sync + pytest      |
@@ -59,9 +60,20 @@ Tests import only the public API (`profile_dispatcher.__all__`) — never `*`-pr
 Build time:   profiles/*.yml ──PlaybookGenerator──> play.yml   (make generate-playbook)
 
 Run time:     play.yml pre_tasks (tag: always)
+                ├─ include tasks/resilience/init.yml (empty failure collector, drop stale report)
                 └─ scripts/profile_dispatcher.py resolve-role-manifest
                      └─ set_fact: _is_arch, _has_display, _is_<de>, _overlay_<role>
-                          └─ each role: when: <fact>
+                          └─ each role (tasks: block/rescue wrapper around import_role):
+                               block:  import_role <role> (static; tags + when from profile,
+                                       inner task tags stay selectable, handlers register)
+                               rescue: include tasks/resilience/record-role-failure.yml
+                          └─ post_tasks: include tasks/resilience/failure-report.yml
+                               (summary + ~/.cache/my-configuration/failures.json + non-zero exit)
+
+A failing role is rescued, recorded, and skipped — the run continues; the
+end-of-run report lists every failure and `make rerun-failed` re-runs just
+the failed roles. `roles/resilient_packages` routes packages between pacman
+and the AUR (used by `base_packages` and `aur.packages`).
 ```
 
 - **Profiles** (`profiles/*.yml`): 6 profiles — headless, i3, hyprland, gnome, awesomewm, kde — all `extends: _base.yml`. Role annotations: `tags`, `os` (`archlinux`/`debian`), `requires_display`, `config_check` (Jinja expression over host vars), `requires_config` (key/value match, e.g. `display_manager: lightdm`). Roles exclusive to one DE profile automatically get `_is_<de>` conditions.

@@ -1,0 +1,17 @@
+---
+# defaults file for resilient_packages
+#
+# Resilient package installation for Arch Linux (see tasks/main.yml and the
+# role README). Both variables are call-site parameters, passed via `vars:`
+# on the include_role; defaults keep the role runnable standalone.
+
+# Package names to install. Every package is routed to whichever source
+# actually has it: official pacman repos first, AUR (via yay) second.
+# Packages found in neither source are recorded in the end-of-run
+# resilience report instead of failing the run.
+resilient_packages_list: []
+
+# Name recorded in the resilience report for packages that could not be
+# found anywhere. Must be the name of the INCLUDING role, so that
+# `make rerun-failed` re-runs the right role tag after a fix.
+resilient_packages_owner: "resilient_packages"
