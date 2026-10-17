@@ -15,6 +15,12 @@
 #      resilience report (kind: package) as a likely rename/removal, and the
 #      run continues
 #
+# The repo leg runs BEFORE the AUR leg so a problem in the AUR bootstrap
+# (aur_builder user, sudoers, yay itself) can never block official-repo
+# packages. yay is installed from the official repos when a repo has it and
+# built from the AUR otherwise (kewlfft.aur falls back to makepkg; the repo
+# leg provides base-devel from base_packages first).
+#
 # Usage (from any role):
 #   - name: Install my packages resiliently
 #     ansible.builtin.include_role:
@@ -61,28 +67,19 @@
     _rp_aur_candidates: []
   when: ansible_facts['os_family'] != 'Archlinux'
 
-- name: Check whether yay is available for the AUR fallback
-  check_mode: false
-  ansible.builtin.command: yay --version
-  register: _rp_yay
-  failed_when: false
-  changed_when: false
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - _rp_aur_candidates | length > 0
-
-- name: Ensure yay is installed when AUR packages need it
+- name: Install packages that live in the official repos
   community.general.pacman:
-    name: yay
+    name: "{{ _rp_repo_missing }}"
     state: present
   become: true
   when:
     - ansible_facts['os_family'] == 'Archlinux'
-    - _rp_aur_candidates | length > 0
-    - _rp_yay.rc | default(1) != 0
+    - _rp_repo_missing | length > 0
 
-# Bootstrapped by the base role (and repeated by the aur role); repeated here
-# so tag-scoped runs of any consumer role can still install AUR packages.
+# --- AUR leg: bootstrap aur_builder + yay, then route AUR candidates ------
+# (Bootstrapped by the base role and repeated by the aur role; repeated here
+# so tag-scoped runs of any consumer role can still install AUR packages.)
+
 - name: Ensure the aur_builder user exists for AUR installs
   ansible.builtin.user:
     name: aur_builder
@@ -104,6 +101,40 @@
   when:
     - ansible_facts['os_family'] == 'Archlinux'
     - _rp_aur_candidates | length > 0
+
+- name: Check whether yay is available for the AUR fallback
+  check_mode: false
+  ansible.builtin.command: yay --version
+  register: _rp_yay
+  failed_when: false
+  changed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Ensure yay is installed from the official repos when a repo has it
+  community.general.pacman:
+    name: yay
+    state: present
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+    - _rp_yay.rc | default(1) != 0
+    - "'yay' in _rp_repo.stdout_lines"
+
+- name: Ensure yay is built from the AUR when no official repo has it
+  kewlfft.aur.aur:
+    name: yay
+    use: auto
+    state: present
+  become: true
+  become_user: aur_builder
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+    - _rp_yay.rc | default(1) != 0
+    - "'yay' not in _rp_repo.stdout_lines"
 
 - name: Probe which AUR candidates exist in the AUR
   check_mode: false
@@ -146,15 +177,6 @@
   loop_control:
     label: "{{ item }}"
   when: (_rp_missing_everywhere | default([])) | length > 0
-
-- name: Install packages that live in the official repos
-  community.general.pacman:
-    name: "{{ _rp_repo_missing }}"
-    state: present
-  become: true
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - _rp_repo_missing | length > 0
 
 - name: Install packages that live in the AUR
   kewlfft.aur.aur:

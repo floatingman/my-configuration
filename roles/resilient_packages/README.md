@@ -16,9 +16,12 @@ For every entry in `resilient_packages_list`:
    report (`kind: package`) as a likely rename/removal, and the run
    continues
 
-`yay` is installed from the official repos on demand when AUR packages are
-needed, and the `aur_builder` user plus its sudoers rule are ensured
-idempotently (same bootstrap the `base` and `aur` roles perform).
+`yay` and the `aur_builder` user plus its sudoers rule are ensured on
+demand (same bootstrap the `base` and `aur` roles perform). The repo leg
+runs before the AUR leg, so an AUR-side bootstrap problem can never block
+official-repo packages; `yay` itself is installed from whichever source
+has it (official repo copy if present, otherwise built from the AUR via
+`kewlfft.aur`, which falls back to makepkg).
 
 ## Usage
 

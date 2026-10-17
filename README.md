@@ -504,8 +504,10 @@ failures exit 0.
 source actually has it: already-installed packages are skipped, packages in
 the official repos install via `pacman`, AUR-only packages via `yay`, and
 names that exist nowhere are reported at the end of the run as likely
-renames instead of aborting. `yay` and the `aur_builder` sudoers bootstrap
-are ensured on demand. Other roles can adopt the same helper:
+renames instead of aborting. The repo leg runs first, so AUR-side problems
+can never block official-repo packages; `yay` and the `aur_builder`
+sudoers bootstrap are ensured on demand (`yay` itself installs from
+whichever source has it, building from the AUR when no repo carries it). Other roles can adopt the same helper:
 
 ```yaml
 - name: Install my packages resiliently

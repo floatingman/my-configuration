@@ -103,3 +103,30 @@ def test_checker_detects_reversed_order_on_synthetic_play():
         base_pos = names.index("base")
         offenders = [n for n in names[:base_pos] if _uses_aur_become(n)]
         assert bool(offenders) is expect_offenders, names
+
+
+def test_resilient_packages_repo_leg_runs_before_aur_bootstrap():
+    """Official-repo installs must not depend on the AUR bootstrap.
+
+    Regression: on a pristine machine the pacman-module install of yay
+    failed ("Failed to list package yay" -- yay is AUR-only), and because
+    the yay bootstrap ran first, base_packages repo entries (ripgrep,
+    cowsay, ...) never installed. The repo leg now runs before any
+    aur_builder/yay bootstrap task, so an AUR-side problem can only ever
+    block AUR packages.
+    """
+    path = ROLES_DIR / "resilient_packages" / "tasks" / "main.yml"
+    tasks = yaml.safe_load(path.read_text())
+    names = [t.get("name", "") for t in tasks if isinstance(t, dict)]
+
+    def pos(fragment):
+        indexes = [i for i, n in enumerate(names) if fragment in n]
+        assert indexes, f"task containing {fragment!r} not found in {path}"
+        return indexes[0]
+
+    repo_install = pos("Install packages that live in the official repos")
+    aur_builder = pos("Ensure the aur_builder user exists")
+    yay_repo = pos("Ensure yay is installed from the official repos")
+    yay_aur = pos("Ensure yay is built from the AUR")
+    assert repo_install < aur_builder < yay_repo
+    assert repo_install < yay_aur
