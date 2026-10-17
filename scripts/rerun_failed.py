@@ -45,6 +45,16 @@ GROUP_VARS_FILES = ("base.yml", "local.yml")
 # Profile context keys recorded in the report and restored via -e on rerun.
 PROFILE_KEYS = ("profile", "display_manager", "desktop_environment")
 DISABLE_FLAGS = ("i3", "hyprland", "gnome", "awesomewm", "kde")
+# Overlay selectors (see profiles/overlays/): recorded in the report and
+# restored the same way, so a rerun cannot silently skip overlay-gated roles
+# (e.g. a failed laptop role after `-e laptop=true` on a host whose local
+# vars leave laptop disabled).
+# Mapping of report field -> (extra-vars key, effective default when unset).
+OVERLAY_SELECTORS = {
+    "laptop": ("laptop", False),
+    "user_environment": ("user_environment", True),
+    "bluetooth_disable": (None, False),  # restored as the bluetooth dict
+}
 
 _HOME_LOOKUP_RE = re.compile(
     r"\{\{\s*lookup\(\s*[\"']env[\"']\s*,\s*[\"']HOME[\"']\s*\)\s*\}\}", re.IGNORECASE
@@ -171,25 +181,93 @@ def failed_role_tags(report: dict, playbook_path: Path) -> List[str]:
     return tags
 
 
-def profile_restore_args(report: dict) -> List[str]:
-    """-e arguments restoring the failed run's profile context.
+def load_group_vars() -> dict:
+    """Merged group_vars/all/{base,local}.yml values (local overrides base).
+
+    Used to filter restore args: values the rerun would read from group_vars
+    anyway are not re-passed, so only genuine command-line overrides from the
+    failed run (values that differ from the machine's current group_vars)
+    are restored. Returns {} when the files are missing or unparseable.
+    """
+    try:
+        import yaml
+    except ImportError:
+        return {}
+
+    merged: dict = {}
+    for name in GROUP_VARS_FILES:
+        gv = GROUP_VARS_DIR / name
+        if not gv.is_file():
+            continue
+        try:
+            data = yaml.safe_load(gv.read_text(encoding="utf-8")) or {}
+        except Exception:  # noqa: BLE001
+            return {}
+        if isinstance(data, dict):
+            merged.update(data)
+    return merged
+
+
+def _as_bool(value) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes", "1")
+    return None
+
+
+def profile_restore_args(report: dict, group_vars: Optional[dict] = None) -> List[str]:
+    """-e arguments restoring the failed run's selection context.
 
     A plain `make configure` on a host whose local vars select a different
     (or no) profile would skip the very roles that failed -- e.g. a failed
-    hyprland role is skipped when nothing sets desktop_environment=hyprland.
-    Restoring the recorded values makes the rerun re-select them.
+    hyprland role is skipped when nothing sets desktop_environment=hyprland,
+    and a failed laptop role is skipped when laptop is not enabled locally.
+    Restoring the recorded values makes the rerun re-select them. Values that
+    match the machine's current group_vars are skipped: the rerun reads them
+    from there anyway, so only real command-line overrides come back.
+
+    Returns a single `-e {compact JSON}` argument (or []): booleans and
+    nested dicts keep their native types, and the space-free value survives
+    the Makefile's unquoted ANSIBLE_EXTRA expansion word-splitting intact.
     """
-    args: List[str] = []
+    if group_vars is None:
+        group_vars = load_group_vars()
+
+    restore: dict = {}
     for key in PROFILE_KEYS:
         value = report.get(key)
         if isinstance(value, str) and value.strip():
-            args.append(f"-e {key}={value.strip()}")
+            if str(group_vars.get(key, "")).strip() != value.strip():
+                restore[key] = value.strip()
+
     disabled = report.get("disabled_roles")
     if isinstance(disabled, list):
         for role in disabled:
-            if role in DISABLE_FLAGS:
-                args.append(f"-e disable_{role}=true")
-    return args
+            if role in DISABLE_FLAGS and not _as_bool(group_vars.get(f"disable_{role}")):
+                restore[f"disable_{role}"] = True
+
+    laptop = _as_bool(report.get("laptop"))
+    if laptop is not None and laptop != bool(group_vars.get("laptop", False)):
+        restore["laptop"] = laptop
+
+    user_env = _as_bool(report.get("user_environment"))
+    if user_env is not None and user_env != bool(group_vars.get("user_environment", True)):
+        restore["user_environment"] = user_env
+
+    bt_disable = _as_bool(report.get("bluetooth_disable"))
+    gv_bt = group_vars.get("bluetooth")
+    gv_bt_disable = (
+        _as_bool(gv_bt.get("disable")) if isinstance(gv_bt, dict) else None
+    )
+    if bt_disable is not None and bt_disable != (gv_bt_disable or False):
+        # Dot-notation extra vars do not override dict variables; restore the
+        # whole (single-key in practice) dict instead.
+        restore["bluetooth"] = {"disable": bt_disable}
+
+    if not restore:
+        return []
+    return ["-e " + json.dumps(restore, separators=(",", ":"), sort_keys=True)]
 
 
 def _warn_incomplete(report: dict) -> None:

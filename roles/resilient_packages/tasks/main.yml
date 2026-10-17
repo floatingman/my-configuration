@@ -210,6 +210,18 @@
     label: "{{ item.package }}"
   when: (_rp_probe_failed | default([])) | length > 0
 
+- name: Refresh the in-progress report with the recorded package failures
+  # The role-kind failures refresh the report from their rescue; without
+  # this, package failures recorded here (fact only) would be lost from the
+  # on-disk report if the run later aborts with no intervening role rescue
+  # (e.g. a failing handler flush).
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/resilience/write-report.yml"
+  vars:
+    _resilience_report_status: in-progress
+  when:
+    - ((_rp_missing_everywhere | default([])) | length + (_rp_probe_failed | default([])) | length) > 0
+    - (playbook_dir ~ '/tasks/resilience/write-report.yml') is exists
+
 - name: Abort because package problems make the owning role fatal
   ansible.builtin.fail:
     msg: >-

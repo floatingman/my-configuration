@@ -191,7 +191,10 @@ class TestReportPathResolution:
 
 
 class TestProfileRestoreArgs:
-    """--extra-vars-only must restore the failed run's profile context."""
+    """--extra-vars-only must restore the failed run's selection context."""
+
+    # Explicit empty group_vars keeps the differ-filter deterministic.
+    NO_GV = {"__test__": True}
 
     def test_profile_keys_and_disable_flags(self):
         report = {
@@ -200,23 +203,72 @@ class TestProfileRestoreArgs:
             "desktop_environment": "hyprland",
             "disabled_roles": ["i3", "gnome"],
         }
-        args = rerun_failed.profile_restore_args(report)
-        assert "-e profile=hyprland" in args
-        assert "-e display_manager=sddm" in args
-        assert "-e desktop_environment=hyprland" in args
-        assert "-e disable_i3=true" in args
-        assert "-e disable_gnome=true" in args
+        args = rerun_failed.profile_restore_args(report, group_vars={})
+        # single compact-JSON -e argument (typed values, word-split safe)
+        assert len(args) == 1 and args[0].startswith("-e {")
+        assert "\"profile\":\"hyprland\"" in args[0]
+        assert "\"display_manager\":\"sddm\"" in args[0]
+        assert "\"desktop_environment\":\"hyprland\"" in args[0]
+        assert "\"disable_i3\":true" in args[0]
+        assert "\"disable_gnome\":true" in args[0]
+
+    def test_values_matching_group_vars_are_not_restored(self):
+        """The rerun re-reads group_vars anyway; only CLI overrides come back."""
+        report = {
+            "profile": "hyprland",
+            "display_manager": "sddm",
+            "laptop": True,
+            "user_environment": True,
+            "bluetooth_disable": False,
+        }
+        args = rerun_failed.profile_restore_args(
+            report,
+            group_vars={
+                "profile": "hyprland",
+                "display_manager": "sddm",
+                "laptop": True,
+                "bluetooth": {"disable": False},
+            },
+        )
+        assert args == []  # everything matches what the rerun reads anyway
+
+    def test_overlay_selectors_are_restored(self):
+        report = {"laptop": True, "user_environment": False, "bluetooth_disable": True}
+        args = rerun_failed.profile_restore_args(report, group_vars={})
+        assert len(args) == 1 and args[0].startswith("-e {")
+        assert "\"laptop\":true" in args[0]
+        assert "\"user_environment\":false" in args[0]
+        # dict variables cannot be overridden with dot notation; the whole
+        # (single-key in practice) dict is restored with a native bool
+        assert "\"bluetooth\":{\"disable\":true}" in args[0]
+
+    def test_overlay_defaults_matching_effective_state_are_skipped(self):
+        # user_environment defaults to true; a report recording true on a
+        # host without a group_vars override needs no restore arg
+        args = rerun_failed.profile_restore_args(
+            {"user_environment": True, "laptop": False}, group_vars={}
+        )
+        assert args == []
 
     def test_empty_context_yields_no_args(self):
-        assert rerun_failed.profile_restore_args({}) == []
+        assert rerun_failed.profile_restore_args({}, group_vars={}) == []
         assert (
             rerun_failed.profile_restore_args(
-                {"profile": "", "display_manager": "", "disabled_roles": []}
+                {
+                    "profile": "",
+                    "display_manager": "",
+                    "disabled_roles": [],
+                    "laptop": None,
+                    "user_environment": None,
+                    "bluetooth_disable": None,
+                },
+                group_vars={},
             )
             == []
         )
 
-    def test_extra_vars_only_mode_prints_args(self, tmp_path, capsys):
+    def test_extra_vars_only_mode_prints_args(self, tmp_path, capsys, monkeypatch):
+        monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
         report = _write_report(
             tmp_path,
             [{"kind": "role", "role": "media", "error": "x"}],
@@ -225,10 +277,12 @@ class TestProfileRestoreArgs:
         )
         assert rerun_failed.main(["--report", str(report), "--extra-vars-only"]) == 0
         out = capsys.readouterr().out.strip()
-        assert "-e profile=hyprland" in out
-        assert "-e display_manager=sddm" in out
+        assert out.startswith("-e {")
+        assert "\"profile\":\"hyprland\"" in out
+        assert "\"display_manager\":\"sddm\"" in out
 
-    def test_human_mode_shows_ansible_extra(self, tmp_path, capsys):
+    def test_human_mode_shows_ansible_extra(self, tmp_path, capsys, monkeypatch):
+        monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
         report = _write_report(
             tmp_path,
             [{"kind": "role", "role": "media", "error": "x"}],
@@ -236,7 +290,7 @@ class TestProfileRestoreArgs:
         )
         assert rerun_failed.main(["--report", str(report)]) == 0
         out = capsys.readouterr().out
-        assert 'TAGS="media" ANSIBLE_EXTRA="-e profile=hyprland"' in out
+        assert 'TAGS="media" ANSIBLE_EXTRA="-e {\"profile\":\"hyprland\"}"' in out
 
     def test_incomplete_report_warns(self, tmp_path, capsys):
         report = _write_report(

@@ -497,10 +497,11 @@ make configure TAGS="media,aur"
 tag-validated `configure` target. When there is nothing to rerun it says so
 and exits 0. Package-level failures are attributed to the role that owns the
 list (`base_packages` -> `base`, `aur.packages` -> `aur`). If the failed run
-was started with profile context (`make profile-hyprland` or manual
-`-e profile=... desktop_environment=... display_manager=...`), the rerun
-restores it (`-e` overrides via `ANSIBLE_EXTRA`) so the failed roles are
-actually re-selected instead of being skipped by their `when:` conditions.
+was started with selection context (`make profile-hyprland`, or manual
+`-e profile=... desktop_environment=... display_manager=...`, or overlay
+selectors like `-e laptop=true`), the rerun restores it — as one compact
+JSON `-e` argument via `ANSIBLE_EXTRA` — so the failed roles are actually
+re-selected instead of being skipped by their `when:`/overlay conditions.
 `make configure` accepts `ANSIBLE_EXTRA="-e key=value ..."` for any other
 ad-hoc extra vars the same way.
 

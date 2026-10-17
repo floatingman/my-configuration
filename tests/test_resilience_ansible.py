@@ -261,7 +261,7 @@ class TestResilientPlaybookBehavior:
             playbook,
             report,
             "-e",
-            '{"profile": "hyprland", "desktop_environment": "hyprland", "display_manager": "sddm"}',
+            '{"profile": "hyprland", "desktop_environment": "hyprland", "display_manager": "sddm", "laptop": true}',
         )
         assert result.returncode != 0
 
@@ -270,4 +270,5 @@ class TestResilientPlaybookBehavior:
         assert data["profile"] == "hyprland"
         assert data["desktop_environment"] == "hyprland"
         assert data["display_manager"] == "sddm"
+        assert data["laptop"] is True
         assert data["disabled_roles"] == []

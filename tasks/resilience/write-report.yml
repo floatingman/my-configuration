@@ -52,6 +52,9 @@
                                   else []) + (['gnome'] if (disable_gnome | default(false) | bool)
                                   else []) + (['awesomewm'] if (disable_awesomewm | default(false) | bool)
                                   else []) + (['kde'] if (disable_kde | default(false) | bool) else []),
+               'laptop': laptop | default(none),
+               'user_environment': user_environment | default(none),
+               'bluetooth_disable': (bluetooth['disable'] | default(none)) if (bluetooth is defined and bluetooth is mapping) else none,
                'run_tags': ansible_run_tags,
                'skip_tags': ansible_skip_tags,
                'failure_count': (_resilience_failures | default([])) | length,
