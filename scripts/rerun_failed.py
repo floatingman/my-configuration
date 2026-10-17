@@ -26,6 +26,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -201,6 +202,12 @@ def load_group_vars() -> dict:
     return merged
 
 
+def _fallback_extra_vars_path() -> Path:
+    """Space-free location for the extra-vars file when the report path is
+    not shell-safe (e.g. resilience_report_path containing spaces)."""
+    return Path(tempfile.gettempdir()) / f"rerun-extra-vars-{os.getuid()}.json"
+
+
 def _as_bool(value) -> Optional[bool]:
     if isinstance(value, bool):
         return value
@@ -262,6 +269,18 @@ def profile_restore_dict(report: dict, group_vars: Optional[dict] = None) -> dic
     return restore
 
 
+def _shell_safe(path: Path) -> bool:
+    """True when the absolute path survives unquoted $(ANSIBLE_EXTRA) expansion.
+
+    The configure recipe expands ANSIBLE_EXTRA unquoted, so the @file operand
+    must be a single shell word: no spaces, no glob characters, no quotes.
+    Embedding quotes inside the value does not help (quote removal does not
+    apply to variable-expansion results), so hostile paths fall back to a
+    safe location instead.
+    """
+    return bool(re.fullmatch(r"[A-Za-z0-9._/+-]+", str(path)))
+
+
 def write_extra_vars_file(report: dict, report_path: Path) -> str:
     """Write the restore overrides to a JSON file; return the -e argument.
 
@@ -269,14 +288,19 @@ def write_extra_vars_file(report: dict, report_path: Path) -> str:
     spaces, commas or braces) because inline JSON is mangled by the shell
     when the Makefile expands $(ANSIBLE_EXTRA) unquoted -- bash brace
     expansion splits `{"a":1,"b":2}` into separate words -- and k=v strings
-    lose native types. The file is written next to the failure report and
+    lose native types. The file is written next to the failure report when
+    that path is shell-safe, otherwise in a space-free temp location; it is
     removed again when no overrides are needed, so it never goes stale.
     """
-    path = report_path.parent / EXTRA_VARS_FILENAME
     restore = profile_restore_dict(report)
     if not restore:
-        path.unlink(missing_ok=True)
+        for candidate in (report_path.parent / EXTRA_VARS_FILENAME, _fallback_extra_vars_path()):
+            candidate.unlink(missing_ok=True)
         return ""
+
+    path = report_path.parent / EXTRA_VARS_FILENAME
+    if not _shell_safe(path.resolve()):
+        path = _fallback_extra_vars_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(restore, indent=2, sort_keys=True), encoding="utf-8")
     return f"-e @{path.resolve()}"

@@ -296,6 +296,28 @@ class TestProfileRestoreDict:
         assert arg == ""
         assert not stale.exists()
 
+    def test_human_mode_shows_ansible_extra(self, tmp_path, capsys, monkeypatch):
+        monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
+        report = _write_report(
+            tmp_path,
+            [{"kind": "role", "role": "media", "error": "x"}],
+            profile="hyprland",
+        )
+        assert rerun_failed.main(["--report", str(report)]) == 0
+        out = capsys.readouterr().out
+        assert 'TAGS="media" ANSIBLE_EXTRA="-e @' in out
+
+    def test_incomplete_report_warns(self, tmp_path, capsys):
+        report = _write_report(
+            tmp_path,
+            [{"kind": "role", "role": "media", "error": "x"}],
+            status="in-progress",
+        )
+        assert rerun_failed.main(["--report", str(report), "--tags-only"]) == 0
+        err = capsys.readouterr().err
+        assert "in-progress" in err
+        assert "may be partial" in err
+
     def test_extra_vars_argument_is_a_single_shell_word(self, tmp_path, monkeypatch):
         """The -e argument must survive unquoted $(ANSIBLE_EXTRA) expansion.
 
@@ -320,24 +342,52 @@ class TestProfileRestoreDict:
         assert "," not in path_word and "{" not in path_word
         assert path_word.startswith("@/")
 
-    def test_human_mode_shows_ansible_extra(self, tmp_path, capsys, monkeypatch):
+    def test_extra_vars_argument_argv_shape_via_sh(self, tmp_path, monkeypatch):
+        """The real executable argv: expand the argument through /bin/sh.
+
+        Mirrors the configure recipe exactly (`$(ANSIBLE_EXTRA)` expanded
+        unquoted into shell source) and asserts the two-word argv that
+        ansible-playbook receives.
+        """
+        import subprocess
+
         monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
-        report = _write_report(
+        report_path = _write_report(
             tmp_path,
             [{"kind": "role", "role": "media", "error": "x"}],
             profile="hyprland",
+            laptop=True,
         )
-        assert rerun_failed.main(["--report", str(report)]) == 0
-        out = capsys.readouterr().out
-        assert 'TAGS="media" ANSIBLE_EXTRA="-e @' in out
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        arg = rerun_failed.write_extra_vars_file(report, report_path)
+        argv = subprocess.run(
+            ["/bin/sh", "-c", 'printf "%s\\n" ansible-playbook ' + arg],
+            capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+        assert argv == ["ansible-playbook", "-e", arg.split()[1]]
 
-    def test_incomplete_report_warns(self, tmp_path, capsys):
-        report = _write_report(
-            tmp_path,
-            [{"kind": "role", "role": "media", "error": "x"}],
-            status="in-progress",
+    def test_report_path_with_spaces_falls_back_to_safe_location(self, tmp_path, monkeypatch):
+        """A resilience_report_path containing spaces must not split the
+        @file operand; the file moves to a space-free fallback path."""
+        monkeypatch.setattr(rerun_failed, "load_group_vars", lambda: {})
+        monkeypatch.setattr(
+            rerun_failed, "_fallback_extra_vars_path",
+            lambda: tmp_path / "safe" / "rerun-extra-vars.json",
         )
-        assert rerun_failed.main(["--report", str(report), "--tags-only"]) == 0
-        err = capsys.readouterr().err
-        assert "in-progress" in err
-        assert "may be partial" in err
+        spacey_dir = tmp_path / "run reports"
+        spacey_dir.mkdir()
+        report_path = spacey_dir / "failures.json"
+        report_path.write_text(
+            json.dumps({"failures": [{"kind": "role", "role": "media", "error": "x"}],
+                        "profile": "hyprland"}),
+            encoding="utf-8",
+        )
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        arg = rerun_failed.write_extra_vars_file(report, report_path)
+        assert len(arg.split()) == 2
+        path_word = arg.split()[1]
+        assert " " not in path_word
+        assert path_word.startswith("@")
+        assert "safe/rerun-extra-vars.json" in path_word
+        # the JSON really is at the fallback location
+        assert json.loads(Path(path_word[1:]).read_text(encoding="utf-8"))["profile"] == "hyprland"
