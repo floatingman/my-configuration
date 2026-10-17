@@ -63,8 +63,9 @@ Run time:     play.yml pre_tasks (tag: always)
                 ├─ include tasks/resilience/init.yml (empty failure collector, drop stale report)
                 └─ scripts/profile_dispatcher.py resolve-role-manifest
                      └─ set_fact: _is_arch, _has_display, _is_<de>, _overlay_<role>
-                          └─ each role (tasks: block/rescue wrapper around include_role):
-                               block:  include_role <role> (tags + when from profile)
+                          └─ each role (tasks: block/rescue wrapper around import_role):
+                               block:  import_role <role> (static; tags + when from profile,
+                                       inner task tags stay selectable, handlers register)
                                rescue: include tasks/resilience/record-role-failure.yml
                           └─ post_tasks: include tasks/resilience/failure-report.yml
                                (summary + ~/.cache/my-configuration/failures.json + non-zero exit)

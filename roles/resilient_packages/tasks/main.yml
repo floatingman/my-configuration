@@ -76,6 +76,37 @@
     - ansible_facts['os_family'] == 'Archlinux'
     - _rp_repo_missing | length > 0
 
+- name: Resolve AUR candidates that pacman can still satisfy
+  # pacman -Slq lists only literal repo names, so provides aliases (e.g.
+  # 'cron' -> cronie) and version specs (e.g. 'pkg>=1.2') look AUR-only even
+  # though libalpm resolves them from the repos -- ask pacman directly, the
+  # way the old ansible.builtin.package task did, before falling back to yay.
+  check_mode: false
+  ansible.builtin.command: pacman -S --print-format %n -- {{ item }}
+  loop: "{{ _rp_aur_candidates }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _rp_alias_probe
+  failed_when: false
+  changed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Move pacman-resolvable entries (aliases, version specs) to the repo leg
+  ansible.builtin.set_fact:
+    _rp_repo_missing: "{{ _rp_repo_missing + (_rp_alias_probe.results | default([])
+                          | selectattr('rc', 'equalto', 0)
+                          | map(attribute='stdout_lines') | flatten | unique) }}"
+    _rp_aur_candidates: "{{ _rp_alias_probe_results | default([])
+                            | rejectattr('rc', 'equalto', 0)
+                            | map(attribute='item') | list }}"
+  vars:
+    _rp_alias_probe_results: "{{ _rp_alias_probe.results | default([]) }}"
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
 # --- AUR leg: bootstrap aur_builder + yay, then route AUR candidates ------
 # (Bootstrapped by the base role and repeated by the aur role; repeated here
 # so tag-scoped runs of any consumer role can still install AUR packages.)

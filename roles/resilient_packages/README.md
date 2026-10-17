@@ -11,6 +11,10 @@ For every entry in `resilient_packages_list`:
 
 1. already installed -> nothing to do
 2. available in an official repo -> installed with `pacman`
+   (entries that are not literal repo names get a second chance via
+   `pacman -S --print-format %n`, so provides aliases like `cron` ->
+   `cronie` and version specs like `pkg>=1.2` resolve from the repos the
+   way `ansible.builtin.package` used to resolve them)
 3. available in the AUR -> installed with `yay` (as `aur_builder`)
 4. found in **neither** source -> recorded in the end-of-run resilience
    report (`kind: package`) as a likely rename/removal, and the run
