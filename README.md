@@ -368,6 +368,7 @@ list-profiles                 List all available configuration profiles
 list-tags                     List all available tags in the playbook
 pip-deps                      Ensure pyyaml is available (injects into pipx ansible environment)
 pytest                        Run Python test suite with pytest
+rerun-failed                  Rerun only the roles that failed in the last playbook run
 setup                         One-shot fresh-system setup: install pipx + PATH, then ansible
 sync-playbook                 Show drift between play.yml and profile definitions
 syntax-check                  Check playbook syntax
@@ -445,3 +446,79 @@ You can run specific roles by using tags. This allows you to only run certain pa
    ```
 
 This is useful when you only want to configure specific components without running the entire playbook.
+
+### Error resilience: continue past minor failures
+
+A full run no longer dies at the first failing role. `play.yml` (generated
+from `profiles/`, never hand-edited) wraps every role in a `block/rescue`
+pair: when a role fails — a renamed package, a package that moved between
+pacman and the AUR, a changed upstream URL — the failure is recorded and the
+run continues with the next role. Everything that was skipped is reported
+in one place at the end:
+
+```sh
+make configure
+...
+TASK [Summarize each rescued failure at the end of the run]
+[role] media -- One or more packages failed ... [task: Install media packages]
+[package] aur (package nova) -- not found in any pacman repo or the AUR (renamed or removed?)
+The playbook ran to the end, but 2 failure(s) were rescued along the way ...
+```
+
+The run then exits non-zero on purpose, so a failed-but-completed run cannot
+masquerade as a green one.
+
+**Reading the error report.** Besides the console summary, every run writes
+a machine-readable report to `~/.cache/my-configuration/failures.json`
+(override with `resilience_report_path`; reports are also written for
+`--check` runs, tagged `check_mode: true`). Each entry records the kind
+(`role` or `package`), the role, the failing task, and the error message. A
+report from a previous run is removed at the start of each run, so it always
+describes the run that just finished.
+
+**Rerunning only the failed parts.** After fixing a problem, rerun just the
+affected roles:
+
+```sh
+make rerun-failed            # reads the report, runs make configure TAGS=<failed roles>
+# or explicitly:
+make configure TAGS="media,aur"
+```
+
+`make rerun-failed` maps each failed role to its playbook tag (e.g.
+`ansible-role-packages` -> `packages`), deduplicates them, and runs the same
+tag-validated `configure` target. When there is nothing to rerun it says so
+and exits 0. Package-level failures are attributed to the role that owns the
+list (`base_packages` -> `base`, `aur.packages` -> `aur`).
+
+**Fatal problems.** By default nothing aborts the run. If some role must not
+be skipped, list it in `resilience_fatal_roles` (default `[]`) in
+`group_vars/all/local.yml`; a failure in a listed role stops the run
+immediately. Failures of the `pre_tasks` manifest resolution are always
+fatal. Set `resilience_exit_nonzero: false` to make even a run with rescued
+failures exit 0.
+
+**Package routing (pacman <-> AUR).** The `resilient_packages` helper role
+(`roles/resilient_packages/`, used by the `base` and `aur` roles for
+`base_packages` and `aur.packages`) installs each package from whichever
+source actually has it: already-installed packages are skipped, packages in
+the official repos install via `pacman`, AUR-only packages via `yay`, and
+names that exist nowhere are reported at the end of the run as likely
+renames instead of aborting. `yay` and the `aur_builder` sudoers bootstrap
+are ensured on demand. Other roles can adopt the same helper:
+
+```yaml
+- name: Install my packages resiliently
+  ansible.builtin.include_role:
+    name: resilient_packages
+  vars:
+    resilient_packages_list: "{{ my_role_packages }}"
+    resilient_packages_owner: my_role
+```
+
+Roles that have not adopted it are still protected by the block/rescue
+wrappers — a bad package name in them surfaces in the end-of-run report
+instead of stopping the playbook. The monthly
+[package-liveness workflow](.github/workflows/package-liveness.yml) keeps
+catching dead names in CI as well; for `base_packages` and `aur.packages` its
+findings are advisory, since the runtime now routes both directions.
