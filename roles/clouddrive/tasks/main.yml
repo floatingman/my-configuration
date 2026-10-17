@@ -96,6 +96,15 @@
     state: absent
   when: clouddrive_stop_on_battery | default(false) | bool
 
+- name: Check whether the power-gated user unit is installed
+  # The disable below only makes sense on the one-time cleanup transition:
+  # "Remove power gate artifacts" deletes the unit file, and disabling a
+  # unit with no file fails with "Could not find the requested service".
+  ansible.builtin.stat:
+    path: /etc/systemd/user/synology-drive.service
+  register: _clouddrive_gated_unit_installed
+  when: not (clouddrive_stop_on_battery | default(false) | bool)
+
 - name: Disable power-gated Synology Drive user unit
   become: true
   become_user: "{{ user.name }}"
@@ -106,7 +115,9 @@
     daemon_reload: true
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
-  when: not (clouddrive_stop_on_battery | default(false) | bool)
+  when:
+    - not (clouddrive_stop_on_battery | default(false) | bool)
+    - _clouddrive_gated_unit_installed.stat.exists | default(false)
 
 - name: Remove power gate artifacts
   become: true
