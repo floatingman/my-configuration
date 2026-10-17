@@ -67,15 +67,6 @@
     _rp_aur_candidates: []
   when: ansible_facts['os_family'] != 'Archlinux'
 
-- name: Install packages that live in the official repos
-  community.general.pacman:
-    name: "{{ _rp_repo_missing }}"
-    state: present
-  become: true
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - _rp_repo_missing | length > 0
-
 - name: Resolve AUR candidates that pacman can still satisfy
   # pacman -Slq lists only literal repo names, so provides aliases (e.g.
   # 'cron' -> cronie) and version specs (e.g. 'pkg>=1.2') look AUR-only even
@@ -106,6 +97,18 @@
   when:
     - ansible_facts['os_family'] == 'Archlinux'
     - _rp_aur_candidates | length > 0
+
+# --- Repo leg: install everything pacman can resolve (before any AUR
+# bootstrap, so AUR-side problems can never block official-repo packages).
+
+- name: Install packages that live in the official repos
+  community.general.pacman:
+    name: "{{ _rp_repo_missing }}"
+    state: present
+  become: true
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_repo_missing | length > 0
 
 # --- AUR leg: bootstrap aur_builder + yay, then route AUR candidates ------
 # (Bootstrapped by the base role and repeated by the aur role; repeated here

@@ -130,8 +130,11 @@ def test_resilient_packages_repo_leg_runs_before_aur_bootstrap():
         return indexes[0]
 
     repo_install = pos("Install packages that live in the official repos")
+    alias_move = pos("Move pacman-resolvable entries (aliases, version specs)")
     aur_builder = pos("Ensure the aur_builder user exists")
     yay_repo = pos("Ensure yay is installed from the official repos")
     yay_aur = pos("Ensure yay is built from the AUR")
-    assert repo_install < aur_builder < yay_repo
+    # aliases/version specs must join _rp_repo_missing BEFORE the repo install
+    # runs, and the repo leg stays ahead of every AUR bootstrap task
+    assert alias_move < repo_install < aur_builder < yay_repo
     assert repo_install < yay_aur
