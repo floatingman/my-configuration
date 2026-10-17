@@ -16,6 +16,12 @@ invariants that keep them fixed.
 4. `make configure 2>&1 | tee configure.log` — everything else, with a
    readable log for post-mortems.
 
+A run no longer dies at the first failing role: failures are rescued,
+collected, and summarized at the very end (exit code stays non-zero so
+`tee`'s log is worth reading top to bottom — see the "Renamed or moved
+packages" section below). Fix what the report lists, then `make
+rerun-failed` re-runs exactly those roles instead of the whole playbook.
+
 If `install.sh` fails mid-run, just run it again: it tears down stale mounts,
 the open LUKS container, and LVM volumes before starting over. No reboot
 needed.
@@ -81,6 +87,23 @@ verified A/B both ways (rewrite active + no key fails exactly as reported;
 hermetic clone succeeds). Requires the dotfiles repo and its externals to
 stay public.
 
+### Renamed or moved packages no longer abort the run
+
+**Symptom (before the resilience work):** on a pristine machine one renamed
+package (or one that moved between the AUR and the official repos) failed a
+batch install and aborted the whole playbook; fixing meant editing roles and
+re-running everything from scratch.
+
+**Now:** every role runs inside a block/rescue wrapper, so a failing role is
+recorded and skipped and the run finishes; the end-of-run summary plus
+`~/.cache/my-configuration/failures.json` list every failure (role, task,
+error). `base_packages` and `aur.packages` go further: `roles/resilient_packages`
+probes which source actually has each package (pacman first, AUR second) and
+reports names found in neither as likely renames. After fixing a name,
+`make rerun-failed` re-runs just the affected roles. Details and knobs
+(`resilience_fatal_roles`, `resilience_exit_nonzero`, report path) in the
+README section [Error resilience](README.md#error-resilience-continue-past-minor-failures).
+
 ### Dead upstream sources behind healthy AUR packages
 
 **Symptom:** an AUR package fails to build with a 404/403 on its `source=`
@@ -120,7 +143,10 @@ against it, but use the supported form:
 - SSH in early (it is live from first boot) — console error transcription
   is the worst part of fresh-machine work.
 - `make configure 2>&1 | tee configure.log` keeps evidence.
-- Re-run single roles with `make TAGS=<role> configure`.
+- Check the end-of-run failure summary (or `~/.cache/my-configuration/
+  failures.json`) before the log — it is the one-place fix list.
+- Re-run single roles with `make TAGS=<role> configure`, or just the failed
+  ones with `make rerun-failed`.
 - `make check-sync` after touching `profiles/`; regenerate with
   `make generate-playbook`.
 - CI now runs `ansible-lint` + `yamllint`; run `make lint` locally before
