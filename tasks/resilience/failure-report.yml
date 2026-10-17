@@ -27,16 +27,19 @@
         dest: "{{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}"
         mode: "0644"
       vars:
-        _resilience_report:
-          generated_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
-          check_mode: "{{ ansible_check_mode }}"
-          host: "{{ inventory_hostname }}"
-          playbook: "play.yml"
-          run_tags: "{{ ansible_run_tags }}"
-          skip_tags: "{{ ansible_skip_tags }}"
-          failure_count: "{{ (_resilience_failures | default([])) | length }}"
-          failures: "{{ _resilience_failures | default([]) }}"
-          rerun_hint: "make rerun-failed"
+        # Single-expression dict: nested templated scalars keep their native
+        # types (int/bool) on every ansible-core generation; one expression
+        # per value would render as strings on older cores.
+        _resilience_report: >-
+          {{ {'generated_at': now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ'),
+               'check_mode': ansible_check_mode,
+               'host': inventory_hostname,
+               'playbook': 'play.yml',
+               'run_tags': ansible_run_tags,
+               'skip_tags': ansible_skip_tags,
+               'failure_count': (_resilience_failures | default([])) | length,
+               'failures': _resilience_failures | default([]),
+               'rerun_hint': 'make rerun-failed'} }}
       check_mode: false
   rescue:
     - name: Warn that the report file could not be written
