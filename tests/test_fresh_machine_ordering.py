@@ -42,7 +42,12 @@ def _ordered_role_names(playbook_text: str) -> list[str]:
         for sub in task["block"]:
             if not isinstance(sub, dict):
                 continue
-            include = sub.get("ansible.builtin.include_role") or sub.get("include_role")
+            include = (
+                sub.get("ansible.builtin.import_role")
+                or sub.get("import_role")
+                or sub.get("ansible.builtin.include_role")
+                or sub.get("include_role")
+            )
             if not include:
                 continue
             role = include.get("name") if isinstance(include, dict) else include

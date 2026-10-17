@@ -1745,18 +1745,23 @@ def resilient_role_wrapper_lines(
 ) -> List[str]:
     """Emit the block/rescue task lines that run one profile role resiliently.
 
-    Each role runs inside a block whose rescue records the failure (task name
-    and error) via tasks/resilience/record-role-failure.yml and lets the play
-    continue, instead of aborting the whole run at the first failing role.
-    The include task carries the role's tags (for --tags/--skip-tags runs and
-    the Makefile tag greps) and `apply:` propagates them into the role's own
-    tasks. Tests reuse this emitter to build behavioral playbooks that are
-    structurally identical to the generated play.yml.
+    Each role is statically imported inside a block whose rescue records the
+    failure (task name and error) via tasks/resilience/record-role-failure.yml
+    and lets the play continue, instead of aborting the whole run at the
+    first failing role.
+
+    ansible.builtin.import_role (not include_role) on purpose: the static
+    import keeps tasks tagged inside the role directly selectable with
+    --tags/--skip-tags (e.g. the system role's asdf-tagged tasks via
+    TAGS=asdf), preserves roles:-keyword `when` semantics (the condition is
+    ANDed into every imported task), and registers role handlers even when
+    the import itself is skipped. The import task carries the role's tags
+    (for the Makefile tag greps); imported tasks keep their own tags too.
 
     Args:
-        role_name: Role to include
+        role_name: Role to import
         condition: Jinja2 when: expression (or None)
-        tags: Tags for the role (also applied to tasks inside it)
+        tags: Tags for the role (imported tasks keep their own tags as well)
 
     Returns:
         List of playbook text lines (no trailing blank line)
@@ -1766,10 +1771,8 @@ def resilient_role_wrapper_lines(
         f"    - name: Resilient role wrapper for {role_name}",
         "      block:",
         f"        - name: Run role {role_name}",
-        "          ansible.builtin.include_role:",
+        "          ansible.builtin.import_role:",
         f"            name: {role_name}",
-        "            apply:",
-        f"              tags: {yaml_tags}",
     ]
     if condition:
         lines.append(f"          when: {condition}")
@@ -1883,15 +1886,20 @@ def extract_playbook_roles(playbook_data: Any) -> List[PlaybookRole]:
                     continue
                 actual_roles.append(_entry_from(role_name, role_entry))
 
-        # Resilient shape: block/rescue wrappers around include_role
+        # Resilient shape: block/rescue wrappers around statically imported
+        # roles (import_role), and the earlier include_role-based wrappers
+        # from the first resilience iteration
         for task in play.get("tasks", []) or []:
             if not isinstance(task, dict) or "block" not in task:
                 continue
             for sub in task["block"]:
                 if not isinstance(sub, dict):
                     continue
-                include = sub.get("ansible.builtin.include_role") or sub.get(
-                    "include_role"
+                include = (
+                    sub.get("ansible.builtin.import_role")
+                    or sub.get("import_role")
+                    or sub.get("ansible.builtin.include_role")
+                    or sub.get("include_role")
                 )
                 if not include:
                     continue

@@ -29,19 +29,13 @@
   become: true
   when: ansible_facts['os_family'] == "Archlinux" and aur is defined
 
-- name: Install Yay
-  kewlfft.aur.aur:
-    name: yay
-    use: auto
-    state: present
-  become: true
-  become_user: aur_builder
-  when: ansible_facts['os_family'] == "Archlinux" and aur is defined
-
 - name: Install Arch Aur packages resiliently
   # Packages that moved to the official repos install via pacman; packages
   # that exist nowhere anymore are recorded in the end-of-run resilience
   # report instead of aborting the playbook (see roles/resilient_packages).
+  # The helper also owns the yay bootstrap (after its repo-side installs, so
+  # a broken AUR bootstrap cannot block official-repo packages); this role
+  # no longer installs yay separately.
   ansible.builtin.include_role:
     name: resilient_packages
   vars:

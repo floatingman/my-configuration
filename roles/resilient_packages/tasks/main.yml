@@ -149,14 +149,33 @@
     - ansible_facts['os_family'] == 'Archlinux'
     - _rp_aur_candidates | length > 0
 
-- name: Split AUR candidates into installable and missing everywhere
+- name: Split AUR probe results by outcome (found, missing, probe failure)
+  ansible.builtin.set_fact:
+    _rp_aur_probe_split: >-
+      {%- set ns = namespace(missing=[], failed=[]) -%}
+      {%- for r in _rp_aur_probe.results | default([]) -%}
+        {%- if r.rc != 0 -%}
+          {%- set text = ((r.stdout | default('')) ~ ' ' ~ (r.stderr | default(''))) | lower -%}
+          {%- if 'no aur package found' in text or 'target not found' in text -%}
+            {%- set ns.missing = ns.missing + [r.item] -%}
+          {%- else -%}
+            {%- set ns.failed = ns.failed + [{'package': r.item, 'rc': r.rc,
+                 'stderr': ((r.stderr | default('')) ~ ' ' ~ (r.stdout | default(''))) | truncate(300, True) | trim}] -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ {'missing': ns.missing, 'failed': ns.failed} }}
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _rp_aur_candidates | length > 0
+
+- name: Derive the AUR package lists from the probe split
   ansible.builtin.set_fact:
     _rp_aur_installable: "{{ _rp_aur_probe.results | default([])
                              | selectattr('rc', 'equalto', 0)
                              | map(attribute='item') | list }}"
-    _rp_missing_everywhere: "{{ _rp_aur_probe.results | default([])
-                                | rejectattr('rc', 'equalto', 0)
-                                | map(attribute='item') | list }}"
+    _rp_missing_everywhere: "{{ _rp_aur_probe_split.missing }}"
+    _rp_probe_failed: "{{ _rp_aur_probe_split.failed }}"
   when:
     - ansible_facts['os_family'] == 'Archlinux'
     - _rp_aur_candidates | length > 0
@@ -165,6 +184,7 @@
   ansible.builtin.set_fact:
     _rp_aur_installable: []
     _rp_missing_everywhere: []
+    _rp_probe_failed: []
   when: (_rp_aur_candidates | default([])) | length == 0
 
 - name: Record packages missing from every source in the resilience report
@@ -177,6 +197,28 @@
   loop_control:
     label: "{{ item }}"
   when: (_rp_missing_everywhere | default([])) | length > 0
+
+- name: Record AUR probe failures (kept distinct from confirmed renames)
+  ansible.builtin.set_fact:
+    _resilience_failures: >-
+      {{ _resilience_failures | default([])
+         + [{'kind': 'package', 'role': resilient_packages_owner, 'package': item.package,
+             'error': 'AUR probe failed (rc=' ~ item.rc ~ '): ' ~ item.stderr
+                      ~ ' -- package status unknown, check yay/network'}] }}
+  loop: "{{ _rp_probe_failed | default([]) }}"
+  loop_control:
+    label: "{{ item.package }}"
+  when: (_rp_probe_failed | default([])) | length > 0
+
+- name: Abort because package problems make the owning role fatal
+  ansible.builtin.fail:
+    msg: >-
+      Packages for role '{{ resilient_packages_owner }}' are missing or could
+      not be probed, and that role is listed in resilience_fatal_roles, so the
+      run stops here (see the recorded package failures in the report).
+  when:
+    - ((_rp_missing_everywhere | default([])) | length + (_rp_probe_failed | default([])) | length) > 0
+    - resilient_packages_owner in (resilience_fatal_roles | default([]))
 
 - name: Install packages that live in the AUR
   kewlfft.aur.aur:

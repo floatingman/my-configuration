@@ -470,11 +470,18 @@ masquerade as a green one.
 
 **Reading the error report.** Besides the console summary, every run writes
 a machine-readable report to `~/.cache/my-configuration/failures.json`
-(override with `resilience_report_path`; reports are also written for
-`--check` runs, tagged `check_mode: true`). Each entry records the kind
-(`role` or `package`), the role, the failing task, and the error message. A
-report from a previous run is removed at the start of each run, so it always
-describes the run that just finished.
+(override with `resilience_report_path` — `make rerun-failed` reads the same
+value from `group_vars`; reports are also written for `--check` runs, tagged
+`check_mode: true`). Each entry records the kind (`role` or `package`), the
+role, the failing task, and the error message; packages whose AUR probe
+itself failed (network/tool trouble rather than a confirmed rename) are
+kept distinct and carry the probe's stderr. The report carries a `status`:
+`in-progress` while the run has not finished (it is rewritten after init,
+after every rescued failure, and at the end), so even a run that aborts
+mid-way — a fatal role or a failing handler flush — leaves a report of the
+failures collected so far; `make rerun-failed` tells you when it is acting
+on such a partial report. It also records the run's profile context
+(`profile`, `display_manager`, `desktop_environment`, `disable_*` flags).
 
 **Rerunning only the failed parts.** After fixing a problem, rerun just the
 affected roles:
@@ -489,7 +496,13 @@ make configure TAGS="media,aur"
 `ansible-role-packages` -> `packages`), deduplicates them, and runs the same
 tag-validated `configure` target. When there is nothing to rerun it says so
 and exits 0. Package-level failures are attributed to the role that owns the
-list (`base_packages` -> `base`, `aur.packages` -> `aur`).
+list (`base_packages` -> `base`, `aur.packages` -> `aur`). If the failed run
+was started with profile context (`make profile-hyprland` or manual
+`-e profile=... desktop_environment=... display_manager=...`), the rerun
+restores it (`-e` overrides via `ANSIBLE_EXTRA`) so the failed roles are
+actually re-selected instead of being skipped by their `when:` conditions.
+`make configure` accepts `ANSIBLE_EXTRA="-e key=value ..."` for any other
+ad-hoc extra vars the same way.
 
 **Fatal problems.** By default nothing aborts the run. If some role must not
 be skipped, list it in `resilience_fatal_roles` (default `[]`) in
@@ -507,7 +520,10 @@ names that exist nowhere are reported at the end of the run as likely
 renames instead of aborting. The repo leg runs first, so AUR-side problems
 can never block official-repo packages; `yay` and the `aur_builder`
 sudoers bootstrap are ensured on demand (`yay` itself installs from
-whichever source has it, building from the AUR when no repo carries it). Other roles can adopt the same helper:
+whichever source has it, building from the AUR when no repo carries it).
+`resilience_fatal_roles` also covers package-level problems recorded by
+this helper (missing or unprobeable packages in a fatal role's lists abort
+the run). Other roles can adopt the same helper:
 
 ```yaml
 - name: Install my packages resiliently

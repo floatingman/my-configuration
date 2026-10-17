@@ -32,6 +32,11 @@
       {{ _resilience_last_error | truncate(300, True) | trim }}.
       All failures are collected and summarized at the end of this run.
 
+- name: Refresh the in-progress report with the failure of role {{ _resilience_role }}
+  ansible.builtin.include_tasks: tasks/resilience/write-report.yml
+  vars:
+    _resilience_report_status: in-progress
+
 - name: Abort the run, role is marked fatal {{ _resilience_role }}
   ansible.builtin.fail:
     msg: >-

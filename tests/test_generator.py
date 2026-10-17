@@ -138,19 +138,22 @@ class TestResilientWrappers:
         text = "\n".join(lines)
         assert "block:" in text
         assert "rescue:" in text
-        assert "ansible.builtin.include_role:" in text
+        # Static import on purpose: keeps tasks tagged inside the role
+        # selectable via --tags (e.g. TAGS=asdf reaching system's asdf tasks)
+        assert "ansible.builtin.import_role:" in text
         assert "name: spell" in text
         assert 'tags: ["spell"]' in text
         assert "when:" not in text
         assert "tasks/resilience/record-role-failure.yml" in text
+        assert "apply:" not in text.split("rescue:")[0]
         # Parses as valid YAML inside a play
         play = yaml.safe_load(
             "- hosts: localhost\n  tasks:\n" + "\n".join(lines) + "\n"
         )
         task = play[0]["tasks"][0]
-        include = task["block"][0]["ansible.builtin.include_role"]
-        assert include["name"] == "spell"
-        assert include["apply"]["tags"] == ["spell"]
+        imp = task["block"][0]["ansible.builtin.import_role"]
+        assert imp["name"] == "spell"
+        assert task["block"][0]["tags"] == ["spell"]
         assert "rescue" in task
 
     def test_wrapper_lines_include_condition(self):

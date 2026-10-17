@@ -1,0 +1,67 @@
+---
+# Shared writer for the resilience failure report, included from
+# tasks/resilience/init.yml, record-role-failure.yml and failure-report.yml.
+#
+# Requires the including site to set:
+#   _resilience_report_status - "in-progress" while the run has not finished
+#     (init and every rescue), "complete" from the final post_tasks report.
+#
+# The report is (re)written after init, after every recorded failure and at
+# the end of the run, so even a play that aborts mid-way (for example a fatal
+# role or a failing handler flush) leaves a report reflecting the failures
+# collected so far, marked status: in-progress. `make rerun-failed` notes the
+# status so partial reports are not mistaken for complete ones.
+#
+# The run's profile context (profile, display_manager, desktop_environment,
+# disable_* flags) is recorded so rerun-failed can restore it: a plain
+# `make configure` on a host whose local vars select a different profile
+# would otherwise skip the very roles that failed.
+#
+# check_mode: false so --check runs produce the report too (it only
+# describes the run; it does not configure the machine).
+
+- name: Write the resilience report even if the filesystem objects
+  block:
+    - name: Ensure the resilience report directory exists
+      ansible.builtin.file:
+        path: "{{ (resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json')) | dirname }}"
+        state: directory
+        mode: "0755"
+      check_mode: false
+
+    - name: Write the resilience failure report
+      ansible.builtin.copy:
+        content: "{{ _resilience_report | to_nice_json }}"
+        dest: "{{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}"
+        mode: "0644"
+      vars:
+        # Single-expression dict: nested templated scalars keep their native
+        # types (int/bool) on every ansible-core generation; one expression
+        # per value would render as strings on older cores.
+        _resilience_report: >-
+          {{ {'status': _resilience_report_status,
+               'generated_at': now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ'),
+               'check_mode': ansible_check_mode,
+               'host': inventory_hostname,
+               'playbook': 'play.yml',
+               'profile': profile | default(''),
+               'display_manager': display_manager | default(''),
+               'desktop_environment': desktop_environment | default(''),
+               'disabled_roles': (['i3'] if (disable_i3 | default(false) | bool)
+                                  else []) + (['hyprland'] if (disable_hyprland | default(false) | bool)
+                                  else []) + (['gnome'] if (disable_gnome | default(false) | bool)
+                                  else []) + (['awesomewm'] if (disable_awesomewm | default(false) | bool)
+                                  else []) + (['kde'] if (disable_kde | default(false) | bool) else []),
+               'run_tags': ansible_run_tags,
+               'skip_tags': ansible_skip_tags,
+               'failure_count': (_resilience_failures | default([])) | length,
+               'failures': _resilience_failures | default([]),
+               'rerun_hint': 'make rerun-failed'} }}
+      check_mode: false
+  rescue:
+    - name: Warn that the report file could not be written
+      ansible.builtin.debug:
+        msg: >-
+          Could not write the resilience report to
+          {{ resilience_report_path | default(lookup('env', 'HOME') ~ '/.cache/my-configuration/failures.json') }}
+          ({{ ansible_failed_result.msg | default('unknown error') }}).

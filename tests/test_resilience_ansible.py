@@ -46,6 +46,10 @@ STUB_ALPHA = """---
 - name: Alpha set marker
   ansible.builtin.set_fact:
     alpha_ran: true
+- name: Alpha inner-tagged task
+  ansible.builtin.debug:
+    msg: "alpha inner-tagged task ran"
+  tags: [alpha_inner]
 """
 
 STUB_BETA = """---
@@ -187,11 +191,11 @@ class TestResilientPlaybookBehavior:
         assert data["check_mode"] is True
         assert data["failures"][0]["role"] == "beta_fail"
 
-    def test_fatal_role_aborts_the_run_and_leaves_no_report(self, tmp_path):
+    def test_fatal_role_aborts_but_preserves_the_report(self, tmp_path):
         playbook = _build_project(tmp_path)
         report = tmp_path / "report.json"
 
-        # A stale report from an earlier run must not survive init.
+        # A stale report from an earlier run must not survive init verbatim.
         report.write_text(json.dumps({"failure_count": 99, "failures": []}), encoding="utf-8")
 
         result = _run(
@@ -203,10 +207,15 @@ class TestResilientPlaybookBehavior:
 
         assert result.returncode != 0
         assert "resilience_fatal_roles" in result.stdout
-        # The run aborted mid-play: gamma never ran and no end-of-run report
-        # was written (and the stale one was removed at init).
+        # The run aborted mid-play: gamma never ran...
         assert "gamma ran after the beta failure" not in result.stdout
-        assert not report.exists()
+        # ...but the in-progress report written after the recorded failure
+        # survives the abort, so rerun-failed still has something to act on.
+        data = json.loads(report.read_text(encoding="utf-8"))
+        assert data["status"] == "in-progress"
+        assert data["failure_count"] == 1
+        assert data["failures"][0]["role"] == "beta_fail"
+        assert data["failure_count"] != 99  # stale content replaced
 
     def test_nonzero_exit_can_be_disabled(self, tmp_path):
         playbook = _build_project(tmp_path)
@@ -221,3 +230,44 @@ class TestResilientPlaybookBehavior:
         assert data["failure_count"] == 1
         # ...but the exit code stays clean when asked to.
         assert result.returncode == 0
+
+    def test_inner_role_tags_stay_selectable(self, tmp_path):
+        """TAGS=<task-level tag> must still reach tasks inside a role.
+
+        The first resilience iteration used include_role + apply, which hid
+        inner tags from tag selection (e.g. TAGS=asdf could no longer run the
+        system role's asdf-tagged tasks). The wrappers now use static
+        import_role, which keeps task-level tags selectable exactly like the
+        old roles: keyword did.
+        """
+        playbook = _build_project(tmp_path)
+        report = tmp_path / "report.json"
+
+        result = _run(playbook, report, "--tags", "alpha_inner")
+
+        assert result.returncode == 0
+        assert "alpha inner-tagged task ran" in result.stdout
+        assert "alpha ran" not in result.stdout  # only the tagged task ran
+        assert "gamma ran after the beta failure" not in result.stdout
+
+    def test_report_records_profile_context_for_rerun(self, tmp_path):
+        """The report captures the run's profile context so rerun-failed can
+        restore it (a plain configure on a host without those -e overrides
+        would skip the very roles that failed)."""
+        playbook = _build_project(tmp_path)
+        report = tmp_path / "report.json"
+
+        result = _run(
+            playbook,
+            report,
+            "-e",
+            '{"profile": "hyprland", "desktop_environment": "hyprland", "display_manager": "sddm"}',
+        )
+        assert result.returncode != 0
+
+        data = json.loads(report.read_text(encoding="utf-8"))
+        assert data["status"] == "complete"
+        assert data["profile"] == "hyprland"
+        assert data["desktop_environment"] == "hyprland"
+        assert data["display_manager"] == "sddm"
+        assert data["disabled_roles"] == []
