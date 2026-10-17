@@ -89,30 +89,53 @@
 # MISTAKES.md 2026-10-14). Only directories get setgid + group write; that is
 # still enough for devtools members to run `rustup update` / `cargo install`,
 # because those create/replace files through group-writable directories.
-- name: Set ownership of Rust installation
-  ansible.builtin.file:
-    path: "{{ rust_rustup_home }}"
-    owner: root
-    group: devtools
-    state: directory
-    recurse: true
+#
+# Both sweeps are single `find ... -exec ... +` batches. The previous shape
+# (find module + one ansible.builtin.file call per directory) paid a module
+# exec + sudo per directory; with the cargo registry's extracted crate
+# sources (~8k directories under /opt/rust) that alone took >10 minutes on an
+# otherwise healthy host. The find-based predicates also guard the fix
+# commands, so runs with no drift stay true no-ops. The probes need become so
+# they see the same tree as the root-run fixes (a 0700 root-owned directory
+# would otherwise hide its children from the probe and skip repairs forever).
+- name: Find Rust paths with wrong owner or group
+  ansible.builtin.command:
+    cmd: find {{ rust_rustup_home }} \( ! -user root -o ! -group devtools \)
+  register: rust_wrong_ownership
+  changed_when: false
+  failed_when: false
+  check_mode: false
   become: true
 
-- name: Find Rust installation directories
-  ansible.builtin.find:
-    path: "{{ rust_rustup_home }}"
-    file_type: directory
-    hidden: true
-    recurse: true
-  register: rust_install_dirs
+# chown needs -h to match find's lstat-based test: without it chown follows
+# symlinks, so a mismatched link is never repaired (find keeps flagging it),
+# and the link's TARGET (possibly outside /opt/rust) gets chowned instead.
+- name: Set ownership of Rust installation
+  ansible.builtin.command:
+    cmd: find {{ rust_rustup_home }} \( ! -user root -o ! -group devtools \) -exec chown -h root:devtools {} +
+  when: rust_wrong_ownership.stdout_lines | default([]) | length > 0
+  changed_when: true
+  become: true
 
+- name: Find Rust directories without setgid and group-write
+  ansible.builtin.command:
+    cmd: find {{ rust_rustup_home }} -type d ! -perm 2775
+  register: rust_dirs_needing_mode
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+
+# Exact-mode semantics, matching the old `mode: "2775"` file task: the
+# predicate must be `-perm 2775` (exact), not `-perm -2775` (bits-present),
+# or 2777/6775 dirs keep their excess bits forever. And chmod MUST get five
+# octal digits: `chmod 2775` leaves unspecified special bits (setuid/sticky)
+# untouched, only `chmod 02775` clears them.
 - name: Set setgid and group-write on Rust directories only
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    mode: "2775"
-  loop: "{{ rust_install_dirs.files }}"
-  loop_control:
-    label: "{{ item.path }}"
+  ansible.builtin.command:
+    cmd: find {{ rust_rustup_home }} -type d ! -perm 2775 -exec chmod 02775 {} +
+  when: rust_dirs_needing_mode.stdout_lines | default([]) | length > 0
+  changed_when: true
   become: true
 
 # Repair pass for hosts damaged by the OLD recursive "2775": regular files
