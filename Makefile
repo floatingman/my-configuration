@@ -159,6 +159,17 @@ APPLY_SHORTCUTS := \
 	nmtrust=nmtrust \
 	update-tools=asdf,dotfiles,homebrew
 
+.PHONY: rerun-failed
+rerun-failed: req-playbook pip-deps ## Rerun only the roles that failed in the last playbook run
+	@set -e; \
+		tags="$$($(SCRIPT_PYTHON) scripts/rerun_failed.py --tags-only)"; \
+		if [ -z "$$tags" ]; then \
+			echo 'Nothing to rerun: the last run recorded no failures (or left no report).'; \
+		else \
+			echo "Rerunning failed roles: $$tags"; \
+			$(MAKE) --no-print-directory configure TAGS="$$tags"; \
+		fi
+
 .PHONY: apply
 ifeq ($(strip $(WHAT)),)
 # Listing branch: no prerequisites. req-playbook/validate-deps would require
