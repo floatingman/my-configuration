@@ -1,0 +1,111 @@
+---
+# vidsummarizer — per-user install of the single-file executable from
+# https://github.com/floatingman/vidsummarizer (local YouTube pipeline:
+# yt-dlp audio -> whisper.cpp transcript -> local-LLM summary).
+#
+# Conventions:
+# - Runs entirely as the invoking user: no task in this role uses become and
+#   nothing is written outside {{ vidsummarizer_install_dir }} (user's home).
+# - The release tag is pinned (vidsummarizer_version); the download only runs
+#   when the installed binary's `--version` output differs from the pin, so
+#   playbook reruns are download-free (same guard pattern as pass_cli).
+# - Download/verify failures fail the role; play.yml's block/rescue wrapper
+#   records them in the end-of-run failure report (README "Error
+#   resilience") instead of aborting the run.
+# - Check mode (dry run) never records a false failure on a machine where
+#   the tool is not installed yet: the download is skipped when its
+#   destination directory does not exist (dry runs do not create it), and
+#   the exec-bit/verify tasks only touch a binary that is actually present.
+
+- name: Ensure vidsummarizer install directory exists
+  ansible.builtin.file:
+    path: "{{ vidsummarizer_install_dir }}"
+    state: directory
+    mode: "0755"
+
+# Probe the installed version. Read-only, so it also runs in check mode (the
+# version comparison below would otherwise always report a change there).
+# Empty when the binary is absent, unrunnable, or corrupt — which forces a
+# (re)download and thereby self-heals a broken install.
+- name: Detect installed vidsummarizer version
+  ansible.builtin.command: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }} --version"
+  register: vidsummarizer_installed_raw
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# `vidsummarizer --version` prints "vidsummarizer <version>"; the version is
+# the 2nd whitespace-separated token. Out-of-range indexing yields an empty
+# string (binary absent), which forces the download below.
+- name: Set installed vidsummarizer version (or empty)
+  ansible.builtin.set_fact:
+    vidsummarizer_installed_version: "{{ vidsummarizer_installed_raw.stdout.split()[1] | default('') }}"
+
+# Stat the install directory before the download: in check mode the
+# directory-creation task above only *reports* a change, and get_url fails
+# fast on a missing destination directory. The guard below uses this to
+# keep dry runs on a fresh machine failure-free. Real runs always have the
+# directory (created above), so the guard never fires there.
+- name: Check whether the vidsummarizer install directory exists
+  ansible.builtin.stat:
+    path: "{{ vidsummarizer_install_dir }}"
+  register: vidsummarizer_dir_stat
+
+# get_url downloads to a temp file in the destination directory and moves it
+# into place, so a network failure mid-download never truncates the binary.
+# force: the version guard above is the sole "already installed" authority —
+# without it, get_url's conditional GET (If-Modified-Since vs the dest mtime)
+# would keep a corrupt-but-recently-mtime'd file (probe fails -> guard fires
+# -> 304 "not modified" -> corruption survives). With force, every guarded
+# run performs a guaranteed full download; matching installs never get here.
+- name: Download vidsummarizer (per-user), pinned at v{{ vidsummarizer_version }}
+  ansible.builtin.get_url:
+    url: "{{ vidsummarizer_release_url }}"
+    dest: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }}"
+    mode: "0755"
+    force: true
+  register: vidsummarizer_download
+  when:
+    - vidsummarizer_installed_version != vidsummarizer_version
+    # Check mode on a fresh machine: the destination directory does not exist
+    # (dry runs do not create it), so get_url would record a false role
+    # failure. Skip instead; the directory task above already reports the
+    # would-be change. With the directory present (any real run, or a dry run
+    # on an installed machine) the dry run still reports the download as a
+    # would-be change.
+    - not (ansible_check_mode and not vidsummarizer_dir_stat.stat.exists)
+
+# Normalize the exec bit of a present binary (cheap + idempotent). Guarded on
+# the probe's rc: rc == 0 proves the binary exists and is executable, and the
+# probe also runs in check mode — so a dry run on a machine without the
+# binary (where the check-mode-skipped download above created nothing)
+# skips this task instead of failing on an absent file. Drift to a non-exec
+# mode instead fails the probe and triggers the guarded re-download above
+# (get_url re-applies 0755); this task covers the remaining case
+# (exec-capable but non-standard mode) without a re-download. On a real
+# install run it is skipped (the pre-download probe failed) — get_url
+# already wrote the binary with mode 0755.
+- name: Ensure vidsummarizer binary is executable
+  ansible.builtin.file:
+    path: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }}"
+    mode: "0755"
+  when: vidsummarizer_installed_raw.rc == 0
+
+# Smoke-test whenever an install was needed (the download above either ran
+# or the role already failed): a binary that cannot run is a genuine install
+# failure and must surface through the resilience layer, not pass silently.
+# (`--version` shells out via the zipapp's `#!/usr/bin/env python3` shebang,
+# so this also proves python3 is available to run the tool.)
+- name: Verify vidsummarizer runs after install
+  ansible.builtin.command: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }} --version"
+  register: vidsummarizer_verify
+  changed_when: false
+  when: vidsummarizer_installed_version != vidsummarizer_version
+
+- name: Show vidsummarizer status
+  ansible.builtin.debug:
+    msg: >-
+      vidsummarizer
+      {{ 'installed (' ~ (vidsummarizer_verify.stdout | default('') | trim) ~ ')'
+         if vidsummarizer_download is changed
+         else 'already at pinned version ' ~ vidsummarizer_version }}

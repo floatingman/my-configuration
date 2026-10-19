@@ -109,6 +109,11 @@ ai_herdr_enabled: true            # Install herdr (terminal session manager for 
 # pass_cli_channel: beta      # beta | stable  (beta enables release-track switching)
 # pass_cli_install_dir: "{{ lookup('env','HOME') }}/.local/bin"   # user-writable; required for self-update & track switching (facts aren't gathered, so use the HOME lookup)
 
+# vidsummarizer (local YouTube transcript/summary pipeline; per-user under ~/Documents,
+# see roles/vidsummarizer/README.md for how to bump the pinned release tag)
+# vidsummarizer_version: "3.0.0"   # pinned release tag, no leading 'v' (assets of pre-3.0.0 tags were named yt-pipeline)
+# vidsummarizer_install_dir: "{{ lookup('env','HOME') }}/Documents/vidsummarizer"
+
 # Error resilience (see README "Error resilience"): where the end-of-run
 # failure report is written. `make rerun-failed` reads it to re-run only the
 # roles that failed.

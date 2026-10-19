@@ -19,7 +19,8 @@
     "_overlay_shell": true,
     "_overlay_dotfiles": true,
     "_overlay_gnupg": true,
-    "_overlay_ai": true
+    "_overlay_ai": true,
+    "_overlay_vidsummarizer": true
   },
   "roles": [
     {
@@ -117,6 +118,14 @@
       ],
       "condition": "",
       "source": "hyprland"
+    },
+    {
+      "role": "vidsummarizer",
+      "tags": [
+        "vidsummarizer"
+      ],
+      "condition": "",
+      "source": "user_environment"
     },
     {
       "role": "ansible-role-asdf",

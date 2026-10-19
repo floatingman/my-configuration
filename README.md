@@ -82,7 +82,7 @@ New users get access automatically when added to the `devtools` and `linuxbrew` 
 sudo usermod -aG devtools,linuxbrew <username>
 ```
 
-Per-user personalization (shell plugins, dotfiles, AI tool config) is separated into the `user_environment` overlay (see [Overlays](#overlays) below). Set `user_environment: false` in `group_vars/all/local.yml` to skip user-specific setup entirely.
+Per-user personalization (shell plugins, dotfiles, AI tool config, and per-user tools like vidsummarizer) is separated into the `user_environment` overlay (see [Overlays](#overlays) below). Set `user_environment: false` in `group_vars/all/local.yml` to skip user-specific setup entirely.
 
 ### Configuration Profiles
 
@@ -139,7 +139,7 @@ any profile. Each overlay gates itself on a variable from
 
 | Overlay            | Enabled when                                   | Roles |
 |--------------------|------------------------------------------------|-------|
-| `user_environment` | by default — set `user_environment: false` to skip | shell, dotfiles, gnupg, ai (AI tooling additionally needs `ai_enabled: true`) |
+| `user_environment` | by default — set `user_environment: false` to skip | shell, dotfiles, gnupg, ai (AI tooling additionally needs `ai_enabled: true`), vidsummarizer (per-user, under `~/Documents`) |
 | `laptop`           | `laptop: true`                                 | laptop, network_shares, backlight (display required) |
 | `bluetooth`        | `bluetooth:` defined and not disabled (Arch only) | bluetooth |
 
@@ -150,7 +150,7 @@ laptop: true                 # enable the laptop overlay
 bluetooth:
   disable: false             # defining bluetooth enables the overlay (default)
 
-user_environment: false      # skip shell/dotfiles/gnupg/ai personalization
+user_environment: false      # skip shell/dotfiles/gnupg/ai/vidsummarizer personalization
 ```
 
 To opt out of bluetooth entirely, set `disable: true` (or remove the
