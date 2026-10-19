@@ -75,6 +75,7 @@
         _overlay_dotfiles: "{{ _of._overlay_dotfiles | default(false) }}"
         _overlay_gnupg: "{{ _of._overlay_gnupg | default(false) }}"
         _overlay_shell: "{{ _of._overlay_shell | default(false) }}"
+        _overlay_vidsummarizer: "{{ _of._overlay_vidsummarizer | default(false) }}"
       tags: always
 
   tasks:
@@ -273,6 +274,22 @@
               tags: always
           vars:
             _resilience_role: system
+          tags: always
+    - name: Resilient role wrapper for vidsummarizer
+      block:
+        - name: Run role vidsummarizer
+          ansible.builtin.import_role:
+            name: vidsummarizer
+          when: _overlay_user_environment
+          tags: ["vidsummarizer"]
+      rescue:
+        - name: Record failure of role vidsummarizer
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: vidsummarizer
           tags: always
     # -------------------------------------------------------------------------
     # Package Management

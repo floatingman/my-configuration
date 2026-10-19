@@ -1,0 +1,48 @@
+---
+# vidsummarizer — https://github.com/floatingman/vidsummarizer
+#
+# One portable executable (a Python-zipapp single file) for the whole local
+# YouTube pipeline: URL -> yt-dlp (mp3) -> whisper.cpp transcript ->
+# local-LLM summary. Installed per-user under ~/Documents because it is a
+# personal, copy-between-machines tool, not a system-wide dev tool — it stays
+# out of /usr/local/bin and /opt on purpose (see README "System-wide tool
+# paths" for that table).
+#
+# IMPORTANT: this role runs entirely as the invoking user (no become) and
+# must only ever write inside the user's home directory.
+
+# Pinned upstream release tag, without the leading "v" (the URL template
+# adds it). Versions move only through review, like every other downloaded
+# binary in this repo (base.yml pins + the bump-versions bot). To upgrade:
+# check the latest tag at
+# https://github.com/floatingman/vidsummarizer/releases/latest, bump this
+# pin, run `make configure TAGS=vidsummarizer`, and commit. The download is
+# guarded by a version probe, so the binary is only fetched on a real change.
+#
+# Rename note: releases before 3.0.0 were published under the old yt-pipeline
+# repo name and asset name. Pinning below 3.0.0 additionally requires
+# vidsummarizer_asset_name: yt-pipeline (GitHub redirects the old repo URL,
+# but the asset filename differs).
+vidsummarizer_version: "3.0.0"
+
+# Upstream repository (renamed from floatingman/yt-pipeline; GitHub
+# redirects the old name, so both keep working — the new one is canonical).
+vidsummarizer_repo: "floatingman/vidsummarizer"
+
+# Release asset filename. "vidsummarizer" from 3.0.0 on; "yt-pipeline" for
+# the pre-rename tags.
+vidsummarizer_asset_name: "vidsummarizer"
+
+# Download URL template for the pinned release. Upstream publishes no
+# checksum assets, so (like the base.yml `binaries:` entries) the download
+# is not hash-verified; the post-install `--version` check is the smoke test.
+vidsummarizer_release_url: "https://github.com/{{ vidsummarizer_repo }}/releases/download/v{{ vidsummarizer_version }}/{{ vidsummarizer_asset_name }}"
+
+# Install directory (the binary lands at <dir>/<asset_name>, i.e.
+# ~/Documents/vidsummarizer/vidsummarizer). The playbook does not expose
+# ansible_user_dir (facts are reachable only via ansible_facts, and home-dir
+# magic variables are undefined on the local connection), so the home
+# directory is read from the controller environment — correct for the local
+# connection (`-i localhost`) this playbook always runs under (same pattern
+# as pass_cli_install_dir).
+vidsummarizer_install_dir: "{{ lookup('env', 'HOME') }}/Documents/vidsummarizer"

@@ -2,7 +2,8 @@
 name: User Environment
 description: |
   Per-user personalization: shell plugins, dotfiles, AI tool config,
-  and other settings that live in the user's home directory.
+  per-user tools under the user's home directory (e.g. vidsummarizer under
+  ~/Documents), and other settings that live in the user's home.
   These roles must run AFTER the system-wide tool installation so that
   tools like chezmoi, pi, and forge are available.
 
@@ -16,3 +17,4 @@ roles:
   - { role: dotfiles, tags: [dotfiles], config_check: "dotfiles_config is defined", section: optional }
   - { role: gnupg, tags: [gnupg], section: universal }
   - { role: ai, tags: [ai], config_check: "ai_enabled | default(false) | bool", section: dev }
+  - { role: vidsummarizer, tags: [vidsummarizer], section: universal }

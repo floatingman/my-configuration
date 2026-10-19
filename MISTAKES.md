@@ -31,6 +31,23 @@ host always sets together. If a dict must self-merge, do it with an explicit
 **Verification:** `make configure TAGS=<role>` renders templates without
 "object of type 'dict' has no attribute" errors.
 
+### [2026-10-19] get_url conditional GET keeps corrupt destination files
+
+**Mistake:** The vidsummarizer role guarded its download with a version
+probe but let `get_url` run without `force`; verification showed a
+corrupted destination binary surviving the run (task reported ok).
+**Root cause:** Without `checksum`/`force`, `get_url` sends a conditional
+GET using the destination's mtime; a corrupt file written seconds earlier
+is "newer" than the release asset, the server answers 304, and get_url
+reports the file present without checking content.
+**Prevention:** When a separate guard (version probe, stat check) is the
+sole "already installed" authority, set `force: true` on the guarded
+`get_url` so every guarded run performs a guaranteed full download. Keep
+the guard itself responsible for idempotency.
+**Verification:** Corrupt the installed binary, rerun the role: the
+binary is replaced and `--version` succeeds; a clean rerun still skips
+the download entirely.
+
 ### [2026-10-14] Recursive mode "2775" put setgid on Rust toolchain files
 
 **Mistake:** The rust role set `mode: "2775"` with `recurse: true` on

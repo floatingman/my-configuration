@@ -1,0 +1,83 @@
+---
+# vidsummarizer — per-user install of the single-file executable from
+# https://github.com/floatingman/vidsummarizer (local YouTube pipeline:
+# yt-dlp audio -> whisper.cpp transcript -> local-LLM summary).
+#
+# Conventions:
+# - Runs entirely as the invoking user: no task in this role uses become and
+#   nothing is written outside {{ vidsummarizer_install_dir }} (user's home).
+# - The release tag is pinned (vidsummarizer_version); the download only runs
+#   when the installed binary's `--version` output differs from the pin, so
+#   playbook reruns are download-free (same guard pattern as pass_cli).
+# - Download/verify failures fail the role; play.yml's block/rescue wrapper
+#   records them in the end-of-run failure report (README "Error
+#   resilience") instead of aborting the run.
+
+- name: Ensure vidsummarizer install directory exists
+  ansible.builtin.file:
+    path: "{{ vidsummarizer_install_dir }}"
+    state: directory
+    mode: "0755"
+
+# Probe the installed version. Read-only, so it also runs in check mode (the
+# version comparison below would otherwise always report a change there).
+# Empty when the binary is absent, unrunnable, or corrupt — which forces a
+# (re)download and thereby self-heals a broken install.
+- name: Detect installed vidsummarizer version
+  ansible.builtin.command: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }} --version"
+  register: vidsummarizer_installed_raw
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# `vidsummarizer --version` prints "vidsummarizer <version>"; the version is
+# the 2nd whitespace-separated token. Out-of-range indexing yields an empty
+# string (binary absent), which forces the download below.
+- name: Set installed vidsummarizer version (or empty)
+  ansible.builtin.set_fact:
+    vidsummarizer_installed_version: "{{ vidsummarizer_installed_raw.stdout.split()[1] | default('') }}"
+
+# get_url downloads to a temp file in the destination directory and moves it
+# into place, so a network failure mid-download never truncates the binary.
+# force: the version guard above is the sole "already installed" authority —
+# without it, get_url's conditional GET (If-Modified-Since vs the dest mtime)
+# would keep a corrupt-but-recently-mtime'd file (probe fails -> guard fires
+# -> 304 "not modified" -> corruption survives). With force, every guarded
+# run performs a guaranteed full download; matching installs never get here.
+- name: Download vidsummarizer (per-user), pinned at v{{ vidsummarizer_version }}
+  ansible.builtin.get_url:
+    url: "{{ vidsummarizer_release_url }}"
+    dest: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }}"
+    mode: "0755"
+    force: true
+  register: vidsummarizer_download
+  when: vidsummarizer_installed_version != vidsummarizer_version
+
+# Normalize the exec bit on every run (cheap + idempotent): the probe above
+# only succeeds on an executable binary, so drift to a non-exec mode instead
+# fails the probe and triggers the guarded re-download above; this task
+# covers the remaining case (exec-capable but non-standard mode) without a
+# re-download.
+- name: Ensure vidsummarizer binary is executable
+  ansible.builtin.file:
+    path: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }}"
+    mode: "0755"
+
+# Smoke-test whenever an install was needed (the download above either ran
+# or the role already failed): a binary that cannot run is a genuine install
+# failure and must surface through the resilience layer, not pass silently.
+# (`--version` shells out via the zipapp's `#!/usr/bin/env python3` shebang,
+# so this also proves python3 is available to run the tool.)
+- name: Verify vidsummarizer runs after install
+  ansible.builtin.command: "{{ vidsummarizer_install_dir }}/{{ vidsummarizer_asset_name }} --version"
+  register: vidsummarizer_verify
+  changed_when: false
+  when: vidsummarizer_installed_version != vidsummarizer_version
+
+- name: Show vidsummarizer status
+  ansible.builtin.debug:
+    msg: >-
+      vidsummarizer
+      {{ 'installed (' ~ (vidsummarizer_verify.stdout | default('') | trim) ~ ')'
+         if vidsummarizer_download is changed
+         else 'already at pinned version ' ~ vidsummarizer_version }}
