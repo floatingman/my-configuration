@@ -33,12 +33,22 @@ profile by default and is skipped with `user_environment: false` (or via
    304 "not modified"). `get_url` stages a temp file in the destination
    directory and moves it into place, so a failed download never truncates
    the binary.
-4. Enforces the exec bit even when the content already matches.
-5. Smoke-tests `--version` after a download. A binary that will not run
-   fails the role; `play.yml`'s block/rescue records it in the end-of-run
-   failure report (`make rerun-failed` re-runs it) — same error reporting
-   as every other role. No-network and missing-asset failures surface the
-   same way instead of aborting silently.
+4. Enforces the exec bit (0755) of a present binary — guarded on the
+   probe, so it neither fails on a machine without the binary nor fights
+   the download's own mode.
+5. Smoke-tests `--version` after an install was needed. A binary that will
+   not run fails the role; `play.yml`'s block/rescue records it in the
+   end-of-run failure report (`make rerun-failed` re-runs it) — same error
+   reporting as every other role. No-network and missing-asset failures
+   surface the same way instead of aborting silently.
+
+**Check mode (dry run)** never records a false failure on a machine where
+the tool is not installed yet: dry runs do not create the install
+directory, so when it is missing the download is skipped (the directory
+task already reports the would-be change; with the directory present the
+dry run still reports the download as a would-be change), and the
+exec-bit/verify tasks only touch a binary that is actually present. After
+the first real install, dry runs report a plain no-op.
 
 ## Version pinning
 
