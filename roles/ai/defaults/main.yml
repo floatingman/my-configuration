@@ -20,7 +20,7 @@ ai_herdr_enabled: true
 
 # Local LLM runtime (Ollama + helpers)
 ai_local_llm_enabled: true
-ai_lmstudio_enabled: true
+ai_unsloth_enabled: true
 ai_llmfit_enabled: true
 
 # System-wide binary directory for AI tools (ForgeCode)

@@ -393,15 +393,17 @@
     - ai_local_llm_enabled | default(true)
     - ansible_facts['os_family'] == "Archlinux"
 
-- name: Install LM Studio from AUR
+- name: Install Unsloth Desktop from AUR
+  # Replaces LM Studio (lmstudio-bin), retired 2026-10; the old package is
+  # removed by the aur role's deprecated-package sweep.
   become: true
   become_user: aur_builder
   kewlfft.aur.aur:
-    name: lmstudio-bin
+    name: unsloth-desktop-bin
     use: auto
     state: present
   when:
-    - ai_lmstudio_enabled | default(true)
+    - ai_unsloth_enabled | default(true)
     - ansible_facts['os_family'] == "Archlinux"
   tags:
     - aur
