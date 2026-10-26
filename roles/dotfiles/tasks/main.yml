@@ -80,6 +80,111 @@
     GIT_CONFIG_KEY_1: url.https://github.com/.insteadOf
     GIT_CONFIG_VALUE_1: "git@github.com:"
 
+# Yazi plugins/flavors are declared in the dotfiles-managed
+# ~/.config/yazi/package.toml, each pinned to a rev. `ya pkg install` (no
+# arguments) deploys exactly that manifest, but it unconditionally redeploys
+# every entry — even when all packages are already deployed — and it needs
+# network every time, so it is gated on drift:
+#   - a declared package dir missing from ~/.config/yazi/{plugins,flavors}
+#     (fresh machine, or a package deleted outside the playbook), or
+#   - a manifest whose sha256 differs from the one recorded after the last
+#     successful deploy (catches pin bumps and any other manifest edit).
+# The marker lives in ~/.cache/yazi, which chezmoi does not manage.
+# Note: `ya pkg list` is NOT an installed-state query — strace shows it only
+# reads package.toml — so it cannot be used as a drift oracle.
+# Machines without yazi (installed by the filemanager role on Arch with a
+# display, or via Homebrew elsewhere) or without a manifest skip all of this.
+- name: Check for the yazi package manager
+  ansible.builtin.stat:
+    path: "{{ '/usr/bin/ya'
+              if ansible_facts['os_family'] == 'Archlinux'
+              else '/home/linuxbrew/.linuxbrew/bin/ya' }}"
+  register: _dotfiles_ya
+
+- name: Check for the yazi package manifest
+  ansible.builtin.stat:
+    path: "/home/{{ user.name }}/.config/yazi/package.toml"
+  register: _dotfiles_yazi_manifest
+  when: _dotfiles_ya.stat.exists
+
+# The manifest is parsed with plain string splits: the `toml` lookup is gone
+# (community.general 13 removed it) and this ansible-core's regex filters
+# return full matches rather than capture groups. The format is stable,
+# machine-written by ya: `[[plugin.deps]]`/`[[flavor.deps]]` section headers
+# followed by `use = "repo:name"` entries; the deployed dir is the last
+# path segment of `use` under plugins/ or flavors/, suffixed .yazi.
+- name: Record yazi packages wanted by the manifest
+  ansible.builtin.set_fact:
+    _dotfiles_yazi_manifest_hash: "{{ _raw | hash('sha256') }}"
+    _dotfiles_yazi_expected_dirs: >-
+      {%- set ns = namespace(kind='', dirs=[]) -%}
+      {%- for line in _raw.split('\n') -%}
+      {%-   if line.startswith('[[') -%}
+      {%-     set ns.kind = 'plugins' if 'plugin.deps' in line
+                else ('flavors' if 'flavor.deps' in line else '') -%}
+      {%-   elif ns.kind and line.startswith('use = ') -%}
+      {%-     set name = line.split('"')[1].split(':')[-1].split('/')[-1] -%}
+      {%-     set ns.dirs = ns.dirs + ['/home/' ~ user.name
+                ~ '/.config/yazi/' ~ ns.kind ~ '/' ~ name ~ '.yazi'] -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ ns.dirs }}
+  vars:
+    _raw: "{{ lookup('ansible.builtin.file',
+            '/home/' ~ user.name ~ '/.config/yazi/package.toml') }}"
+  when:
+    - _dotfiles_ya.stat.exists
+    - _dotfiles_yazi_manifest.stat.exists | default(false)
+
+- name: Check deployed yazi package directories
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ _dotfiles_yazi_expected_dirs | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _dotfiles_yazi_deployed
+  when:
+    - _dotfiles_ya.stat.exists
+    - _dotfiles_yazi_manifest.stat.exists | default(false)
+
+# become_user resets PATH to a secure_path without the linuxbrew bin dir,
+# so add it explicitly or `ya` is not found on Debian (same as chezmoi
+# above). On Arch the extra prefix is harmless.
+- name: Install yazi packages pinned in the manifest
+  ansible.builtin.command: ya pkg install
+  become: true
+  become_user: "{{ user.name }}"
+  environment:
+    HOME: "/home/{{ user.name }}"
+    PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
+  vars:
+    _dotfiles_yazi_missing: >-
+      {{ _dotfiles_yazi_deployed.results | default([])
+         | selectattr('stat.exists', 'equalto', false)
+         | map(attribute='item') | list }}
+    _dotfiles_yazi_marker: "{{ lookup('ansible.builtin.file',
+            '/home/' ~ user.name ~ '/.cache/yazi/pkg-apply.sha256',
+            errors='ignore') }}"
+  when:
+    - _dotfiles_ya.stat.exists
+    - _dotfiles_yazi_manifest.stat.exists | default(false)
+    - _dotfiles_yazi_missing | length > 0
+      or _dotfiles_yazi_marker != _dotfiles_yazi_manifest_hash
+
+# Written only after a successful deploy (the install task fails hard and
+# the resilient wrapper stops the role on error), so a half-applied
+# manifest never poisons the marker.
+- name: Record the deployed manifest hash
+  ansible.builtin.copy:
+    content: "{{ _dotfiles_yazi_manifest_hash }}"
+    dest: "/home/{{ user.name }}/.cache/yazi/pkg-apply.sha256"
+    mode: '0644'
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - _dotfiles_ya.stat.exists
+    - _dotfiles_yazi_manifest.stat.exists | default(false)
+
 # ~/.tool-versions is DERIVED from group_vars/all/base.yml (asdf_plugins),
 # not dotfiles-managed: the chezmoi copy drifted and pinned uninstalled
 # versions (breaking e.g. helm), so the dotfiles repo no longer ships
