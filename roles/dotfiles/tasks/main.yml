@@ -81,8 +81,8 @@
     GIT_CONFIG_VALUE_1: "git@github.com:"
 
 # Yazi plugins/flavors are declared in the dotfiles-managed
-# ~/.config/yazi/package.toml, each pinned to a rev. `ya pkg install` (no
-# arguments) deploys exactly that manifest, but it unconditionally redeploys
+# ~/.config/yazi/package.toml, each pinned to a rev. `ya pkg install
+# --discard` deploys exactly that manifest, but it unconditionally redeploys
 # every entry — even when all packages are already deployed — and it needs
 # network every time, so it is gated on drift:
 #   - a declared package dir missing from ~/.config/yazi/{plugins,flavors}
@@ -147,11 +147,18 @@
     - _dotfiles_ya.stat.exists
     - _dotfiles_yazi_manifest.stat.exists | default(false)
 
+# --discard is required for pin bumps: when a deployed package no longer
+# matches the manifest hash, plain `ya pkg install` aborts with "You have
+# modified the contents" instead of updating it. These packages are
+# manifest-managed, so discarding local edits is the intended behavior.
+# changed_when: true is explicit for ansible-lint (the drift gates above
+# make the task idempotent).
 # become_user resets PATH to a secure_path without the linuxbrew bin dir,
 # so add it explicitly or `ya` is not found on Debian (same as chezmoi
 # above). On Arch the extra prefix is harmless.
 - name: Install yazi packages pinned in the manifest
-  ansible.builtin.command: ya pkg install
+  ansible.builtin.command: ya pkg install --discard
+  changed_when: true
   become: true
   become_user: "{{ user.name }}"
   environment:
@@ -170,6 +177,20 @@
     - _dotfiles_yazi_manifest.stat.exists | default(false)
     - _dotfiles_yazi_missing | length > 0
       or _dotfiles_yazi_marker != _dotfiles_yazi_manifest_hash
+
+# ya creates the cache dir only when it has packages to fetch; with an
+# empty manifest it leaves ~/.cache/yazi absent and the marker write
+# below would fail on a fresh account.
+- name: Ensure the yazi cache directory exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.cache/yazi"
+    state: directory
+    mode: '0700'
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - _dotfiles_ya.stat.exists
+    - _dotfiles_yazi_manifest.stat.exists | default(false)
 
 # Written only after a successful deploy (the install task fails hard and
 # the resilient wrapper stops the role on error), so a half-applied
