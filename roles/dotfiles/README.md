@@ -15,7 +15,8 @@ This role is part of the `user_environment` overlay — it only runs when `user_
    chezmoi init --apply --branch=<branch> -- <repo_url>
    ```
    Run as `{{ user.name }}`, with `HOME` and the linuxbrew bin dir on PATH.
-4. **Generates the global gitconfig** from `templates/gitconfig.j2` into `/home/{{ user.name }}/.gitconfig`.
+4. **Installs yazi packages** declared in the dotfiles-managed `~/.config/yazi/package.toml`: runs `ya pkg install --discard` when drift is detected, either a declared package directory missing from `~/.config/yazi/{plugins,flavors}/` (fresh machine) or the manifest content hash differing from `~/.cache/yazi/pkg-apply.sha256`, the marker written after the last successful deploy (so pin bumps and manifest edits redeploy). `--discard` is required for pin bumps: when a deployed package no longer matches the manifest hash, plain `ya pkg install` aborts with "You have modified the contents" instead of updating it, and these packages are manifest-managed. `ya pkg install` redeploys every entry unconditionally (with network access each time), hence the gate; `ya pkg list` is deliberately not used as the oracle since it only re-reads `package.toml`. Skipped on machines without yazi (the `ya` binary: `/usr/bin/ya` on Arch, the linuxbrew bin dir elsewhere) or without the manifest.
+5. **Generates the global gitconfig** from `templates/gitconfig.j2` into `/home/{{ user.name }}/.gitconfig`.
 
 ## How `chezmoi init` Works Here
 
@@ -69,6 +70,7 @@ The role also reads:
 
 ## Notes
 
+- The yazi deploy marker (`~/.cache/yazi/pkg-apply.sha256`) is disposable: delete it to force a one-time full `ya pkg install` on the next run.
 - The server template (`group_vars/templates/server.yml`) sets `dotfiles_config` using `user.githubuser`, so the repo URL resolves to `https://github.com/<githubuser>/dotfiles.git` by default.
 - `~/.tool-versions` is **derived, not hand-edited**: the role renders it from
   `asdf_plugins` after `chezmoi init --apply`. The dotfiles repo no longer
