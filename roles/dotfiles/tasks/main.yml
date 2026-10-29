@@ -220,6 +220,34 @@
     mode: '0644'
   when: dotfiles_config is defined and dotfiles_asdf_plugins | length > 0
 
+# The shared asdf golang install ({{ asdf_dir }}, root-owned) execs go with
+# GOPATH=<install>/packages whenever GOPATH is unset, so any go build running
+# as the user (yay/makepkg AUR builds, scripts) dies writing the module
+# cache: "could not create module cache: mkdir {{ asdf_dir }}/installs/...:
+# permission denied". The go env file supplies GOMODCACHE wherever no
+# GOMODCACHE env var is set (env vars and PKGBUILD-exported GOPATH still
+# win), without touching the root-owned tree. Interactive shells export
+# GOPATH via the dotfiles golang path module; this covers every other
+# invocation path.
+- name: Ensure the go env directory exists
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.config/go"
+    state: directory
+    mode: '0755'
+
+- name: Point go module cache at a user-writable path
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user.name }}/.config/go/env"
+    create: true
+    mode: '0644'
+    marker: "# {mark} ANSIBLE MANAGED BLOCK (go module cache)"
+    block: |
+      GOMODCACHE=/home/{{ user.name }}/go/pkg/mod
+
 - name: Create global gitconfig
   ansible.builtin.template:
     src: templates/gitconfig.j2
