@@ -29,10 +29,6 @@ bedrock_setup_id: null                      # the --id value from the admin's se
 bedrock_sso_region: "eu-central-1"          # SSO region; NEVER the Bedrock region
 bedrock_region: "us-east-1"                 # Bedrock region per the team guide; NOT the SSO region
 
-# true re-runs `bedrock setup` even when the [profile bedrock] already exists
-# (setup is otherwise skipped once the profile is written).
-bedrock_setup_force: false
-
 # --- Optional agent integration (opt-in) ---------------------------------------
 # Point pi and/or omp at Bedrock as their default model. Off by default: this
 # changes which backend every session uses (and which budget pays for it).

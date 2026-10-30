@@ -36,12 +36,14 @@
 
 # Probe the installed version (rc != 0 when the binary is absent). Compared by
 # substring so any "name version ..." output format works. The version guard
-# keeps the ~10 MB download off every playbook run.
+# keeps the ~10 MB download off every playbook run. Read-only, so it also runs
+# in check mode.
 - name: Detect installed bedrock version
   ansible.builtin.command: "{{ bedrock_install_dir }}/bedrock --version"
   register: bedrock_installed_raw
   changed_when: false
   failed_when: false
+  check_mode: false
 
 # get_url with a sha256sum-format checksums URL verifies the line matching the
 # dest basename — the same guarantee upstream's install.sh relies on.
@@ -53,6 +55,14 @@
     mode: '0644'
   when: bedrock_version not in bedrock_installed_raw.stdout
 
+# Stat the tarball before the artifact-dependent tasks: in check mode get_url
+# only *reports* the download, so the extract/permissions/cleanup tasks below
+# must stay off a missing file during a dry run (vidsummarizer pattern).
+- name: Check whether the release tarball is present
+  ansible.builtin.stat:
+    path: "/tmp/bedrock_{{ bedrock_version }}_linux_amd64.tar.gz"
+  register: bedrock_tarball_stat
+
 # Extract only the binary (it sits at the archive root), like install.sh's
 # `tar -xzf ... bedrock`. No become: the binary must stay user-owned so future
 # self-replacement keeps working, same reasoning as pass_cli.
@@ -63,20 +73,20 @@
     remote_src: true
     extra_opts:
       - bedrock
-  when: bedrock_version not in bedrock_installed_raw.stdout
+  when: bedrock_version not in bedrock_installed_raw.stdout and not (ansible_check_mode and not bedrock_tarball_stat.stat.exists)
   changed_when: true
 
 - name: Ensure bedrock binary has standard permissions
   ansible.builtin.file:
     path: "{{ bedrock_install_dir }}/bedrock"
     mode: '0755'
-  when: bedrock_version not in bedrock_installed_raw.stdout
+  when: bedrock_version not in bedrock_installed_raw.stdout and not (ansible_check_mode and not bedrock_tarball_stat.stat.exists)
 
 - name: Remove temporary tarball
   ansible.builtin.file:
     path: "/tmp/bedrock_{{ bedrock_version }}_linux_amd64.tar.gz"
     state: absent
-  when: bedrock_version not in bedrock_installed_raw.stdout
+  when: bedrock_version not in bedrock_installed_raw.stdout and not (ansible_check_mode and not bedrock_tarball_stat.stat.exists)
 
 # --- AWS SSO profile (~/.aws/config) ------------------------------------------
 
@@ -88,17 +98,40 @@
 
 # rc 0: profile present; rc 1: no match; rc 2: config file absent (fresh
 # machine). rc 1 and rc 2 both count as "absent" for the blockinfile guard.
+# Fixed-string whole-line matching (-F -x): profile names may contain regex
+# metachars (dots), and an unescaped name must never match a different header.
 - name: Detect existing SSO profile in AWS config
   ansible.builtin.command:
     argv:
       - grep
       - -c
-      - '^\[profile {{ bedrock_sso_profile_name }}\]$'
+      - -F
+      - -x
+      - "[profile {{ bedrock_sso_profile_name }}]"
       - "{{ lookup('env', 'HOME') }}/.aws/config"
   register: bedrock_existing_profile
   changed_when: false
   failed_when: bedrock_existing_profile.rc not in [0, 1, 2]
 
+# A [profile ...] header alone can't tell "written by this role" from "written
+# by hand": rc 0 here means the profile lives in our managed block and may be
+# reconciled; the profile being present without the marker means a manual
+# profile, which is adopted untouched.
+- name: Detect the role-managed block in AWS config
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -c
+      - -F
+      - -x
+      - "# BEGIN ANSIBLE MANAGED BLOCK bedrock sso"
+      - "{{ lookup('env', 'HOME') }}/.aws/config"
+  register: bedrock_managed_block
+  changed_when: false
+  failed_when: bedrock_managed_block.rc not in [0, 1, 2]
+
+# Carries the company-private start URL, account id and permission set:
+# no_log keeps the values (and the diff) out of playbook output and logs.
 - name: Write SSO profile block into AWS config
   ansible.builtin.blockinfile:
     path: "{{ lookup('env', 'HOME') }}/.aws/config"
@@ -113,11 +146,12 @@
       sso_role_name = {{ bedrock_sso_role_name }}
       region = {{ bedrock_sso_region }}
       output = json
+  no_log: true
   when:
     - bedrock_sso_start_url is not none
     - bedrock_sso_account_id is not none
     - bedrock_sso_role_name is not none
-    - bedrock_existing_profile.rc != 0
+    - bedrock_existing_profile.rc != 0 or bedrock_managed_block.rc == 0
 
 - name: Set list of missing company-private SSO variables
   ansible.builtin.set_fact:
@@ -140,9 +174,14 @@
 # --- AWS CLI assert + guarded bedrock setup -----------------------------------
 
 # AWS CLI v2 is installed repo-wide via asdf (group_vars/all/base.yml); this
-# role only asserts it is reachable.
+# role only asserts it is reachable. asdf shims are supplied explicitly: on a
+# fresh machine the playbook's environment predates the profile.d snippet that
+# puts them on PATH (pattern from roles/ai).
 - name: Check AWS CLI availability
   ansible.builtin.command: aws --version
+  environment:
+    PATH: "/opt/asdf/bin:/opt/asdf/shims:{{ ansible_facts['env']['PATH'] }}"
+    ASDF_DATA_DIR: "/opt/asdf"
   register: bedrock_aws_cli
   changed_when: false
   failed_when: false
@@ -158,6 +197,7 @@
 # `bedrock setup` needs a valid SSO session; `aws sso login` opens a browser
 # and cannot be automated. Probe with STS: rc 0 means the cached session works.
 # Probe only when the profile is usable: written above or pre-existing.
+# no_log: a successful call prints the account id and caller ARN.
 - name: Probe SSO session validity via STS
   ansible.builtin.command:
     argv:
@@ -166,22 +206,32 @@
       - get-caller-identity
       - --profile
       - "{{ bedrock_sso_profile_name }}"
+  environment:
+    PATH: "/opt/asdf/bin:/opt/asdf/shims:{{ ansible_facts['env']['PATH'] }}"
+    ASDF_DATA_DIR: "/opt/asdf"
   register: bedrock_sso_session
+  no_log: true
   changed_when: false
   failed_when: false
   when: bedrock_existing_profile.rc == 0 or bedrock_missing_sso_vars | length == 0
 
-# rc 0: [profile bedrock] present; rc 1/2: absent (see SSO grep above).
-- name: Detect existing bedrock profile in AWS config
-  ansible.builtin.command:
-    argv:
-      - grep
-      - -c
-      - '^\[profile bedrock\]$'
-      - "{{ lookup('env', 'HOME') }}/.aws/config"
-  register: bedrock_profile_exists
+# `bedrock setup` rewrites the [profile bedrock] section idempotently, so run
+# it on every valid session instead of guarding on the section header: header
+# presence is no proof the last run's doctor checks passed, and that guard
+# would let `make rerun-failed` report success without retrying a failed
+# setup. `changed` is derived by diffing the config file before/after.
+
+# Company-private values flow into the config read here and into the setup
+# command (the --id value); no_log keeps them and any failure output out of
+# logs. Only the return code and the config diff drive behavior.
+- name: Read AWS config before setup
+  ansible.builtin.slurp:
+    path: "{{ lookup('env', 'HOME') }}/.aws/config"
+  register: bedrock_config_before
+  no_log: true
   changed_when: false
-  failed_when: bedrock_profile_exists.rc not in [0, 1, 2]
+  failed_when: false
+  when: (not (bedrock_sso_session.skipped | default(false))) and bedrock_sso_session.rc == 0 and bedrock_setup_id is not none
 
 # Always the full flag set: re-running setup without the original options
 # repoints the profile at a nonexistent role and fails the permission-set
@@ -198,10 +248,20 @@
       - --source-profile
       - "{{ bedrock_sso_profile_name }}"
       - --yes
-  changed_when: true
-  # Single expression on purpose: Jinja `and` short-circuits, so .rc of a
-  # skipped probe is never evaluated.
-  when: (not (bedrock_sso_session.skipped | default(false))) and bedrock_sso_session.rc == 0 and bedrock_setup_id is not none and (bedrock_profile_exists.rc != 0 or bedrock_setup_force)
+  no_log: true
+  changed_when: false
+  when: (not (bedrock_sso_session.skipped | default(false))) and bedrock_sso_session.rc == 0 and bedrock_setup_id is not none
+
+- name: Read AWS config after setup
+  ansible.builtin.slurp:
+    path: "{{ lookup('env', 'HOME') }}/.aws/config"
+  register: bedrock_config_after
+  no_log: true
+  failed_when: false
+  # The setup command above is this section's only write, and no_log hides
+  # its effect, so this after-read carries the change flag for the recap.
+  changed_when: bedrock_config_after.content != bedrock_config_before.content
+  when: (not (bedrock_sso_session.skipped | default(false))) and bedrock_sso_session.rc == 0 and bedrock_setup_id is not none
 
 - name: Report missing bedrock setup id
   ansible.builtin.debug:
@@ -303,8 +363,13 @@
 # preserved by construction.
 - name: Compute omp model roles with Bedrock default
   ansible.builtin.set_fact:
-    bedrock_omp_roles_original: "{{ (bedrock_omp_roles_raw.stdout | from_json).value if bedrock_omp_roles_raw.rc == 0 else {} }}"
-    bedrock_omp_roles: "{{ ((bedrock_omp_roles_raw.stdout | from_json).value if bedrock_omp_roles_raw.rc == 0 else {}) | combine({'default': 'amazon-bedrock/' ~ bedrock_claude_model}) }}"
+    bedrock_omp_roles_original: >-
+      {{ (bedrock_omp_roles_raw.stdout | from_json).value
+         if bedrock_omp_roles_raw.rc == 0 else {} }}
+    bedrock_omp_roles: >-
+      {{ ((bedrock_omp_roles_raw.stdout | from_json).value
+          if bedrock_omp_roles_raw.rc == 0 else {})
+         | combine({'default': 'amazon-bedrock/' ~ bedrock_claude_model}) }}
   when: bedrock_omp_enabled | bool and bedrock_omp_cli.rc == 0
 
 - name: Set omp model roles with Bedrock default
