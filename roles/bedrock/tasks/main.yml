@@ -114,21 +114,26 @@
   failed_when: bedrock_existing_profile.rc not in [0, 1, 2]
 
 # A [profile ...] header alone can't tell "written by this role" from "written
-# by hand": rc 0 here means the profile lives in our managed block and may be
-# reconciled; the profile being present without the marker means a manual
-# profile, which is adopted untouched.
-- name: Detect the role-managed block in AWS config
+# by hand". This check answers the reconcile question directly: rc 0 = the
+# requested header sits inside our managed block (safe to rewrite); rc 1 = it
+# does not. That rc-1 case covers both "profile absent entirely" and "an
+# unmanaged profile with this name exists elsewhere in the file" - the latter
+# must be adopted untouched, because writing a managed copy would produce a
+# duplicate header and break AWS config parsing. Exact string equality (no
+# regex), so metachars in the profile name cannot widen the match.
+- name: Detect the SSO profile inside the role-managed block
   ansible.builtin.command:
     argv:
-      - grep
-      - -c
-      - -F
-      - -x
-      - "# BEGIN ANSIBLE MANAGED BLOCK bedrock sso"
+      - awk
+      - |
+        /# BEGIN ANSIBLE MANAGED BLOCK bedrock sso/ {inblock=1}
+        inblock && $0 == "[profile {{ bedrock_sso_profile_name }}]" {found=1}
+        /# END ANSIBLE MANAGED BLOCK bedrock sso/ {inblock=0}
+        END {exit !found}
       - "{{ lookup('env', 'HOME') }}/.aws/config"
-  register: bedrock_managed_block
+  register: bedrock_managed_profile
   changed_when: false
-  failed_when: bedrock_managed_block.rc not in [0, 1, 2]
+  failed_when: bedrock_managed_profile.rc not in [0, 1, 2]
 
 # Carries the company-private start URL, account id and permission set:
 # no_log keeps the values (and the diff) out of playbook output and logs.
@@ -151,7 +156,7 @@
     - bedrock_sso_start_url is not none
     - bedrock_sso_account_id is not none
     - bedrock_sso_role_name is not none
-    - bedrock_existing_profile.rc != 0 or bedrock_managed_block.rc == 0
+    - bedrock_existing_profile.rc != 0 or bedrock_managed_profile.rc == 0
 
 - name: Set list of missing company-private SSO variables
   ansible.builtin.set_fact:
