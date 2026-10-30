@@ -151,6 +151,14 @@
       "source": "gnome"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"

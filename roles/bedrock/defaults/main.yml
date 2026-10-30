@@ -1,0 +1,43 @@
+---
+# SUSE bedrock-toolkit CLI (https://github.com/SUSE/bedrock-toolkit) plus the
+# AWS SSO profile plumbing needed to reach Claude through company Bedrock.
+#
+# Company-private values are null here by design: the repo is public, so real
+# values live ONLY in the gitignored group_vars/all/local.yml. While any of
+# them is unset the role still installs the CLI and prints configuration
+# guidance instead of failing (headless/fresh machines included).
+
+# Pinned release (repo convention for binary downloads). Bare version: release
+# asset names carry no 'v' prefix, only the tag does.
+bedrock_version: "1.2.0"
+
+# Per-user install dir (on PATH), like pass_cli. Must be user-writable. This
+# playbook does not gather facts (ansible_user_dir is undefined), so the home
+# directory is read from the controller environment.
+bedrock_install_dir: "{{ lookup('env', 'HOME') }}/.local/bin"
+
+# AWS profile name for the company SSO identity (generic, tracked).
+bedrock_sso_profile_name: "my-sso"
+
+# Company-private values (null by design; set in group_vars/all/local.yml).
+bedrock_sso_start_url: null                 # e.g. https://<directory-id>.awsapps.com/start
+bedrock_sso_account_id: null                # machine-specific CLZ account ID
+bedrock_sso_role_name: null                 # machine-specific permission set name
+bedrock_setup_id: null                      # the --id value from the admin's setup command
+
+# Generic AWS values, safe to track.
+bedrock_sso_region: "eu-central-1"          # SSO region; NEVER the Bedrock region
+bedrock_region: "us-east-1"                 # Bedrock region per the team guide; NOT the SSO region
+
+# --- Optional agent integration (opt-in) ---------------------------------------
+# Point pi and/or omp at Bedrock as their default model. Off by default: this
+# changes which backend every session uses (and which budget pays for it).
+# AWS credentials come from the environment (AWS_PROFILE/AWS_REGION), not from
+# these settings — see the role README.
+
+# Bedrock inference-profile model ID written into the agent defaults. Use the
+# cross-region form (us.* prefix); bare catalog IDs are rejected by Bedrock.
+bedrock_claude_model: "us.anthropic.claude-sonnet-5-5"
+
+bedrock_pi_enabled: false    # set ~/.pi/agent/settings.json defaultProvider/defaultModel
+bedrock_omp_enabled: false   # set omp's modelRoles.default (via `omp config set`)

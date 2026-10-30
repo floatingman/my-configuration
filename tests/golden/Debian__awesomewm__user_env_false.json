@@ -151,6 +151,14 @@
       "source": "awesomewm"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"

@@ -151,6 +151,14 @@
       "source": "hyprland"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "hyprland"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"
