@@ -227,7 +227,7 @@
 
 # --- Optional agent integration (opt-in) ----------------------------------------
 # Only runs when the matching bedrock_pi_enabled / bedrock_omp_enabled variable
-# is true. Both backends read AWS credentials from the environment
+# is true (both accepted as bool or string). Both backends read AWS credentials from the environment
 # (AWS_PROFILE/AWS_REGION), so wrapper aliases are the recommended launcher —
 # see the role README.
 
@@ -240,13 +240,13 @@
   ansible.builtin.stat:
     path: "{{ lookup('env', 'HOME') }}/.pi/agent/settings.json"
   register: bedrock_pi_settings_stat
-  when: bedrock_pi_enabled
+  when: bedrock_pi_enabled | bool
 
 - name: Read pi settings file
   ansible.builtin.slurp:
     path: "{{ lookup('env', 'HOME') }}/.pi/agent/settings.json"
   register: bedrock_pi_settings_raw
-  when: bedrock_pi_enabled and bedrock_pi_settings_stat.stat.exists
+  when: bedrock_pi_enabled | bool and bedrock_pi_settings_stat.stat.exists
   changed_when: false
 
 - name: Compute pi settings with Bedrock defaults
@@ -256,36 +256,39 @@
           if bedrock_pi_settings_raw.content is defined else {})
          | combine({'defaultProvider': 'amazon-bedrock',
                     'defaultModel': bedrock_claude_model}) }}
-  when: bedrock_pi_enabled
+  when: bedrock_pi_enabled | bool
 
 - name: Ensure pi agent config directory exists
   ansible.builtin.file:
     path: "{{ lookup('env', 'HOME') }}/.pi/agent"
     state: directory
     mode: '0755'
-  when: bedrock_pi_enabled
+  when: bedrock_pi_enabled | bool
 
 - name: Write pi settings with Bedrock defaults
   ansible.builtin.copy:
     dest: "{{ lookup('env', 'HOME') }}/.pi/agent/settings.json"
     content: "{{ bedrock_pi_settings | to_nice_json }}\n"
     mode: "{{ bedrock_pi_settings_stat.stat.mode | default('0644') }}"
-  when: bedrock_pi_enabled
+  when: bedrock_pi_enabled | bool
 
 # omp: set the default model role via omp's own config command (its config
 # store is opaque), skipping when the role already points at Bedrock.
 
 - name: Check omp availability
-  ansible.builtin.command: "{{ lookup('env', 'HOME') }}/.local/bin/omp --version"
+  ansible.builtin.command:
+    argv:
+      - omp
+      - --version
   register: bedrock_omp_cli
   changed_when: false
   failed_when: false
-  when: bedrock_omp_enabled
+  when: bedrock_omp_enabled | bool
 
 - name: Read omp model roles
   ansible.builtin.command:
     argv:
-      - "{{ lookup('env', 'HOME') }}/.local/bin/omp"
+      - omp
       - config
       - get
       - modelRoles
@@ -293,7 +296,7 @@
   register: bedrock_omp_roles_raw
   changed_when: false
   failed_when: false
-  when: bedrock_omp_enabled and bedrock_omp_cli.rc == 0
+  when: bedrock_omp_enabled | bool and bedrock_omp_cli.rc == 0
 
 # omp's config set only accepts whole records (no dotted leaf paths), so read
 # modelRoles, merge the default role, and write the record back — siblings are
@@ -302,23 +305,23 @@
   ansible.builtin.set_fact:
     bedrock_omp_roles_original: "{{ (bedrock_omp_roles_raw.stdout | from_json).value if bedrock_omp_roles_raw.rc == 0 else {} }}"
     bedrock_omp_roles: "{{ ((bedrock_omp_roles_raw.stdout | from_json).value if bedrock_omp_roles_raw.rc == 0 else {}) | combine({'default': 'amazon-bedrock/' ~ bedrock_claude_model}) }}"
-  when: bedrock_omp_enabled and bedrock_omp_cli.rc == 0
+  when: bedrock_omp_enabled | bool and bedrock_omp_cli.rc == 0
 
 - name: Set omp model roles with Bedrock default
   ansible.builtin.command:
     argv:
-      - "{{ lookup('env', 'HOME') }}/.local/bin/omp"
+      - omp
       - config
       - set
       - modelRoles
       - "{{ bedrock_omp_roles | to_json }}"
   changed_when: true
-  when: bedrock_omp_enabled and bedrock_omp_cli.rc == 0 and bedrock_omp_roles != bedrock_omp_roles_original
+  when: bedrock_omp_enabled | bool and bedrock_omp_cli.rc == 0 and bedrock_omp_roles != bedrock_omp_roles_original
 
 - name: Report missing omp for agent integration
   ansible.builtin.debug:
     msg: >-
-      bedrock: bedrock_omp_enabled is true but omp was not found
-      (~/.local/bin/omp); run the omp tag first
-      (`make configure TAGS=omp`), then re-run `make configure TAGS=bedrock`.
-  when: bedrock_omp_enabled and bedrock_omp_cli.rc is defined and bedrock_omp_cli.rc != 0
+      bedrock: bedrock_omp_enabled is true but omp was not found on PATH;
+      install it via the ai tag (`make configure TAGS=ai`), then re-run
+      `make configure TAGS=bedrock`.
+  when: bedrock_omp_enabled | bool and bedrock_omp_cli.rc is defined and bedrock_omp_cli.rc != 0
