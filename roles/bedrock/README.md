@@ -37,6 +37,28 @@ Without a valid session the playbook run still succeeds and prints the exact `aw
 - **Choosing the account/permission set**: per-user values, entered in `group_vars/all/local.yml`.
 - **`bedrock claude`**: only prints Claude Code settings; you copy its output into your own configuration yourself.
 
+## Optional: point pi and omp at Bedrock
+
+Opt-in via `group_vars/all/local.yml` (defaults `false`, since this changes which backend and budget every session uses):
+
+```yaml
+bedrock_pi_enabled: true     # ~/.pi/agent/settings.json defaultProvider/defaultModel
+bedrock_omp_enabled: true    # omp modelRoles.default via `omp config set`
+bedrock_claude_model: "us.anthropic.claude-sonnet-5-5"   # must keep the us.* inference-profile prefix
+```
+
+Both agents read AWS credentials from the environment, not from these settings. Since exporting `AWS_PROFILE` globally redirects every `aws` command, launch them through a wrapper instead:
+
+```bash
+alias omp-work='AWS_PROFILE=bedrock AWS_REGION=us-east-1 omp'
+alias pi-work='AWS_PROFILE=bedrock AWS_REGION=us-east-1 pi'
+```
+
+Caveats:
+
+- **pi + chezmoi**: if your pi-dotfiles template manages `~/.pi/agent/settings.json`, chezmoi wins on the next apply. Prefer editing the template there, or re-run `make configure TAGS=bedrock` after `chezmoi apply`.
+- **omp one-shots**: `omp -p` runs your hook extensions after the main reply (each pays Bedrock latency); interactive use is the intended mode.
+
 ## Upgrading
 
 Bump `bedrock_version` in `roles/bedrock/defaults/main.yml`; the role downloads the new release on the next run (the version probe skips the download while the installed version matches).

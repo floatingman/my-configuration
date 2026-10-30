@@ -32,3 +32,16 @@ bedrock_region: "us-east-1"                 # Bedrock region per the team guide;
 # true re-runs `bedrock setup` even when the [profile bedrock] already exists
 # (setup is otherwise skipped once the profile is written).
 bedrock_setup_force: false
+
+# --- Optional agent integration (opt-in) ---------------------------------------
+# Point pi and/or omp at Bedrock as their default model. Off by default: this
+# changes which backend every session uses (and which budget pays for it).
+# AWS credentials come from the environment (AWS_PROFILE/AWS_REGION), not from
+# these settings — see the role README.
+
+# Bedrock inference-profile model ID written into the agent defaults. Use the
+# cross-region form (us.* prefix); bare catalog IDs are rejected by Bedrock.
+bedrock_claude_model: "us.anthropic.claude-sonnet-5-5"
+
+bedrock_pi_enabled: false    # set ~/.pi/agent/settings.json defaultProvider/defaultModel
+bedrock_omp_enabled: false   # set omp's modelRoles.default (via `omp config set`)

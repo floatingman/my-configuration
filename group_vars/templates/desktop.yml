@@ -136,6 +136,10 @@ ai_llmfit_enabled: true           # Install llmfit (local LLM hardware-fit tool)
 # bedrock_sso_account_id: "123456789012"
 # bedrock_sso_role_name: "<your-permission-set>"
 # bedrock_setup_id: "<from-your-admin>"
+# Opt-in: point pi/omp default models at Bedrock (values from AWS env, see roles/bedrock/README.md).
+# bedrock_pi_enabled: false
+# bedrock_omp_enabled: false
+# bedrock_claude_model: "us.anthropic.claude-sonnet-5-5"
 
 # vidsummarizer (local YouTube transcript/summary pipeline; per-user under ~/Documents,
 # see roles/vidsummarizer/README.md for how to bump the pinned release tag)
