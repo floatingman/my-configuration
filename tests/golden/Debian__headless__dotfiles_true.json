@@ -190,6 +190,14 @@
       "source": "user_environment"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "headless"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"

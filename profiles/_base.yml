@@ -40,6 +40,7 @@ roles:
   - { role: filesystem, tags: [filesystem], section: dev }
   - { role: python, tags: [python], section: dev }
   - { role: rust, tags: [rust], section: dev }
+  - { role: bedrock, tags: [bedrock], section: dev }
   - { role: docker, tags: [docker], os: archlinux, section: dev }
   - { role: kubernetes, tags: [kubernetes], os: archlinux, section: dev }
 

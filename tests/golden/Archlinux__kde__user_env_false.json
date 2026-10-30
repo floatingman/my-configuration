@@ -151,6 +151,14 @@
       "source": "kde"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "kde"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"

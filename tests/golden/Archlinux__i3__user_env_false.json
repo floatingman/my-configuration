@@ -151,6 +151,14 @@
       "source": "i3"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "i3"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"

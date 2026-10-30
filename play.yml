@@ -422,6 +422,21 @@
           vars:
             _resilience_role: ai
           tags: always
+    - name: Resilient role wrapper for bedrock
+      block:
+        - name: Run role bedrock
+          ansible.builtin.import_role:
+            name: bedrock
+          tags: ["bedrock"]
+      rescue:
+        - name: Record failure of role bedrock
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: bedrock
+          tags: always
     - name: Resilient role wrapper for devtools
       block:
         - name: Run role devtools

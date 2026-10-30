@@ -192,6 +192,14 @@
       "source": "user_environment"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "gnome"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"

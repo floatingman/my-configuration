@@ -192,6 +192,14 @@
       "source": "user_environment"
     },
     {
+      "role": "bedrock",
+      "tags": [
+        "bedrock"
+      ],
+      "condition": "",
+      "source": "awesomewm"
+    },
+    {
       "role": "devtools",
       "tags": [
         "devtools"
