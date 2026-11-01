@@ -2,12 +2,12 @@
 
 Port {{ ssh_config.port }}
 Protocol 2
-PermitRootLogin no
+PermitRootLogin prohibit-password
 PasswordAuthentication no
 X11Forwarding no
 PrintMotd no
 PrintLastLog yes
-AllowUsers {{ user.name }}
+AllowUsers {{ user.name }} root
 LoginGraceTime 1m
 ChallengeResponseAuthentication no
 PubkeyAuthentication yes
