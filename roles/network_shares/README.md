@@ -26,6 +26,9 @@ Manages NFS (and CIFS) network shares as systemd mount units. Two modes:
    the `.automount` units; otherwise it stops them and force-unmounts the
    `.mount` units so no stale NFS handles survive a network change.
    Persistent mode installs no dispatcher and removes a leftover one.
+   Upgrading a persistent host whose shares are already mounted keeps them
+   live: systemd cannot start an automount over an active mount point, so
+   the automount is enabled and takes over at the next reboot.
 3. Any legacy `/etc/fstab` entry for a managed path is removed — the role
    owns those mount points.
 
