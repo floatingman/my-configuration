@@ -7,13 +7,42 @@
 - name: Apply persistent mount state
   become: true
   ansible.builtin.systemd:
-    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.mount"
+    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.automount"
     enabled: true
-    state: started
     daemon_reload: true
   loop: "{{ network_shares_config.shares }}"
   loop_control:
     label: "{{ item.name }}"
+  when: network_shares_mode == 'persistent'
+
+- name: Arm persistent automounts for currently unmounted shares
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.automount"
+    state: started
+  loop: "{{ network_shares_config.shares }}"
+  loop_control:
+    label: "{{ item.name }}"
+  listen: Apply persistent mount state
+  # systemd refuses to start an automount over a live mount point (it must
+  # own the directory), so upgrading a host whose shares are still mounted
+  # keeps them running; the boot-enabled automount takes over at reboot.
+  when:
+    - network_shares_mode == 'persistent'
+    - ansible_facts["mounts"] | selectattr("mount", "equalto", item.path) | list | length == 0
+
+- name: Start managed mount units under automount control (persistent)
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.mount"
+    # Mounted immediately so converge-time consumers see the share; boot
+    # enablement stays off, the automount owns lazily bringing it up.
+    enabled: false
+    state: started
+  loop: "{{ network_shares_config.shares }}"
+  loop_control:
+    label: "{{ item.name }}"
+  listen: Apply persistent mount state
   when: network_shares_mode == 'persistent'
 
 - name: Apply trusted-network mount state

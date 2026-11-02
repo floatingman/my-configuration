@@ -111,12 +111,12 @@
       loop: "{{ network_shares_config.shares }}"
       loop_control:
         label: "{{ item.name }}"
-      when: network_shares_mode == 'trusted-network'
       notify:
         - Reload systemd units
         - Apply trusted-network mount state
+        - Apply persistent mount state
 
-    - name: Purge boot-time enablement of managed mount units
+    - name: Purge boot-time enablement of managed mount units (trusted-network)
       become: true
       ansible.builtin.file:
         path: "/etc/systemd/system/multi-user.target.wants/{{ item }}"
@@ -142,6 +142,28 @@
         - Reload systemd units
         - Apply trusted-network mount state
 
+    - name: Purge boot-time enablement of managed mount units (persistent)
+      become: true
+      ansible.builtin.file:
+        path: "/etc/systemd/system/multi-user.target.wants/{{ item }}"
+        state: absent
+      # In persistent mode the boot-enabled units are the .automounts (mount
+      # on first access, immune to early-boot "Network is unreachable"
+      # races); a directly-enabled .mount would mount at boot again.
+      loop: "{{ network_shares_config.shares
+                | map(attribute='path')
+                | map('trim', '/')
+                | map('replace', '-', '\\x2d')
+                | map('replace', '/', '-')
+                | map('regex_replace', '$', '.mount')
+                | list }}"
+      loop_control:
+        label: "{{ item }}"
+      when: network_shares_mode == 'persistent'
+      notify:
+        - Reload systemd units
+        - Apply persistent mount state
+
     - name: Install NetworkManager dispatcher gate
       become: true
       ansible.builtin.template:
@@ -152,17 +174,6 @@
         mode: "0755"
       when: network_shares_mode == 'trusted-network'
       notify: Apply trusted-network mount state
-
-    - name: Remove automount units (persistent mode)
-      become: true
-      ansible.builtin.file:
-        path: "/etc/systemd/system/{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.automount"
-        state: absent
-      loop: "{{ network_shares_config.shares }}"
-      loop_control:
-        label: "{{ item.name }}"
-      when: network_shares_mode == 'persistent'
-      notify: Reload systemd units
 
     - name: Remove NetworkManager dispatcher gate (persistent mode)
       become: true

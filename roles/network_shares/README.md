@@ -6,24 +6,29 @@ Manages NFS (and CIFS) network shares as systemd mount units. Two modes:
   NetworkManager dispatcher while a trusted connection — e.g. the home WiFi —
   is active, cleanly unmounted when the machine leaves that network. Never
   enabled at boot, so an off-home boot never touches the NFS servers.
-- **`persistent`** (always-on servers): plain `.mount` units enabled at boot
-  via `WantedBy=multi-user.target`, no NetworkManager requirement, no idle
-  unmount. Shares are mounted as soon as the network target allows.
+- **`persistent`** (always-on servers): `.automount` units enabled at boot
+  (mount on first access), no NetworkManager requirement, no idle unmount.
+  Nothing mounts during early boot, so a not-yet-routed NIC can never fail
+  the mounts with "Network is unreachable" — they come up on first access.
 
 ## How it works
 
 1. Each `shares` entry renders a systemd-escaped `<path>.mount` named from
    the mount path (e.g. `/mnt/media` → `mnt-media.mount`;
-   `/srv/media` → `srv-media.mount`). In `trusted-network` mode it is paired
-   with a `<path>.automount` unit (mount-on-first-access, idle unmount after
-   `network_shares_idle_timeout`); in `persistent` mode the `.mount` unit is
-   enabled at boot instead.
+   `/srv/media` → `srv-media.mount`), always paired with a `<path>.automount`
+   unit (mount-on-first-access). In `trusted-network` mode the automount
+   idle-unmounts after `network_shares_idle_timeout`; in `persistent` mode
+   the automount is enabled at boot and the `.mount` unit is never
+   boot-enabled.
 2. Trusted-network mode installs
    `/etc/NetworkManager/dispatcher.d/90-network-shares`, which runs on every
    NM event: while any trusted connection (wifi or wired) is active it starts
    the `.automount` units; otherwise it stops them and force-unmounts the
    `.mount` units so no stale NFS handles survive a network change.
    Persistent mode installs no dispatcher and removes a leftover one.
+   Upgrading a persistent host whose shares are already mounted keeps them
+   live: systemd cannot start an automount over an active mount point, so
+   the automount is enabled and takes over at the next reboot.
 3. Any legacy `/etc/fstab` entry for a managed path is removed — the role
    owns those mount points.
 
@@ -35,7 +40,7 @@ Trusted-network mode requires NetworkManager (`nmcli`). NFS needs
 
 | Variable                                     | Default            | Purpose                                                     |
 | -------------------------------------------- | ------------------ | ----------------------------------------------------------- |
-| `network_shares_mode`                        | `trusted-network`  | `trusted-network` (NM-gated automounts) or `persistent` (boot-enabled server mounts) |
+| `network_shares_mode`                        | `trusted-network`  | `trusted-network` (NM-gated automounts) or `persistent` (boot-enabled server automounts) |
 | `network_shares_config.trusted_connections`  | `[]`               | NM connection names that count as home (`nmcli -g NAME con show --active`) — required in trusted-network mode |
 | `network_shares_config.shares`               | `[]`               | Shares: `name`, `src`, `path`, `fstype` (nfs/cifs), `options` |
 | `network_shares_idle_timeout`                | `600`              | Seconds idle before an automounted share unmounts (trusted-network mode) |
