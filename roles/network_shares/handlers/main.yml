@@ -7,10 +7,23 @@
 - name: Apply persistent mount state
   become: true
   ansible.builtin.systemd:
-    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.mount"
+    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.automount"
     enabled: true
     state: started
     daemon_reload: true
+  loop: "{{ network_shares_config.shares }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: network_shares_mode == 'persistent'
+
+- name: Start managed mount units under automount control (persistent)
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item.path | trim('/') | replace('-', '\\x2d') | replace('/', '-') }}.mount"
+    # Mounted immediately so converge-time consumers see the share; boot
+    # enablement stays off, the automount owns lazily bringing it up.
+    enabled: false
+    state: started
   loop: "{{ network_shares_config.shares }}"
   loop_control:
     label: "{{ item.name }}"

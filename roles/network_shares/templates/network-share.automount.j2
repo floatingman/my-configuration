@@ -4,4 +4,11 @@ Description=Automount network share {{ item.name }}
 
 [Automount]
 Where={{ item.path }}
+{% if network_shares_mode == 'trusted-network' %}
 TimeoutIdleSec={{ network_shares_idle_timeout }}
+{% endif %}
+{% if network_shares_mode == 'persistent' %}
+
+[Install]
+WantedBy=multi-user.target
+{% endif %}
