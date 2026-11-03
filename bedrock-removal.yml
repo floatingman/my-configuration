@@ -27,9 +27,9 @@
 #
 # Leaves: hand-written AWS profiles (an adopted [profile my-sso] included),
 # SSO token caches under ~/.aws/sso, every other key in the agent configs,
-# and a one-time backup of the AWS config at ~/.aws/config.bedrock-rm.bak
-# taken before its first rewrite. Idempotent: a second run reports
-# changed=0, so it is safe on machines that never ran the role.
+# and a one-time backup of the AWS config at ~/.aws/config.bedrock-rm.bak,
+# taken before its first change and never overwritten. Idempotent: a second
+# run reports changed=0, so it is safe on machines that never ran the role.
 
 - name: Remove bedrock role artifacts
   hosts: localhost
@@ -61,20 +61,11 @@
         path: "{{ lookup('env', 'HOME') }}/.aws/config"
       register: bedrock_rm_aws_stat
 
-    # no_log keeps the block's company-private SSO values (start URL, account
-    # id) out of --diff output, matching the retired role's write task.
-    - name: Remove role-managed SSO block from AWS config
-      ansible.builtin.blockinfile:
-        path: "{{ lookup('env', 'HOME') }}/.aws/config"
-        marker: "# {mark} ANSIBLE MANAGED BLOCK bedrock sso"
-        state: absent
-      no_log: true
-      when: bedrock_rm_aws_stat.stat.exists
-
-    # Exit-code probe, modeled on the retired role's profile detection: file
+    # Exit-code probes, modeled on the retired role's profile detection: file
     # content never enters output or registers, so there is nothing to redact
     # at any verbosity. check_mode: false keeps --check evaluating the guards
-    # below (command tasks are skipped in check mode).
+    # below (command tasks are skipped in check mode). Both run before any
+    # AWS change so the backup below can snapshot the true pre-teardown file.
     - name: Detect the bedrock profile section in AWS config
       ansible.builtin.command:
         argv:
@@ -88,23 +79,50 @@
       changed_when: false
       failed_when: bedrock_rm_section_probe.rc not in [0, 1, 2]
 
-    # One-time recoverability snapshot before the first destructive rewrite:
-    # if the section was hand-written rather than toolkit-created, or the
-    # rewrite is ever interrupted, this preserves the pre-teardown state.
-    # It runs only while the section is still present, so later runs never
-    # touch it and it always holds the true pre-removal content.
-    # no_log: the file carries the same company-private values as above.
-    - name: Back up AWS config before first rewrite
+    - name: Detect the role-managed SSO block in AWS config
+      ansible.builtin.command:
+        argv:
+          - awk
+          - >-
+            $0 ~ /^# BEGIN ANSIBLE MANAGED BLOCK bedrock sso[[:space:]]*$/ { found = 1 }
+            END { exit !found }
+          - "{{ lookup('env', 'HOME') }}/.aws/config"
+      register: bedrock_rm_block_probe
+      check_mode: false
+      changed_when: false
+      failed_when: bedrock_rm_block_probe.rc not in [0, 1, 2]
+
+    # One-time recoverability snapshot before the first destructive change:
+    # covers a hand-written section, an interrupted rewrite, and the managed
+    # SSO block alike, so the .bak always holds the true pre-teardown file
+    # (both probes precede every AWS mutation). force: false means the first
+    # snapshot is never overwritten by a rerun that finds a damaged file
+    # after an interruption. no_log: the file carries the same
+    # company-private values as the tasks below.
+    - name: Back up AWS config before first change
       ansible.builtin.copy:
         src: "{{ lookup('env', 'HOME') }}/.aws/config"
         dest: "{{ lookup('env', 'HOME') }}/.aws/config.bedrock-rm.bak"
         remote_src: true
         mode: preserve
+        force: false
       no_log: true
       when:
         - bedrock_rm_aws_stat.stat.exists
         - not ansible_check_mode
-        - bedrock_rm_section_probe.rc == 0
+        - (bedrock_rm_section_probe.rc == 0) or (bedrock_rm_block_probe.rc == 0)
+
+    # no_log keeps the block's company-private SSO values (start URL, account
+    # id) out of --diff output, matching the retired role's write task.
+    - name: Remove role-managed SSO block from AWS config
+      ansible.builtin.blockinfile:
+        path: "{{ lookup('env', 'HOME') }}/.aws/config"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK bedrock sso"
+        state: absent
+      no_log: true
+      when:
+        - bedrock_rm_aws_stat.stat.exists
+        - bedrock_rm_block_probe.rc == 0
 
     # Section-boundary aware: AWS INI headers may legally carry leading (and
     # trailing) whitespace, so the boundaries match `[` after optional space,
