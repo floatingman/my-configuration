@@ -144,6 +144,10 @@ Grant a new user access: `sudo usermod -aG devtools,linuxbrew <username>`.
 
 Default in the role's `defaults/main.yml`; machine value in `group_vars/all/local.yml`; commented example in both `group_vars/templates/` files.
 
+### Remove a retired role's machine artifacts
+
+`bedrock-removal.yml` at the repo root is a standalone one-off teardown playbook for the removed `bedrock` role (not generated, not in `profiles/`, exempt from `check-sync`). Run it once per machine that ever had the role, then delete the file; usage is in its header and `README.md` ("Removing the retired bedrock setup"). Future role removals can follow the same pattern instead of a teardown role.
+
 ## Docs
 
 `README.md` (usage/overview — update for user-facing changes), `INSTALL.md`, `INSTALL_DUAL_BOOT.md`, `HOMEBREW_MIGRATION.md`, per-role `roles/*/README.md`.

@@ -543,3 +543,29 @@ instead of stopping the playbook. The monthly
 [package-liveness workflow](.github/workflows/package-liveness.yml) keeps
 catching dead names in CI as well; for `base_packages` and `aur.packages` its
 findings are advisory, since the runtime now routes both directions.
+
+## Removing the retired bedrock setup
+
+The `bedrock` role (SUSE bedrock-toolkit CLI plus the AWS SSO plumbing for
+Claude via company Bedrock) was removed from `profiles/`; machines that ever
+ran it keep its artifacts: the `~/.local/bin/bedrock` binary, AWS config
+entries, and pi/omp model defaults pointing at amazon-bedrock.
+`bedrock-removal.yml` at the repo root is a one-off playbook that undoes all
+of it. It is idempotent, needs no sudo, and is safe on machines that never
+ran the role:
+
+```sh
+git pull
+ansible-playbook -i localhost bedrock-removal.yml \
+    -e ansible_python_interpreter=/usr/bin/python3
+```
+
+Before its first change it snapshots `~/.aws/config` to
+`~/.aws/config.bedrock-rm.bak` (never overwritten afterwards). It keeps
+hand-written AWS profiles (an adopted `[profile my-sso]` included) and only
+strips pi/omp defaults while they still point at amazon-bedrock, so values
+you re-pointed by hand are left alone. Machines that overrode the retired
+role's `bedrock_install_dir` must add
+`-e bedrock_install_dir=/custom/path` to the command on the first run; see
+the header of `bedrock-removal.yml` for the full contract. Once every
+machine is cleaned up, delete `bedrock-removal.yml` from the repo.
