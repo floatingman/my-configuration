@@ -1,0 +1,210 @@
+---
+# One-off teardown for everything the retired `bedrock` role set up.
+#
+# The role is gone from profiles/; this playbook removes its per-machine
+# artifacts. Run it ONCE on every machine that ever ran the role:
+#
+#     git pull
+#     ansible-playbook -i localhost bedrock-removal.yml \
+#         -e ansible_python_interpreter=/usr/bin/python3
+#
+# then delete this file once the whole fleet is clean. No become pass: every
+# artifact is per-user.
+#
+# Removes:
+#   * the `bedrock` CLI binary (~/.local/bin/bedrock)
+#   * the role-managed SSO block in ~/.aws/config (the marker block only)
+#   * the [profile bedrock] section that `bedrock setup` wrote there
+#   * pi's defaultProvider/defaultModel in ~/.pi/agent/settings.json, only
+#     while they still point at amazon-bedrock (hand-re-pointed values stay)
+#   * omp's modelRoles.default, only while it still points at amazon-bedrock/
+#     (hand-re-pointed values and sibling roles stay)
+#   * bedrock tool caches (~/.cache/bedrock, ~/.config/bedrock)
+#
+# Leaves: hand-written AWS profiles (an adopted [profile my-sso] included),
+# SSO token caches under ~/.aws/sso, and every other key in the agent
+# configs. Idempotent: a second run reports changed=0, so it is safe on
+# machines that never ran the role.
+
+- name: Remove bedrock role artifacts
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Remove bedrock CLI binary
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/.local/bin/bedrock"
+        state: absent
+
+    - name: Remove bedrock tool caches
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/{{ item }}"
+        state: absent
+      loop:
+        - .cache/bedrock
+        - .config/bedrock
+
+    # --- ~/.aws/config: managed SSO block + setup-written profile ----------
+
+    - name: Stat AWS config file
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.aws/config"
+      register: bedrock_rm_aws_stat
+
+    # blockinfile removes exactly the marker block the role wrote; on
+    # machines where [profile my-sso] was written by hand and merely adopted,
+    # there is no marker block and this is a no-op.
+    - name: Remove role-managed SSO block from AWS config
+      ansible.builtin.blockinfile:
+        path: "{{ lookup('env', 'HOME') }}/.aws/config"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK bedrock sso"
+        state: absent
+      when: bedrock_rm_aws_stat.stat.exists
+
+    - name: Read AWS config before profile removal
+      ansible.builtin.slurp:
+        path: "{{ lookup('env', 'HOME') }}/.aws/config"
+      register: bedrock_rm_aws_before
+      changed_when: false
+      when: bedrock_rm_aws_stat.stat.exists
+
+    # Exact fixed-string header match: the section name `bedrock setup`
+    # writes. Deletes the header through the last line before the next `[`
+    # section (or EOF). `cat >` (not `mv`) keeps the existing file's inode,
+    # so mode 0600 and ownership survive the rewrite.
+    - name: Remove the bedrock profile section from AWS config
+      ansible.builtin.shell: |
+        cfg="{{ lookup('env', 'HOME') }}/.aws/config"
+        tmp="{{ lookup('env', 'HOME') }}/.aws/config.bedrock-rm"
+        awk '$0 == "[profile bedrock]" { in_bedrock = 1; next }
+             substr($0, 1, 1) == "[" { in_bedrock = 0 }
+             !in_bedrock' "$cfg" > "$tmp" && cat "$tmp" > "$cfg" && rm -f "$tmp"
+      args:
+        executable: /bin/bash
+      changed_when: false
+      when:
+        - bedrock_rm_aws_stat.stat.exists
+        - not ansible_check_mode
+        - "'[profile bedrock]' in (bedrock_rm_aws_before.content | b64decode)"
+
+    - name: Read AWS config after profile removal
+      ansible.builtin.slurp:
+        path: "{{ lookup('env', 'HOME') }}/.aws/config"
+      register: bedrock_rm_aws_after
+      # Carries the change flag for the no-diff shell task above.
+      changed_when: bedrock_rm_aws_after.content != bedrock_rm_aws_before.content
+      when:
+        - bedrock_rm_aws_stat.stat.exists
+        - "'[profile bedrock]' in (bedrock_rm_aws_before.content | b64decode)"
+
+    # --- pi: defaultProvider/defaultModel -----------------------------------
+
+    - name: Stat pi settings file
+      ansible.builtin.stat:
+        path: "{{ lookup('env', 'HOME') }}/.pi/agent/settings.json"
+      register: bedrock_rm_pi_stat
+
+    - name: Read pi settings file
+      ansible.builtin.slurp:
+        path: "{{ lookup('env', 'HOME') }}/.pi/agent/settings.json"
+      register: bedrock_rm_pi_raw
+      changed_when: false
+      when: bedrock_rm_pi_stat.stat.exists
+
+    # Strip both keys only while they still hold the pair the role wrote;
+    # everything else in the file is preserved. A defaultProvider pointing
+    # elsewhere means the user moved on, and their choice stays.
+    - name: Compute pi settings without Bedrock defaults
+      ansible.builtin.set_fact:
+        bedrock_rm_pi_settings: >-
+          {{ bedrock_rm_pi_raw.content | b64decode | from_json
+             | dict2items
+             | rejectattr('key', 'in', ['defaultProvider', 'defaultModel'])
+             | items2dict }}
+      when:
+        - bedrock_rm_pi_stat.stat.exists
+        - (bedrock_rm_pi_raw.content | b64decode | from_json).defaultProvider | default('') == 'amazon-bedrock'
+
+    - name: Write pi settings without Bedrock defaults
+      ansible.builtin.copy:
+        dest: "{{ lookup('env', 'HOME') }}/.pi/agent/settings.json"
+        content: "{{ bedrock_rm_pi_settings | to_nice_json }}\n"
+        mode: "{{ bedrock_rm_pi_stat.stat.mode | default('0644') }}"
+      when: bedrock_rm_pi_settings is defined
+
+    - name: Report pi defaults no longer on Bedrock
+      ansible.builtin.debug:
+        msg: >-
+          pi: defaultProvider no longer points at amazon-bedrock (changed by
+          hand since the bedrock role ran); ~/.pi/agent/settings.json was
+          left untouched.
+      when:
+        - bedrock_rm_pi_stat.stat.exists
+        - bedrock_rm_pi_settings is not defined
+        - (bedrock_rm_pi_raw.content | b64decode | from_json).defaultProvider is defined
+
+    # --- omp: modelRoles.default --------------------------------------------
+
+    - name: Check omp availability
+      ansible.builtin.command:
+        argv: [omp, --version]
+      register: bedrock_rm_omp_cli
+      changed_when: false
+      failed_when: false
+
+    - name: Read omp model roles
+      ansible.builtin.command:
+        argv: [omp, config, get, modelRoles, --json]
+      register: bedrock_rm_omp_roles_raw
+      changed_when: false
+      failed_when: false
+      when: bedrock_rm_omp_cli.rc == 0
+
+    # omp config set only accepts whole records, so drop just the default
+    # role and write the rest back; siblings are preserved by construction.
+    - name: Compute omp model roles without Bedrock default
+      ansible.builtin.set_fact:
+        bedrock_rm_omp_roles: >-
+          {{ (bedrock_rm_omp_roles_raw.stdout | from_json).value
+             | dict2items
+             | rejectattr('key', 'in', ['default'])
+             | items2dict }}
+      when:
+        - bedrock_rm_omp_cli.rc == 0
+        - bedrock_rm_omp_roles_raw.rc | default(1) == 0
+        - ((bedrock_rm_omp_roles_raw.stdout | from_json).value.default | default('')).startswith('amazon-bedrock/')
+
+    - name: Set omp model roles without Bedrock default
+      ansible.builtin.command:
+        argv:
+          - omp
+          - config
+          - set
+          - modelRoles
+          - "{{ bedrock_rm_omp_roles | to_json }}"
+      changed_when: true
+      when: bedrock_rm_omp_roles is defined
+
+    - name: Report omp default no longer on Bedrock
+      ansible.builtin.debug:
+        msg: >-
+          omp: modelRoles.default no longer points at amazon-bedrock (changed
+          by hand since the bedrock role ran); omp config was left untouched.
+      when:
+        - bedrock_rm_omp_cli.rc == 0
+        - bedrock_rm_omp_roles_raw.rc | default(1) == 0
+        - bedrock_rm_omp_roles is not defined
+        - (bedrock_rm_omp_roles_raw.stdout | from_json).value.default is defined
+
+    # --- What is deliberately left behind ------------------------------------
+
+    - name: Report intentional leftovers
+      ansible.builtin.debug:
+        msg: >-
+          Left in place: hand-written AWS profiles (an adopted [profile
+          my-sso] included; delete it yourself if you no longer need SSO),
+          SSO token caches under ~/.aws/sso, and the shell wrapper aliases
+          (omp-work/pi-work) if you added them — they are harmless once the
+          bedrock profile is gone but error on use; remove them from your
+          shell rc at your leisure.
