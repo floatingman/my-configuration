@@ -8,11 +8,15 @@
 #     ansible-playbook -i localhost bedrock-removal.yml \
 #         -e ansible_python_interpreter=/usr/bin/python3
 #
+# Machines that overrode the retired role's bedrock_install_dir must add
+#     -e bedrock_install_dir=/custom/path
+# to that command on the first run, before deleting it from local.yml.
+#
 # then delete this file once the whole fleet is clean. No become pass: every
 # artifact is per-user.
 #
 # Removes:
-#   * the `bedrock` CLI binary (~/.local/bin/bedrock)
+#   * the `bedrock` CLI binary (bedrock_install_dir, default ~/.local/bin)
 #   * the role-managed SSO block in ~/.aws/config (the marker block only)
 #   * the [profile bedrock] section that `bedrock setup` wrote there
 #   * pi's defaultProvider/defaultModel in ~/.pi/agent/settings.json, only
@@ -30,11 +34,15 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    # Same default as the retired role's bedrock_install_dir; see the header
+    # for the override contract.
+    bedrock_install_dir: "{{ lookup('env', 'HOME') }}/.local/bin"
 
   tasks:
     - name: Remove bedrock CLI binary
       ansible.builtin.file:
-        path: "{{ lookup('env', 'HOME') }}/.local/bin/bedrock"
+        path: "{{ bedrock_install_dir }}/bedrock"
         state: absent
 
     - name: Remove bedrock tool caches
@@ -52,51 +60,61 @@
         path: "{{ lookup('env', 'HOME') }}/.aws/config"
       register: bedrock_rm_aws_stat
 
-    # blockinfile removes exactly the marker block the role wrote; on
-    # machines where [profile my-sso] was written by hand and merely adopted,
-    # there is no marker block and this is a no-op.
+    # no_log keeps the block's company-private SSO values (start URL, account
+    # id) out of --diff output, matching the retired role's write task.
     - name: Remove role-managed SSO block from AWS config
       ansible.builtin.blockinfile:
         path: "{{ lookup('env', 'HOME') }}/.aws/config"
         marker: "# {mark} ANSIBLE MANAGED BLOCK bedrock sso"
         state: absent
+      no_log: true
       when: bedrock_rm_aws_stat.stat.exists
 
-    - name: Read AWS config before profile removal
-      ansible.builtin.slurp:
-        path: "{{ lookup('env', 'HOME') }}/.aws/config"
-      register: bedrock_rm_aws_before
+    # Exit-code probe, modeled on the retired role's profile detection: file
+    # content never enters output or registers, so there is nothing to redact
+    # at any verbosity. check_mode: false keeps --check evaluating the guards
+    # below (command tasks are skipped in check mode).
+    - name: Detect the bedrock profile section in AWS config
+      ansible.builtin.command:
+        argv:
+          - awk
+          - >-
+            $0 ~ /^[[:space:]]*\[profile bedrock\][[:space:]]*$/ { found = 1 }
+            END { exit !found }
+          - "{{ lookup('env', 'HOME') }}/.aws/config"
+      register: bedrock_rm_section_probe
+      check_mode: false
       changed_when: false
-      when: bedrock_rm_aws_stat.stat.exists
+      failed_when: bedrock_rm_section_probe.rc not in [0, 1, 2]
 
-    # Exact fixed-string header match: the section name `bedrock setup`
-    # writes. Deletes the header through the last line before the next `[`
-    # section (or EOF). `cat >` (not `mv`) keeps the existing file's inode,
-    # so mode 0600 and ownership survive the rewrite.
+    # Section-boundary aware: AWS INI headers may legally carry leading (and
+    # trailing) whitespace, so the boundaries match `[` after optional space,
+    # or an indented header would swallow the next section into the deletion.
+    # `cat >` (not `mv`) keeps the existing file's inode, so mode 0600 and
+    # ownership survive the rewrite. The change flag comes from before/after
+    # checksums inside the task, so no other task ever needs this file's
+    # content (a no_log'd slurp register is censored for later tasks and
+    # would break their conditionals).
     - name: Remove the bedrock profile section from AWS config
       ansible.builtin.shell: |
+        set -euo pipefail
         cfg="{{ lookup('env', 'HOME') }}/.aws/config"
         tmp="{{ lookup('env', 'HOME') }}/.aws/config.bedrock-rm"
-        awk '$0 == "[profile bedrock]" { in_bedrock = 1; next }
-             substr($0, 1, 1) == "[" { in_bedrock = 0 }
-             !in_bedrock' "$cfg" > "$tmp" && cat "$tmp" > "$cfg" && rm -f "$tmp"
+        before=$(sha256sum "$cfg" | cut -d' ' -f1)
+        awk '$0 ~ /^[[:space:]]*\[profile bedrock\][[:space:]]*$/ { in_bedrock = 1; next }
+             $0 ~ /^[[:space:]]*\[/ { in_bedrock = 0 }
+             !in_bedrock' "$cfg" > "$tmp"
+        after=$(sha256sum "$tmp" | cut -d' ' -f1)
+        cat "$tmp" > "$cfg" && rm -f "$tmp"
+        [ "$before" != "$after" ] && echo changed || echo unchanged
       args:
         executable: /bin/bash
-      changed_when: false
+      register: bedrock_rm_section_rewrite
+      changed_when: bedrock_rm_section_rewrite.stdout == "changed"
       when:
         - bedrock_rm_aws_stat.stat.exists
         - not ansible_check_mode
-        - "'[profile bedrock]' in (bedrock_rm_aws_before.content | b64decode)"
-
-    - name: Read AWS config after profile removal
-      ansible.builtin.slurp:
-        path: "{{ lookup('env', 'HOME') }}/.aws/config"
-      register: bedrock_rm_aws_after
-      # Carries the change flag for the no-diff shell task above.
-      changed_when: bedrock_rm_aws_after.content != bedrock_rm_aws_before.content
-      when:
-        - bedrock_rm_aws_stat.stat.exists
-        - "'[profile bedrock]' in (bedrock_rm_aws_before.content | b64decode)"
+        - bedrock_rm_section_probe.rc == 0
 
     # --- pi: defaultProvider/defaultModel -----------------------------------
 
@@ -146,10 +164,14 @@
 
     # --- omp: modelRoles.default --------------------------------------------
 
+    # check_mode: false on both probes: command tasks are skipped in --check,
+    # which would leave their registers without rc/stdout and crash the
+    # conditional below, breaking dry runs. Both are read-only.
     - name: Check omp availability
       ansible.builtin.command:
         argv: [omp, --version]
       register: bedrock_rm_omp_cli
+      check_mode: false
       changed_when: false
       failed_when: false
 
@@ -157,6 +179,7 @@
       ansible.builtin.command:
         argv: [omp, config, get, modelRoles, --json]
       register: bedrock_rm_omp_roles_raw
+      check_mode: false
       changed_when: false
       failed_when: false
       when: bedrock_rm_omp_cli.rc == 0
