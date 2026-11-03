@@ -26,9 +26,10 @@
 #   * bedrock tool caches (~/.cache/bedrock, ~/.config/bedrock)
 #
 # Leaves: hand-written AWS profiles (an adopted [profile my-sso] included),
-# SSO token caches under ~/.aws/sso, and every other key in the agent
-# configs. Idempotent: a second run reports changed=0, so it is safe on
-# machines that never ran the role.
+# SSO token caches under ~/.aws/sso, every other key in the agent configs,
+# and a one-time backup of the AWS config at ~/.aws/config.bedrock-rm.bak
+# taken before its first rewrite. Idempotent: a second run reports
+# changed=0, so it is safe on machines that never ran the role.
 
 - name: Remove bedrock role artifacts
   hosts: localhost
@@ -86,6 +87,24 @@
       check_mode: false
       changed_when: false
       failed_when: bedrock_rm_section_probe.rc not in [0, 1, 2]
+
+    # One-time recoverability snapshot before the first destructive rewrite:
+    # if the section was hand-written rather than toolkit-created, or the
+    # rewrite is ever interrupted, this preserves the pre-teardown state.
+    # It runs only while the section is still present, so later runs never
+    # touch it and it always holds the true pre-removal content.
+    # no_log: the file carries the same company-private values as above.
+    - name: Back up AWS config before first rewrite
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'HOME') }}/.aws/config"
+        dest: "{{ lookup('env', 'HOME') }}/.aws/config.bedrock-rm.bak"
+        remote_src: true
+        mode: preserve
+      no_log: true
+      when:
+        - bedrock_rm_aws_stat.stat.exists
+        - not ansible_check_mode
+        - bedrock_rm_section_probe.rc == 0
 
     # Section-boundary aware: AWS INI headers may legally carry leading (and
     # trailing) whitespace, so the boundaries match `[` after optional space,
