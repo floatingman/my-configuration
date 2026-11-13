@@ -1,0 +1,79 @@
+---
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+# Desired state for the Windows machines (WinGet Configuration).
+# Manifest v0.1.0 (floatingman): base Windows workstation (packages + dev env).
+#
+# Apply:    .\windows\bootstrap.ps1
+# Drift:    .\windows\bootstrap.ps1 -Test     (changes nothing)
+# Validate: winget configure validate --file windows/config.dsc.yaml
+#
+# This file is hand-edited. It is NOT generated from profiles/ and is NOT
+# covered by make check-sync / generate-playbook (those are Linux/Ansible only).
+properties:
+  configurationVersion: 0.2.0
+  resources:
+    # ---- core tools (winget source) -------------------------------------
+    # Find IDs with:  winget search <name>   (use the exact Id column)
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: git
+      directives:
+        description: Install Git for Windows
+      settings:
+        id: Git.Git
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: powershell
+      directives:
+        description: Install PowerShell 7
+      settings:
+        id: Microsoft.PowerShell
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: windows-terminal
+      directives:
+        description: Install Windows Terminal
+      settings:
+        id: Microsoft.WindowsTerminal
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: vscode
+      directives:
+        description: Install Visual Studio Code
+      settings:
+        id: Microsoft.VisualStudioCode
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: sevenzip
+      directives:
+        description: Install 7-Zip
+      settings:
+        id: 7zip.7zip
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: powertoys
+      directives:
+        description: Install PowerToys
+      settings:
+        id: Microsoft.PowerToys
+        source: winget
+
+    # ---- Microsoft Store apps (msstore source) ---------------------------
+    # Find IDs with:  winget search --source msstore --name "<app name>"
+    # Free store apps install headless. Account-bound or paid store apps
+    # cannot: install those once via UniGet/Store and keep them OUT of this
+    # file (document them in windows/README.md instead).
+    #
+    # Template (uncomment and set the real ID):
+    # - resource: Microsoft.WinGet.DSC/WinGetPackage
+    #   id: store-<app>
+    #   directives:
+    #     description: Install <app> (Microsoft Store)
+    #   settings:
+    #     id: 9NBLGGHXXXXX
+    #     source: msstore

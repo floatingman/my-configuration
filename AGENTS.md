@@ -2,7 +2,7 @@
 
 Guidance for AI coding agents working in this repository (any agent: Claude Code, Copilot, Cursor, Codex, …).
 
-Ansible playbook that fully configures a Linux workstation — Arch Linux (primary) and Debian (secondary): base system, GPU drivers, desktop environments (i3, Hyprland, GNOME, AwesomeWM, KDE), dev tools, applications. Always runs against localhost (`ansible-playbook -i localhost play.yml`).
+Ansible playbook that fully configures a Linux workstation — Arch Linux (primary) and Debian (secondary): base system, GPU drivers, desktop environments (i3, Hyprland, GNOME, AwesomeWM, KDE), dev tools, applications. Always runs against localhost (`ansible-playbook -i localhost play.yml`). Windows machines are configured separately by the `windows/` subtree (WinGet Configuration, not Ansible); see **Windows subtree** below.
 
 ## Hard rules
 
@@ -83,7 +83,7 @@ and the AUR (used by `base_packages` and `aur.packages`).
   - `user_environment.yml` — `user_environment | default(true)` → roles: shell, dotfiles, gnupg, ai (each further gated: `dotfiles_config is defined`, `ai_enabled | default(false)`)
     In `play.yml`, overlay roles are gated by the overlay-level fact: `when: _overlay_laptop` / `_overlay_bluetooth` / `_overlay_user_environment`. The manifest also computes per-role facts (`_overlay_shell`, `_overlay_ai`, …) which `pre_tasks` exposes.
 - **`scripts/profile_dispatcher.py`** (~3.5k lines): profile resolver, `PlaybookGenerator` engine, condition translation (`ConditionTranslator` protocol), and CLI. No Ansible import. Tests in `tests/`.
-- **CI** (`.github/workflows/ci.yml`, Python 3.13): `pytest tests/` + `validate` + `sync-playbook --check` on push/PR to main. Nothing else — no Ansible in CI.
+- **CI** (`.github/workflows/ci.yml`): `validate` job = Python 3.13 `pytest tests/` + profile `validate` + `sync-playbook --check` on push/PR to main; `lint` job = yamllint + ansible-lint; `windows-validate` job (windows-latest) = `winget configure validate` schema check of `windows/config.dsc.yaml`. No playbook run in CI.
 - **Bump bot** (`.github/workflows/bump-versions.yml`): two cadences, one workflow — weekly Mondays, shell/tmux plugin pins in `roles/shell/defaults/main.yml` (`scripts/bump_plugin_versions.py`); monthly on the 1st, `base.yml` binary-download versions (`scripts/bump_base_versions.py`, manifest doubles as the exclusion list) **and** asdf plugin pins in `asdf_plugins` (`scripts/bump_asdf_versions.py`; gcloud unmanaged — no queryable upstream). Both open one combined pin-only PR — versions move only through review; the playbook never floats. `~/.tool-versions` is rendered from `asdf_plugins` by the dotfiles role; `base.yml` is the single asdf pin source — never hand-edit the chezmoi copy (removed from the dotfiles repo). Plugin clones are always version-pinned — never floating `HEAD`.
 - **`facts.yml`**: debug playbook that dumps `ansible_facts` to `/tmp/ansible_facts.json`.
 - **External roles**: git-based from `floatingman/*` (binaries, packages, asdf) + `kewlfft.aur` collection. Run `make install` after changing `requirements.yml`.
@@ -148,9 +148,19 @@ Default in the role's `defaults/main.yml`; machine value in `group_vars/all/loca
 
 `bedrock-removal.yml` at the repo root is a standalone one-off teardown playbook for the removed `bedrock` role (not generated, not in `profiles/`, exempt from `check-sync`). Run it once per machine that ever had the role, then delete the file; usage is in its header and `README.md` ("Removing the retired bedrock setup"). Future role removals can follow the same pattern instead of a teardown role.
 
+## Windows subtree
+
+`windows/` configures Windows machines with **WinGet Configuration** (`winget configure`, documented schema 0.2), not Ansible. Deliberately engine-separate from everything above:
+
+- `windows/config.dsc.yaml` is the desired state (packages from `winget`/`msstore` sources). Hand-edited: NOT generated from `profiles/`, NOT covered by `make check-sync` / `generate-playbook`.
+- `windows/bootstrap.ps1` applies it (`-Test` = drift check, no changes). DSC resources are desired-state, so re-runs are no-ops.
+- CI validates the schema only (`windows-validate` job); nothing applies on runners.
+- ansible-lint never sees this tree (it lints `play.yml` only); yamllint does sweep it, so keep repo YAML style (2-space indent, `---` start).
+- UniGet stays the ad-hoc lane; anything meant to be reproducible must land in `config.dsc.yaml`. Account-bound/paid Store apps cannot install headless: they stay manual and get documented in `windows/README.md`.
+
 ## Docs
 
-`README.md` (usage/overview — update for user-facing changes), `INSTALL.md`, `INSTALL_DUAL_BOOT.md`, `HOMEBREW_MIGRATION.md`, per-role `roles/*/README.md`.
+`README.md` (usage/overview — update for user-facing changes), `INSTALL.md`, `INSTALL_DUAL_BOOT.md`, `HOMEBREW_MIGRATION.md`, per-role `roles/*/README.md`, `windows/README.md` (Windows usage).
 
 ## Mistakes
 
