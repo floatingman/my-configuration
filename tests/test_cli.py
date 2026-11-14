@@ -494,6 +494,28 @@ class TestCLIResolveRoleManifest:
         rc = main(["resolve-role-manifest", "--profile", "i3", "--os-family", "Fedoar"])
         assert rc == 1
 
+    def test_resolve_manifest_redhat_alias_resolves_as_fedora(self, capsys):
+        """ansible_facts['os_family'] is RedHat on Fedora; the play.yml
+        pre-task passes it verbatim, so the alias must produce the exact
+        Fedora manifest (_is_fedora true, fedora-aware gating active)."""
+        rc = main(["resolve-role-manifest", "--profile", "kde", "--os-family", "RedHat"])
+        out_redhat = capsys.readouterr().out
+        assert rc == 0
+        rc = main(["resolve-role-manifest", "--profile", "kde", "--os-family", "Fedora"])
+        out_fedora = capsys.readouterr().out
+        assert rc == 0
+        redhat = json.loads(out_redhat)
+        assert redhat == json.loads(out_fedora)
+        assert redhat["profile_flags"]["_is_fedora"] is True
+        gate = next(r for r in redhat["roles"] if r["role"] == "framework12")
+        assert gate["condition"] == "_is_fedora and framework12_enabled | default(false) | bool"
+
+    def test_resolve_manifest_redhat_alias_is_case_sensitive(self, capsys):
+        """Only the exact ansible family string is aliased; anything else
+        (e.g. wrong-case 'Redhat') stays a CLI error."""
+        rc = main(["resolve-role-manifest", "--profile", "i3", "--os-family", "Redhat"])
+        assert rc == 1
+
     def test_resolve_manifest_manual_mode(self, capsys):
         """resolve-manifest works in manual mode without --profile."""
         rc = main([

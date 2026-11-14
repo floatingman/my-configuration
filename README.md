@@ -146,12 +146,6 @@ Profile usage on Fedora:
   (`os: [debian]`); on Fedora the native dnf arms of the universal roles cover
   the same tooling.
 
-> Fedora runtime note: the generated pre-task passes
-> `ansible_facts['os_family']` (which is `RedHat` on Fedora) to
-> `resolve-role-manifest`; the dispatcher must normalize that to `Fedora`
-> (`scripts/profile_dispatcher.py`). Until that lands, a real Fedora run stops
-> at the manifest pre-task — see issue #234.
-
 ### Configuration Profiles
 
 The playbook ships with **profiles** — pre-configured bundles that set up a complete desktop stack in one command. Each profile selects the right roles, display manager, and environment variables automatically.

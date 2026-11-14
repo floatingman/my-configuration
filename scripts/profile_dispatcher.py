@@ -3367,8 +3367,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "--os-family",
         dest="os_family",
         default="Archlinux",
+        type=_normalize_os_family,
         choices=["Archlinux", "Debian", "Fedora"],
-        help="OS family for condition translation",
+        help="OS family for condition translation (ansible os_family aliases like RedHat map to Fedora)",
     )
     p_manifest.add_argument(
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
@@ -3449,6 +3450,19 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+# ansible_facts['os_family'] is "RedHat" on Fedora; the generated play.yml
+# pre-task passes it to resolve-role-manifest verbatim, so the CLI boundary
+# accepts the alias and resolves it to Fedora (issue #234). Canonical values
+# pass through unchanged; anything else keeps argparse's invalid-choice
+# rejection (exact match, case-sensitive).
+_OS_FAMILY_ALIASES = {"RedHat": "Fedora"}
+
+
+def _normalize_os_family(value: str) -> str:
+    """CLI type hook: map ansible os_family aliases onto dispatcher families."""
+    return _OS_FAMILY_ALIASES.get(value, value)
 
 
 def main(argv: Optional[list] = None) -> int:
