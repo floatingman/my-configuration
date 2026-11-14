@@ -1,0 +1,5 @@
+{# Framework Laptop 12 tablet-mode switch: keep the pinctrl driver ahead of
+   soc_button_array in the initramfs.
+   Source: FrameworkComputer/linux-docs, framework12/Fedora-all.md. #}
+omit_drivers+=" soc_button_array "
+force_drivers+=" {{ framework12_variant_module }} "

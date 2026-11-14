@@ -1,10 +1,10 @@
 # Homebrew Role
 
-This role installs Homebrew (Linuxbrew) on Arch and Debian-based Linux systems and manages Homebrew packages. It installs Homebrew in a **multi-user, system-wide** layout so that every member of the `linuxbrew` group can use `brew`, while keeping a single non-root owner for the tree (the model Homebrew itself recommends on Linux).
+This role installs Homebrew (Linuxbrew) on Arch, Debian-based, and Fedora Linux systems and manages Homebrew packages. It installs Homebrew in a **multi-user, system-wide** layout so that every member of the `linuxbrew` group can use `brew`, while keeping a single non-root owner for the tree (the model Homebrew itself recommends on Linux).
 
 ## Requirements
 
-- Arch Linux or Debian/Ubuntu-based Linux distribution
+- Arch Linux, Debian/Ubuntu-based, or Fedora Linux distribution
 - Internet connection to download Homebrew and packages
 - Ansible `community.general` collection (for the Homebrew modules)
 - A `user` variable (defined in `group_vars/all/base.yml`) whose `user.name` will own the Homebrew tree

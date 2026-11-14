@@ -1,13 +1,14 @@
 ---
-# The `shell` role runs early in play.yml — before `packages`/`homebrew` on
-# Debian — so git may not be installed yet when the plugin/TPM/fzf clones below
-# run. Ensure it here once for Debian (the Arch `base` role already installs it).
-- name: Ensure git is present (Debian/Ubuntu)
+# The `shell` role runs early in play.yml — before `packages`/`homebrew` — so
+# git may not be installed yet when the plugin/TPM/fzf clones below run.
+# Ensure it here once on every non-Arch system (the Arch `base` role already
+# installs it; Fedora ships git in its base set, a minimal image may not).
+- name: Ensure git is present
   ansible.builtin.package:
     name: git
     state: present
   become: true
-  when: ansible_facts['os_family'] == "Debian"
+  when: ansible_facts['os_family'] != "Archlinux"
   tags:
     - shell
 
@@ -73,6 +74,10 @@
   tags:
     - shell
 
+# Arch-only: no zsh-completions package exists in Debian's or Fedora's repos.
+# Non-Arch systems still get the completions through the shell_zsh_plugins
+# git clone below (zsh-users/zsh-completions into ~/.shell), which the
+# dotfiles add to fpath.
 - name: Install Zsh Completions
   ansible.builtin.package:
     name:
@@ -93,35 +98,36 @@
     - shell
   when: ansible_facts['os_family'] == "Archlinux"
 
-# On Debian/Ubuntu the `shell` role runs BEFORE the `homebrew` role in play.yml,
-# so Homebrew is not available yet. Use starship's official installer instead;
-# it is self-contained and installs to /usr/local/bin (already on PATH).
-- name: Download Starship installer (Debian/Ubuntu)
+# starship is not packaged outside Arch in the distros this playbook targets
+# (not in Fedora's main repos), so non-Arch systems use starship's official
+# installer; it is self-contained and installs to /usr/local/bin (already on
+# PATH).
+- name: Download Starship installer
   ansible.builtin.get_url:
     url: https://starship.rs/install.sh
     dest: /tmp/starship-install.sh
     mode: '0755'
   become: true
-  when: ansible_facts['os_family'] == "Debian"
+  when: ansible_facts['os_family'] != "Archlinux"
   tags:
     - shell
 
-- name: Install Starship (Debian/Ubuntu)
+- name: Install Starship
   ansible.builtin.command:
     cmd: /tmp/starship-install.sh -y
   args:
     creates: /usr/local/bin/starship
   become: true
-  when: ansible_facts['os_family'] == "Debian"
+  when: ansible_facts['os_family'] != "Archlinux"
   tags:
     - shell
 
-- name: Remove Starship installer (Debian/Ubuntu)
+- name: Remove Starship installer
   ansible.builtin.file:
     path: /tmp/starship-install.sh
     state: absent
   become: true
-  when: ansible_facts['os_family'] == "Debian"
+  when: ansible_facts['os_family'] != "Archlinux"
   tags:
     - shell
 

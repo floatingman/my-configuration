@@ -15,7 +15,7 @@ The installation is owned by `root:devtools`. Directories are mode `2775` (group
 
 ## What This Role Does
 
-1. **Installs build dependencies** — `build-essential`, `pkg-config`, `libssl-dev`, `curl`, `ca-certificates` on Debian; `base-devel`, `openssl`, `pkgconf`, `ca-certificates` on Arch. These are required to compile crates from source.
+1. **Installs build dependencies** — `build-essential`, `pkg-config`, `libssl-dev`, `curl`, `ca-certificates` on Debian; `base-devel`, `openssl`, `pkgconf`, `ca-certificates` on Arch; `gcc`, `gcc-c++`, `make`, `pkgconf`, `openssl-devel`, `ca-certificates`, `curl` on Fedora. These are required to compile crates from source.
 2. **Checks for an existing install** — by testing for `/opt/rust/cargo/bin/rustup` (where rustup actually installs its own binary; *not* `$RUSTUP_HOME/bin/rustup`).
 3. **Creates** `/opt/rust`, `/opt/rust/cargo`, and `/opt/rust/cargo/bin` with the correct ownership.
 4. **Downloads and runs rustup-init** with `--default-toolchain stable --no-modify-path --profile minimal`, pinned to the system-wide `RUSTUP_HOME`/`CARGO_HOME`.

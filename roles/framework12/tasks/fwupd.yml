@@ -1,0 +1,51 @@
+---
+# fwupd: install and inventory only. The role NEVER flashes firmware: no
+# refresh, no get-updates download, no update task exists. Firmware updates
+# are applied manually by the hardware lane per Framework guidance
+# (fwupdmgr refresh --force; fwupdmgr get-updates; fwupdmgr update; LVFS
+# will not update at 100% battery, discharge to ~95% and retry).
+
+- name: Install fwupd
+  become: true
+  ansible.builtin.package:
+    name: fwupd
+    state: present
+
+- name: Read firmware device inventory
+  become: true
+  ansible.builtin.command: fwupdmgr get-devices --json
+  register: framework12_fwupd_devices
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Decode fwupd inventory payload
+  ansible.builtin.set_fact:
+    framework12_fwupd_devices_parsed: >-
+      {{ (framework12_fwupd_devices.stdout | from_json)
+         if ((framework12_fwupd_devices.rc | default(1, true) | int) == 0
+             and (framework12_fwupd_devices.stdout | default('', true) | trim | length) > 0)
+         else {'Devices': []} }}
+
+- name: Summarize fwupd device inventory
+  ansible.builtin.set_fact:
+    framework12_fwupd_device_count: >-
+      {{ framework12_fwupd_devices_parsed['Devices'] | default([], true) | length }}
+    framework12_fwupd_update_count: >-
+      {{ framework12_fwupd_devices_parsed['Devices'] | default([], true)
+         | map(attribute='Flags', default=[]) | flatten
+         | select('equalto', 'updatable') | list | length }}
+
+- name: Report firmware inventory and flashing policy
+  ansible.builtin.debug:
+    msg:
+      - >-
+        fwupd service:
+        {{ (ansible_facts.services.get('fwupd.service') or {}).state | default('unknown', true) }}
+        (D-Bus activated; inactive until first use is normal)
+      - "firmware devices found: {{ framework12_fwupd_device_count | int }}"
+      - "devices with pending updates: {{ framework12_fwupd_update_count | int }}"
+      - >-
+        Policy: firmware is never flashed automatically. The hardware lane
+        runs fwupdmgr refresh --force, fwupdmgr get-updates, fwupdmgr update
+        manually (see roles/framework12/README.md).

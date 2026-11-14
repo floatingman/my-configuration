@@ -1,21 +1,33 @@
 ---
+# X11 session infrastructure (Xorg, monitor hotplug/lid automation, X11
+# hotkeys and cutbuffer tools). Arch and Debian are the supported targets;
+# Fedora is a clean skip at the role level: the Fedora KDE OEM image runs
+# Plasma on Wayland and nothing here may run against it (profile wiring
+# request adds os: [archlinux, debian]; these gates are the role-internal
+# backstop so the Debian apt arm can never fire on Fedora).
 - name: Install X11 for Arch
   ansible.builtin.include_tasks: x-arch.yml
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install X11 for Debian
   ansible.builtin.include_tasks: x-debian.yml
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Include sxhkd tasks
   ansible.builtin.include_tasks: sxhkd.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]
 - name: Include unclutter tasks
   ansible.builtin.include_tasks: unclutter.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]
 - name: Include autorandr tasks
   ansible.builtin.include_tasks: autorandr.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]
 - name: Include autocutsel tasks
   ansible.builtin.include_tasks: autocutsel.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]
 - name: Include xdg tasks
   ansible.builtin.include_tasks: xdg.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]
 - name: Include keyd tasks
   ansible.builtin.include_tasks: keyd.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]

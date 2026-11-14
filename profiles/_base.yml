@@ -28,9 +28,9 @@ roles:
   - { role: ansible-role-packages, tags: [packages], section: packages }
   - { role: ansible-role-asdf, tags: [asdf], section: packages }
   - { role: flatpak, tags: [flatpak], section: packages }
-  - { role: golang, tags: [golang], os: debian, section: packages }
-  - { role: homebrew, tags: [homebrew], os: debian, section: packages }
-  - { role: ansible-role-binaries, tags: [binaries], os: debian, section: packages }
+  - { role: golang, tags: [golang], os: [debian], section: packages }
+  - { role: homebrew, tags: [homebrew], os: [debian, fedora], section: packages }
+  - { role: ansible-role-binaries, tags: [binaries], os: [debian], section: packages }
 
   # AUR (Arch-only)
   - { role: aur, tags: [aur], os: archlinux, section: packages }

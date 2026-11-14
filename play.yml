@@ -37,6 +37,7 @@
           {{
             {}
             | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
+            | combine({"gaming": gaming} if gaming is defined else {})
             | combine({"laptop": laptop} if laptop is defined else {})
             | combine({"user_environment": user_environment} if user_environment is defined else {})
             | to_json
@@ -60,6 +61,7 @@
         _is_awesomewm: "{{ _pf._is_awesomewm }}"
         _is_kde: "{{ _pf._is_kde }}"
         _is_arch: "{{ _pf._is_arch }}"
+        _is_fedora: "{{ _pf._is_fedora | default(false) }}"
       tags: always
 
     - name: Set overlay facts from resolved manifest
@@ -68,6 +70,7 @@
         _of: "{{ _manifest.overlay_flags }}"
       ansible.builtin.set_fact:
         _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"
+        _overlay_gaming: "{{ _of._overlay_gaming | default(false) }}"
         _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
         _overlay_user_environment: "{{ _of._overlay_user_environment | default(false) }}"
         _overlay_ai: "{{ _of._overlay_ai | default(false) }}"
@@ -314,7 +317,7 @@
         - name: Run role ansible-role-binaries
           ansible.builtin.import_role:
             name: ansible-role-binaries
-          when: not _is_arch
+          when: not _is_arch and not _is_fedora
           tags: ["binaries"]
       rescue:
         - name: Record failure of role ansible-role-binaries
@@ -376,7 +379,7 @@
         - name: Run role golang
           ansible.builtin.import_role:
             name: golang
-          when: not _is_arch
+          when: not _is_arch and not _is_fedora
           tags: ["golang"]
       rescue:
         - name: Record failure of role golang
@@ -784,7 +787,7 @@
         - name: Run role x
           ansible.builtin.import_role:
             name: x
-          when: _is_awesomewm or _is_gnome or _is_i3 or _is_kde
+          when: not _is_fedora and _has_display
           tags: ["x"]
       rescue:
         - name: Record failure of role x
@@ -1376,6 +1379,22 @@
           vars:
             _resilience_role: regdomain
           tags: always
+    - name: Resilient role wrapper for framework12
+      block:
+        - name: Run role framework12
+          ansible.builtin.import_role:
+            name: framework12
+          when: _is_fedora and framework12_enabled | default(false) | bool
+          tags: ["framework12"]
+      rescue:
+        - name: Record failure of role framework12
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: framework12
+          tags: always
     - name: Resilient role wrapper for bluetooth
       block:
         - name: Run role bluetooth
@@ -1391,6 +1410,22 @@
               tags: always
           vars:
             _resilience_role: bluetooth
+          tags: always
+    - name: Resilient role wrapper for gaming
+      block:
+        - name: Run role gaming
+          ansible.builtin.import_role:
+            name: gaming
+          when: _overlay_gaming
+          tags: ["gaming"]
+      rescue:
+        - name: Record failure of role gaming
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gaming
           tags: always
     - name: Resilient role wrapper for laptop
       block:

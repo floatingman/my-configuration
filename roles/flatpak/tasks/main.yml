@@ -1,5 +1,5 @@
 ---
-- name: Install flatpak on Debian
+- name: Install flatpak
   become: true
   ansible.builtin.package:
     name: flatpak

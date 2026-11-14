@@ -1,0 +1,10 @@
+---
+name: Gaming Overlay
+description: |
+  Adds the gaming role when gaming=true in group_vars/all/local.yml.
+  The role self-gates on Fedora (os_family RedHat) and is a no-op elsewhere.
+
+applies_when: "gaming | default(false)"
+
+roles:
+  - { role: gaming, tags: [gaming], section: optional }

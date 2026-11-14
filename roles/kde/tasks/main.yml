@@ -1,56 +1,13 @@
 ---
-- name: Install plasma-nm
-  ansible.builtin.package:
-    name: plasma-nm
-    state: present
-  become: true
-- name: Install bluedevil
-  ansible.builtin.package:
-    name: bluedevil
-    state: present
-  become: true
-- name: Install gnome-keyring
-  ansible.builtin.package:
-    name: gnome-keyring
-    state: present
-  become: true
-- name: Install polkit-kde-agent
-  ansible.builtin.package:
-    name: polkit-kde-agent
-    state: present
-  become: true
-- name: Install dolphin
-  ansible.builtin.package:
-    name: dolphin
-    state: present
-  become: true
-- name: Install systemsettings
-  ansible.builtin.package:
-    name: systemsettings
-    state: present
-  become: true
-- name: Install Kate
-  ansible.builtin.package:
-    name: kate
-    state: present
-  become: true
-- name: Install KDE Connect
-  ansible.builtin.package:
-    name: kdeconnect
-    state: present
-  become: true
-- name: Install Konsole
-  ansible.builtin.package:
-    name: konsole
-    state: present
-  become: true
-- name: Install Plasma browser integration
-  ansible.builtin.package:
-    name: plasma-browser-integration
-    state: present
-  become: true
-- name: Install Plasma system monitor
-  ansible.builtin.package:
-    name: plasma-systemmonitor
-    state: present
-  become: true
+# KDE Plasma companion packages. Arch and Debian share the upstream names
+# (arch-debian.yml); Fedora renames three of them (verified against Fedora 43
+# repodata, 2026-11) and gets its own list in fedora.yml. Neither arm installs
+# the Plasma workspace itself: on Fedora KDE the OEM image ships it already,
+# and nothing in this role may touch the session the image booted into.
+- name: Install KDE companion packages (Arch/Debian names)
+  ansible.builtin.include_tasks: arch-debian.yml
+  when: ansible_facts["os_family"] in ["Archlinux", "Debian"]
+
+- name: Install KDE companion packages (Fedora names)
+  ansible.builtin.include_tasks: fedora.yml
+  when: ansible_facts["distribution"] == "Fedora"

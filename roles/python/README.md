@@ -4,6 +4,7 @@ Installs Python tooling system-wide, split by OS family:
 
 - **Arch** (`python-arch.yml`): `pipenv`, `pipx`, `black`, `python-docs`, and a set of Python utilities and GObject/GTK development libraries (`uv`, `gtk4`, `libadwaita`, `libsoup3`, `python-opencv`, etc.).
 - **Debian/Ubuntu** (`python-debian.yml`): `python3`, `python3-pip`, `pipx`, `python3-venv`, `python3-dev`, and `build-essential`, plus PATH configuration so per-user `pipx`/`pip` installs are usable by all login shells.
+- **Fedora** (`python-fedora.yml`): `python3`, `python3-pip`, `pipx`, `python3-devel`, `gcc`, `gcc-c++`, `make`, and `uv`, plus the same PATH configuration as Debian (`python3-venv` ships with `python3` on Fedora; `build-essential` maps to `gcc` + `gcc-c++` + `make`).
 
 ## Why pipx matters here
 

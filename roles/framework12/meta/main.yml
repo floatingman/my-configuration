@@ -1,0 +1,4 @@
+---
+# Standalone hardware role; nothing to compose.
+dependencies: []
+allow_duplicates: false

@@ -1,0 +1,38 @@
+---
+# Every variable the framework12 role reads is defined here (repo rule:
+# optional entries default to null/false). Machine values belong in the
+# gitignored group_vars/all/local.yml; commented examples are W5's scope
+# (group_vars/templates/{desktop,server}.yml).
+
+# Master gate. The role ends cleanly (no reports, no changes) unless true.
+# Profile wiring additionally imports the role only when the host opt-in is
+# set; this default is the second line of defense so a bare import can never
+# mutate a machine.
+framework12_enabled: false
+
+# Power backend on Fedora.
+#   null    keep the Fedora OEM power-profiles-daemon (recommended default)
+#   "tuned" switch to TuneD plus its PPD compatibility shim
+# tuned-ppd and power-profiles-daemon claim the same
+# net.hadess.PowerProfiles D-Bus name, so the role stops and disables the OEM
+# daemon BEFORE enabling the shim and never runs both.
+framework12_power_backend: null
+
+# Disruptive kernel override for the Laptop 12 tablet-mode switch (default
+# off): Framework's documented Fedora workaround for the soc_button_array /
+# pinctrl load-order race. Drops a dracut.conf.d and a modprobe.d file and
+# regenerates the initramfs via handler; a reboot is required afterwards and
+# is reported, never performed. Default false keeps the OEM kernel behavior.
+framework12_kernel_tablet_mode_fix: false
+
+# Keyboard override (default off): install the virtual (on-screen) keyboard
+# package matching the detected Plasma version (plasma-keyboard on Plasma
+# >= 6.6, maliit-keyboard on older Plasma). Default false preserves the OEM
+# image, which already ships a working on-screen keyboard.
+framework12_keyboard_virtual_install: false
+
+# Escape hatch for the tablet-mode workaround's pinctrl module. null means
+# auto-detect from DMI product_name keywords (Core Series 3 =>
+# pinctrl_intel_platform, 13th Gen => pinctrl_tigerlake). Set the module name
+# only when auto-detection cannot classify an unexpected product string.
+framework12_tablet_pinctrl_module: null

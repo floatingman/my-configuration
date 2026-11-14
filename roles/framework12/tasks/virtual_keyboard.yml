@@ -1,0 +1,50 @@
+---
+# Virtual (on-screen) keyboard. The version detection ran in tasks/main.yml
+# BEFORE this include (Plasma >= 6.6 ships plasma-keyboard; older Plasma uses
+# maliit-keyboard). Default (override false) preserves the OEM image, which
+# already provides a working on-screen keyboard in tablet mode.
+
+- name: Report virtual-keyboard decision
+  ansible.builtin.debug:
+    msg:
+      - >-
+        Plasma workspace:
+        {{ framework12_plasma_version if framework12_plasma_version | length > 0 else 'not detected' }}
+      - >-
+        Selected package:
+        {{ framework12_virtual_keyboard_package if framework12_plasma_major | int > 0 else 'n/a (no Plasma detected)' }}
+      - >-
+        {{ 'Override enabled; installing the selected package'
+           if framework12_keyboard_virtual_install | bool
+           else 'Override disabled; keeping the OEM on-screen keyboard' }}
+
+- name: Install the detected virtual-keyboard package
+  become: true
+  ansible.builtin.package:
+    name: "{{ framework12_virtual_keyboard_package }}"
+    state: present
+  when: >-
+    framework12_keyboard_virtual_install | bool
+    and framework12_plasma_major | int > 0
+
+- name: Report virtual-keyboard activation path
+  ansible.builtin.debug:
+    msg:
+      - >-
+        {{ 'Activation: System Settings → Keyboard → Virtual Keyboard'
+           if framework12_plasma_major | int >= 6
+           else 'Activation: System Settings → Input & Output → Virtual Keyboard' }}
+      - >-
+        {{ 'Select Maliit as the virtual keyboard backend'
+           if framework12_virtual_keyboard_package == 'maliit-keyboard'
+           else 'Plasma 6.6+ uses plasma-keyboard directly' }}
+  when: framework12_keyboard_virtual_install | bool and framework12_plasma_major | int > 0
+
+- name: Warn when the virtual-keyboard override has no Plasma to serve
+  ansible.builtin.debug:
+    msg: >-
+      framework12_keyboard_virtual_install is set but no Plasma workspace
+      package was detected; nothing was installed.
+  when: >-
+    framework12_keyboard_virtual_install | bool
+    and framework12_plasma_major | int == 0

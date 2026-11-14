@@ -16,7 +16,7 @@ requires:
 
 roles:
   # Display Server
-  - { role: x, tags: [x], section: i3_profile }
+  - { role: x, tags: [x], os: [archlinux, debian], requires_display: true, section: i3_profile }
 
   # Window Manager
   - { role: awesomewm, tags: [awesomewm], section: awesomewm_profile }

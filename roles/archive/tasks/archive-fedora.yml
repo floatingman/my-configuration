@@ -1,0 +1,27 @@
+---
+# Fedora equivalents for the Arch-only archivers. hashdeep and ventoy-bin
+# have no Fedora package (confirmed absent from Fedora 43 Everything), and
+# lesspipe is EPEL-only, so they are intentionally not installed here.
+- name: Install unrar on Fedora
+  become: true
+  ansible.builtin.package:
+    name: unrar-free
+    state: present
+  tags:
+    - unrar
+
+- name: Install par2cmdline
+  become: true
+  ansible.builtin.package:
+    name: par2cmdline
+    state: present
+  tags:
+    - par2
+
+- name: Install ddrescue
+  become: true
+  ansible.builtin.package:
+    name: ddrescue
+    state: present
+  tags:
+    - ddrescue

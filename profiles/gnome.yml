@@ -28,7 +28,7 @@ roles:
     section: gnome_profile
 
   # Display Infrastructure
-  - { role: x, tags: [x], section: i3_profile }
+  - { role: x, tags: [x], os: [archlinux, debian], requires_display: true, section: i3_profile }
 
   # Fonts & Theming
   - { role: fonts, tags: [fonts], os: archlinux, requires_display: true, section: fonts_theming }

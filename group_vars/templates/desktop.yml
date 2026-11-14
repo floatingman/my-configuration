@@ -33,6 +33,21 @@ laptop_power_management: tuned     # tuned | tlp  (only used when laptop: true)
 # clouddrive_stop_on_battery: true   # stop Synology Drive on battery (udev power gate + user unit)
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
+# --- Framework Laptop 12 (roles/framework12; no-op unless enabled AND the host
+# is a Framework Laptop 12 running Fedora; wired into the kde profile) ---
+# framework12_enabled: true                    # master gate; role ends cleanly unless true
+# framework12_power_backend: null              # null/ppd keeps the Fedora OEM power-profiles-daemon; "tuned" switches to TuneD + its PPD shim
+# framework12_kernel_tablet_mode_fix: false    # disruptive kernel override for the tablet-mode switch (initramfs regen; reboot required, never performed)
+# framework12_keyboard_virtual_install: false  # install the on-screen keyboard package matching the detected Plasma version
+# framework12_tablet_pinctrl_module: null      # null auto-detects the pinctrl module from the DMI product string; set only when auto-detection cannot classify
+
+# --- gaming (Fedora gaming overlay; see roles/gaming/README.md) ---
+# gaming: true                          # activates profiles/overlays/gaming.yml
+# gaming_steam_install_method: flatpak  # "flatpak" (default) or "rpm" (needs RPM Fusion)
+# gaming_enable_rpmfusion: false        # true adds RPM Fusion nonfree (required for the rpm method)
+# gaming_mangohud: false                # true installs MangoHud
+# gaming_gamemode: false                # true installs GameMode
+
 # Display
 desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
 display_manager: lightdm    # lightdm | gdm | sddm

@@ -51,14 +51,16 @@
   ansible.builtin.package:
     name: hdparm
     state: present
-  when: ansible_facts["distribution"] == "Archlinux"
+  when: ansible_facts["os_family"] in ["Archlinux", "RedHat"]
 
 - name: Enable and start weekly filesystem TRIM timer
   become: true
   ansible.builtin.service:
     name: fstrim.timer
     enabled: true
-  when: ansible_facts["distribution"] == "Archlinux"
+  # Debian/Ubuntu already run a weekly fstrim via its own timer/cron
+  # packaging, so only Arch and Fedora need this enabled here.
+  when: ansible_facts["os_family"] in ["Archlinux", "RedHat"]
 
 # -------------------------------------------------------------------------
 # Legacy asdf aws-vault removal

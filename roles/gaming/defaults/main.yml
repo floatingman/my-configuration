@@ -1,0 +1,23 @@
+---
+# Gaming role defaults. Override any of these in group_vars/all/local.yml.
+
+# Steam install method on Fedora.
+#   "flatpak" -> Flathub app com.valvesoftware.Steam (works on stock Fedora,
+#                no third-party repo needed; sandboxed).
+#   "rpm"     -> RPM Fusion `steam` package (host graphics stack, native
+#                updates via dnf). Requires gaming_enable_rpmfusion: true.
+# See roles/gaming/README.md for the trade-off discussion.
+gaming_steam_install_method: flatpak
+
+# Opt-in to the RPM Fusion nonfree repository (third-party software source).
+# Never enabled by default. Required when gaming_steam_install_method is
+# "rpm"; ignored otherwise (no repo is added unless this is true).
+gaming_enable_rpmfusion: false
+
+# Install MangoHud (Vulkan/OpenGL performance overlay; run games with
+# `mangohud %command%`). Fedora package: mangohud.
+gaming_mangohud: false
+
+# Install GameMode (on-demand CPU/GPU performance daemon; run games with
+# `gamemoderun %command%`). Fedora package: gamemode.
+gaming_gamemode: false

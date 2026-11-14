@@ -1,0 +1,144 @@
+---
+# Check-mode-safe diagnostics: every probe is read-only and reports state
+# without mutating anything. Command probes run with check_mode: false so a
+# --check dry run still prints the report; failure rc values are tolerated
+# (failed_when: false) and consumers guard on rc per MISTAKES.md.
+# Results feed the hardware checklist in the role README (issue #234 lane).
+
+- name: Read input device inventory
+  ansible.builtin.slurp:
+    src: /proc/bus/input/devices
+  register: framework12_input_devices
+  failed_when: false
+
+- name: Extract input device names
+  ansible.builtin.set_fact:
+    framework12_input_names: >-
+      {{ (framework12_input_devices.content | default('', true) | b64decode)
+         | regex_findall('^N: (.+)$', multiline=true) }}
+
+- name: Derive input capability flags
+  ansible.builtin.set_fact:
+    framework12_keyboard_detected: >-
+      {{ framework12_input_names | select('search', '(?i)keyboard') | list | length > 0 }}
+    framework12_touchpad_detected: >-
+      {{ framework12_input_names | select('search', '(?i)pixa3854|touchpad') | list | length > 0 }}
+    framework12_touchscreen_detected: >-
+      {{ framework12_input_names | select('search', '(?i)touchscreen') | list | length > 0 }}
+    framework12_pen_detected: >-
+      {{ framework12_input_names | select('search', '(?i)pen|stylus') | list | length > 0 }}
+    framework12_tablet_switch_detected: >-
+      {{ framework12_input_names | select('search', '(?i)tablet') | list | length > 0 }}
+    framework12_gpio_keys_detected: >-
+      {{ framework12_input_names | select('search', '(?i)gpio-keys') | list | length > 0 }}
+
+- name: Read hardware monitoring chip names
+  ansible.builtin.command: grep -H . /sys/class/hwmon/hwmon*/name
+  register: framework12_hwmon
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Read IIO sensor device names
+  ansible.builtin.command: grep -H . /sys/bus/iio/devices/iio:device*/name
+  register: framework12_iio
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Read loaded kernel modules
+  ansible.builtin.command: lsmod
+  register: framework12_lsmod
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Resolve tablet-mode kernel module state
+  ansible.builtin.set_fact:
+    framework12_soc_button_loaded: >-
+      {{ (framework12_lsmod.stdout | default('', true)) is search('soc_button_array') }}
+    framework12_pinctrl_loaded: >-
+      {{ (framework12_lsmod.stdout | default('', true)) is search('pinctrl_tigerlake')
+         or (framework12_lsmod.stdout | default('', true)) is search('pinctrl_intel_platform') }}
+
+- name: Read available sleep states
+  ansible.builtin.slurp:
+    src: /sys/power/mem_sleep
+  register: framework12_mem_sleep
+  failed_when: false
+
+- name: Probe accelerometer through the system sensor bus
+  ansible.builtin.command: >-
+    busctl get-property net.hadess.SensorProxy /net/hadess/SensorProxy
+    net.hadess.SensorProxy HasAccelerometer
+  register: framework12_accel_probe
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Read the iio-sensor-proxy udev rule file
+  ansible.builtin.slurp:
+    src: /usr/lib/udev/rules.d/80-iio-sensor-proxy.rules
+  register: framework12_sensorproxy_rules
+  failed_when: false
+
+- name: Detect the iio-sensor-proxy 3.7 broken-rule pattern
+  ansible.builtin.set_fact:
+    framework12_sensorproxy_version: >-
+      {{ (ansible_facts.packages.get('iio-sensor-proxy') or [{}])
+         | map(attribute='version') | first | default('', true) }}
+    framework12_sensorproxy_service_state: >-
+      {{ (ansible_facts.services.get('iio-sensor-proxy.service') or {}).state
+         | default('unknown', true) }}
+    framework12_sensorproxy_broken_rule: >-
+      {{ (framework12_sensorproxy_rules.content | default('', true) | b64decode)
+         is search('^[^#\n]*iio-buffer-accel', multiline=true) }}
+
+- name: Report sensor, tablet and input diagnostics
+  ansible.builtin.debug:
+    msg:
+      - "keyboard detected: {{ framework12_keyboard_detected | bool }}"
+      - "touchpad detected (PixArt PIXA3854 expected): {{ framework12_touchpad_detected | bool }}"
+      - "touchscreen detected: {{ framework12_touchscreen_detected | bool }}"
+      - "pen/stylus input detected: {{ framework12_pen_detected | bool }}"
+      - "tablet-mode switch input detected: {{ framework12_tablet_switch_detected | bool }}"
+      - "gpio-keys (tablet-mode switch stack): {{ framework12_gpio_keys_detected | bool }}"
+      - "soc_button_array loaded: {{ framework12_soc_button_loaded | bool }}"
+      - "pinctrl module loaded: {{ framework12_pinctrl_loaded | bool }}"
+      - "iio devices: {{ 'present' if (framework12_iio.stdout | default('', true) | trim | length) > 0 else 'none found' }}"
+      - >-
+        iio-sensor-proxy: service={{ framework12_sensorproxy_service_state }},
+        version={{ framework12_sensorproxy_version if framework12_sensorproxy_version | length > 0 else 'not installed' }},
+        accelerometer reported={{ 'true' in (framework12_accel_probe.stdout | default('', true)) }}
+      - >-
+        sleep states: {{ framework12_mem_sleep.content | default('', true) | b64decode
+        if framework12_mem_sleep.rc | default(1, true) | int == 0 else 'unavailable' }}
+      - >-
+        hwmon chips: {{ framework12_hwmon.stdout | default('', true) | trim
+        if framework12_hwmon.rc | default(1, true) | int == 0 else 'none readable' }}
+
+- name: Warn about incomplete tablet-mode switch stack
+  ansible.builtin.debug:
+    msg: >-
+      Tablet-mode switch stack incomplete (gpio-keys/soc_button_array/pinctrl
+      missing). Framework's Fedora workaround is available via
+      framework12_kernel_tablet_mode_fix: true; see roles/framework12/README.md.
+  when: not (framework12_gpio_keys_detected | bool) or not (framework12_soc_button_loaded | bool)
+
+- name: Warn about the iio-sensor-proxy 3.7 accelerometer regression
+  ansible.builtin.debug:
+    msg: >-
+      iio-sensor-proxy 3.7 with an active iio-buffer-accel udev rule breaks
+      accelerometer events. Comment the rule line in a copy under
+      /etc/udev/rules.d/, run udevadm trigger --settle, restart
+      iio-sensor-proxy. Fedora 44 ships 3.8+ (fixed); this warning fires only
+      on a downgraded or pinned 3.7.
+  when: framework12_sensorproxy_version is search('3.7') and (framework12_sensorproxy_broken_rule | bool)
+
+- name: Warn when the rotation sensor proxy is missing
+  ansible.builtin.debug:
+    msg: >-
+      iio-sensor-proxy is not installed; screen rotation will not work.
+      Install it (dnf install iio-sensor-proxy) and ensure the service is
+      enabled before re-running diagnostics.
+  when: framework12_sensorproxy_version | length == 0

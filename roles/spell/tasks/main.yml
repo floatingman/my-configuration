@@ -1,14 +1,16 @@
 ---
+# Fedora locale subpackages come from the hunspell-en source package, so the
+# English dictionary name differs from Arch's hunspell-en_us.
 - name: Install hunspell
   ansible.builtin.package:
     name:
       - hunspell
-      - hunspell-en_us
+      - "{{ 'hunspell-en_us' if ansible_facts['os_family'] == 'Archlinux' else 'hunspell-en' }}"
     state: present
   become: true
   tags:
     - hunspell
-  when: ansible_facts['os_family'] ==  "Archlinux"
+  when: ansible_facts['os_family'] in ["Archlinux", "RedHat"]
 
 - name: Install aspell
   ansible.builtin.package:

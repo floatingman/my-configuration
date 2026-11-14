@@ -13,6 +13,15 @@
     state: present
   when: ansible_facts["os_family"] == "Debian"
 
+- name: Install OpenSSH on Fedora
+  become: true
+  ansible.builtin.package:
+    name:
+      - openssh
+      - openssh-server
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"
+
 - name: Push OpenSSH daemon configuration file
   become: true
   ansible.builtin.template:
@@ -28,7 +37,9 @@
     name: sshd.service
     enabled: true
     state: started
-  when: ssh_config.enable_sshd and ansible_facts["os_family"] == "Archlinux"
+  # Fedora (openssh-server) also uses the sshd.service unit name, unlike
+  # Debian whose unit is ssh.service.
+  when: ssh_config.enable_sshd and ansible_facts["os_family"] in ["Archlinux", "RedHat"]
 
 - name: Disable and stop OpenSSH
   become: true
@@ -36,7 +47,7 @@
     name: sshd.service
     enabled: false
     state: stopped
-  when: not ssh_config.enable_sshd and ansible_facts["os_family"] == "Archlinux"
+  when: not ssh_config.enable_sshd and ansible_facts["os_family"] in ["Archlinux", "RedHat"]
 
 - name: Install sshfs
   become: true
@@ -69,19 +80,22 @@
 # Homebrew instead (see homebrew_packages in group_vars/all/base.yml; the
 # homebrew role runs after this one). Remove the distro package so the stale
 # /usr/bin/keychain cannot shadow the Homebrew binary on PATH.
-- name: Remove distro keychain package (Debian/Ubuntu)
+#
+# Fedora ships the same 2.x line (keychain 2.9.2), so it gets the identical
+# treatment: distro package removed, Homebrew provides keychain.
+- name: Remove distro keychain package (Debian/Ubuntu, Fedora)
   become: true
   ansible.builtin.package:
     name: keychain
     state: absent
-  when: ansible_facts["os_family"] == "Debian"
+  when: ansible_facts["os_family"] in ["Debian", "RedHat"]
 
 - name: Install x11-ask-pass
   become: true
   ansible.builtin.package:
     name: x11-ssh-askpass
     state: present
-  when: "display_manager is defined and ansible_facts['os_family'] == 'Archlinux'"
+  when: "display_manager is defined and ansible_facts['os_family'] in ['Archlinux', 'RedHat']"
 
 - name: Export SSH_ASKPASS environment variable
   become: true
