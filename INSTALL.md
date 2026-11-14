@@ -255,6 +255,7 @@ live on 2026-11; core 2.21.1 via ansible 14.1.0 is the proven combo):
 
 ```bash
 $ pipx install --fetch-missing-python --python 3.12 "ansible==14.1.0"
+$ pipx inject ansible "ansible-core==2.21.1"   # the 14.1.0 spec still pulls newest core; pin it
 $ pipx inject ansible pyyaml jinja2 pytest
 ```
 
