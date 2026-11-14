@@ -9,6 +9,7 @@ The manifest targets the documented stable schema (`configuration-dsc-schema/0.2
 | ------------------ | ------------------------------------------------------ |
 | `config.dsc.yaml`  | Desired state: packages (winget + msstore sources)     |
 | `bootstrap.ps1`    | Entrypoint: apply (`-Test` = drift check, no changes)  |
+| `from-export.ps1`  | Converts `winget export` JSON to manifest blocks; `-Diff` report |
 
 The Ansible/profile machinery in the repo root does not touch this subtree:
 no `play.yml`, no `make` targets, not covered by `make check-sync` or
@@ -46,20 +47,28 @@ winget search --source msstore --name <app> # store apps: use the 9... ID
     source: winget               # or: msstore
 ```
 
-## Seeding from an existing machine
+## Syncing with what is actually installed
 
-`winget export -o export.json` dumps everything installed (JSON, includes
-msstore entries). It is full of noise (frameworks, drivers, OEM packages):
-curate it down to what you actually want declared, then translate the
-survivors into `config.dsc.yaml` blocks as above. Do not commit the raw
-export.
+Dump the machine, then let the converter do the YAML:
+
+```powershell
+winget export -o "$env:TEMP\apps.json" --accept-source-agreements
+.\windows\from-export.ps1 "$env:TEMP\apps.json" -Diff      # three-group report
+.\windows\from-export.ps1 "$env:TEMP\apps.json"            # blocks for installed-but-undeclared apps
+```
+
+`-Diff` prints declared+installed, declared-but-missing, and
+installed-but-undeclared. The block output only covers the undeclared set;
+the export is full of noise (frameworks, runtimes, OEM packages), so review
+before pasting blocks into `config.dsc.yaml`. Do not commit the raw export.
 
 ## UniGet policy
 
 UniGet (and the Store app) stay the **ad-hoc lane**: fine for trying things
 out. Anything you want reproducible must land in `config.dsc.yaml`.
-`.\windows\bootstrap.ps1 -Test` is the drift check that reveals packages
-installed outside the manifest.
+`bootstrap.ps1 -Test` checks the declared resources; `from-export.ps1
+<export.json> -Diff` additionally reveals packages installed outside the
+manifest.
 
 Account-bound or paid Store apps cannot install headless via winget:
 install those once manually (Store/UniGet) and record them in the list

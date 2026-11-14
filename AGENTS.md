@@ -154,6 +154,7 @@ Default in the role's `defaults/main.yml`; machine value in `group_vars/all/loca
 
 - `windows/config.dsc.yaml` is the desired state (packages from `winget`/`msstore` sources). Hand-edited: NOT generated from `profiles/`, NOT covered by `make check-sync` / `generate-playbook`.
 - `windows/bootstrap.ps1` applies it (`-Test` = drift check, no changes). DSC resources are desired-state, so re-runs are no-ops.
+- `windows/from-export.ps1` turns a `winget export` dump into manifest blocks; `-Diff` reports installed-vs-declared in both directions.
 - CI validates the schema only (`windows-validate` job); nothing applies on runners.
 - ansible-lint never sees this tree (it lints `play.yml` only); yamllint does sweep it, so keep repo YAML style (2-space indent, `---` start).
 - UniGet stays the ad-hoc lane; anything meant to be reproducible must land in `config.dsc.yaml`. Account-bound/paid Store apps cannot install headless: they stay manual and get documented in `windows/README.md`.
