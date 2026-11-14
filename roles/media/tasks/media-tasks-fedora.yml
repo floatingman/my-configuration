@@ -1,0 +1,20 @@
+---
+# Names verified against the Fedora 45 repository (live check 2026-11):
+# exiftool ships as perl-Image-ExifTool and the zbar CLI tools are part of
+# the zbar package (Debian splits them into zbar-tools).
+- name: Install misc media codecs and helpers Fedora
+  become: true
+  ansible.builtin.package:
+    name:
+      - flac
+      - lame
+      - exiv2
+      - perl-Image-ExifTool
+      - opus-tools
+    state: present
+
+- name: Install zbar
+  become: true
+  ansible.builtin.package:
+    name: zbar
+    state: present

@@ -6,9 +6,13 @@
     state: present
 
 - name: Set wireless regulatory domain
+  # /etc/conf.d/wireless-regdom is Arch's mechanism. Fedora (and Debian via
+  # wpasupplicant defaults) apply the regdb at runtime through
+  # NetworkManager/iwd, so the file write is Arch-only.
   become: true
   ansible.builtin.lineinfile:
     dest: /etc/conf.d/wireless-regdom
     regexp: ^WIRELESS_REGDOM
     state: present
     line: 'WIRELESS_REGDOM="{{ regdomain }}"'
+  when: ansible_facts["os_family"] == "Archlinux"
