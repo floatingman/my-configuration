@@ -1,0 +1,78 @@
+---
+# Power backend: default keeps the Fedora OEM power-profiles-daemon untouched.
+# "tuned" is the explicit opt-in switch; tuned-ppd and power-profiles-daemon
+# claim the same net.hadess.PowerProfiles D-Bus name, so the OEM daemon is
+# stopped and disabled BEFORE the shim is enabled and both never run together.
+
+- name: Probe active power profile
+  ansible.builtin.command: powerprofilesctl get
+  register: framework12_power_profile
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Report power state
+  ansible.builtin.debug:
+    msg:
+      - >-
+        framework12_power_backend:
+        {{ framework12_power_backend if framework12_power_backend else 'null (keep OEM power-profiles-daemon)' }}
+      - "power-profiles-daemon installed: {{ 'power-profiles-daemon' in ansible_facts.packages }}"
+      - "tuned-ppd installed: {{ 'tuned-ppd' in ansible_facts.packages }}"
+      - "active profile: {{ framework12_power_profile.stdout | default('unavailable', true) | trim }}"
+
+- name: Warn when both PPD-compatible daemons are installed
+  ansible.builtin.debug:
+    msg: >-
+      Both power-profiles-daemon and tuned-ppd are installed; they claim the
+      same net.hadess.PowerProfiles D-Bus name and must not both be enabled.
+      Either keep the OEM default (leave framework12_power_backend unset and
+      disable tuned-ppd) or set framework12_power_backend: tuned to make the
+      switch explicit below.
+  when: >-
+    framework12_power_backend in [none, 'ppd']
+    and 'tuned-ppd' in ansible_facts.packages
+    and 'power-profiles-daemon' in ansible_facts.packages
+
+- name: Disable Fedora OEM power-profiles-daemon (same D-Bus name as tuned-ppd)
+  become: true
+  ansible.builtin.systemd:
+    name: power-profiles-daemon.service
+    state: stopped
+    enabled: false
+  when: >-
+    framework12_power_backend == 'tuned'
+    and 'power-profiles-daemon' in ansible_facts.packages
+
+- name: Install TuneD with the PPD compatibility shim
+  become: true
+  ansible.builtin.package:
+    name:
+      - tuned
+      - tuned-ppd
+    state: present
+  when: framework12_power_backend == 'tuned'
+
+- name: Enable and start TuneD
+  become: true
+  ansible.builtin.systemd:
+    name: tuned.service
+    enabled: true
+    state: started
+  when: framework12_power_backend == 'tuned'
+
+- name: Enable and start the TuneD PPD compatibility daemon
+  become: true
+  ansible.builtin.systemd:
+    name: tuned-ppd.service
+    enabled: true
+    state: started
+  when: framework12_power_backend == 'tuned'
+
+- name: Report TuneD switch result
+  ansible.builtin.debug:
+    msg: >-
+      TuneD is enabled with the PPD compatibility shim (tuned.service,
+      tuned-ppd.service); power-profiles-daemon is disabled. Profiles are
+      switchable via powerprofilesctl as before.
+  when: framework12_power_backend == 'tuned'

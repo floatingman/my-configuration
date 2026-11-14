@@ -1,0 +1,56 @@
+---
+# Disruptive kernel override (framework12_kernel_tablet_mode_fix, default
+# false): Framework's documented Fedora workaround for the soc_button_array /
+# pinctrl load-order race that breaks the Laptop 12 tablet-mode switch on
+# fresh (non-OEM) installs. Drops a dracut.conf.d and a modprobe.d file and
+# regenerates the initramfs via handler; a reboot is required afterwards and
+# is reported, never performed.
+# Source: FrameworkComputer/linux-docs, framework12/Fedora-all.md.
+
+- name: Report tablet-mode override state
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Applying Framework tablet-mode workaround'
+         if framework12_kernel_tablet_mode_fix | bool
+         else 'Tablet-mode kernel override disabled; OEM kernel behavior kept' }}
+
+- name: Copy dracut driver selection for tablet-mode switch
+  become: true
+  ansible.builtin.template:
+    src: dracut-tabletmode.conf.j2
+    dest: /etc/dracut.conf.d/99-fw-tabletmode.conf
+    mode: '0644'
+  notify: Regenerate initramfs for tablet-mode driver ordering
+  when: >-
+    framework12_kernel_tablet_mode_fix | bool
+    and framework12_variant_module | length > 0
+
+- name: Copy modprobe softdep for tablet-mode switch
+  become: true
+  ansible.builtin.template:
+    src: modprobe-tabletmode.conf.j2
+    dest: /etc/modprobe.d/99-fw-tabletmode.conf
+    mode: '0644'
+  notify: Regenerate initramfs for tablet-mode driver ordering
+  when: >-
+    framework12_kernel_tablet_mode_fix | bool
+    and framework12_variant_module | length > 0
+
+- name: Warn when the variant cannot be classified for the workaround
+  ansible.builtin.debug:
+    msg: >-
+      framework12_kernel_tablet_mode_fix is set but product_name
+      '{{ framework12_product_name }}' matched neither the Core Series 3
+      (pinctrl_intel_platform) nor the 13th Gen (pinctrl_tigerlake) variant.
+      Set framework12_tablet_pinctrl_module explicitly; no files were written.
+  when: >-
+    framework12_kernel_tablet_mode_fix | bool
+    and framework12_variant_module | length == 0
+
+- name: Report reboot requirement for the tablet-mode workaround
+  ansible.builtin.debug:
+    msg: >-
+      Tablet-mode workaround applied: the initramfs regenerates via handler
+      when the config files changed. Reboot to load the new driver ordering;
+      the role never reboots.
+  when: framework12_kernel_tablet_mode_fix | bool

@@ -1,0 +1,115 @@
+---
+# Framework Laptop 12 hardware guard role (Fedora OEM target).
+# Flow: opt-in gate -> hardware identity guard -> distro scope -> shared
+# fact resolution -> report-only diagnostics + optional overrides.
+# All gating uses ansible_facts only (repo rule; fact injection is disabled).
+
+- name: Report opt-in gate state
+  ansible.builtin.debug:
+    msg: "framework12 is disabled (framework12_enabled: false); ending cleanly"
+  when: not (framework12_enabled | bool)
+
+- name: End cleanly when the role is not enabled
+  ansible.builtin.meta: end_host
+  when: not (framework12_enabled | bool)
+
+- name: Resolve Framework hardware identity
+  ansible.builtin.set_fact:
+    framework12_product_name: "{{ ansible_facts['product_name'] | default('', true) }}"
+    framework12_product_lower: "{{ (ansible_facts['product_name'] | default('', true)) | lower }}"
+    framework12_is_laptop12: >-
+      {{ (ansible_facts['system_vendor'] | default('', true)) == 'Framework'
+         and ((ansible_facts['product_name'] | default('', true)) | lower) is search('laptop 12') }}
+
+- name: Report detected hardware identity
+  ansible.builtin.debug:
+    msg:
+      - "system_vendor: {{ ansible_facts['system_vendor'] | default('unknown') }}"
+      - "product_name: {{ framework12_product_name if framework12_product_name | length > 0 else 'unknown' }}"
+      - "Framework Laptop 12 match: {{ framework12_is_laptop12 | bool }}"
+
+- name: End cleanly when this is not a Framework Laptop 12
+  ansible.builtin.meta: end_host
+  when: not (framework12_is_laptop12 | bool)
+
+- name: End cleanly when the host is not Fedora
+  ansible.builtin.meta: end_host
+  when: ansible_facts['distribution'] != 'Fedora'
+
+- name: Report distro scope match
+  ansible.builtin.debug:
+    msg: >-
+      Framework Laptop 12 on {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] | default('', true) }}; role active
+
+- name: Resolve pinctrl module for the tablet-mode workaround
+  ansible.builtin.set_fact:
+    framework12_variant_module: >-
+      {{ framework12_tablet_pinctrl_module
+         if framework12_tablet_pinctrl_module
+         else ('pinctrl_intel_platform'
+               if (framework12_product_lower is search('ultra')
+                   or framework12_product_lower is search('series 3'))
+               else ('pinctrl_tigerlake'
+                     if framework12_product_lower is search('13th gen') else '')) }}
+
+- name: Validate power backend selection
+  ansible.builtin.assert:
+    that:
+      - framework12_power_backend in [none, 'ppd', 'tuned']
+    fail_msg: >-
+      framework12_power_backend must be null or 'ppd' (keep the Fedora OEM
+      power-profiles-daemon) or 'tuned' (explicit switch); got
+      '{{ framework12_power_backend }}'.
+    quiet: true
+
+- name: Gather package facts for Plasma and power service detection
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Gather service facts for read-only state probes
+  ansible.builtin.service_facts:
+
+- name: Detect Plasma workspace version for the virtual-keyboard decision
+  ansible.builtin.set_fact:
+    framework12_plasma_version: >-
+      {{ (ansible_facts.packages.get('plasma-workspace') or [{}])
+         | map(attribute='version') | first | default('', true) }}
+
+- name: Derive Plasma major and minor version
+  ansible.builtin.set_fact:
+    framework12_plasma_major: "{{ (framework12_plasma_version | default('', true)).split('.')[0] | int }}"
+    framework12_plasma_minor: "{{ (framework12_plasma_version | default('', true)).split('.')[1] | default(0, true) | int }}"
+
+- name: Decide virtual-keyboard package from the detected Plasma version
+  ansible.builtin.set_fact:
+    framework12_virtual_keyboard_package: >-
+      {{ 'plasma-keyboard'
+         if (framework12_plasma_major | int > 6
+             or (framework12_plasma_major | int == 6 and framework12_plasma_minor | int >= 6))
+         else 'maliit-keyboard' }}
+
+- name: Run hardware diagnostics (report only)
+  ansible.builtin.include_tasks: diagnostics.yml
+  tags:
+    - diagnostics
+
+- name: Install and check fwupd (never flash)
+  ansible.builtin.include_tasks: fwupd.yml
+  tags:
+    - fwupd
+
+- name: Apply power backend selection
+  ansible.builtin.include_tasks: power.yml
+  tags:
+    - power
+
+- name: Apply virtual-keyboard decision
+  ansible.builtin.include_tasks: virtual_keyboard.yml
+  tags:
+    - keyboard
+
+- name: Apply optional tablet-mode kernel override
+  ansible.builtin.include_tasks: tablet_mode.yml
+  tags:
+    - kernel
