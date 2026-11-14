@@ -33,9 +33,18 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Install Python MPD client
+- name: Install Python MPD client (Debian)
   become: true
   ansible.builtin.package:
     name: python3-mpd
     state: present
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Install Python MPD client (Fedora)
+  # Fedora packages the python-mpd2 library as python3-mpd2 (python3-mpd
+  # does not exist there; verified F45 repo).
+  become: true
+  ansible.builtin.package:
+    name: python3-mpd2
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"

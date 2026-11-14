@@ -20,10 +20,14 @@
     force: true
 
 - name: Enable LightDM
+  # daemon_reload: after re-pointing the display-manager.service symlink,
+  # systemd's cached view can still hold the old alias and enable fails with
+  # a FileExists DBus error (seen live on a Fedora OEM image).
   become: true
   ansible.builtin.service:
     name: lightdm.service
     enabled: true
+    daemon_reload: true
 
 - name: Create background dir
   become: true
