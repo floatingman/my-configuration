@@ -112,6 +112,97 @@ roles:
             assert len(errors) > 0
             assert any("tags" in e and "list" in e for e in errors)
 
+    def test_list_os_annotation_is_valid(self):
+        """A list-form os annotation with known values passes overlay validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: List OS Overlay
+applies_when: "true"
+roles:
+  - {role: test, tags: [test], os: [archlinux, debian]}
+'''
+            (overlays_dir / "good.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+            assert results[0][1] == []
+
+    def test_catches_unknown_os_value(self):
+        """An unknown scalar os value fails validation naming the overlay and role."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+roles:
+  - {role: test, tags: [test], os: windows}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+            _, errors = results[0]
+            assert len(errors) > 0
+            assert any("windows" in e for e in errors)
+            assert any("'test'" in e for e in errors)
+
+    def test_catches_unknown_os_value_in_list(self):
+        """An unknown value inside a list-form os fails validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+roles:
+  - {role: test, tags: [test], os: [archlinux, fedora, solaris]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+            _, errors = results[0]
+            assert any("solaris" in e for e in errors)
+
+    def test_catches_empty_os_list(self):
+        """An empty os list fails validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+roles:
+  - {role: test, tags: [test], os: []}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+            _, errors = results[0]
+            assert any("empty" in e for e in errors)
+
+    def test_catches_non_string_os_list_member(self):
+        """A non-string member inside a list-form os fails validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            overlays_dir = Path(tmpdir) / "overlays"
+            overlays_dir.mkdir(parents=True)
+
+            overlay_content = '''name: Bad Overlay
+applies_when: "true"
+roles:
+  - {role: test, tags: [test], os: [archlinux, 42]}
+'''
+            (overlays_dir / "bad.yml").write_text(overlay_content)
+
+            results = validate_overlays(profiles_dir=tmpdir)
+            assert len(results) == 1
+            _, errors = results[0]
+            assert any("os[1]" in e for e in errors)
+
     def test_catches_empty_applies_when(self):
         """Validation catches empty applies_when string."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -174,6 +265,109 @@ class TestConditionTranslatorProtocol:
         annotation = {"role": "test", "tags": ["test"], "os": "debian"}
         result = translator.translate_annotation(annotation, {})
         assert result == "not _is_arch"
+
+    def test_os_annotation_fedora(self):
+        """os: fedora annotation translates to _is_fedora."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": "fedora"}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "_is_fedora"
+
+    def test_os_annotation_absent_is_universal(self):
+        """A role without an os annotation carries no OS condition."""
+        translator = AnsibleConditionTranslator(os_family="Debian")
+        annotation = {"role": "test", "tags": ["test"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == ""
+
+    def test_os_annotation_list_arch_debian_excludes_fedora(self):
+        """os: [archlinux, debian] simplifies to 'not _is_fedora' (runs on both, not Fedora)."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "x", "tags": ["x"], "os": ["archlinux", "debian"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "not _is_fedora"
+
+    def test_os_annotation_list_archlinux_only(self):
+        """os: [archlinux] translates to _is_arch (same as the scalar form)."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["archlinux"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "_is_arch"
+
+    def test_os_annotation_list_debian_only_excludes_fedora(self):
+        """os: [debian] is Fedora-aware: strictly Debian, unlike the legacy scalar bytes."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["debian"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "not _is_arch and not _is_fedora"
+
+    def test_os_annotation_list_fedora_only(self):
+        """os: [fedora] translates to _is_fedora."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["fedora"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "_is_fedora"
+
+    def test_os_annotation_list_arch_fedora(self):
+        """os: [archlinux, fedora] translates to a disjunction over both facts."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["archlinux", "fedora"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "_is_arch or _is_fedora"
+
+    def test_os_annotation_list_debian_fedora(self):
+        """os: [debian, fedora] simplifies to 'not _is_arch'."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["debian", "fedora"]}
+        result = translator.translate_annotation(annotation, {})
+        assert result == "not _is_arch"
+
+    def test_os_annotation_list_all_values_is_universal(self):
+        """os: [archlinux, debian, fedora] is equivalent to universal (no condition)."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {
+            "role": "test", "tags": ["test"],
+            "os": ["archlinux", "debian", "fedora"],
+        }
+        result = translator.translate_annotation(annotation, {})
+        assert result == ""
+
+    def test_os_annotation_unknown_scalar_raises(self):
+        """An unknown scalar os value raises ValueError naming role and value."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": "windows"}
+        with pytest.raises(ValueError, match="windows"):
+            translator.translate_annotation(annotation, {})
+
+    def test_os_annotation_unknown_scalar_error_names_role(self):
+        """The unknown-os error message carries the offending role name."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "gpu_drivers", "tags": ["gpu_drivers"], "os": "windows"}
+        with pytest.raises(ValueError) as excinfo:
+            translator.translate_annotation(annotation, {})
+        assert "gpu_drivers" in str(excinfo.value)
+        assert "archlinux" in str(excinfo.value)  # allowed set is listed
+
+    def test_os_annotation_unknown_list_value_raises(self):
+        """An unknown value inside a list-form os raises ValueError."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["archlinux", "solaris"]}
+        with pytest.raises(ValueError, match="solaris"):
+            translator.translate_annotation(annotation, {})
+
+    def test_os_annotation_non_string_list_entry_raises(self):
+        """A non-string member inside a list-form os raises ValueError."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": ["archlinux", 42]}
+        with pytest.raises(ValueError, match="os\\[1\\]"):
+            translator.translate_annotation(annotation, {})
+
+    def test_os_annotation_empty_list_raises(self):
+        """An empty os list is a validation error, not a universal role."""
+        translator = AnsibleConditionTranslator(os_family="Archlinux")
+        annotation = {"role": "test", "tags": ["test"], "os": []}
+        with pytest.raises(ValueError, match="empty"):
+            translator.translate_annotation(annotation, {})
 
     def test_requires_display_true(self):
         """requires_display: true annotation translates to _has_display."""

@@ -322,6 +322,99 @@ class TestValidateProfile:
         errors = validate_profile(_PROFILES_DIR, 'does_not_exist')
         assert len(errors) > 0
 
+    def test_list_os_annotation_is_valid(self):
+        """A list-form os annotation with known values passes validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'ok.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: [archlinux, debian]}\n'
+                '  - {role: y, os: [archlinux, debian, fedora]}\n'
+            )
+            errors = validate_profile(tmpdir, 'ok')
+            assert errors == []
+
+    def test_fedora_scalar_os_annotation_is_valid(self):
+        """os: fedora is an accepted scalar value."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'ok.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: fedora}\n'
+            )
+            errors = validate_profile(tmpdir, 'ok')
+            assert errors == []
+
+    def test_legacy_scalar_os_annotations_stay_valid(self):
+        """The pre-Fedora scalar values archlinux/debian still validate."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'ok.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: archlinux}\n'
+                '  - {role: y, os: debian}\n'
+                '  - {role: z}\n'
+            )
+            errors = validate_profile(tmpdir, 'ok')
+            assert errors == []
+
+    def test_unknown_os_value_rejected_with_role_and_value(self):
+        """An unknown os value is rejected, naming the role and allowed set."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: gpu_drivers, os: windows}\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert len(errors) > 0
+            assert any('windows' in e for e in errors)
+            assert any('gpu_drivers' in e for e in errors)
+
+    def test_unknown_os_value_in_list_rejected(self):
+        """An unknown value inside a list-form os is rejected."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: [archlinux, solaris]}\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('solaris' in e for e in errors)
+
+    def test_non_string_os_rejected(self):
+        """A non-string, non-list os annotation is rejected."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: 42}\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('os' in e and 'string' in e for e in errors)
+
+    def test_non_string_os_list_member_rejected(self):
+        """A non-string member inside a list-form os is rejected."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: [archlinux, 42]}\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('os[1]' in e for e in errors)
+
+    def test_empty_os_list_rejected(self):
+        """An empty os list is rejected rather than treated as universal."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, 'bad.yml').write_text(
+                'display_manager_default: lightdm\ndesktop_environment: i3\n'
+                'roles:\n'
+                '  - {role: x, os: []}\n'
+            )
+            errors = validate_profile(tmpdir, 'bad')
+            assert any('empty' in e for e in errors)
+
 
 class TestListProfiles:
     """Test list_profiles() function."""
@@ -429,6 +522,76 @@ class TestLoadOverlay:
         # bluetooth overlay not applied -> its flags are absent entirely
         assert "_overlay_bluetooth" not in rm.overlay_flags
         assert any(g.role == "backlight" and g.source == "i3+laptop" for g in rm.roles)
+
+
+class TestOverlayOsConstraints:
+    """os annotations (scalar and list form) gate overlay roles per host OS
+    (issue #234), exercised through the resolver's diagnostic overlay view."""
+
+    @staticmethod
+    def _write_os_gate_tree(tmpdir):
+        """Minimal profiles tree with one overlay carrying os-constrained roles."""
+        Path(tmpdir, "_sections.yml").write_text(
+            "sections:\n  - {name: misc, comment: Misc}\n"
+        )
+        Path(tmpdir, "i3.yml").write_text(
+            'display_manager_default: lightdm\ndesktop_environment: i3\n'
+        )
+        overlays_dir = Path(tmpdir, "overlays")
+        overlays_dir.mkdir()
+        (overlays_dir / "osgate.yml").write_text(
+            'name: OS Gate Overlay\n'
+            'applies_when: "true"\n'
+            'roles:\n'
+            '  - {role: dual, tags: [dual], os: [archlinux, debian]}\n'
+            '  - {role: fedonly, tags: [fedonly], os: fedora}\n'
+            '  - {role: universal, tags: [universal]}\n'
+        )
+
+    def _applies_by_role(self, tmpdir, os_family):
+        view = {
+            resolved.overlay.name: resolved
+            for resolved in ManifestResolver(
+                profiles_dir=str(tmpdir), os_family=os_family,
+            ).overlays({}, True)
+        }
+        gate = view["OS Gate Overlay"]
+        assert gate.applies is True
+        return {role.role: role_applies for role, role_applies in gate.resolved_roles}
+
+    def test_list_os_runs_on_arch_and_debian_not_fedora(self):
+        """os: [archlinux, debian] applies on both listed OSes but not Fedora."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_os_gate_tree(tmpdir)
+            assert self._applies_by_role(tmpdir, "Archlinux")["dual"] is True
+            assert self._applies_by_role(tmpdir, "Debian")["dual"] is True
+            assert self._applies_by_role(tmpdir, "Fedora")["dual"] is False
+
+    def test_fedora_scalar_gates_per_host(self):
+        """os: fedora applies only on a Fedora host."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_os_gate_tree(tmpdir)
+            assert self._applies_by_role(tmpdir, "Fedora")["fedonly"] is True
+            assert self._applies_by_role(tmpdir, "Archlinux")["fedonly"] is False
+            assert self._applies_by_role(tmpdir, "Debian")["fedonly"] is False
+
+    def test_universal_overlay_role_runs_on_every_os(self):
+        """A role without os runs on Arch, Debian, and Fedora alike."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_os_gate_tree(tmpdir)
+            for os_family in ("Archlinux", "Debian", "Fedora"):
+                roles = self._applies_by_role(tmpdir, os_family)
+                assert roles["universal"] is True, os_family
+
+    def test_list_os_annotation_gates_manifest_condition(self):
+        """An applied overlay role's manifest condition carries the os gate."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_os_gate_tree(tmpdir)
+            rm = ManifestResolver(
+                profiles_dir=str(tmpdir), os_family="Debian",
+            ).manifest("i3", host_vars={})
+            gate = next(g for g in rm.roles if g.role == "dual")
+            assert gate.condition == "not _is_fedora"
 
 
 

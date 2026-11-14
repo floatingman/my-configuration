@@ -399,6 +399,16 @@ class TestCLIResolveOverlays:
         assert bluetooth["applies"] is True
         assert {r["role"]: r["applies"] for r in bluetooth["roles"]} == {"bluetooth": False}
 
+    def test_bluetooth_role_gated_off_fedora_host(self, capsys):
+        """--is-fedora → overlay applies but the os:archlinux role does not."""
+        by_name = self._overlays_by_name(
+            capsys, {"bluetooth": {"disable": False}},
+            ["--no-is-arch", "--is-fedora"],
+        )
+        bluetooth = by_name["Bluetooth Support Overlay"]
+        assert bluetooth["applies"] is True
+        assert {r["role"]: r["applies"] for r in bluetooth["roles"]} == {"bluetooth": False}
+
     def test_overlays_returned_sorted_by_name(self, capsys):
         """Overlays are listed in sorted order by name."""
         rc = main(["resolve-overlays", "--facts-json", "{}", "--profiles-dir", _PROFILES_DIR])
@@ -461,6 +471,28 @@ class TestCLIResolveRoleManifest:
         err = capsys.readouterr().err
         assert rc == 1
         assert "Invalid JSON" in err
+
+    def test_resolve_manifest_fedora_os_family(self, capsys):
+        """--os-family Fedora resolves with the _is_fedora fact set true."""
+        rc = main(["resolve-role-manifest", "--profile", "i3", "--os-family", "Fedora"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        data = json.loads(out)
+        assert data["profile_flags"]["_is_fedora"] is True
+        assert data["profile_flags"]["_is_arch"] is False
+
+    def test_resolve_manifest_debian_omits_fedora_flag(self, capsys):
+        """--os-family Debian output has no _is_fedora key (golden wire parity)."""
+        rc = main(["resolve-role-manifest", "--profile", "i3", "--os-family", "Debian"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        data = json.loads(out)
+        assert "_is_fedora" not in data["profile_flags"]
+
+    def test_resolve_manifest_unknown_os_family_exits_1(self, capsys):
+        """An os-family outside the known set is a CLI error."""
+        rc = main(["resolve-role-manifest", "--profile", "i3", "--os-family", "Fedoar"])
+        assert rc == 1
 
     def test_resolve_manifest_manual_mode(self, capsys):
         """resolve-manifest works in manual mode without --profile."""
@@ -572,6 +604,65 @@ class TestCLIGeneratePlaybook:
             # Structure is emitted even when the profile defines no roles
             assert "tasks" in parsed[0]
             assert "post_tasks" in parsed[0]
+
+    def test_generate_playbook_omits_fedora_fact_without_fedora_annotations(self):
+        """No fedora annotations → no _is_fedora set_fact line (play.yml
+        stays byte-identical until the wiring wave adds fedora)."""
+        valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
+            Path(tmpdir, "myprofile.yml").write_text(
+                valid + "roles:\n  - {role: somearch, tags: [somearch], os: archlinux, section: misc}\n"
+            )
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 0
+            text = Path(outfile).read_text()
+            assert "_is_fedora" not in text
+
+    def test_generate_playbook_emits_fedora_fact_for_fedora_annotation(self):
+        """A fedora-constrained profile role → play.yml sets _is_fedora
+        (defaulting false so Arch/Debian hosts stay well-defined)."""
+        valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
+            Path(tmpdir, "myprofile.yml").write_text(
+                valid
+                + "roles:\n"
+                + "  - {role: dualgate, tags: [dualgate], os: [archlinux, fedora], section: misc}\n"
+            )
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 0
+            text = Path(outfile).read_text()
+            assert '_is_fedora: "{{ _pf._is_fedora | default(false) }}"' in text
+            # The role's condition uses the Fedora-aware list translation
+            assert "when: _is_arch or _is_fedora" in text
+
+    def test_generate_playbook_emits_fedora_fact_for_fedora_overlay_annotation(self):
+        """A fedora os annotation in an OVERLAY also triggers the fact line."""
+        valid = "display_manager_default: lightdm\ndesktop_environment: i3\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "_sections.yml").write_text(
+                "sections:\n  - {name: misc, comment: Misc}\n"
+            )
+            Path(tmpdir, "myprofile.yml").write_text(valid)
+            overlays_dir = Path(tmpdir, "overlays")
+            overlays_dir.mkdir()
+            (overlays_dir / "fedthing.yml").write_text(
+                'name: Fedora Thing\n'
+                'applies_when: "true"\n'
+                'roles:\n'
+                '  - {role: fedthing, tags: [fedthing], os: [debian, fedora], section: misc}\n'
+            )
+            outfile = str(Path(tmpdir) / "output.yml")
+            rc = main(["generate-playbook", "--profiles-dir", tmpdir, "--write", outfile])
+            assert rc == 0
+            assert '_is_fedora: "{{ _pf._is_fedora | default(false) }}"' in Path(outfile).read_text()
 
     def test_generate_playbook_bad_dir_exits_1(self, capsys):
         """generate-playbook with nonexistent profiles-dir exits 1."""

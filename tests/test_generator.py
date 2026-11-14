@@ -735,6 +735,79 @@ class TestPlaybookGenerator:
         assert cond.count("_has_display") == 2
 
 
+class TestFedoraOsFamily:
+    """Fedora as a generator os_family (issue #234). With no fedora
+    annotations in profiles/ yet, generation is a strict no-op; list-form
+    os annotations produce the Fedora-aware conditions."""
+
+    def test_generate_fedora_matches_archlinux_for_current_profiles(self):
+        """No shipped profile declares fedora, so Fedora and Archlinux
+        generation agree exactly (byte-stability guard for play.yml)."""
+        arch = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR, os_family="Archlinux", host_vars={},
+        ).generate()
+        fedora = PlaybookGenerator(
+            profiles_dir=_PROFILES_DIR, os_family="Fedora", host_vars={},
+        ).generate()
+        assert fedora == arch
+
+    def test_generate_translates_list_os_annotation(self, tmp_path):
+        """A profile role os: [archlinux, fedora] generates its fact-based
+        condition through the normal generate() boundary."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        (profiles_dir / "_sections.yml").write_text(
+            "sections:\n  - {name: misc, comment: Misc}\n"
+        )
+        profile_data = {
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [{
+                "role": "dualgate", "tags": ["dualgate"],
+                "os": ["archlinux", "fedora"], "section": "misc",
+            }],
+        }
+        (profiles_dir / "test.yml").write_text(
+            yaml.dump(profile_data, default_flow_style=False)
+        )
+
+        gen = PlaybookGenerator(
+            profiles_dir=str(profiles_dir), os_family="Archlinux", host_vars={},
+        )
+        roles = gen.generate()
+        dual = [r for r in roles if r.role == "dualgate"]
+        assert len(dual) == 1
+        assert dual[0].condition == "_is_arch or _is_fedora"
+        assert dual[0].tags == ("dualgate",)
+
+    def test_generate_list_os_debian_only_is_fedora_aware(self, tmp_path):
+        """A list-form os: [debian] role excludes Fedora via its condition,
+        unlike the legacy scalar bytes."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        (profiles_dir / "_sections.yml").write_text(
+            "sections:\n  - {name: misc, comment: Misc}\n"
+        )
+        profile_data = {
+            "display_manager_default": "",
+            "desktop_environment": "",
+            "roles": [{
+                "role": "debonly", "tags": ["debonly"],
+                "os": ["debian"], "section": "misc",
+            }],
+        }
+        (profiles_dir / "test.yml").write_text(
+            yaml.dump(profile_data, default_flow_style=False)
+        )
+
+        gen = PlaybookGenerator(
+            profiles_dir=str(profiles_dir), os_family="Archlinux", host_vars={},
+        )
+        roles = gen.generate()
+        deb = [r for r in roles if r.role == "debonly"]
+        assert deb[0].condition == "not _is_arch and not _is_fedora"
+
+
 class TestPlaybookGeneratorResolve:
     """Test PlaybookGenerator.resolve() method."""
 
