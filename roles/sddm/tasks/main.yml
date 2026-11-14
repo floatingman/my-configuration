@@ -19,7 +19,11 @@
     force: true
 
 - name: Enable SDDM
+  # daemon_reload: after re-pointing the display-manager.service symlink,
+  # systemd's cached view can still hold the old alias and enable fails with
+  # a FileExists DBus error (seen live on a Fedora OEM image).
   become: true
   ansible.builtin.service:
     name: sddm.service
     enabled: true
+    daemon_reload: true

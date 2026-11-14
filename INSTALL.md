@@ -244,12 +244,22 @@ On Fedora, install the bootstrap prerequisites first (the bootstrap path uses
 dnf instead of apt/pacman):
 
 ```bash
-$ sudo dnf install -y python3-pip pipx git ansible
+$ sudo dnf install -y python3-pip pipx git make
 ```
 
-(For the minimal ansible-free path, drop `ansible` and let `make setup`
-install it via pipx; installing the distro package also works since
-`make setup` skips the pipx install when `ansible` is already on PATH.)
+Then install Ansible via pipx, pinned to the version the rest of the fleet
+runs, under a Python the current ansible-core fully supports (Fedora 45's
+system Python 3.15 trips `module_utils` patch internals, and core 2.21.6+
+regressed the git module's existing-repository update path — both observed
+live on 2026-11; core 2.21.1 via ansible 14.1.0 is the proven combo):
+
+```bash
+$ pipx install --fetch-missing-python --python 3.12 "ansible==14.1.0"
+$ pipx inject ansible pyyaml jinja2 pytest
+```
+
+`make setup` also works, but installs the newest ansible, which may carry
+the regressions above; prefer the pin on a fresh Fedora machine.
 
 Fedora machines run the same profiles as Arch/Debian — the dispatcher skips
 Arch-only roles automatically. `make profile-kde` is the recommended Fedora
