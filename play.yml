@@ -37,6 +37,7 @@
           {{
             {}
             | combine({"bluetooth": bluetooth} if bluetooth is defined else {})
+            | combine({"gaming": gaming} if gaming is defined else {})
             | combine({"laptop": laptop} if laptop is defined else {})
             | combine({"user_environment": user_environment} if user_environment is defined else {})
             | to_json
@@ -68,6 +69,7 @@
         _of: "{{ _manifest.overlay_flags }}"
       ansible.builtin.set_fact:
         _overlay_bluetooth: "{{ _of._overlay_bluetooth | default(false) }}"
+        _overlay_gaming: "{{ _of._overlay_gaming | default(false) }}"
         _overlay_laptop: "{{ _of._overlay_laptop | default(false) }}"
         _overlay_user_environment: "{{ _of._overlay_user_environment | default(false) }}"
         _overlay_ai: "{{ _of._overlay_ai | default(false) }}"
@@ -1391,6 +1393,22 @@
               tags: always
           vars:
             _resilience_role: bluetooth
+          tags: always
+    - name: Resilient role wrapper for gaming
+      block:
+        - name: Run role gaming
+          ansible.builtin.import_role:
+            name: gaming
+          when: _overlay_gaming
+          tags: ["gaming"]
+      rescue:
+        - name: Record failure of role gaming
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: gaming
           tags: always
     - name: Resilient role wrapper for laptop
       block:

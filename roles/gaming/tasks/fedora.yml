@@ -1,0 +1,58 @@
+---
+# Fedora-only gaming setup. This file is only included when
+# ansible_facts['os_family'] == "RedHat" (see main.yml), so the role is a
+# no-op on Arch Linux and Debian.
+
+# --- RPM Fusion (opt-in only) ------------------------------------------------
+# The `steam` RPM exists only in RPM Fusion nonfree, so the repo is added
+# here, behind gaming_enable_rpmfusion. Flathub apps (default Steam method,
+# Heroic) never need it.
+- name: Add RPM Fusion nonfree repository
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      dnf install -y
+      https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_facts['distribution_major_version'] }}.noarch.rpm
+    creates: /etc/yum.repos.d/rpmfusion-nonfree.repo
+  when: gaming_enable_rpmfusion | default(false)
+
+# --- Steam -------------------------------------------------------------------
+- name: Install Steam from Flathub
+  become: true
+  community.general.flatpak:
+    name: com.valvesoftware.Steam
+    state: present
+  when: gaming_steam_install_method == "flatpak"
+
+- name: Install Steam RPM from RPM Fusion
+  become: true
+  ansible.builtin.package:
+    name: steam
+    state: present
+  when:
+    - gaming_steam_install_method == "rpm"
+    - gaming_enable_rpmfusion | default(false)
+
+# --- Heroic Games Launcher ---------------------------------------------------
+# Heroic ships only as a Flatpak on Fedora (no official Fedora/RPM Fusion
+# package), so Flathub is the verified source for every method.
+- name: Install Heroic Games Launcher from Flathub
+  become: true
+  community.general.flatpak:
+    name: com.heroicgameslauncher.hgl
+    state: present
+
+# --- Optional performance tooling --------------------------------------------
+- name: Install MangoHud
+  become: true
+  ansible.builtin.package:
+    name: mangohud
+    state: present
+  when: gaming_mangohud | default(false)
+
+- name: Install GameMode
+  become: true
+  ansible.builtin.package:
+    name: gamemode
+    state: present
+  when: gaming_gamemode | default(false)
