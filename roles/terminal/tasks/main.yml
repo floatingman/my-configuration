@@ -1,9 +1,10 @@
 ---
 # Terminal emulators. alacritty and kitty are packaged under the same name in
-# Arch, Debian and Fedora (Fedora 43 repodata, 2026-11), so the generic
-# install tasks cover all three. wezterm needs a third-party repo outside Arch
-# (fury.io apt repo on Debian); ghostty is Arch-only: neither is packaged in
-# Fedora official repos (43 repodata), so both stay off Fedora.
+# Arch, Debian and Fedora (Fedora 45 repodata, 2026-11), so the generic
+# install tasks cover all three. ghostty is not packaged in Fedora's official
+# repos and upstream ships no RPM/flatpak, so it stays Arch-only. wezterm has
+# no RPM either; Debian uses the fury.io apt repo and Fedora uses upstream's
+# official flathub channel (org.wezfurlong.wezterm).
 - name: Install alacritty
   become: true
   ansible.builtin.package:
@@ -57,3 +58,16 @@
     name: wezterm
     update_cache: true
   when: ansible_facts["os_family"] == "Debian"
+
+- name: Install wezterm from flathub (Fedora)
+  # Upstream's official Fedora channel: no RPM exists and the flathub remote
+  # is already configured system-wide by the flatpak role.
+  become: true
+  community.general.flatpak:
+    name: org.wezfurlong.wezterm
+    remote: flathub
+    method: system
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"
+  tags:
+    - terminal

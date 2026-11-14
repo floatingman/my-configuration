@@ -10,6 +10,16 @@
   tags:
     - aur
 
+
+- name: Install streamlink CLI (Fedora)
+  # The streamlink-twitch-gui wrapper is AUR-only; the engine itself is
+  # packaged as python3-streamlink (verified F45 repo, 2026-11).
+  become: true
+  ansible.builtin.package:
+    name: python3-streamlink
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"
+
 # - name: Install chatty
 #   kewlfft.aur.aur:
 #     name: chatty

@@ -115,10 +115,12 @@ package maps, Wayland-safe gates) verified against the Fedora repositories.
 Quick start on a fresh Fedora machine:
 
 ```sh
-sudo dnf install -y python3-pip pipx git ansible
+sudo dnf install -y python3-pip pipx git make
 git clone https://github.com/floatingman/my-configuration.git
 cd my-configuration
-make setup              # pipx + ansible + python deps (dnf fallback path)
+make setup              # pipx + ansible + python deps — but see the Fedora
+                        # recipe in INSTALL.md first for the pinned
+                        # ansible/core + py3.15 shim combo
 exec $SHELL -l          # reload PATH
 make install            # ansible-galaxy roles
 cp group_vars/templates/desktop.yml group_vars/all/local.yml
