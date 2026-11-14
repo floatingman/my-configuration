@@ -248,19 +248,24 @@ $ sudo dnf install -y python3-pip pipx git make
 ```
 
 Then install Ansible via pipx, pinned to the version the rest of the fleet
-runs, under a Python the current ansible-core fully supports (Fedora 45's
-system Python 3.15 trips `module_utils` patch internals, and core 2.21.6+
-regressed the git module's existing-repository update path — both observed
-live on 2026-11; core 2.21.1 via ansible 14.1.0 is the proven combo):
+runs (all observed live on Fedora 45, 2026-11: system Python 3.15 trips
+ansible-core `module_utils` patch internals; core 2.21.6+ regressed the git
+module's existing-repository update path; the `dnf` package module needs the
+system python's `libdnf5` bindings. The combo below — venv controller on
+py3.12 + core 2.21.1 + the py3.15 tolerance shim + modules on the system
+python — satisfies all three):
 
 ```bash
 $ pipx install --fetch-missing-python --python 3.12 "ansible==14.1.0"
 $ pipx inject ansible "ansible-core==2.21.1"   # the 14.1.0 spec still pulls newest core; pin it
 $ pipx inject ansible pyyaml jinja2 pytest
+$ python3 scripts/patch_ansible_py315.py       # one-time: let modules run on the system 3.15
 ```
 
-`make setup` also works, but installs the newest ansible, which may carry
-the regressions above; prefer the pin on a fresh Fedora machine.
+Do NOT `dnf install ansible`: the distro build shadows the pinned venv and
+carries the git-module regression. `make setup` also works but installs the
+newest ansible, which may carry the regressions above; prefer the pin on a
+fresh Fedora machine.
 
 Fedora machines run the same profiles as Arch/Debian — the dispatcher skips
 Arch-only roles automatically. `make profile-kde` is the recommended Fedora
