@@ -37,6 +37,23 @@ Frequent provisioner? [FRESH_MACHINE.md](FRESH_MACHINE.md) collects the
 failure modes that only appear on pristine machines and the fixes that
 guard them.
 
+## Windows machines
+
+Windows is configured by a separate, non-Ansible subtree:
+[`windows/`](windows/README.md) declares desired state with WinGet
+Configuration (`winget configure`), and `windows/bootstrap.ps1` applies it.
+It shares nothing with the Ansible machinery above (no `play.yml`, no
+`make` targets).
+
+```powershell
+git clone https://github.com/floatingman/my-configuration $HOME\my-configuration
+cd $HOME\my-configuration
+.\windows\bootstrap.ps1        # apply (idempotent; -Test = drift check)
+```
+
+See [windows/README.md](windows/README.md) for adding packages (winget and
+Microsoft Store) and the UniGet policy.
+
 ## What's here?
 
 This is my [Ansible](https://www.ansible.com/) playbook to automatically configure a new Linux installation on an Arch or Debian system. The following roles are being used:
