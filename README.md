@@ -56,7 +56,7 @@ Microsoft Store) and the UniGet policy.
 
 ## What's here?
 
-This is my [Ansible](https://www.ansible.com/) playbook to automatically configure a new Linux installation on an Arch or Debian system. The following roles are being used:
+This is my [Ansible](https://www.ansible.com/) playbook to automatically configure a new Linux installation on an Arch, Debian, or Fedora system. The following roles are being used:
 
 - [packages](https://github.com/Allaman/ansible-role-packages) installs packages via package manager and an AUR helper
 - [system](https://github.com/Allaman/ansible-role-system) configure system related settings
@@ -100,6 +100,57 @@ sudo usermod -aG devtools,linuxbrew <username>
 ```
 
 Per-user personalization (shell plugins, dotfiles, AI tool config, and per-user tools like vidsummarizer) is separated into the `user_environment` overlay (see [Overlays](#overlays) below). Set `user_environment: false` in `group_vars/all/local.yml` to skip user-specific setup entirely.
+
+### Fedora
+
+Fedora is a first-class target alongside Arch (primary) and Debian
+(secondary). The same six profiles run on all three: the dispatcher resolves
+each profile per OS family (`Archlinux` / `Debian` / `Fedora`), and the
+generated `play.yml` re-resolves the manifest at run time from
+`ansible_facts`. Arch-only roles (`base`, `grub`, `microcode`, GPU drivers,
+`aur`, `docker`, `nmtrust`, `networkmanager`, `cups`, `udisks`, …) are
+os-annotated and skip on Fedora; the universal roles carry Fedora arms (dnf
+package maps, Wayland-safe gates) verified against the Fedora repositories.
+
+Quick start on a fresh Fedora machine:
+
+```sh
+sudo dnf install -y python3-pip pipx git ansible
+git clone https://github.com/floatingman/my-configuration.git
+cd my-configuration
+make setup              # pipx + ansible + python deps (dnf fallback path)
+exec $SHELL -l          # reload PATH
+make install            # ansible-galaxy roles
+cp group_vars/templates/desktop.yml group_vars/all/local.yml
+$EDITOR group_vars/all/local.yml
+make profile-kde        # or any other profile (see Configuration Profiles)
+```
+
+Profile usage on Fedora:
+
+- **kde** is the fullest Fedora lane — the Plasma/Wayland OEM experience the
+  Fedora arms were verified against. The `x` X11 role is os-gated to
+  `[archlinux, debian]` (with a display guard) and skips, so nothing touches
+  the OEM Wayland session; `kde`, `sddm`, `terminal`, and `wayland` are
+  universal and self-gate internally.
+- **gnome**, **headless**, and the remaining profiles run their universal
+  subsets on Fedora unchanged.
+- **framework12** — Framework Laptop 12 hardware guard and diagnostics — is
+  wired into the kde profile, os-gated to `fedora`, and inert unless
+  `framework12_enabled: true` AND the host is a Laptop 12 running Fedora (see
+  `roles/framework12/README.md` for the variables and the hardware checklist).
+- The **gaming** overlay (`gaming: true`; Steam, Heroic, optional
+  MangoHud/GameMode and RPM Fusion) self-gates to Fedora and is a no-op on
+  Arch/Debian (see `roles/gaming/README.md`).
+- `golang`, `homebrew`, and `ansible-role-binaries` are Debian-strict today
+  (`os: [debian]`); on Fedora the native dnf arms of the universal roles cover
+  the same tooling.
+
+> Fedora runtime note: the generated pre-task passes
+> `ansible_facts['os_family']` (which is `RedHat` on Fedora) to
+> `resolve-role-manifest`; the dispatcher must normalize that to `Fedora`
+> (`scripts/profile_dispatcher.py`). Until that lands, a real Fedora run stops
+> at the manifest pre-task — see issue #234.
 
 ### Configuration Profiles
 
@@ -158,6 +209,7 @@ any profile. Each overlay gates itself on a variable from
 |--------------------|------------------------------------------------|-------|
 | `user_environment` | by default — set `user_environment: false` to skip | shell, dotfiles, gnupg, ai (AI tooling additionally needs `ai_enabled: true`), vidsummarizer (per-user, under `~/Documents`) |
 | `laptop`           | `laptop: true`                                 | laptop, network_shares, backlight (display required) |
+| `gaming`           | `gaming: true`                                 | gaming (Steam/Heroic; Fedora-only — the role is a no-op on Arch/Debian) |
 | `bluetooth`        | `bluetooth:` defined and not disabled (Arch only) | bluetooth |
 
 ```yaml
@@ -166,6 +218,8 @@ laptop: true                 # enable the laptop overlay
 
 bluetooth:
   disable: false             # defining bluetooth enables the overlay (default)
+
+gaming: true                 # Fedora gaming overlay (Steam/Heroic; no-op on Arch/Debian)
 
 user_environment: false      # skip shell/dotfiles/gnupg/ai/vidsummarizer personalization
 ```
@@ -182,7 +236,7 @@ dispatcher translates them into `when:` conditions over pre-resolved facts
 | Annotation         | Meaning                                              | Example |
 |--------------------|------------------------------------------------------|---------|
 | `tags`             | Run targets for `make configure TAGS=`               | `[editors]` |
-| `os`               | Restrict to `archlinux` or `debian`                  | `os: archlinux` |
+| `os`               | Restrict to OS(es): legacy scalar, or a list of `archlinux`, `debian`, `fedora` | `os: [archlinux, debian]` |
 | `requires_display` | Only runs with a display server (`_has_display`)     | `requires_display: true` |
 | `requires_config`  | Match a specific config value                        | `requires_config: { display_manager: lightdm }` |
 | `config_check`     | Jinja2 expression evaluated against host vars        | `"ai_enabled \| default(false) \| bool"` |

@@ -15,7 +15,7 @@ requires:
 
 roles:
   # Display Server (KDE supports both X11 and Wayland, default to X11)
-  - { role: x, tags: [x], section: i3_profile }
+  - { role: x, tags: [x], os: [archlinux, debian], requires_display: true, section: i3_profile }
 
   # KDE Plasma
   - { role: kde, tags: [kde], section: kde_profile }
@@ -60,3 +60,14 @@ roles:
   # Arch-specific (display-dependent)
   - { role: cups, tags: [cups], os: archlinux, requires_display: true, section: desktop_apps }
   - { role: udisks, tags: [udisks], os: archlinux, requires_display: true, section: desktop_apps }
+
+  # Optional hardware. os: fedora is required (not just the role's internal
+  # end_host gate): the dispatcher emits the `_is_fedora` pre_task fact into
+  # play.yml only when some wired role constrains on fedora, and the
+  # `[debian]`/`[archlinux, debian]` annotations are negations — without one
+  # positive fedora annotation the generated play.yml would reference an
+  # undefined fact on every host. The role is Fedora-only by design
+  # (roles/framework12 hard-gates on ansible_facts['distribution']), so the
+  # annotation is truthful and Arch/Debian KDE hosts skip the import at the
+  # dispatcher level instead of importing a role that would end_host.
+  - { role: framework12, tags: [framework12], os: fedora, config_check: "framework12_enabled | default(false) | bool", section: optional }

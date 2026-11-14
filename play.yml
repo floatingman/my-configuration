@@ -61,6 +61,7 @@
         _is_awesomewm: "{{ _pf._is_awesomewm }}"
         _is_kde: "{{ _pf._is_kde }}"
         _is_arch: "{{ _pf._is_arch }}"
+        _is_fedora: "{{ _pf._is_fedora | default(false) }}"
       tags: always
 
     - name: Set overlay facts from resolved manifest
@@ -316,7 +317,7 @@
         - name: Run role ansible-role-binaries
           ansible.builtin.import_role:
             name: ansible-role-binaries
-          when: not _is_arch
+          when: not _is_arch and not _is_fedora
           tags: ["binaries"]
       rescue:
         - name: Record failure of role ansible-role-binaries
@@ -378,7 +379,7 @@
         - name: Run role golang
           ansible.builtin.import_role:
             name: golang
-          when: not _is_arch
+          when: not _is_arch and not _is_fedora
           tags: ["golang"]
       rescue:
         - name: Record failure of role golang
@@ -394,7 +395,7 @@
         - name: Run role homebrew
           ansible.builtin.import_role:
             name: homebrew
-          when: not _is_arch
+          when: not _is_arch and not _is_fedora
           tags: ["homebrew"]
       rescue:
         - name: Record failure of role homebrew
@@ -786,7 +787,7 @@
         - name: Run role x
           ansible.builtin.import_role:
             name: x
-          when: _is_awesomewm or _is_gnome or _is_i3 or _is_kde
+          when: not _is_fedora and _has_display
           tags: ["x"]
       rescue:
         - name: Record failure of role x
@@ -1377,6 +1378,22 @@
               tags: always
           vars:
             _resilience_role: regdomain
+          tags: always
+    - name: Resilient role wrapper for framework12
+      block:
+        - name: Run role framework12
+          ansible.builtin.import_role:
+            name: framework12
+          when: _is_fedora and framework12_enabled | default(false) | bool
+          tags: ["framework12"]
+      rescue:
+        - name: Record failure of role framework12
+          ansible.builtin.include_tasks:
+            file: tasks/resilience/record-role-failure.yml
+            apply:
+              tags: always
+          vars:
+            _resilience_role: framework12
           tags: always
     - name: Resilient role wrapper for bluetooth
       block:

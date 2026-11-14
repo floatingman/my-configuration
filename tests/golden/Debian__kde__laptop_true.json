@@ -140,7 +140,7 @@
       "tags": [
         "binaries"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "kde"
     },
     {
@@ -172,7 +172,7 @@
       "tags": [
         "golang"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "kde"
     },
     {
@@ -180,7 +180,7 @@
       "tags": [
         "homebrew"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "kde"
     },
     {
@@ -364,7 +364,7 @@
       "tags": [
         "x"
       ],
-      "condition": "",
+      "condition": "not _is_fedora and _has_display",
       "source": "kde"
     },
     {
@@ -534,6 +534,14 @@
       ],
       "condition": "false",
       "source": "user_environment"
+    },
+    {
+      "role": "framework12",
+      "tags": [
+        "framework12"
+      ],
+      "condition": "_is_fedora and framework12_enabled | default(false) | bool",
+      "source": "kde"
     },
     {
       "role": "goesimage",

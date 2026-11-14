@@ -2,7 +2,7 @@
 
 Guidance for AI coding agents working in this repository (any agent: Claude Code, Copilot, Cursor, Codex, …).
 
-Ansible playbook that fully configures a Linux workstation — Arch Linux (primary) and Debian (secondary): base system, GPU drivers, desktop environments (i3, Hyprland, GNOME, AwesomeWM, KDE), dev tools, applications. Always runs against localhost (`ansible-playbook -i localhost play.yml`). Windows machines are configured separately by the `windows/` subtree (WinGet Configuration, not Ansible); see **Windows subtree** below.
+Ansible playbook that fully configures a Linux workstation — Arch Linux (primary), Debian (secondary), Fedora (tertiary): base system, GPU drivers, desktop environments (i3, Hyprland, GNOME, AwesomeWM, KDE), dev tools, applications. Always runs against localhost (`ansible-playbook -i localhost play.yml`). Windows machines are configured separately by the `windows/` subtree (WinGet Configuration, not Ansible); see **Windows subtree** below.
 
 ## Hard rules
 
@@ -36,7 +36,7 @@ Ansible playbook that fully configures a Linux workstation — Arch Linux (prima
 | `make list-tags` / `make list-profiles` | Discovery                                                          |
 | `VERBOSE=1 make configure`              | Non-silent output for troubleshooting                              |
 
-Dispatcher CLI (`scripts/profile_dispatcher.py`, pure Python — needs pyyaml + jinja2, no Ansible). **Prefer the make targets**: they resolve the pipx-managed ansible-venv interpreter and provision deps (`make pip-deps`): `pipx inject` into the venv when it exists, otherwise distro packages (pacman `python-yaml python-jinja python-pytest` / apt `python3-yaml python3-jinja2 python3-pytest`) into system python3, which is then the scripts interpreter — machines running system-wide ansible work too. `make bootstrap`/`make setup` run `pip-deps` at the end, so fresh machines never hit the gap. A bare `python` is often not on PATH, and system `python3` lacks jinja2. CI pip-installs the deps, so direct invocation works there.
+Dispatcher CLI (`scripts/profile_dispatcher.py`, pure Python — needs pyyaml + jinja2, no Ansible). **Prefer the make targets**: they resolve the pipx-managed ansible-venv interpreter and provision deps (`make pip-deps`): `pipx inject` into the venv when it exists, otherwise distro packages (pacman `python-yaml python-jinja python-pytest` / apt `python3-yaml python3-jinja2 python3-pytest` / dnf `python3-pyyaml python3-jinja2 python3-pytest`) into system python3, which is then the scripts interpreter — machines running system-wide ansible work too. `make bootstrap`/`make setup` run `pip-deps` at the end, so fresh machines never hit the gap. A bare `python` is often not on PATH, and system `python3` lacks jinja2. CI pip-installs the deps, so direct invocation works there.
 
 ```bash
 make validate-profiles                # validate all profiles + overlays (includes sync check)
@@ -51,7 +51,7 @@ Tests: `make pytest` — pure Python, no Ansible; split by domain under `tests/`
 `test_generator.py` (PlaybookGenerator boundary: generate/sync*check/resolve/explain),
 `test_cli.py` (subcommands via `main()`), `test_profiles.py` (profile/overlay loading, resolution),
 `test_conditions.py` (condition translation + evaluators),
-`test_golden.py` + `test_manifest_resolver.py` (PRD-176 golden wire matrix, resolver contract).
+`test_golden.py` + `test_manifest_resolver.py` (PRD-176 golden wire matrix, 60 Arch/Debian cases + the 5 issue-#234 Fedora matrices — kde/gnome/headless defaults, kde+laptop, kde+gaming — resolver contract).
 Tests import only the public API (`profile_dispatcher.__all__`) — never `*`-prefixed symbols.
 
 ## Architecture
@@ -62,7 +62,7 @@ Build time:   profiles/*.yml ──PlaybookGenerator──> play.yml   (make gen
 Run time:     play.yml pre_tasks (tag: always)
                 ├─ include tasks/resilience/init.yml (empty failure collector, drop stale report)
                 └─ scripts/profile_dispatcher.py resolve-role-manifest
-                     └─ set_fact: _is_arch, _has_display, _is_<de>, _overlay_<role>
+                     └─ set_fact: _is_arch, _is_fedora (emitted when any wired role constrains on fedora), _has_display, _is_<de>, _overlay_<role>
                           └─ each role (tasks: block/rescue wrapper around import_role):
                                block:  import_role <role> (static; tags + when from profile,
                                        inner task tags stay selectable, handlers register)
@@ -76,11 +76,13 @@ the failed roles. `roles/resilient_packages` routes packages between pacman
 and the AUR (used by `base_packages` and `aur.packages`).
 ```
 
-- **Profiles** (`profiles/*.yml`): 6 profiles — headless, i3, hyprland, gnome, awesomewm, kde — all `extends: _base.yml`. Role annotations: `tags`, `os` (`archlinux`/`debian`), `requires_display`, `config_check` (Jinja expression over host vars), `requires_config` (key/value match, e.g. `display_manager: lightdm`). Roles exclusive to one DE profile automatically get `_is_<de>` conditions.
+- **Profiles** (`profiles/*.yml`): 6 profiles — headless, i3, hyprland, gnome, awesomewm, kde — all `extends: _base.yml`. Role annotations: `tags`, `os` (legacy scalar, or the Fedora-aware list form; values `archlinux`/`debian`/`fedora`; list form translates over pre-resolved facts — `[archlinux]` → `_is_arch`, `[debian]` → `not _is_arch and not _is_fedora`, `[fedora]` → `_is_fedora`, `[archlinux, debian]` → `not _is_fedora`, `[archlinux, debian, fedora]` → universal), `requires_display`, `config_check` (Jinja expression over host vars), `requires_config` (key/value match, e.g. `display_manager: lightdm`). Roles exclusive to one DE profile automatically get `_is_<de>` conditions; once a role carries any annotation condition, the auto DE gate is skipped in the merged `play.yml` (the merge fallback fires only for annotation-free roles), so annotated roles must carry the guards they need (e.g. `x` is `os: [archlinux, debian], requires_display: true`).
+- **Fedora-specific wiring**: `framework12` (Framework Laptop 12 hardware guard, wired in `profiles/kde.yml` as `os: fedora` + `config_check: framework12_enabled | default(false) | bool`; end_hosts cleanly off-hardware or off-Fedora) and the `gaming` overlay (below). The `_is_fedora` pre_task fact is emitted into `play.yml` only when some wired profile/overlay role carries a `fedora` `os:` value — keep at least one such annotation or the generated conditions reference an undefined fact.
 - **Overlays** (`profiles/overlays/*.yml`): optional role groups gated by host vars via `applies_when`:
   - `laptop.yml` — `laptop | default(false)` → roles: laptop, backlight
   - `bluetooth.yml` — `bluetooth is defined and not bluetooth.disable` → role: bluetooth (Arch only)
   - `user_environment.yml` — `user_environment | default(true)` → roles: shell, dotfiles, gnupg, ai (each further gated: `dotfiles_config is defined`, `ai_enabled | default(false)`)
+  - `gaming.yml` — `gaming | default(false)` → role: gaming (Steam/Heroic/MangoHud/GameMode; the role self-gates to Fedora `os_family RedHat` and is a no-op on Arch/Debian)
     In `play.yml`, overlay roles are gated by the overlay-level fact: `when: _overlay_laptop` / `_overlay_bluetooth` / `_overlay_user_environment`. The manifest also computes per-role facts (`_overlay_shell`, `_overlay_ai`, …) which `pre_tasks` exposes.
 - **`scripts/profile_dispatcher.py`** (~3.5k lines): profile resolver, `PlaybookGenerator` engine, condition translation (`ConditionTranslator` protocol), and CLI. No Ansible import. Tests in `tests/`.
 - **CI** (`.github/workflows/ci.yml`): `validate` job = Python 3.13 `pytest tests/` + profile `validate` + `sync-playbook --check` on push/PR to main; `lint` job = yamllint + ansible-lint; `windows-validate` job (windows-latest) = `winget configure validate` schema check of `windows/config.dsc.yaml`. No playbook run in CI.

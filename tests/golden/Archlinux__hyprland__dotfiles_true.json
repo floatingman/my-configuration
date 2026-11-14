@@ -138,7 +138,7 @@
       "tags": [
         "binaries"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "hyprland"
     },
     {
@@ -170,7 +170,7 @@
       "tags": [
         "golang"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "hyprland"
     },
     {
@@ -178,7 +178,7 @@
       "tags": [
         "homebrew"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "hyprland"
     },
     {

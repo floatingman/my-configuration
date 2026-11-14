@@ -251,6 +251,14 @@ $ sudo dnf install -y python3-pip pipx git ansible
 install it via pipx; installing the distro package also works since
 `make setup` skips the pipx install when `ansible` is already on PATH.)
 
+Fedora machines run the same profiles as Arch/Debian — the dispatcher skips
+Arch-only roles automatically. `make profile-kde` is the recommended Fedora
+desktop lane (Plasma/Wayland OEM target; see the [Fedora section](README.md#fedora)
+in the README for what runs and what skips on Fedora). Framework Laptop 12
+owners additionally set `framework12_enabled: true` and, if wanted,
+`gaming: true` in `group_vars/all/local.yml` — commented examples for both
+blocks are in the machine templates.
+
 1. Clone this repository:
    ```bash
    $ git clone https://github.com/floatingman/my-configuration.git

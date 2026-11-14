@@ -140,7 +140,7 @@
       "tags": [
         "binaries"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "awesomewm"
     },
     {
@@ -172,7 +172,7 @@
       "tags": [
         "golang"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "awesomewm"
     },
     {
@@ -180,7 +180,7 @@
       "tags": [
         "homebrew"
       ],
-      "condition": "not _is_arch",
+      "condition": "not _is_arch and not _is_fedora",
       "source": "awesomewm"
     },
     {
@@ -356,7 +356,7 @@
       "tags": [
         "x"
       ],
-      "condition": "",
+      "condition": "not _is_fedora and _has_display",
       "source": "awesomewm"
     },
     {

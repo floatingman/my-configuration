@@ -2,8 +2,10 @@
 """Golden-JSON characterization harness for the resolve-role-manifest wire.
 
 PRD-176 Slice 1 (issue #177): pins the stdout of the `resolve-role-manifest`
-CLI subcommand for 60 cases — 6 profiles x {Archlinux, Debian} x 5 host_vars
-shapes — captured from the pre-refactor implementation.
+CLI subcommand — 60 cases (6 profiles x {Archlinux, Debian} x 5 host_vars
+shapes, captured from the pre-refactor implementation) plus the 5 Fedora
+matrices from issue #234 (kde/gnome/headless defaults, kde+laptop,
+kde+gaming).
 
 Purpose: the ManifestResolver refactor (FR1-FR3) must be behavior-neutral
 (golden diff empty), and the sequenced behavior commits (FR4-FR6) must show
@@ -35,6 +37,7 @@ from profile_dispatcher import main  # noqa: E402
 
 PROFILES = ["headless", "i3", "hyprland", "gnome", "awesomewm", "kde"]
 OS_FAMILIES = ["Archlinux", "Debian"]
+FEDORA_OS_FAMILY = "Fedora"
 
 # Host_vars shapes from PRD-176 FR3. Order matters: it fixes golden filenames.
 HOST_VARS_CASES = {
@@ -43,15 +46,39 @@ HOST_VARS_CASES = {
     "bluetooth_disabled": {"bluetooth": {"disable": True}},
     "user_env_false": {"user_environment": False},
     "dotfiles_true": {"dotfiles_config": True},
+    # Fedora-only shape (issue #234): activates the gaming overlay. Kept out
+    # of the Arch/Debian product below so the original 60 goldens stay put;
+    # the gaming role self-gates to Fedora (os_family RedHat) anyway.
+    "gaming_true": {"gaming": True},
 }
+
+# Arch/Debian product keeps exactly the five PRD-176 shapes, in their
+# original order (golden filenames are order-fixed).
+_TWO_OS_HV_CASES = (
+    "default",
+    "laptop_true",
+    "bluetooth_disabled",
+    "user_env_false",
+    "dotfiles_true",
+)
+
+# Fedora matrices (issue #234 W5): selective coverage, not the full product —
+# kde/gnome/headless defaults, kde + laptop overlay, kde + gaming overlay.
+_FEDORA_MATRIX_PARAMS = [
+    (FEDORA_OS_FAMILY, "kde", "default"),
+    (FEDORA_OS_FAMILY, "gnome", "default"),
+    (FEDORA_OS_FAMILY, "headless", "default"),
+    (FEDORA_OS_FAMILY, "kde", "laptop_true"),
+    (FEDORA_OS_FAMILY, "kde", "gaming_true"),
+]
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
 
 # Keep --profiles-dir explicit (absolute) so results are cwd-independent.
 _MATRIX_PARAMS = [
     (os_family, profile, hv_name)
-    for os_family, profile, hv_name in product(OS_FAMILIES, PROFILES, HOST_VARS_CASES)
-]
+    for os_family, profile, hv_name in product(OS_FAMILIES, PROFILES, _TWO_OS_HV_CASES)
+] + _FEDORA_MATRIX_PARAMS
 
 
 def _golden_name(os_family: str, profile: str, hv_name: str) -> str:

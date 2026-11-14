@@ -31,6 +31,21 @@ laptop: false # No power mgmt or trackpad config on servers
 # clouddrive_stop_on_battery: true           # stop Synology Drive on battery (udev power gate + user unit)
 # regdomain: "US"           # Uncomment to set WiFi regulatory domain (ISO 3166-1 alpha-2 country code); required when a wireless adapter is present
 
+# --- Framework Laptop 12 (roles/framework12; no-op unless enabled AND the host
+# is a Framework Laptop 12 running Fedora; wired into the kde profile) ---
+# framework12_enabled: true                    # master gate; role ends cleanly unless true
+# framework12_power_backend: null              # null/ppd keeps the Fedora OEM power-profiles-daemon; "tuned" switches to TuneD + its PPD shim
+# framework12_kernel_tablet_mode_fix: false    # disruptive kernel override for the tablet-mode switch (initramfs regen; reboot required, never performed)
+# framework12_keyboard_virtual_install: false  # install the on-screen keyboard package matching the detected Plasma version
+# framework12_tablet_pinctrl_module: null      # null auto-detects the pinctrl module from the DMI product string; set only when auto-detection cannot classify
+
+# --- gaming (Fedora gaming overlay; see roles/gaming/README.md) ---
+# gaming: true                          # activates profiles/overlays/gaming.yml
+# gaming_steam_install_method: flatpak  # "flatpak" (default) or "rpm" (needs RPM Fusion)
+# gaming_enable_rpmfusion: false        # true adds RPM Fusion nonfree (required for the rpm method)
+# gaming_mangohud: false                # true installs MangoHud
+# gaming_gamemode: false                # true installs GameMode
+
 # Boot
 # grub_kernel_parameters: "quiet"   # GRUB_CMDLINE_LINUX_DEFAULT override; omit "splash" to skip the Plymouth splash path
 # grub_theme: null          # GRUB menu theme (vendored: vimix). null disables theming and removes GRUB_THEME
