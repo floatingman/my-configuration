@@ -34,6 +34,23 @@
   become: true
   when: ansible_facts['os_family'] == "Archlinux"
 
+# Fedora equivalents of the Debian list: build-essential -> gcc + gcc-c++ +
+# make, pkg-config -> pkgconf, libssl-dev -> openssl-devel. Names verified
+# against the Fedora 45 Everything repo metadata.
+- name: Install Rust build dependencies (Fedora)
+  ansible.builtin.package:
+    name:
+      - gcc
+      - gcc-c++
+      - make
+      - pkgconf
+      - openssl-devel
+      - ca-certificates
+      - curl
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == "RedHat"
+
 # rustup installs its OWN binary to $CARGO_HOME/bin/rustup (NOT
 # $RUSTUP_HOME/bin/rustup). Checking the wrong path made this role believe
 # rustup was never installed and re-run rustup-init on every run, which fails

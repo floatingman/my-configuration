@@ -1,7 +1,10 @@
 ---
+# Fedora has no plain `vim` package (verified against the Fedora 45
+# Everything repo metadata: only vim-minimal/vim-enhanced/...); vim-enhanced
+# is the full editor there. Arch and Debian both ship `vim`.
 - name: Install vim
   ansible.builtin.package:
-    name: vim
+    name: "{{ {'RedHat': 'vim-enhanced'}.get(ansible_facts['os_family'], 'vim') }}"
     state: present
   become: true
 

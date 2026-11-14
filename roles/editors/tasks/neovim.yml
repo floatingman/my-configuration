@@ -1,5 +1,5 @@
 ---
-# Build neovim from source (works on Arch and Debian), but only when the
+# Build neovim from source (works on Arch, Debian, and Fedora), but only when the
 # upstream master actually moved: `git ls-remote` per run is one cheap
 # network call, and the recorded-built-commit marker prevents the old
 # delete-clone-rebuild-every-run behavior. The clone persists so make can
@@ -19,7 +19,19 @@
       - lua5.1
       - liblua5.1-0-dev
       - black
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
+
+# Fedora: compat-lua/compat-lua-devel are the Lua 5.1 packages (verified in
+# the Fedora 45 Everything repo metadata; plain `lua` there is 5.5 and
+# `lua5.1`/`python3-black` do not exist — the black package is `black`).
+- name: Install neovim deps on Fedora
+  become: true
+  ansible.builtin.package:
+    name:
+      - compat-lua
+      - compat-lua-devel
+      - black
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Install neovim deps on Arch
   become: true

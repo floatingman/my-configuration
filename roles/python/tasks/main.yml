@@ -6,3 +6,7 @@
 - name: Install python tools for Debian/Ubuntu
   ansible.builtin.include_tasks: python-debian.yml
   when: ansible_facts["os_family"] == "Debian"
+
+- name: Install python tools for Fedora
+  ansible.builtin.include_tasks: python-fedora.yml
+  when: ansible_facts["os_family"] == "RedHat"
