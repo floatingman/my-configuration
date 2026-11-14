@@ -1,79 +1,891 @@
 ---
 # yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
-# Desired state for the Windows machines (WinGet Configuration).
-# Manifest v0.1.0 (floatingman): base Windows workstation (packages + dev env).
+# Desired state for the Windows machine(s) (WinGet Configuration).
+# Manifest v0.2.0: curated from a winget export of blurr (2026-11-13).
 #
 # Apply:    .\windows\bootstrap.ps1
 # Drift:    .\windows\bootstrap.ps1 -Test     (changes nothing)
-# Validate: winget configure validate --file windows/config.dsc.yaml
+# Re-sync:  winget export -o "$env:TEMP\apps.json" --accept-source-agreements
+#           .\windows\from-export.ps1 "$env:TEMP\apps.json" -Diff
 #
-# This file is hand-edited. It is NOT generated from profiles/ and is NOT
-# covered by make check-sync / generate-playbook (those are Linux/Ansible only).
+# Hand-edited: NOT generated from profiles/, NOT covered by make check-sync.
+# Deliberately NOT declared (see windows/README.md): runtimes/drivers installed
+# as dependencies, hardware-vendor apps, and licensed tools (UniGet/manual lane).
+
 properties:
   configurationVersion: 0.2.0
   resources:
-    # ---- core tools (winget source) -------------------------------------
-    # Find IDs with:  winget search <name>   (use the exact Id column)
-
+    # ---- core tools (already present on all machines; installed per the first diff run) ----
     - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: git
+      id: git-git
       directives:
-        description: Install Git for Windows
+        description: Install Git.Git
       settings:
         id: Git.Git
         source: winget
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: powershell
+      id: microsoft-powershell
       directives:
-        description: Install PowerShell 7
+        description: Install Microsoft.PowerShell
       settings:
         id: Microsoft.PowerShell
         source: winget
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: windows-terminal
+      id: microsoft-windowsterminal
       directives:
-        description: Install Windows Terminal
+        description: Install Microsoft.WindowsTerminal
       settings:
         id: Microsoft.WindowsTerminal
         source: winget
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: vscode
+      id: microsoft-visualstudiocode
       directives:
-        description: Install Visual Studio Code
+        description: Install Microsoft.VisualStudioCode
       settings:
         id: Microsoft.VisualStudioCode
         source: winget
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: sevenzip
+      id: 7zip-7zip
       directives:
-        description: Install 7-Zip
+        description: Install 7zip.7zip
       settings:
         id: 7zip.7zip
         source: winget
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: powertoys
+      id: microsoft-powertoys
       directives:
-        description: Install PowerToys
+        description: Install Microsoft.PowerToys
       settings:
         id: Microsoft.PowerToys
         source: winget
 
-    # ---- Microsoft Store apps (msstore source) ---------------------------
-    # Find IDs with:  winget search --source msstore --name "<app name>"
-    # Free store apps install headless. Account-bound or paid store apps
-    # cannot: install those once via UniGet/Store and keep them OUT of this
-    # file (document them in windows/README.md instead).
-    #
-    # Template (uncomment and set the real ID):
-    # - resource: Microsoft.WinGet.DSC/WinGetPackage
-    #   id: store-<app>
-    #   directives:
-    #     description: Install <app> (Microsoft Store)
-    #   settings:
-    #     id: 9NBLGGHXXXXX
-    #     source: msstore
+    # ---- dev tools and languages -------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: ajeetdsouza-zoxide
+      directives:
+        description: Install ajeetdsouza.zoxide
+      settings:
+        id: ajeetdsouza.zoxide
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: burntsushi-ripgrep-msvc
+      directives:
+        description: Install BurntSushi.ripgrep.MSVC
+      settings:
+        id: BurntSushi.ripgrep.MSVC
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: junegunn-fzf
+      directives:
+        description: Install junegunn.fzf
+      settings:
+        id: junegunn.fzf
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: jandedobbeleer-ohmyposh
+      directives:
+        description: Install JanDeDobbeleer.OhMyPosh
+      settings:
+        id: JanDeDobbeleer.OhMyPosh
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: jdx-mise
+      directives:
+        description: Install jdx.mise
+      settings:
+        id: jdx.mise
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: fastfetch-cli-fastfetch
+      directives:
+        description: Install Fastfetch-cli.Fastfetch
+      settings:
+        id: Fastfetch-cli.Fastfetch
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: golang-go
+      directives:
+        description: Install GoLang.Go
+      settings:
+        id: GoLang.Go
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: openjs-nodejs
+      directives:
+        description: Install OpenJS.NodeJS
+      settings:
+        id: OpenJS.NodeJS
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: python-launcher
+      directives:
+        description: Install Python.Launcher
+      settings:
+        id: Python.Launcher
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: python-python-3-14
+      directives:
+        description: Install Python.Python.3.14
+      settings:
+        id: Python.Python.3.14
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: python-python-3-15
+      directives:
+        description: Install Python.Python.3.15
+      settings:
+        id: Python.Python.3.15
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: github-cli
+      directives:
+        description: Install GitHub.cli
+      settings:
+        id: GitHub.cli
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: github-githubdesktop
+      directives:
+        description: Install GitHub.GitHubDesktop
+      settings:
+        id: GitHub.GitHubDesktop
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: gnupg-gnupg
+      directives:
+        description: Install GnuPG.GnuPG
+      settings:
+        id: GnuPG.GnuPG
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: gnupg-gpg4win
+      directives:
+        description: Install GnuPG.Gpg4win
+      settings:
+        id: GnuPG.Gpg4win
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: kopia-kopiacli
+      directives:
+        description: Install Kopia.KopiaCLI
+      settings:
+        id: Kopia.KopiaCLI
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: kopia-kopiaui
+      directives:
+        description: Install Kopia.KopiaUI
+      settings:
+        id: Kopia.KopiaUI
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: hashicorp-terraform
+      directives:
+        description: Install Hashicorp.Terraform
+      settings:
+        id: Hashicorp.Terraform
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: oracle-jdk-24
+      directives:
+        description: Install Oracle.JDK.24
+      settings:
+        id: Oracle.JDK.24
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: gyan-ffmpeg
+      directives:
+        description: Install Gyan.FFmpeg
+      settings:
+        id: Gyan.FFmpeg
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: jetbrains-toolbox
+      directives:
+        description: Install JetBrains.Toolbox
+      settings:
+        id: JetBrains.Toolbox
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: jetbrains-goland
+      directives:
+        description: Install JetBrains.GoLand
+      settings:
+        id: JetBrains.GoLand
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: zedindustries-zed
+      directives:
+        description: Install ZedIndustries.Zed
+      settings:
+        id: ZedIndustries.Zed
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: insecure-nmap
+      directives:
+        description: Install Insecure.Nmap
+      settings:
+        id: Insecure.Nmap
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: autohotkey-autohotkey
+      directives:
+        description: Install AutoHotkey.AutoHotkey
+      settings:
+        id: AutoHotkey.AutoHotkey
+        source: winget
+
+    # ---- terminals and shell UX --------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: wez-wezterm
+      directives:
+        description: Install wez.wezterm
+      settings:
+        id: wez.wezterm
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: alacritty-alacritty
+      directives:
+        description: Install Alacritty.Alacritty
+      settings:
+        id: Alacritty.Alacritty
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: neovim-neovim
+      directives:
+        description: Install Neovim.Neovim
+      settings:
+        id: Neovim.Neovim
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: notepad-notepad
+      directives:
+        description: Install Notepad++.Notepad++
+      settings:
+        id: Notepad++.Notepad++
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: flow-launcher-flow-launcher
+      directives:
+        description: Install Flow-Launcher.Flow-Launcher
+      settings:
+        id: Flow-Launcher.Flow-Launcher
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: file-new-project-eartrumpet
+      directives:
+        description: Install File-New-Project.EarTrumpet
+      settings:
+        id: File-New-Project.EarTrumpet
+        source: winget
+
+    # ---- browsers ----------------------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: brave-brave
+      directives:
+        description: Install Brave.Brave
+      settings:
+        id: Brave.Brave
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: google-chrome-exe
+      directives:
+        description: Install Google.Chrome.EXE
+      settings:
+        id: Google.Chrome.EXE
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: mozilla-firefox
+      directives:
+        description: Install Mozilla.Firefox
+      settings:
+        id: Mozilla.Firefox
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: mozilla-thunderbird
+      directives:
+        description: Install Mozilla.Thunderbird
+      settings:
+        id: Mozilla.Thunderbird
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: zen-team-zen-browser
+      directives:
+        description: Install Zen-Team.Zen-Browser
+      settings:
+        id: Zen-Team.Zen-Browser
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: mullvadvpn-mullvadbrowser
+      directives:
+        description: Install MullvadVPN.MullvadBrowser
+      settings:
+        id: MullvadVPN.MullvadBrowser
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: freetube-freetube
+      directives:
+        description: Install FreeTube.FreeTube
+      settings:
+        id: FreeTube.FreeTube
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: imputnet-helium
+      directives:
+        description: Install ImputNet.Helium
+      settings:
+        id: ImputNet.Helium
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: perplexity-comet
+      directives:
+        description: Install Perplexity.Comet
+      settings:
+        id: Perplexity.Comet
+        source: winget
+
+    # ---- messaging, sync, and AI -------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: discord-discord
+      directives:
+        description: Install Discord.Discord
+      settings:
+        id: Discord.Discord
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: element-element
+      directives:
+        description: Install Element.Element
+      settings:
+        id: Element.Element
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: openwhispersystems-signal
+      directives:
+        description: Install OpenWhisperSystems.Signal
+      settings:
+        id: OpenWhisperSystems.Signal
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: telegram-telegramdesktop
+      directives:
+        description: Install Telegram.TelegramDesktop
+      settings:
+        id: Telegram.TelegramDesktop
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: slacktechnologies-slack
+      directives:
+        description: Install SlackTechnologies.Slack
+      settings:
+        id: SlackTechnologies.Slack
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: zoom-zoom-exe
+      directives:
+        description: Install Zoom.Zoom.EXE
+      settings:
+        id: Zoom.Zoom.EXE
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: proton-protonmail
+      directives:
+        description: Install Proton.ProtonMail
+      settings:
+        id: Proton.ProtonMail
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: proton-protonmailbridge
+      directives:
+        description: Install Proton.ProtonMailBridge
+      settings:
+        id: Proton.ProtonMailBridge
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: proton-protonpass
+      directives:
+        description: Install Proton.ProtonPass
+      settings:
+        id: Proton.ProtonPass
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: proton-protondrive
+      directives:
+        description: Install Proton.ProtonDrive
+      settings:
+        id: Proton.ProtonDrive
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: proton-protonvpn
+      directives:
+        description: Install Proton.ProtonVPN
+      settings:
+        id: Proton.ProtonVPN
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: proton-protonauthenticator
+      directives:
+        description: Install Proton.ProtonAuthenticator
+      settings:
+        id: Proton.ProtonAuthenticator
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: obsidian-obsidian
+      directives:
+        description: Install Obsidian.Obsidian
+      settings:
+        id: Obsidian.Obsidian
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: digitalscholar-zotero
+      directives:
+        description: Install DigitalScholar.Zotero
+      settings:
+        id: DigitalScholar.Zotero
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: wisprflow-wisprflow
+      directives:
+        description: Install WisprFlow.WisprFlow
+      settings:
+        id: WisprFlow.WisprFlow
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: capsoftware-cap
+      directives:
+        description: Install CapSoftware.Cap
+      settings:
+        id: CapSoftware.Cap
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: jan-jan
+      directives:
+        description: Install Jan.Jan
+      settings:
+        id: Jan.Jan
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: comfy-comfyui-desktop
+      directives:
+        description: Install Comfy.ComfyUI-Desktop
+      settings:
+        id: Comfy.ComfyUI-Desktop
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: nextcloud-nextclouddesktop
+      directives:
+        description: Install Nextcloud.NextcloudDesktop
+      settings:
+        id: Nextcloud.NextcloudDesktop
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: synology-driveclient
+      directives:
+        description: Install Synology.DriveClient
+      settings:
+        id: Synology.DriveClient
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: germancoding-synctrayzor
+      directives:
+        description: Install GermanCoding.SyncTrayzor
+      settings:
+        id: GermanCoding.SyncTrayzor
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: tailscale-tailscale
+      directives:
+        description: Install Tailscale.Tailscale
+      settings:
+        id: Tailscale.Tailscale
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: binaryfortress-displayfusion
+      directives:
+        description: Install BinaryFortress.DisplayFusion
+      settings:
+        id: BinaryFortress.DisplayFusion
+        source: winget
+
+    # ---- media -------------------------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: videolan-vlc
+      directives:
+        description: Install VideoLAN.VLC
+      settings:
+        id: VideoLAN.VLC
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: clsid2-mpc-hc
+      directives:
+        description: Install clsid2.mpc-hc
+      settings:
+        id: clsid2.mpc-hc
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: codecguide-k-litecodecpack-basic
+      directives:
+        description: Install CodecGuide.K-LiteCodecPack.Basic
+      settings:
+        id: CodecGuide.K-LiteCodecPack.Basic
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: irfanskiljan-irfanview
+      directives:
+        description: Install IrfanSkiljan.IrfanView
+      settings:
+        id: IrfanSkiljan.IrfanView
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: peterpawlowski-foobar2000
+      directives:
+        description: Install PeterPawlowski.foobar2000
+      settings:
+        id: PeterPawlowski.foobar2000
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: ventismedia-mediamonkey-2024
+      directives:
+        description: Install VentisMedia.MediaMonkey.2024
+      settings:
+        id: VentisMedia.MediaMonkey.2024
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: plex-plexamp
+      directives:
+        description: Install Plex.Plexamp
+      settings:
+        id: Plex.Plexamp
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: handbrake-handbrake
+      directives:
+        description: Install HandBrake.HandBrake
+      settings:
+        id: HandBrake.HandBrake
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: guinpinsoft-makemkv
+      directives:
+        description: Install GuinpinSoft.MakeMKV
+      settings:
+        id: GuinpinSoft.MakeMKV
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: streamlink-streamlink
+      directives:
+        description: Install Streamlink.Streamlink
+      settings:
+        id: Streamlink.Streamlink
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: streamlink-streamlink-twitchgui
+      directives:
+        description: Install Streamlink.Streamlink.TwitchGui
+      settings:
+        id: Streamlink.Streamlink.TwitchGui
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: calibre-calibre
+      directives:
+        description: Install calibre.calibre
+      settings:
+        id: calibre.calibre
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: appwork-jdownloader
+      directives:
+        description: Install AppWork.JDownloader
+      settings:
+        id: AppWork.JDownloader
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: bleachbit-bleachbit
+      directives:
+        description: Install BleachBit.BleachBit
+      settings:
+        id: BleachBit.BleachBit
+        source: winget
+
+    # ---- games and launchers -----------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: valve-steam
+      directives:
+        description: Install Valve.Steam
+      settings:
+        id: Valve.Steam
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: gog-galaxy
+      directives:
+        description: Install GOG.Galaxy
+      settings:
+        id: GOG.Galaxy
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: amazon-games
+      directives:
+        description: Install Amazon.Games
+      settings:
+        id: Amazon.Games
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: itchio-itch
+      directives:
+        description: Install ItchIo.Itch
+      settings:
+        id: ItchIo.Itch
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: ubisoft-connect
+      directives:
+        description: Install Ubisoft.Connect
+      settings:
+        id: Ubisoft.Connect
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: beeradmoore-dlss-swapper
+      directives:
+        description: Install beeradmoore.dlss-swapper
+      settings:
+        id: beeradmoore.dlss-swapper
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: mausimus-shaderglass
+      directives:
+        description: Install mausimus.ShaderGlass
+      settings:
+        id: mausimus.ShaderGlass
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: edcd-elitedangerousmarketconnector
+      directives:
+        description: Install EDCD.EliteDangerousMarketConnector
+      settings:
+        id: EDCD.EliteDangerousMarketConnector
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: agsprojectteam-adventuregamestudio
+      directives:
+        description: Install AGSProjectTeam.AdventureGameStudio
+      settings:
+        id: AGSProjectTeam.AdventureGameStudio
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: blueheisenberg-scskiller
+      directives:
+        description: Install BlueHeisenberg.SCSKiller
+      settings:
+        id: BlueHeisenberg.SCSKiller
+        source: winget
+
+    # ---- creative, 3d, and flashable hardware ------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: prusa3d-prusaslicer
+      directives:
+        description: Install Prusa3D.PrusaSlicer
+      settings:
+        id: Prusa3D.PrusaSlicer
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: openscad-openscad-nightly
+      directives:
+        description: Install OpenSCAD.OpenSCAD.Nightly
+      settings:
+        id: OpenSCAD.OpenSCAD.Nightly
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: bricklink-studio
+      directives:
+        description: Install BrickLink.Studio
+      settings:
+        id: BrickLink.Studio
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: panic-playdatesdk
+      directives:
+        description: Install Panic.PlaydateSDK
+      settings:
+        id: Panic.PlaydateSDK
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: raspberrypifoundation-raspberrypiimager
+      directives:
+        description: Install RaspberryPiFoundation.RaspberryPiImager
+      settings:
+        id: RaspberryPiFoundation.RaspberryPiImager
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: limetechnology-unraidusbcreator
+      directives:
+        description: Install LimeTechnology.UnraidUSBCreator
+      settings:
+        id: LimeTechnology.UnraidUSBCreator
+        source: winget
+
+    # ---- utilities ---------------------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: voidtools-everything
+      directives:
+        description: Install voidtools.Everything
+      settings:
+        id: voidtools.Everything
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: windirstat-windirstat
+      directives:
+        description: Install WinDirStat.WinDirStat
+      settings:
+        id: WinDirStat.WinDirStat
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: winscp-winscp
+      directives:
+        description: Install WinSCP.WinSCP
+      settings:
+        id: WinSCP.WinSCP
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: mobatek-mobaxterm
+      directives:
+        description: Install Mobatek.MobaXterm
+      settings:
+        id: Mobatek.MobaXterm
+        source: winget
+
+    # ---- wsl ---------------------------------------------------------
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: microsoft-wsl
+      directives:
+        description: Install Microsoft.WSL
+      settings:
+        id: Microsoft.WSL
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: canonical-ubuntu
+      directives:
+        description: Install Canonical.Ubuntu
+      settings:
+        id: Canonical.Ubuntu
+        source: winget
+
+    # ---- Microsoft Store apps (opaque IDs; identify with: winget show <id>) ----
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: store-xp8k0j757hhrdw
+      directives:
+        description: Install Microsoft Store app XP8K0J757HHRDW
+      settings:
+        id: XP8K0J757HHRDW
+        source: msstore
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: store-xp99vr1bpsbqj2
+      directives:
+        description: Install Microsoft Store app XP99VR1BPSBQJ2
+      settings:
+        id: XP99VR1BPSBQJ2
+        source: msstore
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: store-xpfftq032ptphf
+      directives:
+        description: Install Microsoft Store app XPFFTQ032PTPHF
+      settings:
+        id: XPFFTQ032PTPHF
+        source: msstore

@@ -74,9 +74,23 @@ Account-bound or paid Store apps cannot install headless via winget:
 install those once manually (Store/UniGet) and record them in the list
 below instead of the manifest.
 
-### Manually installed (Store/UniGet, not in the manifest)
+### Deliberately NOT in the manifest (from the blurr export, 2026-11-13)
 
-<!-- Keep one line per app: app name + why it is not declarative -->
+- **Runtimes and system components** (installed as dependencies; leave to winget/Windows):
+  VCRedist family, .NET runtimes and SDKs, Microsoft.UI.Xaml, VCLibs, WindowsAppRuntime,
+  DirectX, GameInput, XNA Redist, App Installer, Edge, OneDrive, 365 Copilot, Outlook,
+  Office 2010 Filter Packs, Intelligent Terminal, Epic Online Services, VS Build Tools,
+  Windows SDK, WinFsp, Dokan.
+- **Hardware/driver-tied** (only meaningful on machines with that hardware):
+  Logitech G HUB and Camera Settings, Kensington Works, Focusrite Control, NVIDIA CUDA,
+  Nsight, PhysX and PhysX Legacy, Apple Application Support / Software Update / QuickTime,
+  OpenAL, Oracle JRE.
+- **Licensed / account-bound**: Synergy, TextExpander, Grammarly, IsoBuster,
+  Guitar Pro 8, RescueTime, Kali Linux (WSL distro).
+- **Ad-hoc utilities** (kept in the UniGet lane): CPU-Z, HWiNFO, DiskCheckup, KillDisk,
+  AllDup, Folder Size, CompactGUI, Glary Utilities, SageThumbs, QuickPar, FotoSketcher,
+  Screenbox, MediaMonkey 4, Python 3.11, .NET SDK 3.1, IG Client, DSH Desktop, RED beta,
+  Unsloth (managed in a Python environment instead).
 
 ## Updating
 
