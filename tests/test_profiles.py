@@ -462,6 +462,7 @@ class TestLoadOverlay:
         view = ManifestResolver().overlays({}, has_display=True)
         assert [r.overlay.name for r in view] == [
             "Bluetooth Support Overlay",
+            "Gaming Overlay",
             "Laptop Features Overlay",
             "User Environment",
         ]
