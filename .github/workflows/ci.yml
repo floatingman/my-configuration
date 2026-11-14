@@ -53,3 +53,11 @@ jobs:
         run: |
           yamllint .
           ansible-lint play.yml
+
+  windows-validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate WinGet configuration schema
+        run: winget configure validate --file windows/config.dsc.yaml
