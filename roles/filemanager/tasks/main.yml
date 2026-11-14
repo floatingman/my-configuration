@@ -18,7 +18,9 @@
       - jq
       - ripgrep
       - zoxide
-      - imagemagick
+      # Fedora packages it as ImageMagick; dnf5 name matching is
+      # case-sensitive ("Maybe you meant: ImageMagick").
+      - "{{ 'ImageMagick' if ansible_facts['os_family'] == 'RedHat' else 'imagemagick' }}"
     state: present
 
 - name: Install ueberzugpp
