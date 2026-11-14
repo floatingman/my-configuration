@@ -269,3 +269,46 @@ class TestManifestResolver:
             "profile", "display_manager", "has_display",
             "profile_flags", "overlay_flags", "roles",
         ]
+
+
+class TestFedoraOsFamily:
+    """_is_fedora joins the pre-resolved facts for os_family="Fedora"
+    (issue #234); Arch/Debian manifests stay byte-identical to the golden
+    wire matrix, so the key exists only on Fedora."""
+
+    def test_fedora_resolver_emits_is_fedora_flag(self):
+        rm = ManifestResolver(os_family="Fedora").manifest("i3")
+        assert rm.profile_flags["_is_fedora"] is True
+        assert rm.profile_flags["_is_arch"] is False
+
+    def test_arch_and_debian_manifests_omit_is_fedora(self):
+        """No _is_fedora key on Arch/Debian: golden profile_flags stay identical."""
+        for os_family in ("Archlinux", "Debian"):
+            rm = ManifestResolver(os_family=os_family).manifest("i3")
+            assert "_is_fedora" not in rm.profile_flags, os_family
+
+    def test_fedora_roles_match_archlinux_for_current_profiles(self):
+        """No shipped profile declares fedora yet, so the Fedora manifest's
+        roles and conditions equal the Archlinux ones (no-op guarantee)."""
+        fedora = ManifestResolver(os_family="Fedora").manifest("i3").roles
+        arch = ManifestResolver(os_family="Archlinux").manifest("i3").roles
+        assert fedora == arch
+
+    def test_fedora_profile_role_with_list_os_gates_on_fedora_host(self, tmp_path):
+        """A profile role os: [archlinux, debian] resolves to not _is_fedora,
+        which is False on a Fedora host's manifest."""
+        _write_tree(tmp_path, roles=[{
+            "role": "dual", "section": "base", "os": ["archlinux", "debian"],
+        }])
+        rm = ManifestResolver(profiles_dir=str(tmp_path), os_family="Fedora").manifest("i3")
+        gate = next(g for g in rm.roles if g.role == "dual")
+        assert gate.condition == "not _is_fedora"
+
+    def test_fedora_scalar_os_role_condition(self, tmp_path):
+        """A profile role os: fedora resolves to the _is_fedora fact."""
+        _write_tree(tmp_path, roles=[{
+            "role": "fedonly", "section": "base", "os": "fedora",
+        }])
+        rm = ManifestResolver(profiles_dir=str(tmp_path), os_family="Fedora").manifest("i3")
+        gate = next(g for g in rm.roles if g.role == "fedonly")
+        assert gate.condition == "_is_fedora"

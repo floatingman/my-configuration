@@ -78,6 +78,89 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 _ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 _ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
 
+# Allowed values for role `os:` annotations (scalar or list form; issue #234).
+# An absent/null annotation is universal: the role runs on every OS.
+_ALLOWED_OS_VALUES = ("archlinux", "debian", "fedora")
+
+# Legacy scalar `os:` translations, byte-identical to the pre-Fedora
+# dispatcher: golden manifests (tests/golden/) and committed play.yml pin
+# these exact strings, so `os: debian` keeps meaning "not Arch" (the frozen
+# 2-OS vocabulary) rather than "Debian strictly". The list form
+# (_os_list_condition) is the Fedora-aware syntax.
+_SCALAR_OS_CONDITIONS = {
+    "archlinux": "_is_arch",
+    "debian": "not _is_arch",
+    "fedora": "_is_fedora",
+}
+
+
+def _normalize_os_annotation(os_spec: Any, where: str) -> Tuple[str, ...]:
+    """Validate an `os:` annotation and normalize it to a tuple of values.
+
+    Accepts a scalar string or a non-empty list of strings, all drawn from
+    _ALLOWED_OS_VALUES. `where` prefixes every rejection message so unknown
+    values are reported against the offending profile role or overlay entry,
+    e.g. "role 'x'" or "Overlay '/path': role entry 0 ('bluetooth')".
+
+    Raises:
+        ValueError: On a non-string/non-list form, an empty list, a
+            non-string list member, or any value outside _ALLOWED_OS_VALUES.
+    """
+    if isinstance(os_spec, str):
+        values: Tuple[str, ...] = (os_spec,)
+    elif isinstance(os_spec, list):
+        if not os_spec:
+            raise ValueError(f"{where}: 'os' must not be an empty list")
+        for i, value in enumerate(os_spec):
+            if not isinstance(value, str):
+                raise ValueError(
+                    f"{where}: 'os[{i}]' must be a string, got {type(value).__name__}"
+                )
+        values = tuple(os_spec)
+    else:
+        raise ValueError(
+            f"{where}: 'os' must be a string or a list of strings, "
+            f"got {type(os_spec).__name__}"
+        )
+    unknown = [v for v in dict.fromkeys(values) if v not in _ALLOWED_OS_VALUES]
+    if unknown:
+        raise ValueError(
+            f"{where}: unsupported os value(s) {unknown} "
+            f"(allowed: {', '.join(_ALLOWED_OS_VALUES)})"
+        )
+    return values
+
+
+def _os_list_condition(os_values: Tuple[str, ...]) -> str:
+    """Translate a list-form `os:` annotation into a Jinja2 condition.
+
+    List form is the Fedora-aware syntax: the condition is true exactly on
+    the listed operating systems, expressed only over pre-resolved facts
+    (repo rule 4):
+      [archlinux]                 -> _is_arch
+      [debian]                    -> not _is_arch and not _is_fedora
+      [fedora]                    -> _is_fedora
+      [archlinux, debian]         -> not _is_fedora
+      [debian, fedora]            -> not _is_arch
+      [archlinux, fedora]         -> _is_arch or _is_fedora
+      [archlinux, debian, fedora] -> "" (equivalent to universal)
+    """
+    selected = set(os_values)
+    if selected == set(_ALLOWED_OS_VALUES):
+        return ""
+    if selected == {"archlinux", "debian"}:
+        return "not _is_fedora"
+    if selected == {"debian", "fedora"}:
+        return "not _is_arch"
+    terms = []
+    if "archlinux" in selected:
+        terms.append("_is_arch")
+    if "debian" in selected:
+        terms.append("not _is_arch and not _is_fedora")
+    if "fedora" in selected:
+        terms.append("_is_fedora")
+    return " or ".join(terms)
+
 
 # ---------------------------------------------------------------------------
 # Condition Translator Protocol (Slice 1 - Issue #104)
@@ -213,13 +296,20 @@ class AnsibleConditionTranslator:
         else:
             role_dict = annotation
 
-        # OS condition: os: archlinux → _is_arch, os: debian → not _is_arch
+        # OS condition. Scalar form keeps the exact pre-Fedora bytes
+        # (`os: debian` -> `not _is_arch`; see _SCALAR_OS_CONDITIONS for why
+        # this legacy vocabulary is frozen); list form is the new
+        # Fedora-aware syntax (see _os_list_condition). Unknown values raise
+        # ValueError naming the role; validate_profile and overlay loading
+        # report the same rejection with full profile/overlay context.
         os_spec = role_dict.get("os")
-        if os_spec:
-            if os_spec == "archlinux":
-                conditions.append("_is_arch")
-            elif os_spec == "debian":
-                conditions.append("not _is_arch")
+        if os_spec is not None:
+            where = f"role '{role_dict.get('role', '<unknown>')}'"
+            os_values = _normalize_os_annotation(os_spec, where)
+            if isinstance(os_spec, str):
+                conditions.append(_SCALAR_OS_CONDITIONS[os_spec])
+            else:
+                conditions.append(_os_list_condition(os_values))
 
         # Display condition: requires_display: true → _has_display
         if role_dict.get("requires_display"):
@@ -336,7 +426,7 @@ class DefaultTranslator(AnsibleConditionTranslator):
         """Initialize the default Ansible translator.
 
         Args:
-            os_family: OS family ('Archlinux' or 'Debian')
+            os_family: OS family ('Archlinux', 'Debian', or 'Fedora')
             evaluator: Optional evaluator for config_check expressions
             preserve_config_check: Keep config_check as raw Jinja2
         """
@@ -516,12 +606,14 @@ class _RoleEntry:
     Attributes:
         role: The role name (e.g., 'laptop', 'bluetooth')
         tags: List of tags to apply when this role is activated
-        os: OS family constraint ('archlinux', 'debian', or None for any OS)
+        os: OS constraint: None (universal), a scalar value
+            ('archlinux'/'debian'/'fedora'), or a tuple of those values
+            (list-form annotation; the role runs only on the listed OSes)
         requires_display: Whether this role requires a display server
     """
     role: str
     tags: Tuple[str, ...]
-    os: Optional[str] = None
+    os: Optional[Union[str, Tuple[str, ...]]] = None
     requires_display: bool = False
 
 
@@ -664,7 +756,9 @@ def validate_profile(profiles_dir: str, name: str) -> list:
 
     Checks: required fields present, extends chain resolvable,
     display_manager_default in allowed set, desktop_environment in known set,
-    per-role section key present and known (profiles/_sections.yml).
+    per-role section key present and known (profiles/_sections.yml),
+    per-role os annotation a scalar/list of known OS values
+    (archlinux/debian/fedora; issue #234).
 
     Args:
         profiles_dir: Directory containing profile YAML files
@@ -742,6 +836,22 @@ def validate_profile(profiles_dir: str, name: str) -> list:
                     f"role '{rname}' has unknown section '{section}' "
                     f"(see profiles/_sections.yml)"
                 )
+
+    # os annotation checks (issue #234): scalar or list, known values only.
+    # Independent of the sections checks above so a missing/unloadable
+    # _sections.yml never hides an invalid os annotation.
+    if isinstance(roles_field, list):
+        for entry in roles_field:
+            os_value = entry.get("os") if isinstance(entry, dict) else None
+            if os_value is None:
+                continue
+            rname = entry.get("role", "")
+            if not isinstance(rname, str) or not rname:
+                rname = "<unnamed>"
+            try:
+                _normalize_os_annotation(os_value, f"role '{rname}'")
+            except ValueError as exc:
+                errors.append(str(exc))
 
     return errors
 
@@ -918,19 +1028,16 @@ def _load_overlay(path: Path) -> _Overlay:
                 )
 
         # Parse optional annotations
-        allowed_os = {"archlinux", "debian"}
         os_constraint = role_entry.get("os")
         if os_constraint is not None:
+            os_values = _normalize_os_annotation(
+                os_constraint,
+                f"Overlay '{path}': role entry {i} ('{role_name}')",
+            )
+            # Scalar stays scalar (resolve-overlays JSON emits it verbatim);
+            # list form normalizes to a tuple for the frozen dataclass.
             if not isinstance(os_constraint, str):
-                raise ValueError(
-                    f"Overlay '{path}': role entry {i} 'os' must be a string or null, "
-                    f"got {type(os_constraint).__name__}"
-                )
-            if os_constraint not in allowed_os:
-                raise ValueError(
-                    f"Overlay '{path}': role entry {i} 'os' must be one of "
-                    f"{sorted(allowed_os)}, got '{os_constraint}'"
-                )
+                os_constraint = os_values
 
         requires_display = role_entry.get("requires_display", False)
         if not isinstance(requires_display, bool):
@@ -965,6 +1072,7 @@ def resolve_overlays(
     is_arch: bool,
     profiles_dir: str = _DEFAULT_PROFILES_DIR,
     evaluator: Optional[_ConditionEvaluator] = None,
+    is_fedora: bool = False,
 ) -> list[_ResolvedOverlay]:
     """
     Discover and resolve overlays against host facts.
@@ -976,6 +1084,8 @@ def resolve_overlays(
         profiles_dir: Directory containing profiles/ subdirectory
         evaluator: Optional _ConditionEvaluator (any object implementing
             evaluate(expression, context) -> bool); defaults to Jinja2Evaluator
+        is_fedora: Whether this is a Fedora system (takes precedence over
+            is_arch; with both false the host is treated as Debian)
 
     Returns:
         Sorted list of _ResolvedOverlay instances with per-role applies status
@@ -985,6 +1095,9 @@ def resolve_overlays(
     """
     if evaluator is None:
         evaluator = Jinja2Evaluator()
+
+    # The host's single OS identity, matched against role os constraints.
+    host_os = "fedora" if is_fedora else ("archlinux" if is_arch else "debian")
 
     overlay_names = _discover_overlay_names(profiles_dir)
     overlays_root = Path(profiles_dir) / "overlays"
@@ -1010,10 +1123,15 @@ def resolve_overlays(
             # 3. requires_display constraint (if specified)
             role_applies = overlay_applies
 
-            # Check OS constraint
+            # Check OS constraint (scalar or list form): the role applies
+            # only when the host's OS is listed.
             if role_entry.os is not None:
-                expected_os = "archlinux" if is_arch else "debian"
-                if role_entry.os != expected_os:
+                os_values = (
+                    (role_entry.os,)
+                    if isinstance(role_entry.os, str)
+                    else tuple(role_entry.os)
+                )
+                if host_os not in os_values:
                     role_applies = False
 
             # Check requires_display constraint
@@ -1304,7 +1422,7 @@ class RoleManifest:
     profile: str
     display_manager: Optional[str]
     has_display: bool
-    profile_flags: Dict[str, Any]     # _is_arch, _is_i3.._is_kde, _has_display, _dm — same keys, same order
+    profile_flags: Dict[str, Any]     # _is_arch, _is_fedora (Fedora os_family only), _is_i3.._is_kde, _has_display, _dm — same keys, same order
     overlay_flags: Dict[str, bool]    # _overlay_<name> + _overlay_<role> — same keys, same construction order
     roles: Tuple[RoleGate, ...]       # sorted by _sections.yml order, then role name
 
@@ -1580,6 +1698,11 @@ class ManifestResolver:
 
         profile_flags: Dict[str, Any] = {
             "_is_arch": self._os_family == "Archlinux",
+            # Fedora-only key: absent on Arch/Debian so the golden manifest
+            # JSON (tests/golden/) stays byte-identical. play.yml emits the
+            # matching set_fact line (defaulting false) once any profile or
+            # overlay declares fedora.
+            **({"_is_fedora": True} if self._os_family == "Fedora" else {}),
             "_is_i3": resolved.is_i3,
             "_is_hyprland": resolved.is_hyprland,
             "_is_gnome": resolved.is_gnome,
@@ -1654,6 +1777,7 @@ class ManifestResolver:
             facts=host_vars,
             has_display=has_display,
             is_arch=(self._os_family == "Archlinux"),
+            is_fedora=(self._os_family == "Fedora"),
             profiles_dir=self._repo.profiles_dir,
             evaluator=self._evaluator,
         )
@@ -2579,6 +2703,7 @@ def _cmd_resolve_overlays(args: argparse.Namespace) -> int:
             facts=facts,
             has_display=args.has_display,
             is_arch=args.is_arch,
+            is_fedora=args.is_fedora,
             profiles_dir=args.profiles_dir,
         )
     except ValueError as exc:
@@ -2770,6 +2895,50 @@ _PROFILE_TO_FLAG = {
 }
 
 
+def _profiles_reference_fedora(profiles_dir: str) -> bool:
+    """True when any profile or overlay role entry constrains on fedora via os:.
+
+    Scans every profile file (including _base.yml, whose roles fold into all
+    profiles) and every overlay. Entries that fail to load are skipped here —
+    their load errors surface through the validate/generate paths with full
+    context; this scan only decides whether generated play.yml should emit
+    the _is_fedora set_fact line.
+    """
+    for path in sorted(Path(profiles_dir).glob("*.yml")):
+        if path.stem.startswith("_") and path.stem != "_base":
+            continue
+        try:
+            data = load_profile(profiles_dir, path.stem)
+        except (ValueError, yaml.YAMLError, OSError, RecursionError):
+            continue
+        for entry in data.get("roles", []):
+            if not isinstance(entry, dict) or entry.get("os") is None:
+                continue
+            try:
+                if "fedora" in _normalize_os_annotation(entry["os"], path.stem):
+                    return True
+            except ValueError:
+                continue
+    overlays_root = Path(profiles_dir) / "overlays"
+    if overlays_root.exists():
+        for path in sorted(overlays_root.glob("*.yml")):
+            try:
+                overlay = _load_overlay(path)
+            except (ValueError, yaml.YAMLError, OSError):
+                continue
+            for role_entry in overlay.roles:
+                if role_entry.os is None:
+                    continue
+                os_values = (
+                    (role_entry.os,)
+                    if isinstance(role_entry.os, str)
+                    else tuple(role_entry.os)
+                )
+                if "fedora" in os_values:
+                    return True
+    return False
+
+
 def _write_merged_playbook(
     profiles_dir: str,
     playbook_path: str,
@@ -2804,6 +2973,9 @@ def _write_merged_playbook(
         print(f"Error: Profiles path is not a directory: {profiles_path}", file=sys.stderr)
         return 1
 
+    # Emit the _is_fedora pre_task fact only when some profile or overlay
+    # actually constrains on fedora (see _profiles_reference_fedora).
+    emit_fedora_fact = _profiles_reference_fedora(profiles_dir)
 
     # Discover overlay variables for _host_vars_json template
     # Only treat a missing overlays/ directory as non-fatal; let parse errors surface.
@@ -2930,6 +3102,13 @@ def _write_merged_playbook(
         f.write("        _is_awesomewm: \"{{ _pf._is_awesomewm }}\"\n")
         f.write("        _is_kde: \"{{ _pf._is_kde }}\"\n")
         f.write("        _is_arch: \"{{ _pf._is_arch }}\"\n")
+        if emit_fedora_fact:
+            # Emitted only when some profile/overlay constrains on fedora, so
+            # generated play.yml stays byte-identical to the committed file
+            # until the wiring wave adds fedora annotations (check-sync gate).
+            # `| default(false)` keeps Arch/Debian hosts — whose runtime
+            # manifest omits the flag — well-defined.
+            f.write("        _is_fedora: \"{{ _pf._is_fedora | default(false) }}\"\n")
         f.write("      tags: always\n\n")
 
         f.write('    - name: Set overlay facts from resolved manifest\n')
@@ -3188,7 +3367,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--os-family",
         dest="os_family",
         default="Archlinux",
-        choices=["Archlinux", "Debian"],
+        choices=["Archlinux", "Debian", "Fedora"],
         help="OS family for condition translation",
     )
     p_manifest.add_argument(
@@ -3219,6 +3398,13 @@ def _build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Whether this is an Arch Linux system (default: true)",
+    )
+    p_overlays.add_argument(
+        "--is-fedora",
+        dest="is_fedora",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether this is a Fedora system (default: false; overrides --is-arch)",
     )
     p_overlays.add_argument(
         "--profiles-dir", dest="profiles_dir", default=_DEFAULT_PROFILES_DIR
