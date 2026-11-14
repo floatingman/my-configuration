@@ -1,4 +1,9 @@
 ---
+# Terminal emulators. alacritty and kitty are packaged under the same name in
+# Arch, Debian and Fedora (Fedora 43 repodata, 2026-11), so the generic
+# install tasks cover all three. wezterm needs a third-party repo outside Arch
+# (fury.io apt repo on Debian); ghostty is Arch-only: neither is packaged in
+# Fedora official repos (43 repodata), so both stay off Fedora.
 - name: Install alacritty
   become: true
   ansible.builtin.package:
@@ -38,17 +43,17 @@
     url: https://apt.fury.io/wez/gpg.key
     state: present
     keyring: /etc/apt/keyrings/wezterm-fury.gpg
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Add wezterm repository into sources list
   ansible.builtin.apt_repository:
     repo: deb [signed-by=/etc/apt/keyrings/wezterm-fury.gpg] https://apt.fury.io/wez/ * *
     state: present
     filename: wezterm
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install wezterm
   ansible.builtin.apt:
     name: wezterm
     update_cache: true
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"

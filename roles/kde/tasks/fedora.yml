@@ -1,0 +1,60 @@
+---
+# Fedora names verified against Fedora 43 Everything + updates repodata
+# (primary.xml, 2026-11). Renames vs Arch: polkit-kde-agent → polkit-kde,
+# kdeconnect → kde-connect (rpm:requires pulls in the kdeconnectd daemon),
+# systemsettings → plasma-systemsettings (owns /usr/bin/systemsettings).
+- name: Install plasma-nm
+  ansible.builtin.package:
+    name: plasma-nm
+    state: present
+  become: true
+- name: Install bluedevil
+  ansible.builtin.package:
+    name: bluedevil
+    state: present
+  become: true
+- name: Install gnome-keyring
+  ansible.builtin.package:
+    name: gnome-keyring
+    state: present
+  become: true
+- name: Install polkit-kde
+  ansible.builtin.package:
+    name: polkit-kde
+    state: present
+  become: true
+- name: Install dolphin
+  ansible.builtin.package:
+    name: dolphin
+    state: present
+  become: true
+- name: Install plasma-systemsettings
+  ansible.builtin.package:
+    name: plasma-systemsettings
+    state: present
+  become: true
+- name: Install Kate
+  ansible.builtin.package:
+    name: kate
+    state: present
+  become: true
+- name: Install KDE Connect
+  ansible.builtin.package:
+    name: kde-connect
+    state: present
+  become: true
+- name: Install Konsole
+  ansible.builtin.package:
+    name: konsole
+    state: present
+  become: true
+- name: Install Plasma browser integration
+  ansible.builtin.package:
+    name: plasma-browser-integration
+    state: present
+  become: true
+- name: Install Plasma system monitor
+  ansible.builtin.package:
+    name: plasma-systemmonitor
+    state: present
+  become: true
