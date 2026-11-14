@@ -10,11 +10,12 @@
 #     - aur
 
 - name: Install mpv
+  # Packaged under this name in Arch, Debian and Fedora official repos
+  # (F45 repodata, verified live 2026-11).
   become: true
   ansible.builtin.package:
     name: mpv
     state: present
-  when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Push play script
   ansible.builtin.copy:
@@ -24,6 +25,9 @@
   become: true
 
 - name: Install Vapoursynth
+  # Arch-only: Fedora ships only vapoursynth-libs/python3-vapoursynth
+  # (no vspipe tools package), and the mvtools plugin chain this exists to
+  # feed is AUR-only anyway (verified against F45 repodata 2026-11).
   become: true
   ansible.builtin.package:
     name: vapoursynth

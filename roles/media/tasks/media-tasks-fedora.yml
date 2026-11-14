@@ -8,8 +8,11 @@
     name:
       - flac
       - lame
+      - gstreamer1-plugin-libav
+      - gstreamer1-plugins-good
       - exiv2
       - perl-Image-ExifTool
+      - perl-Archive-Zip
       - opus-tools
     state: present
 
@@ -17,4 +20,15 @@
   become: true
   ansible.builtin.package:
     name: zbar
+    state: present
+
+- name: Install media players
+  # vlc entered Fedora's official repos in F43 (no plugins-all subpackage
+  # exists there); svgcleaner is not packaged on Fedora at all and stays
+  # Arch-only (all names verified against the F45 repo, live 2026-11).
+  become: true
+  ansible.builtin.package:
+    name:
+      - vlc
+      - gammastep
     state: present
