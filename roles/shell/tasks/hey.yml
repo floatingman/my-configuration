@@ -22,7 +22,9 @@
     mode: '0755'
     remote_src: true
   become: true
-  when: ansible_facts['os_family'] == 'Archlinux'
+  # Debian gets hey via the external `binaries` role instead (same URL), so
+  # skip there to avoid a double install; every other OS uses this task.
+  when: ansible_facts['os_family'] != 'Debian'
   tags:
     - shell
     - hey

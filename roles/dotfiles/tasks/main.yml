@@ -16,6 +16,16 @@
   environment:
     PATH: "/home/linuxbrew/.linuxbrew/bin:{{ ansible_facts['env']['PATH'] }}"
 
+# Fedora packages chezmoi in its main repos (verified in Fedora 43), so no
+# Homebrew dependency: /usr/bin/chezmoi is on secure_path, so the init task
+# below needs no linuxbrew PATH prefix on Fedora.
+- name: Install chezmoi on Fedora
+  become: true
+  ansible.builtin.package:
+    name: chezmoi
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"
+
 # The dotfiles' .chezmoi.toml.tmpl asks machine-specific questions with
 # promptBoolOnce/promptStringOnce, which open /dev/tty and fail under Ansible
 # (no TTY). promptOnce functions return a value already present in the config

@@ -39,6 +39,25 @@
     - ansible_facts['os_family'] == "Archlinux"
     - not homebrew_check.stat.exists
 
+# Homebrew's documented dependency set for RPM distros (the installer's own
+# list). On Fedora the names are the same as upstream; gcc-c++ provides g++.
+- name: Install Homebrew dependencies (Fedora)
+  ansible.builtin.dnf:
+    name:
+      - gcc
+      - gcc-c++
+      - make
+      - patch
+      - procps-ng
+      - curl
+      - file
+      - git
+    state: present
+  become: true
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - not homebrew_check.stat.exists
+
 - name: Ensure linuxbrew group exists
   ansible.builtin.group:
     name: linuxbrew
@@ -137,7 +156,7 @@
   loop: "{{ homebrew_tap_packages | default([]) }}"
   when:
     - homebrew_tap_packages is defined and homebrew_tap_packages | length > 0
-    - ansible_facts['os_family'] == "Debian"
+    - ansible_facts['os_family'] != "Archlinux"
 
 - name: Install Homebrew packages
   community.general.homebrew:
@@ -147,7 +166,7 @@
   loop: "{{ homebrew_packages | default([]) }}"
   when:
     - homebrew_packages is defined and homebrew_packages | length > 0
-    - ansible_facts['os_family'] == "Debian"
+    - ansible_facts['os_family'] != "Archlinux"
 
 # Homebrew's zsh completion dir (share/zsh/site-functions) lives under the
 # group-writable multi-user tree, so zsh's compinit flags it as an "insecure
@@ -163,4 +182,4 @@
   become: true
   become_user: "{{ user.name }}"
   changed_when: false
-  when: ansible_facts['os_family'] == "Debian"
+  when: ansible_facts['os_family'] != "Archlinux"
