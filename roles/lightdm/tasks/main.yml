@@ -7,6 +7,18 @@
       - lightdm-gtk-greeter
     state: present
 
+- name: Point display-manager.service at LightDM
+  # OEM installs pre-link display-manager.service at their own greeter
+  # (e.g. plasmalogin.service on Framework's Fedora KDE image); systemctl
+  # enable refuses to overwrite an existing alias, so own the symlink
+  # explicitly. force=true makes it a no-op when already correct.
+  become: true
+  ansible.builtin.file:
+    src: /usr/lib/systemd/system/lightdm.service
+    dest: /etc/systemd/system/display-manager.service
+    state: link
+    force: true
+
 - name: Enable LightDM
   become: true
   ansible.builtin.service:

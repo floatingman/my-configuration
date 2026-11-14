@@ -12,7 +12,11 @@
 
 - name: Install media tools for Debian
   ansible.builtin.include_tasks: media-tasks-debian.yml
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Install media tools for Fedora
+  ansible.builtin.include_tasks: media-tasks-fedora.yml
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Install Metadata Anonymisation Toolkit
   become: true

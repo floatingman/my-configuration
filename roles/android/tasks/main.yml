@@ -6,12 +6,22 @@
     state: present
   when: ansible_facts["os_family"] == "Archlinux"
 
-- name: Install android-tools
+- name: Install android-tools (Debian)
   become: true
   ansible.builtin.package:
     name: android-platform-tools-base
     state: present
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Install android-tools (Fedora)
+  # Fedora packages the SDK tools under the Arch name; there is no
+  # android-platform-tools-base there, and android-udev is Arch-only (the
+  # udev rules ship inside Fedora's android-tools package).
+  become: true
+  ansible.builtin.package:
+    name: android-tools
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Install android-udev
   become: true

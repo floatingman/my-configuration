@@ -6,6 +6,18 @@
       - sddm
     state: present
 
+- name: Point display-manager.service at SDDM
+  # OEM installs (e.g. Framework's Fedora KDE image) pre-link
+  # display-manager.service at their own greeter (plasmalogin.service);
+  # systemctl enable refuses to overwrite an existing alias, so own the
+  # symlink explicitly. force=true makes it a no-op when already correct.
+  become: true
+  ansible.builtin.file:
+    src: /usr/lib/systemd/system/sddm.service
+    dest: /etc/systemd/system/display-manager.service
+    state: link
+    force: true
+
 - name: Enable SDDM
   become: true
   ansible.builtin.service:

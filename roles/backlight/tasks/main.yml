@@ -38,10 +38,14 @@
   when: backlight_illuminanced is none
 
 - name: Install illuminanced
+  # opt-in and not packaged on Fedora; the ambient-sensor path there is
+  # handled by iio-sensor-proxy + the framework12 role instead.
   become: true
   ansible.builtin.package:
     name: illuminanced
-  when: backlight_illuminanced is not none
+  when:
+    - backlight_illuminanced is not none
+    - ansible_facts["os_family"] != "RedHat"
 
 - name: Set max backlight file
   become: true
@@ -102,7 +106,9 @@
     state: present
 
 - name: Install geoclue
+  # Fedora packages the location daemon as geoclue2 (verified F45 repo);
+  # Arch/Debian use the geoclue name.
   become: true
   ansible.builtin.package:
-    name: geoclue
+    name: "{{ 'geoclue2' if ansible_facts['os_family'] == 'RedHat' else 'geoclue' }}"
     state: present
