@@ -76,7 +76,7 @@ def find_default() -> pathlib.Path:
     for candidate in (
         home / ".local/share/pipx/venvs/ansible/lib",
     ):
-        for py in sorted(candidate.glob("python3.*"), reverse=True):
+        for py in sorted(candidate.glob("python3.*/site-packages"), reverse=True):
             if (py / REL).is_file():
                 return py
     raise SystemExit("no pipx ansible venv found; pass --path explicitly")
