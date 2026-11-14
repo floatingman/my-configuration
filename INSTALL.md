@@ -240,6 +240,17 @@ the same steps.
 
 The playbook is designed to be run by a non-superuser account with sudo privileges.
 
+On Fedora, install the bootstrap prerequisites first (the bootstrap path uses
+dnf instead of apt/pacman):
+
+```bash
+$ sudo dnf install -y python3-pip pipx git ansible
+```
+
+(For the minimal ansible-free path, drop `ansible` and let `make setup`
+install it via pipx; installing the distro package also works since
+`make setup` skips the pipx install when `ansible` is already on PATH.)
+
 1. Clone this repository:
    ```bash
    $ git clone https://github.com/floatingman/my-configuration.git
@@ -252,6 +263,9 @@ The playbook is designed to be run by a non-superuser account with sudo privileg
    $ exec $SHELL -l      # reload shell so PATH takes effect
    ```
    If `pipx` is already installed and only Ansible is missing, use `make bootstrap` instead.
+   If `pipx inject` cannot run (no pipx ansible venv), `make pip-deps` falls back
+   to distro packages into the system python3; on Fedora that is
+   `sudo dnf install -y python3-pyyaml python3-jinja2 python3-pytest`.
 
 3. Install required Ansible roles:
    ```bash

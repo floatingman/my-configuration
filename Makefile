@@ -29,7 +29,7 @@ UNAME_S  := $(shell uname -s)
 # locations — pipx moved from ~/.local/pipx to ~/.local/share/pipx (XDG).
 # `make pip-deps` provisions pyyaml/jinja2/pytest for whichever interpreter
 # wins: `pipx inject` into the venv when found, otherwise distro packages
-# (pacman/apt) into /usr/bin/python3 — the pinned fallback interpreter (a
+# (pacman/apt/dnf) into /usr/bin/python3 — the pinned fallback interpreter (a
 # bare `python3` would let an activated venv in the invoking shell shadow
 # the interpreter the distro packages land in) — so machines running
 # system-wide ansible work too instead of failing on `pipx inject`.
@@ -218,8 +218,11 @@ pip-deps: ## Ensure pyyaml/jinja2/pytest for the scripts interpreter (pipx injec
 	elif command -v apt-get >/dev/null 2>&1; then \
 		echo 'No pipx ansible venv; installing python deps via apt (system python3 is the scripts interpreter)...'; \
 		sudo apt-get update -qq && sudo apt-get install -y python3-yaml python3-jinja2 python3-pytest || exit 1; \
+	elif command -v dnf >/dev/null 2>&1; then \
+		echo 'No pipx ansible venv; installing python deps via dnf (system python3 is the scripts interpreter)...'; \
+		sudo dnf install -y python3-pyyaml python3-jinja2 python3-pytest || exit 1; \
 	else \
-		echo 'ERROR: cannot provision python deps: no pipx ansible venv, neither pacman nor apt-get found.' >&2; \
+		echo 'ERROR: cannot provision python deps: no pipx ansible venv, neither pacman, apt-get nor dnf found.' >&2; \
 		echo 'Install pyyaml, jinja2 and pytest for python3, or run: make bootstrap' >&2; \
 		exit 1; \
 	fi

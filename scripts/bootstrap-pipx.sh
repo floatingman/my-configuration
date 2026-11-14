@@ -8,7 +8,7 @@
 #   bash scripts/bootstrap-pipx.sh
 #
 # It installs pipx via the system package manager (apt on Debian/Ubuntu,
-# pacman on Arch), runs `pipx ensurepath` so future shells pick up
+# pacman on Arch, dnf on Fedora), runs `pipx ensurepath` so future shells pick up
 # ~/.local/bin, and exports that dir for the current process so `pipx install`
 # works immediately afterwards.
 #
@@ -30,8 +30,12 @@ if ! have pipx; then
     sudo apt-get install -y python3-pip pipx
   elif have pacman; then
     sudo pacman -S --noconfirm python-pipx
+  elif have dnf; then
+    # python3-pip covers Fedora pipx packages that defer to pip bootstrap
+    # (pipx ships in the Fedora repos from F36 onward).
+    sudo dnf install -y python3-pip pipx
   else
-    echo "ERROR: unsupported distribution — cannot find apt-get or pacman." >&2
+    echo "ERROR: unsupported distribution — cannot find apt-get, pacman or dnf." >&2
     echo "       Please install pipx manually, then run 'make bootstrap'." >&2
     exit 1
   fi
