@@ -37,12 +37,21 @@ PIPX_VENVS      := $(shell pipx environment --value PIPX_LOCAL_VENVS 2>/dev/null
 ANSIBLE_VENV_PY := $(firstword $(wildcard $(PIPX_VENVS)/ansible/bin/python3 $(HOME)/.local/pipx/venvs/ansible/bin/python3 $(HOME)/.local/share/pipx/venvs/ansible/bin/python3))
 SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),/usr/bin/python3)
 
-# Ansible runs via pipx under a mode-0700 home directory. Non-root become users
-# (e.g. aur_builder) cannot traverse the home dir to reach the pipx venv python,
-# so pin module execution to the system interpreter that every user can execute.
-# (env var / ansible.cfg do not override the local-connection controller interpreter;
-# only an extra var has high enough precedence.)
+# Module execution interpreter. On Arch the pipx venv python lives under a
+# mode-0700 home that non-root become users (e.g. aur_builder) cannot traverse,
+# so pin to the system interpreter every user can execute. On Fedora the
+# system python can be too new for ansible-core module internals (F45's 3.15
+# crashes module_utils patches; observed live 2026-11), so prefer the pipx
+# venv python there — Fedora homes are world-traversable by default.
+# (env var / ansible.cfg do not override the local-connection controller
+# interpreter; only an extra var has high enough precedence.)
+ifeq ($(wildcard /etc/fedora-release),)
 ANSIBLE_PYTHON_FLAGS := -e ansible_python_interpreter=/usr/bin/python3
+else ifneq ($(ANSIBLE_VENV_PY),)
+ANSIBLE_PYTHON_FLAGS := -e ansible_python_interpreter=$(ANSIBLE_VENV_PY)
+else
+ANSIBLE_PYTHON_FLAGS := -e ansible_python_interpreter=/usr/bin/python3
+endif
 
 # Used by ifdef conditionals (make lint): MUST be := (simple expansion) —
 # ifdef tests the unexpanded text of recursive '=' variables, which is the
