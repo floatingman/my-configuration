@@ -179,7 +179,7 @@
       "tags": [
         "homebrew"
       ],
-      "condition": "not _is_arch and not _is_fedora",
+      "condition": "not _is_arch",
       "source": "kde"
     },
     {

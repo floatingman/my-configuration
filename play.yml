@@ -395,7 +395,7 @@
         - name: Run role homebrew
           ansible.builtin.import_role:
             name: homebrew
-          when: not _is_arch and not _is_fedora
+          when: not _is_arch
           tags: ["homebrew"]
       rescue:
         - name: Record failure of role homebrew
