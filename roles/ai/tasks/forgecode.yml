@@ -1,22 +1,17 @@
 ---
-# ForgeCode — AI coding harness (https://forgecode.dev)
-# The installer hardcodes $HOME/.local/bin on Linux (its PREFIX override is
-# Android-only), so it cannot target the system bin dir directly. It also
-# must never run as root: it downloads and executes a remote script, so a
-# compromised installer would run with root's privileges. Instead the
-# primary user runs it with a throwaway HOME — the forge binary, its
-# fzf/bat/fd dependency downloads, and its rc-file PATH edits all land under
-# a temp dir removed on exit — and `install`s the binary into a staging dir
-# under the user's own home. A separate root task then copies that file into
-# the system bin dir as a real, root-owned, world-executable file, and the
-# staging dir is removed: root only ever reads the finished binary, so the
-# worst a compromised installer can do is affect the primary user.
+# ForgeCode — AI coding harness (https://forgecode.dev, GitHub:
+# tailcallhq/forgecode). The official `curl forgecode.dev/cli | sh`
+# installer went dead upstream (HTTP 404 live-verified 2026-11; the site's
+# docs pages 404 with it while the GitHub releases stayed healthy), so the
+# binary now comes straight from the project's GitHub release assets —
+# identical artifact, no remote script execution at all.
 #
-# The old flow ran the installer with HOME=/root and copied the binary out of
-# /root/.local/bin. That littered /root/.local/bin with frozen fzf/bat/fd
-# copies (unreachable by non-root users) and prepended PATH exports to
-# /root/.bashrc and /root/.zshrc. The throwaway-HOME flow leaves nothing
-# behind anywhere.
+# Download still runs as the primary user into a staging dir under the
+# user's own home; a separate root task then copies that file into the
+# system bin dir as a real, root-owned, world-executable file and removes
+# the staging dir: root only ever reads the finished binary. (The old
+# pre-throwaway-HOME flow also littered /root/.local/bin with frozen
+# fzf/bat/fd copies and edited root rc-files; none of that exists here.)
 #
 # ZSH plugin setup remains per-user.
 
@@ -53,27 +48,34 @@
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_link_stat.stat.islnk | default(false)
 
-# Runs as the primary user, never root (see header). The throwaway HOME
-# keeps every installer side effect (dependency downloads, rc-file PATH
-# edits) inside a temp dir that the trap removes on exit; only the finished
-# binary is staged under the user's own home for the root copy task below.
-# `install -D` creates the staging dir: the role has no pre-existing shared
-# staging location, so this is the single new path in the flow.
-- name: Install ForgeCode via official installer (throwaway HOME, as primary user)
-  ansible.builtin.shell:
-    cmd: |
-      set -eo pipefail
-      tmp="$(mktemp -d)"
-      trap 'rm -rf "$tmp"' EXIT
-      curl -fsSL https://forgecode.dev/cli | HOME="$tmp" sh
-      install -D -m 0755 "$tmp/.local/bin/forge" "/home/{{ user.name }}/.local/share/forge-install/forge"
-    executable: /bin/bash
-  environment:
-    PATH: "/usr/local/bin:/usr/bin:/bin"
+# Runs as the primary user, never root (see header). forgecode.dev/cli
+# 404s upstream (verified live 2026-11) while the GitHub releases stayed
+# healthy, so the binary comes straight from the release assets — the same
+# artifact the installer delivered, without executing any remote script.
+# Only the finished binary is staged under the user's own home for the root
+# copy task below; the remove task at the end of the flow deletes the
+# staging dir again.
+- name: Ensure ForgeCode staging directory exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.local/share/forge-install"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ user.name }}"
+  when:
+    - ai_forgecode_enabled | default(true)
+    - ai_forgecode_needs_install
+
+- name: Download ForgeCode release binary (as primary user)
+  vars:
+    _forge_arch: "{{ 'x86_64' if ansible_facts['architecture'] == 'x86_64' else 'aarch64' }}"
+  ansible.builtin.get_url:
+    url: "https://github.com/tailcallhq/forgecode/releases/latest/download/forge-{{ _forge_arch }}-unknown-linux-gnu"
+    dest: "/home/{{ user.name }}/.local/share/forge-install/forge"
+    mode: "0755"
   become: true
   become_user: "{{ user.name }}"
   register: ai_forgecode_install
-  changed_when: ai_forgecode_install.rc == 0
   when:
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_needs_install
