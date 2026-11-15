@@ -45,6 +45,7 @@ laptop: false # No power mgmt or trackpad config on servers
 # gaming_enable_rpmfusion: false        # true adds RPM Fusion nonfree (required for the rpm method)
 # gaming_mangohud: false                # true installs MangoHud
 # gaming_gamemode: false                # true installs GameMode
+# terminal_enable_ghostty_copr: true    # false keeps ghostty Arch-only (skips the pgdev/ghostty COPR on Fedora)
 
 # Boot
 # grub_kernel_parameters: "quiet"   # GRUB_CMDLINE_LINUX_DEFAULT override; omit "splash" to skip the Plymouth splash path
