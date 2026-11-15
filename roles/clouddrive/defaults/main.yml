@@ -6,4 +6,11 @@
 # via an ExecStartPre check.
 # null/false: plain vendor autostart; unit, gate script and udev rule are
 # removed and the autostart entry restored.
-clouddrive_stop_on_battery: null
+
+# Fedora has no vendor RPM (Synology ships Linux builds as an Ubuntu .deb
+# only), so the role stages that deb and extracts its payload — the same
+# repack the AUR performs on Arch. Bump the version pin to upgrade; the
+# changed download re-runs the extraction.
+clouddrive_fedora_deb_url: >-
+  https://global.synologydownload.com/download/Utility/SynologyDriveClient/4.2.1-20062/Ubuntu/Installer/synology-drive-client-20062.x86_64.deb
+clouddrive_fedora_stage_dir: /var/tmp/synology-drive

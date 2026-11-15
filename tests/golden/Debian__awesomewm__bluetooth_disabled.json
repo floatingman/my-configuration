@@ -298,7 +298,7 @@
       "tags": [
         "clouddrive"
       ],
-      "condition": "_is_arch",
+      "condition": "_is_arch or _is_fedora",
       "source": "awesomewm"
     },
     {

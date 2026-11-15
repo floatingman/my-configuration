@@ -64,7 +64,7 @@ roles:
   - { role: pass_cli, tags: [pass_cli], section: productivity }
   - { role: spell, tags: [spell], section: productivity }
   - { role: clipboard, tags: [clipboard], os: archlinux, section: productivity }
-  - { role: clouddrive, tags: [clouddrive], os: archlinux, section: productivity }
+  - { role: clouddrive, tags: [clouddrive], os: [archlinux, fedora], section: productivity }
   - { role: syncthing, tags: [syncthing], section: productivity }
 
   # Optional / Feature-gated
