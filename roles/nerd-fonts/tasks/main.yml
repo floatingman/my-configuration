@@ -3,20 +3,28 @@
   ansible.builtin.file:
     path: "/home/{{ user.name }}/.fonts"
     state: directory
-    mode: '0755'
+    mode: "0755"
   become: true
   become_user: "{{ user.name }}"
 
-- name: Hack exists
-  ansible.builtin.shell: "ls /home/{{ user.name }}/.fonts/Hack*Nerd*Font*"
-  register: hack_exists
+# Availability is decided by what fontconfig can resolve, not by ls-ing
+# ~/.fonts: a system package (Arch installs ttf-hack-nerd /
+# ttf-jetBrains-mono-nerd via base_fonts) already satisfies the requirement,
+# and downloading again into ~/.fonts would shadow it. fc-list runs once and
+# the downloads gate on regex matches over its output — no shell pipes, and
+# no `failed_when: false` dance: the previous `is failed` download condition
+# could never fire (failed_when: false forces .failed to false), so the
+# downloads never ran on any OS. Masked on Arch by the system packages;
+# proven live on Fedora 45 where ~/.fonts stayed empty.
+- name: List fonts known to fontconfig
+  ansible.builtin.command: fc-list
+  register: fc_fonts
   changed_when: false
-  failed_when: false
   become: true
   become_user: "{{ user.name }}"
 
 - name: Download Hack
-  when: hack_exists is failed
+  when: fc_fonts.stdout is not search('(?i)Hack Nerd Font')
   ansible.builtin.unarchive:
     src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz
     dest: "/home/{{ user.name }}/.fonts/"
@@ -24,19 +32,22 @@
   become: true
   become_user: "{{ user.name }}"
 
-- name: JetBrains exists
-  ansible.builtin.shell: "ls /home/{{ user.name }}/.fonts/JetBrains*Nerd*Font*"
-  register: jetbrains_exists
-  changed_when: false
-  failed_when: false
-  become: true
-  become_user: "{{ user.name }}"
-
 - name: Download JetBrains Mono Nerd Font
-  when: jetbrains_exists is failed
+  when: fc_fonts.stdout is not search('(?i)JetBrainsMono Nerd Font')
   ansible.builtin.unarchive:
     src: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
     dest: "/home/{{ user.name }}/.fonts/"
     remote_src: true
+  become: true
+  become_user: "{{ user.name }}"
+
+# Fires only on a pass that downloaded a font above, i.e. exactly when
+# something actually changed — keeps converged runs at changed=0.
+- name: Rebuild fontconfig cache
+  when: >-
+    fc_fonts.stdout is not search('(?i)Hack Nerd Font')
+    or fc_fonts.stdout is not search('(?i)JetBrainsMono Nerd Font')
+  ansible.builtin.command: "fc-cache -f /home/{{ user.name }}/.fonts"
+  changed_when: true
   become: true
   become_user: "{{ user.name }}"
