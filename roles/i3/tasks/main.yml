@@ -4,14 +4,18 @@
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install i3 for Debian
+  # Exact gate: this file drives apt and the sur5r repository, so a negative
+  # "not Archlinux" match would pull it in on Fedora and fail on the apt
+  # module. Fedora is covered by the generic task below.
   ansible.builtin.include_tasks: i3-debian.yml
-  when: ansible_facts["os_family"] != "Archlinux"
+  when: ansible_facts["os_family"] == "Debian"
 
 - name: Install i3
   become: true
   ansible.builtin.package:
     name:
-      - i3-wm
+      # Fedora ships the WM as "i3" (gaps included); Arch and Debian call it i3-wm.
+      - "{{ 'i3' if ansible_facts['os_family'] == 'RedHat' else 'i3-wm' }}"
       - i3blocks
       - i3status
     state: present
