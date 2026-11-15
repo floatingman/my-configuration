@@ -1,8 +1,10 @@
 ---
-- name: Install freetype2
+- name: Install freetype
+  # Arch names the package freetype2; Fedora just freetype (cairo and
+  # fontconfig share their names across both).
   become: true
   ansible.builtin.package:
-    name: freetype2
+    name: "{{ 'freetype2' if ansible_facts['os_family'] == 'Archlinux' else 'freetype' }}"
     state: present
 
 - name: Install cairo
@@ -50,6 +52,18 @@
   ansible.builtin.package:
     name: "{{ base_fonts }}"
     state: present
+  when: ansible_facts["os_family"] == "Archlinux"
+
+- name: Install base fonts (Fedora)
+  # Name-mapped list lives in group_vars/all/base.yml as fedora_fonts; every
+  # entry resolved live against the Fedora 45 repo (2026-11). Arch's nerd-font
+  # variants, iosevka, sarasa-gothic and ubuntu are not packaged on Fedora —
+  # Hack/JetBrainsMono nerd fonts come from the universal nerd-fonts role.
+  become: true
+  ansible.builtin.package:
+    name: "{{ fedora_fonts }}"
+    state: present
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Install AUR fonts
   become: true

@@ -41,7 +41,7 @@ roles:
   - { role: screencapture, tags: [screencapture], section: hyprland_profile }
 
   # Fonts & Theming
-  - { role: fonts, tags: [fonts], os: archlinux, requires_display: true, section: fonts_theming }
+  - { role: fonts, tags: [fonts], os: [archlinux, fedora], requires_display: true, section: fonts_theming }
   - { role: nerd-fonts, tags: [fonts], requires_display: true, section: fonts_theming }
   - role: cursor-theme
     tags: [cursor-theme]
