@@ -26,7 +26,7 @@
       - libSM
       - hicolor-icon-theme
     state: present
-  when: ansible_facts["os_family"] == "Fedora"
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Ensure Synology Drive staging directory exists
   become: true
@@ -34,7 +34,7 @@
     path: "{{ clouddrive_fedora_stage_dir }}"
     state: directory
     mode: "0755"
-  when: ansible_facts["os_family"] == "Fedora"
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Stage Synology Drive deb
   become: true
@@ -43,14 +43,14 @@
     dest: "{{ clouddrive_fedora_stage_dir }}/synology-drive-client.deb"
     mode: "0644"
   register: _clouddrive_deb_staged
-  when: ansible_facts["os_family"] == "Fedora"
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Check for extracted Synology Drive payload
   become: true
   ansible.builtin.stat:
     path: /opt/Synology/SynologyDrive/bin/launcher
   register: _clouddrive_payload
-  when: ansible_facts["os_family"] == "Fedora"
+  when: ansible_facts["os_family"] == "RedHat"
 
 - name: Unpack deb data member
   become: true
@@ -59,7 +59,7 @@
     chdir: "{{ clouddrive_fedora_stage_dir }}"
   changed_when: true
   when:
-    - ansible_facts["os_family"] == "Fedora"
+    - ansible_facts["os_family"] == "RedHat"
     - _clouddrive_deb_staged is changed or not _clouddrive_payload.stat.exists
 
 - name: Extract Synology Drive deb payload
@@ -74,7 +74,7 @@
     dest: /
     remote_src: true
   when:
-    - ansible_facts["os_family"] == "Fedora"
+    - ansible_facts["os_family"] == "RedHat"
     - _clouddrive_deb_staged is changed or not _clouddrive_payload.stat.exists
 
 - name: Install Synology Drive power gate script
