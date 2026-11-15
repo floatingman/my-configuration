@@ -48,6 +48,13 @@
     fc_fonts.stdout is not search('(?i)Hack Nerd Font')
     or fc_fonts.stdout is not search('(?i)JetBrainsMono Nerd Font')
   ansible.builtin.command: "fc-cache -f /home/{{ user.name }}/.fonts"
+  register: fc_cache_result
+  # One transient non-zero exit observed during the 2026-11-15 provisioning
+  # run (succeeded seconds later and on every manual rerun since); retries
+  # absorb a blip without masking a persistent failure.
+  until: fc_cache_result.rc == 0
+  retries: 3
+  delay: 5
   changed_when: true
   become: true
   become_user: "{{ user.name }}"
