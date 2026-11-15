@@ -640,7 +640,7 @@
         - name: Run role clouddrive
           ansible.builtin.import_role:
             name: clouddrive
-          when: _is_arch
+          when: _is_arch or _is_fedora
           tags: ["clouddrive"]
       rescue:
         - name: Record failure of role clouddrive

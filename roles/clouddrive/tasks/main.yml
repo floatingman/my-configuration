@@ -10,6 +10,72 @@
   tags:
     - aur
 
+- name: Install Synology Drive runtime libraries (Fedora)
+  # The vendor deb bundles the app under /opt but links against system
+  # glib/Qt5/curl; names mapped from the AUR package's dependency list.
+  become: true
+  ansible.builtin.package:
+    name:
+      - binutils
+      - glib2
+      - qt5-qtbase
+      - qt5-qtwayland
+      - libcurl
+      - libxkbcommon
+      - libICE
+      - libSM
+      - hicolor-icon-theme
+    state: present
+  when: ansible_facts["os_family"] == "Fedora"
+
+- name: Ensure Synology Drive staging directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ clouddrive_fedora_stage_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_facts["os_family"] == "Fedora"
+
+- name: Stage Synology Drive deb
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ clouddrive_fedora_deb_url }}"
+    dest: "{{ clouddrive_fedora_stage_dir }}/synology-drive-client.deb"
+    mode: "0644"
+  register: _clouddrive_deb_staged
+  when: ansible_facts["os_family"] == "Fedora"
+
+- name: Check for extracted Synology Drive payload
+  become: true
+  ansible.builtin.stat:
+    path: /opt/Synology/SynologyDrive/bin/launcher
+  register: _clouddrive_payload
+  when: ansible_facts["os_family"] == "Fedora"
+
+- name: Unpack deb data member
+  become: true
+  ansible.builtin.command:
+    cmd: ar x synology-drive-client.deb data.tar.xz
+    chdir: "{{ clouddrive_fedora_stage_dir }}"
+  changed_when: true
+  when:
+    - ansible_facts["os_family"] == "Fedora"
+    - _clouddrive_deb_staged is changed or not _clouddrive_payload.stat.exists
+
+- name: Extract Synology Drive deb payload
+  # deb = ar archive wrapping data.tar.xz; extraction lands the vendor tree
+  # in /opt/Synology plus the /usr launcher, desktop entry and icons — the
+  # same layout the AUR installs on Arch.
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ clouddrive_fedora_stage_dir }}/data.tar.xz"
+    dest: /
+    remote_src: true
+    creates: /opt/Synology/SynologyDrive/bin/launcher
+  when:
+    - ansible_facts["os_family"] == "Fedora"
+    - _clouddrive_deb_staged is changed or not _clouddrive_payload.stat.exists
+
 - name: Install Synology Drive power gate script
   become: true
   ansible.builtin.template:

@@ -13,3 +13,19 @@
   when: ansible_facts["os_family"] == "Archlinux"
   tags:
     - aur
+
+- name: Enable Syncthing user service
+  # Opt-in: hosts without syncthingtray (Fedora ships no tray package) need
+  # the per-user unit so syncing starts with the graphical login; null keeps
+  # install-only behavior where the tray owns the lifecycle.
+  become: true
+  become_user: "{{ user.name }}"
+  ansible.builtin.systemd:
+    scope: user
+    name: syncthing.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ user.uid }}"
+  when: syncthing_enable_service | default(false) | bool

@@ -1,0 +1,5 @@
+---
+# Enable the per-user syncthing systemd unit (starts with the graphical
+# login). null keeps install-only behavior for hosts where syncthingtray
+# owns the process lifecycle (the Arch workstation pattern).
+syncthing_enable_service: null
