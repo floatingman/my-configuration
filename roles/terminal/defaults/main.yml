@@ -1,0 +1,6 @@
+---
+# Install ghostty on Fedora from the community COPR (pgdev/ghostty).
+# Upstream ships neither an RPM nor a flatpak, so that COPR is the only
+# Fedora channel (actively maintained: release builds, fedora-45 chroot
+# verified 2026-11). Set to false to keep ghostty Arch-only on a Fedora host.
+terminal_enable_ghostty_copr: true

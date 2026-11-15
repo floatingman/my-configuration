@@ -2,9 +2,10 @@
 # Terminal emulators. alacritty and kitty are packaged under the same name in
 # Arch, Debian and Fedora (Fedora 45 repodata, 2026-11), so the generic
 # install tasks cover all three. ghostty is not packaged in Fedora's official
-# repos and upstream ships no RPM/flatpak, so it stays Arch-only. wezterm has
-# no RPM either; Debian uses the fury.io apt repo and Fedora uses upstream's
-# official flathub channel (org.wezfurlong.wezterm).
+# repos and upstream ships no RPM/flatpak, so Fedora hosts get it from the
+# community COPR (pgdev/ghostty) unless terminal_enable_ghostty_copr is
+# false. wezterm has no RPM either; Debian uses the fury.io apt repo and
+# Fedora uses upstream's official flathub channel (org.wezfurlong.wezterm).
 - name: Install alacritty
   become: true
   ansible.builtin.package:
@@ -30,12 +31,41 @@
   tags:
     - terminal
 
+- name: Install dnf5-plugins for COPR support (Fedora)
+  # community.general.copr drives `dnf copr`, which dnf5 ships in
+  # dnf5-plugins rather than the old dnf-plugins-core.
+  become: true
+  ansible.builtin.package:
+    name: dnf5-plugins
+    state: present
+  when:
+    - ansible_facts["os_family"] == "RedHat"
+    - terminal_enable_ghostty_copr
+  tags:
+    - terminal
+
+- name: Enable the ghostty COPR (Fedora)
+  # Community build (pgdev/ghostty): upstream ships no RPM or flatpak. Actively
+  # maintained and carries the fedora-45 chroot (verified 2026-11); opt out per
+  # host with terminal_enable_ghostty_copr: false.
+  become: true
+  community.general.copr:
+    name: pgdev/ghostty
+    state: enabled
+  when:
+    - ansible_facts["os_family"] == "RedHat"
+    - terminal_enable_ghostty_copr
+  tags:
+    - terminal
+
 - name: Install Ghostty
   become: true
   ansible.builtin.package:
     name: ghostty
     state: present
-  when: ansible_facts["os_family"] == "Archlinux"
+  when: >-
+    ansible_facts["os_family"] == "Archlinux"
+    or (ansible_facts["os_family"] == "RedHat" and terminal_enable_ghostty_copr)
   tags:
     - terminal
 

@@ -47,6 +47,7 @@ laptop_power_management: tuned     # tuned | tlp  (only used when laptop: true)
 # gaming_enable_rpmfusion: false        # true adds RPM Fusion nonfree (required for the rpm method)
 # gaming_mangohud: false                # true installs MangoHud
 # gaming_gamemode: false                # true installs GameMode
+# terminal_enable_ghostty_copr: true    # false keeps ghostty Arch-only (skips the pgdev/ghostty COPR on Fedora)
 
 # Display
 desktop_environment: i3     # i3 | hyprland | gnome | awesome | kde
