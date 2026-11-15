@@ -1,9 +1,8 @@
 ---
 # KDE Plasma companion packages. Arch and Debian share the upstream names
-# (arch-debian.yml); Fedora renames three of them (verified against Fedora 43
-# repodata, 2026-11) and gets its own list in fedora.yml. Neither arm installs
-# the Plasma workspace itself: on Fedora KDE the OEM image ships it already,
-# and nothing in this role may touch the session the image booted into.
+# (arch-debian.yml); Fedora renames three of them (fedora.yml). Neither arm
+# installs the Plasma workspace itself: the Fedora OEM image ships it, and
+# nothing here may touch the session the image booted into.
 - name: Install KDE companion packages (Arch/Debian names)
   ansible.builtin.include_tasks: arch-debian.yml
   when: ansible_facts["os_family"] in ["Archlinux", "Debian"]

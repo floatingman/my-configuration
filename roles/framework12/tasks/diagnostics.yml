@@ -1,9 +1,9 @@
 ---
-# Check-mode-safe diagnostics: every probe is read-only and reports state
-# without mutating anything. Command probes run with check_mode: false so a
-# --check dry run still prints the report; failure rc values are tolerated
-# (failed_when: false) and consumers guard on rc per MISTAKES.md.
-# Results feed the hardware checklist in the role README (issue #234 lane).
+# Check-mode-safe diagnostics: every probe is read-only, runs with
+# check_mode: false so a --check dry run still prints the report, and
+# tolerates failure rc values (failed_when: false) with consumers guarding
+# on rc (MISTAKES.md). Results feed the hardware checklist in the role
+# README.
 
 - name: Read input device inventory
   ansible.builtin.slurp:

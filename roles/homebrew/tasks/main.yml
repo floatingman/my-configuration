@@ -89,9 +89,9 @@
     - not homebrew_check.stat.exists
 
 - name: Download Homebrew tarball
-  # tarball/main, not master: Homebrew retired master (GitHub still serves the
-  # stale tarball), and an install from it refuses every brew command with
-  # "master branch is no longer supported" (seen live on Fedora 45).
+  # tarball/main: GitHub still serves the retired master tarball, and an
+  # install from it refuses every brew command ("master branch is no longer
+  # supported").
   ansible.builtin.get_url:
     url: https://github.com/Homebrew/brew/tarball/main
     dest: /tmp/homebrew-brew.tar.gz

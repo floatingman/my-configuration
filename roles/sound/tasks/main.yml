@@ -25,9 +25,8 @@
   when: ansible_facts["os_family"] != "RedHat"
 
 - name: Install Pipewire (Fedora)
-  # Fedora names the PulseAudio compatibility daemon pipewire-pulseaudio and
-  # does not package mda.lv2 at all; every other name resolved against the
-  # Fedora 45 repo (verified live 2026-11).
+  # Fedora names the PulseAudio compatibility daemon pipewire-pulseaudio
+  # and packages no mda.lv2.
   ansible.builtin.package:
     name:
       - pipewire

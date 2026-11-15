@@ -7,15 +7,11 @@
   become: true
   become_user: "{{ user.name }}"
 
-# Availability is decided by what fontconfig can resolve, not by ls-ing
-# ~/.fonts: a system package (Arch installs ttf-hack-nerd /
-# ttf-jetBrains-mono-nerd via base_fonts) already satisfies the requirement,
-# and downloading again into ~/.fonts would shadow it. fc-list runs once and
-# the downloads gate on regex matches over its output — no shell pipes, and
-# no `failed_when: false` dance: the previous `is failed` download condition
-# could never fire (failed_when: false forces .failed to false), so the
-# downloads never ran on any OS. Masked on Arch by the system packages;
-# proven live on Fedora 45 where ~/.fonts stayed empty.
+# Availability is decided by what fontconfig resolves, not by ls-ing
+# ~/.fonts: system packages (Arch's base_fonts nerd fonts) satisfy the
+# check, and re-downloading would shadow them. Gate on regex over one
+# fc-list run — never `failed_when: false` + `is failed`, which can never
+# fire (failed_when: false forces .failed to false).
 - name: List fonts known to fontconfig
   ansible.builtin.command: fc-list
   register: fc_fonts
@@ -49,9 +45,8 @@
     or fc_fonts.stdout is not search('(?i)JetBrainsMono Nerd Font')
   ansible.builtin.command: "fc-cache -f /home/{{ user.name }}/.fonts"
   register: fc_cache_result
-  # One transient non-zero exit observed during the 2026-11-15 provisioning
-  # run (succeeded seconds later and on every manual rerun since); retries
-  # absorb a blip without masking a persistent failure.
+  # fc-cache has transient non-zero exits in the wild; retries absorb a
+  # blip without masking a persistent failure.
   until: fc_cache_result.rc == 0
   retries: 3
   delay: 5

@@ -1,8 +1,7 @@
 ---
-# Fedora names verified against Fedora 43 Everything + updates repodata
-# (primary.xml, 2026-11). Renames vs Arch: polkit-kde-agent → polkit-kde,
-# kdeconnect → kde-connect (rpm:requires pulls in the kdeconnectd daemon),
-# systemsettings → plasma-systemsettings (owns /usr/bin/systemsettings).
+# Renames vs Arch: polkit-kde-agent → polkit-kde, kdeconnect → kde-connect
+# (rpm:requires pulls in kdeconnectd), systemsettings → plasma-systemsettings
+# (owns /usr/bin/systemsettings).
 - name: Install plasma-nm
   ansible.builtin.package:
     name: plasma-nm

@@ -37,14 +37,13 @@ PIPX_VENVS      := $(shell pipx environment --value PIPX_LOCAL_VENVS 2>/dev/null
 ANSIBLE_VENV_PY := $(firstword $(wildcard $(PIPX_VENVS)/ansible/bin/python3 $(HOME)/.local/pipx/venvs/ansible/bin/python3 $(HOME)/.local/share/pipx/venvs/ansible/bin/python3))
 SCRIPT_PYTHON   := $(or $(ANSIBLE_VENV_PY),/usr/bin/python3)
 
-# Module execution interpreter: pin to the system python every user can
-# execute. On Arch that also sidesteps the mode-0700 home guarding the pipx
-# venv from non-root become users (aur_builder). On Fedora the system python
-# is REQUIRED for package modules (libdnf5 bindings exist only for it);
-# ansible-core's _patches crash there on py3.15 is handled by
-# scripts/patch_ansible_py315.py as a bootstrap step (see INSTALL.md).
-# (env var / ansible.cfg do not override the local-connection controller
-# interpreter; only an extra var has high enough precedence.)
+# Module execution interpreter: the system python every user can execute.
+# On Arch that also bypasses the mode-0700 home guarding the pipx venv from
+# non-root become users (aur_builder). On Fedora the system python is
+# REQUIRED (libdnf5 bindings exist only there); ansible-core's py3.15
+# _patches crash is handled by scripts/patch_ansible_py315.py (INSTALL.md).
+# Only an extra var outranks the local-connection controller interpreter —
+# env vars and ansible.cfg do not.
 ANSIBLE_PYTHON_FLAGS := -e ansible_python_interpreter=/usr/bin/python3
 
 # Used by ifdef conditionals (make lint): MUST be := (simple expansion) —

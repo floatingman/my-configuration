@@ -1,8 +1,7 @@
 ---
 # Wayland userland and theming. The AUR arms are Arch-gated; the generic
-# package tasks are Fedora-safe unless noted per task (Fedora 43 repodata,
-# 2026-11: no binary package is named "wayland" and cliphist is unpackaged,
-# so both skip Fedora; the Arch "breeze" metapackage maps to plasma-breeze).
+# tasks are Fedora-safe unless noted. Fedora has no binary package named
+# "wayland", packages no cliphist, and splits the Arch "breeze" metapackage.
 - name: Install wayland
   ansible.builtin.package:
     name: wayland
@@ -39,7 +38,7 @@
 
 - name: Install plasma-breeze
   # Fedora splits the Arch "breeze" metapackage; plasma-breeze carries the
-  # artwork/styles (verified: Fedora 43 repodata, 2026-11).
+  # artwork/styles.
   ansible.builtin.package:
     name: plasma-breeze
     state: present

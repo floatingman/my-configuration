@@ -10,8 +10,7 @@
 #     - aur
 
 - name: Install mpv
-  # Packaged under this name in Arch, Debian and Fedora official repos
-  # (F45 repodata, verified live 2026-11).
+  # Same package name in Arch, Debian and Fedora official repos.
   become: true
   ansible.builtin.package:
     name: mpv
@@ -25,9 +24,8 @@
   become: true
 
 - name: Install Vapoursynth
-  # Arch-only: Fedora ships only vapoursynth-libs/python3-vapoursynth
-  # (no vspipe tools package), and the mvtools plugin chain this exists to
-  # feed is AUR-only anyway (verified against F45 repodata 2026-11).
+  # Arch-only: Fedora has no vspipe tools package (libs/python only) and the
+  # mvtools plugin chain below is AUR-only.
   become: true
   ansible.builtin.package:
     name: vapoursynth
@@ -46,7 +44,6 @@
   tags:
     - aur
 
-# vapoursynth-plugin-svpflow dropped 2026-10: its PKGBUILD compiles against
-# /usr/include/vapoursynth, but VapourSynth 80 ships headers under
-# /usr/lib/python3.x/site-packages/vapoursynth/include — the build fails on
-# every current Arch box. Re-add when the AUR package adapts.
+# vapoursynth-plugin-svpflow stays out: its PKGBUILD expects headers under
+# /usr/include/vapoursynth, which VapourSynth 80 no longer ships. Re-add
+# when the package adapts.

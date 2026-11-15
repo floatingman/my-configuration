@@ -55,10 +55,9 @@
   when: ansible_facts["os_family"] == "Archlinux"
 
 - name: Install base fonts (Fedora)
-  # Name-mapped list lives in group_vars/all/base.yml as fedora_fonts; every
-  # entry resolved live against the Fedora 45 repo (2026-11). Arch's nerd-font
-  # variants, iosevka, sarasa-gothic and ubuntu are not packaged on Fedora —
-  # Hack/JetBrainsMono nerd fonts come from the universal nerd-fonts role.
+  # Name-mapped list (fedora_fonts in group_vars/all/base.yml). Fedora
+  # packages no nerd-font variants, iosevka, sarasa-gothic or ubuntu — the
+  # nerd-fonts role covers Hack/JetBrainsMono.
   become: true
   ansible.builtin.package:
     name: "{{ fedora_fonts }}"

@@ -68,8 +68,8 @@ class Plugin:
     underscore_dots: bool = False
 
 
-# Upstream mapping verified against each plugin's current asdf version
-# resolution and the upstream's release/tags feed (2026-09 audit).
+# Upstream mapping per plugin: current asdf version resolution and the
+# upstream's release/tags feed.
 MANIFEST = {
     "awscli": Plugin("aws/aws-cli", "github", ""),
     "concourse": Plugin("concourse/concourse", "github", "v"),

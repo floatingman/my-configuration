@@ -21,8 +21,7 @@
 
 - name: Enable LightDM
   # daemon_reload: after re-pointing the display-manager.service symlink,
-  # systemd's cached view can still hold the old alias and enable fails with
-  # a FileExists DBus error (seen live on a Fedora OEM image).
+  # systemd's cached alias can make enable fail with FileExists.
   become: true
   ansible.builtin.service:
     name: lightdm.service

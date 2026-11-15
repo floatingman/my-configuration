@@ -39,20 +39,20 @@ PROFILES = ["headless", "i3", "hyprland", "gnome", "awesomewm", "kde"]
 OS_FAMILIES = ["Archlinux", "Debian"]
 FEDORA_OS_FAMILY = "Fedora"
 
-# Host_vars shapes from PRD-176 FR3. Order matters: it fixes golden filenames.
+# Host_vars shapes. Order matters: it fixes golden filenames.
 HOST_VARS_CASES = {
     "default": {},
     "laptop_true": {"laptop": True},
     "bluetooth_disabled": {"bluetooth": {"disable": True}},
     "user_env_false": {"user_environment": False},
     "dotfiles_true": {"dotfiles_config": True},
-    # Fedora-only shape (issue #234): activates the gaming overlay. Kept out
-    # of the Arch/Debian product below so the original 60 goldens stay put;
-    # the gaming role self-gates to Fedora (os_family RedHat) anyway.
+    # Fedora-only shape: activates the gaming overlay. Kept out of the
+    # Arch/Debian product below so the original 60 goldens stay put; the
+    # gaming role self-gates to Fedora (os_family RedHat) anyway.
     "gaming_true": {"gaming": True},
 }
 
-# Arch/Debian product keeps exactly the five PRD-176 shapes, in their
+# Arch/Debian product keeps exactly the five original shapes, in their
 # original order (golden filenames are order-fixed).
 _TWO_OS_HV_CASES = (
     "default",
@@ -62,8 +62,8 @@ _TWO_OS_HV_CASES = (
     "dotfiles_true",
 )
 
-# Fedora matrices (issue #234 W5): selective coverage, not the full product —
-# kde/gnome/headless defaults, kde + laptop overlay, kde + gaming overlay.
+# Fedora matrices: selective coverage, not the full product — kde/gnome/
+# headless defaults, kde + laptop overlay, kde + gaming overlay.
 _FEDORA_MATRIX_PARAMS = [
     (FEDORA_OS_FAMILY, "kde", "default"),
     (FEDORA_OS_FAMILY, "gnome", "default"),

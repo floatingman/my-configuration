@@ -308,9 +308,8 @@ base_fonts:
   - ttf-sourcecodepro-nerd
   - ttf-ubuntu-font-family
 
-# Fedora 45 name-mapped font set for the fonts role (every entry resolved
-# live via dnf repoquery, 2026-11). Not packaged on Fedora: the *-nerd
-# variants (Hack/JetBrainsMono nerd come from the nerd-fonts role instead),
+# Fedora name-mapped font set for the fonts role. Not packaged on Fedora:
+# the *-nerd variants (Hack/JetBrainsMono come from the nerd-fonts role),
 # iosevka, sarasa-gothic, ubuntu, and the AUR-only fonts in aur_fonts.
 fedora_fonts:
   - abattis-cantarell-fonts        # cantarell-fonts
