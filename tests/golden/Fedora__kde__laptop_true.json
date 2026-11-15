@@ -389,7 +389,7 @@
       "tags": [
         "fonts"
       ],
-      "condition": "_is_arch and _has_display",
+      "condition": "_is_arch or _is_fedora and _has_display",
       "source": "kde"
     },
     {

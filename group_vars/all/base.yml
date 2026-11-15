@@ -308,6 +308,36 @@ base_fonts:
   - ttf-sourcecodepro-nerd
   - ttf-ubuntu-font-family
 
+# Fedora 45 name-mapped font set for the fonts role (every entry resolved
+# live via dnf repoquery, 2026-11). Not packaged on Fedora: the *-nerd
+# variants (Hack/JetBrainsMono nerd come from the nerd-fonts role instead),
+# iosevka, sarasa-gothic, ubuntu, and the AUR-only fonts in aur_fonts.
+fedora_fonts:
+  - abattis-cantarell-fonts        # cantarell-fonts
+  - adobe-source-code-pro-fonts
+  - dejavu-sans-fonts              # ttf-dejavu (Fedora splits by face)
+  - dejavu-sans-mono-fonts
+  - dejavu-serif-fonts
+  - fira-code-fonts                # ttf-fira-mono/firacode family
+  - gdouros-symbola-fonts          # local.conf Symbol/Wingdings target
+  - google-carlito-fonts           # ttf-carlito
+  - google-crosextra-caladea-fonts # ttf-caladea
+  - google-droid-sans-fonts        # ttf-droid
+  - google-droid-sans-mono-fonts
+  - google-droid-serif-fonts
+  - google-noto-emoji-fonts        # noto-fonts-emoji
+  - google-noto-sans-fonts         # noto-fonts
+  - google-noto-sans-mono-fonts
+  - google-noto-serif-fonts
+  - ibm-plex-fonts-all             # ttf-ibm-plex
+  - levien-inconsolata-fonts       # ttf-inconsolata
+  - liberation-fonts-all           # ttf-liberation
+  - open-sans-fonts                # ttf-opensans
+  - terminus-fonts                 # terminus-font
+  - texlive-tex-gyre               # tex-gyre-fonts
+  - twitter-twemoji-fonts          # aur ttf-twemoji
+  - urw-base35-fonts               # gsfonts
+
 aur_fonts:
   - nerd-fonts-sarasa-term
   - otf-space-grotesk
