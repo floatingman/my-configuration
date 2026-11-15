@@ -65,13 +65,14 @@
 - name: Extract Synology Drive deb payload
   # deb = ar archive wrapping data.tar.xz; extraction lands the vendor tree
   # in /opt/Synology plus the /usr launcher, desktop entry and icons — the
-  # same layout the AUR installs on Arch.
+  # same layout the AUR installs on Arch. No `creates:` guard: the payload
+  # marker exists from the first install on, and unarchive would skip every
+  # gated upgrade extraction; the when gate is the sole run condition.
   become: true
   ansible.builtin.unarchive:
     src: "{{ clouddrive_fedora_stage_dir }}/data.tar.xz"
     dest: /
     remote_src: true
-    creates: /opt/Synology/SynologyDrive/bin/launcher
   when:
     - ansible_facts["os_family"] == "Fedora"
     - _clouddrive_deb_staged is changed or not _clouddrive_payload.stat.exists
