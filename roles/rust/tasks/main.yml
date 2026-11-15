@@ -102,19 +102,17 @@
 # recursively: setgid on regular files (rustc, cargo, librustc_driver-*.so)
 # makes the kernel mark the process AT_SECURE at exec (egid devtools != rgid),
 # so glibc refuses to expand $ORIGIN in rustc's RUNPATH and every compile dies
-# with "librustc_driver-*.so: cannot open shared object file" (see
-# MISTAKES.md 2026-10-14). Only directories get setgid + group write; that is
-# still enough for devtools members to run `rustup update` / `cargo install`,
-# because those create/replace files through group-writable directories.
+# with "librustc_driver-*.so: cannot open shared object file" (MISTAKES.md).
+# Only directories get setgid + group write; devtools members can still run
+# `rustup update` / `cargo install`, because those create/replace files
+# through group-writable directories.
 #
-# Both sweeps are single `find ... -exec ... +` batches. The previous shape
-# (find module + one ansible.builtin.file call per directory) paid a module
-# exec + sudo per directory; with the cargo registry's extracted crate
-# sources (~8k directories under /opt/rust) that alone took >10 minutes on an
-# otherwise healthy host. The find-based predicates also guard the fix
-# commands, so runs with no drift stay true no-ops. The probes need become so
-# they see the same tree as the root-run fixes (a 0700 root-owned directory
-# would otherwise hide its children from the probe and skip repairs forever).
+# Both sweeps are single `find ... -exec ... +` batches: a per-directory
+# module exec + sudo over the cargo registry's ~8k extracted-crate
+# directories alone cost >10 minutes. The find predicates also guard the
+# fix commands, so runs with no drift stay true no-ops. The probes need
+# become: a 0700 root-owned directory would hide its children and skip
+# repairs forever.
 - name: Find Rust paths with wrong owner or group
   ansible.builtin.command:
     cmd: find {{ rust_rustup_home }} \( ! -user root -o ! -group devtools \)

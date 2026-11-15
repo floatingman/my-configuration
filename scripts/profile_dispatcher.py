@@ -60,7 +60,7 @@ __all__ = [
     "generate_overlay_facts_task",
     # Resolution entry points
     "resolve",
-    # ManifestResolver module (PRD-176)
+    # ManifestResolver module
     "EvalMode",
     "ManifestResolver",
     "ManualTarget",
@@ -78,8 +78,8 @@ _DEFAULT_PROFILES_DIR = str(Path(__file__).parent.parent / "profiles")
 _ALLOWED_DISPLAY_MANAGERS = {"", "lightdm", "gdm", "sddm"}
 _ALLOWED_DESKTOP_ENVIRONMENTS = {"", "i3", "hyprland", "gnome", "awesomewm", "kde"}
 
-# Allowed values for role `os:` annotations (scalar or list form; issue #234).
-# An absent/null annotation is universal: the role runs on every OS.
+# Allowed values for role `os:` annotations (scalar or list form). An
+# absent/null annotation is universal: the role runs on every OS.
 _ALLOWED_OS_VALUES = ("archlinux", "debian", "fedora")
 
 # Legacy scalar `os:` translations, byte-identical to the pre-Fedora
@@ -837,9 +837,9 @@ def validate_profile(profiles_dir: str, name: str) -> list:
                     f"(see profiles/_sections.yml)"
                 )
 
-    # os annotation checks (issue #234): scalar or list, known values only.
-    # Independent of the sections checks above so a missing/unloadable
-    # _sections.yml never hides an invalid os annotation.
+    # os annotation checks: scalar or list, known values only. Independent
+    # of the sections checks above so a missing/unloadable _sections.yml
+    # never hides an invalid os annotation.
     if isinstance(roles_field, list):
         for entry in roles_field:
             os_value = entry.get("os") if isinstance(entry, dict) else None
@@ -1388,15 +1388,14 @@ def resolve(
     return resolver._resolve_target(normalized)
 
 # ---------------------------------------------------------------------------
-# ManifestResolver module (PRD-176 FR1)
+# ManifestResolver module
 #
 # One concept — "given profiles + overlays + host vars, produce the
-# deduplicated role list with gating conditions and flags" — owned by a single
-# bound context. Signatures follow RFC #175's Interface section.
-# Overlay applies_when is evaluated by the injected Jinja2Evaluator behind the
-# _ConditionEvaluator protocol (FR5); the golden-JSON matrix
-# (tests/test_golden.py) and the recorded parity matrix arbitrate byte
-# stability (NFR2).
+# deduplicated role list with gating conditions and flags" — owned by a
+# single bound context. Overlay applies_when is evaluated by the injected
+# Jinja2Evaluator behind the _ConditionEvaluator protocol; the golden-JSON
+# matrix (tests/test_golden.py) and the recorded parity matrix arbitrate
+# byte stability.
 # ---------------------------------------------------------------------------
 
 
@@ -1517,7 +1516,7 @@ class _ProfileRepository:
             try:
                 data = yaml.safe_load(f)
             except yaml.YAMLError as exc:
-                # Fail loud (PRD-176 FR6): name the overlay, matching the
+                # Fail loud: name the overlay, matching the
                 # validate_overlays message pattern - never a silent skip.
                 raise ValueError(f"Overlay '{name}': invalid YAML: {exc}") from exc
         if data is None:
@@ -3454,9 +3453,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 # ansible_facts['os_family'] is "RedHat" on Fedora; the generated play.yml
 # pre-task passes it to resolve-role-manifest verbatim, so the CLI boundary
-# accepts the alias and resolves it to Fedora (issue #234). Canonical values
-# pass through unchanged; anything else keeps argparse's invalid-choice
-# rejection (exact match, case-sensitive).
+# accepts the alias and resolves it to Fedora. Canonical values pass through
+# unchanged; anything else keeps argparse's exact-match rejection.
 _OS_FAMILY_ALIASES = {"RedHat": "Fedora"}
 
 

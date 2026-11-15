@@ -44,13 +44,11 @@ def _write_tree(root: Path, roles: list) -> None:
     }))
 
 
-# Recorded PRE-deletion (PRD-176 FR5 / AC3): the substring sniffer vs
-# Jinja2Evaluator over the 3 shipped applies_when expressions, the PRD's var
-# shapes, and the sniffer's string-"false" special case. Expected values are
-# the Jinja2Evaluator verdict (post-swap behavior); delta=True marks the cells
-# where the deleted sniffer differed:
-#   - string "false" is truthy under Jinja2 (the PRD's accepted delta)
-#   - user_environment={} passes through default(true) and is falsy
+# Recorded parity matrix for the old substring sniffer vs Jinja2Evaluator
+# over the 3 shipped applies_when expressions: expected values are the
+# evaluator verdicts; delta=True marks where the deleted sniffer differed
+# (string "false" is truthy under Jinja2; user_environment={} passes
+# through default(true) and is falsy).
 _PARITY_ROWS = [
     # (expression, var, value, expected_applies, delta_vs_sniffer)
     ("laptop | default(false)", "laptop", "__missing__", False, False),

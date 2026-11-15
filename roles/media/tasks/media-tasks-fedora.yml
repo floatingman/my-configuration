@@ -1,7 +1,6 @@
 ---
-# Names verified against the Fedora 45 repository (live check 2026-11):
-# exiftool ships as perl-Image-ExifTool and the zbar CLI tools are part of
-# the zbar package (Debian splits them into zbar-tools).
+# Fedora renames: exiftool is perl-Image-ExifTool; zbar CLI tools are part
+# of zbar (Debian splits them into zbar-tools).
 - name: Install misc media codecs and helpers Fedora
   become: true
   ansible.builtin.package:
@@ -23,9 +22,8 @@
     state: present
 
 - name: Install media players
-  # vlc entered Fedora's official repos in F43 (no plugins-all subpackage
-  # exists there); svgcleaner is not packaged on Fedora at all and stays
-  # Arch-only (all names verified against the F45 repo, live 2026-11).
+  # vlc is in Fedora's official repos (no plugins-all subpackage exists);
+  # svgcleaner is not packaged on Fedora and stays Arch-only.
   become: true
   ansible.builtin.package:
     name:

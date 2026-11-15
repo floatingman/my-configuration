@@ -1,11 +1,9 @@
 ---
-# Terminal emulators. alacritty and kitty are packaged under the same name in
-# Arch, Debian and Fedora (Fedora 45 repodata, 2026-11), so the generic
-# install tasks cover all three. ghostty is not packaged in Fedora's official
-# repos and upstream ships no RPM/flatpak, so Fedora hosts get it from the
-# community COPR (pgdev/ghostty) unless terminal_enable_ghostty_copr is
-# false. wezterm has no RPM either; Debian uses the fury.io apt repo and
-# Fedora uses upstream's official flathub channel (org.wezfurlong.wezterm).
+# Terminal emulators. alacritty and kitty share their names across Arch,
+# Debian and Fedora, so the generic tasks cover all three. ghostty and
+# wezterm have no Fedora RPMs: ghostty comes from the pgdev/ghostty COPR
+# (opt out via terminal_enable_ghostty_copr), wezterm from upstream's
+# flathub channel (Debian uses the fury.io apt repo instead).
 - name: Install alacritty
   become: true
   ansible.builtin.package:
@@ -45,9 +43,8 @@
     - terminal
 
 - name: Enable the ghostty COPR (Fedora)
-  # Community build (pgdev/ghostty): upstream ships no RPM or flatpak. Actively
-  # maintained and carries the fedora-45 chroot (verified 2026-11); opt out per
-  # host with terminal_enable_ghostty_copr: false.
+  # Community COPR build: upstream ships no RPM or flatpak for Fedora.
+  # Opt out per host with terminal_enable_ghostty_copr: false.
   become: true
   community.general.copr:
     name: pgdev/ghostty

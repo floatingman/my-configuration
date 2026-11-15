@@ -12,8 +12,8 @@
 
 
 - name: Install streamlink CLI (Fedora)
-  # The streamlink-twitch-gui wrapper is AUR-only; the engine itself is
-  # packaged as python3-streamlink (verified F45 repo, 2026-11).
+  # The streamlink-twitch-gui wrapper is AUR-only; the engine is packaged
+  # as python3-streamlink.
   become: true
   ansible.builtin.package:
     name: python3-streamlink

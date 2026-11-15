@@ -1,19 +1,11 @@
 ---
-# ForgeCode — AI coding harness (https://forgecode.dev, GitHub:
-# tailcallhq/forgecode). The official `curl forgecode.dev/cli | sh`
-# installer went dead upstream (HTTP 404 live-verified 2026-11; the site's
-# docs pages 404 with it while the GitHub releases stayed healthy), so the
-# binary now comes straight from the project's GitHub release assets —
-# identical artifact, no remote script execution at all.
-#
-# Download still runs as the primary user into a staging dir under the
-# user's own home; a separate root task then copies that file into the
-# system bin dir as a real, root-owned, world-executable file and removes
-# the staging dir: root only ever reads the finished binary. (The old
-# pre-throwaway-HOME flow also littered /root/.local/bin with frozen
-# fzf/bat/fd copies and edited root rc-files; none of that exists here.)
-#
-# ZSH plugin setup remains per-user.
+# ForgeCode — AI coding harness (tailcallhq/forgecode on GitHub). The binary
+# comes straight from the release assets: the official forgecode.dev/cli
+# installer endpoint is dead upstream (404, docs pages with it), and the
+# direct download avoids executing a remote script as any user. Download
+# runs as the primary user into a staging dir; root only ever reads the
+# finished binary when copying it into the system bin dir. ZSH plugin setup
+# remains per-user.
 
 - name: Check if forge binary is installed
   ansible.builtin.stat:
@@ -48,13 +40,8 @@
     - ai_forgecode_enabled | default(true)
     - ai_forgecode_link_stat.stat.islnk | default(false)
 
-# Runs as the primary user, never root (see header). forgecode.dev/cli
-# 404s upstream (verified live 2026-11) while the GitHub releases stayed
-# healthy, so the binary comes straight from the release assets — the same
-# artifact the installer delivered, without executing any remote script.
-# Only the finished binary is staged under the user's own home for the root
-# copy task below; the remove task at the end of the flow deletes the
-# staging dir again.
+# Runs as the primary user, never root (see header); the trailing remove
+# task deletes the staging dir after the root copy consumes it.
 - name: Ensure ForgeCode staging directory exists
   ansible.builtin.file:
     path: "/home/{{ user.name }}/.local/share/forge-install"

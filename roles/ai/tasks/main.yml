@@ -394,8 +394,8 @@
     - ansible_facts['os_family'] == "Archlinux"
 
 - name: Install Unsloth Desktop from AUR
-  # Replaces LM Studio (lmstudio-bin), retired 2026-10; the old package is
-  # removed by the aur role's deprecated-package sweep.
+  # Replaces the retired LM Studio (lmstudio-bin); the aur role's
+  # deprecated-package sweep removes the old one.
   become: true
   become_user: aur_builder
   kewlfft.aur.aur:

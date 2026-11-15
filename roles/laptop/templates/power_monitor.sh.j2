@@ -1,33 +1,23 @@
 #! /bin/bash
-# Original stolen from Kobus van Schoor:
+# Original from Kobus van Schoor:
 # https://kobusvs.co.za/blog/power-profile-switching/
 #
-# 2026-08-20: display policy added.
-#   - Force AMD panel_power_savings (ABM / "Vari-Bright") to 0 in every state.
-#     TuneD's "powersave" profile (pulled in by laptop-battery-powersave when
-#     battery < LOW_BAT_PERCENT) sets it to 3, which dynamically reduces panel
-#     backlight based on on-screen content over a few minutes -- perceived as
-#     "brightness keeps dropping". Re-zero it after every profile switch.
-#   - Backlight: near-max on AC, BAT_BRIGHT_PERCENT on battery. Applied only on
-#     power-source/profile transitions so manual brightness tweaks are kept.
-#   - AC is capped at AC_BRIGHT_PERCENT, not true max: this panel (Framework 16
-#     amdgpu, kernel ~7.1.6+) has a bug where brightness at/near 100% drives the
-#     panel DARKER. ~96% is the known-good top of the range. Proper fix is the
-#     amdgpu.dcdebugmask=0x40000 kernel parameter.
+# Display policy (applied on power-source/profile transitions only, so
+# manual brightness tweaks survive):
+#   - AMD panel_power_savings (ABM) is re-zeroed after every profile switch:
+#     TuneD's "powersave" profile sets it to 3, which dynamically dims the
+#     panel based on content and reads as "brightness keeps dropping".
+#   - AC is capped at AC_BRIGHT_PERCENT, not true max: this panel (Framework
+#     16 amdgpu) goes DARKER at brightness near 100%; ~96% is known-good.
+#     Real fix is the amdgpu.dcdebugmask=0x40000 kernel parameter.
 #
-# 2026-10-12: power-source detection made generic; knobs templated.
-#   - The old script hardcoded /sys/class/power_supply/ACAD/online
-#     (Framework's supply name). On laptops whose mains supply is named AC,
-#     ADP1, ... the read returned empty, never equalled "0", and the script
-#     permanently sat on the AC profile -- zero power saving on battery.
-#     Every supply of type Mains is now checked, plus online USB sources
-#     (USB-C docks on machines whose Mains supply tracks the barrel jack
-#     only); with no Mains supply at all the machine is assumed to be on AC.
-#   - The old script globbed BAT* into one path, so with two batteries
-#     ("BAT0 BAT1/capacity") the capacity test silently failed and always
-#     took the low-battery branch. Charge is now aggregated across all
-#     batteries, weighting dead secondary cells by their remaining capacity.
-#   - Policy constants moved to laptop_* role variables (defaults/main.yml).
+# Power-source detection must not hardcode supply names: mains supplies are
+# named ACAD, AC, ADP1, ... and a wrong name silently pins the AC profile
+# (zero power saving). Every Mains-type supply is checked, plus live USB
+# sources (USB-C docks); no Mains supply at all is treated as AC. Battery
+# charge is aggregated across batteries, so a dead secondary cell cannot
+# force the low-battery branch. Policy constants come from laptop_* role
+# variables (defaults/main.yml).
 
 LOW_BAT_PERCENT={{ laptop_low_bat_percent }}
 

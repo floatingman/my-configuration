@@ -59,8 +59,8 @@ class Tool:
     var_style: str  # 'url' | 'value'
 
 
-# tag_prefix / var_style verified against each entry's URL template in base.yml
-# and the upstream's current release assets (2026-09 audit).
+# tag_prefix / var_style per entry: its URL template in base.yml and the
+# upstream's current release assets.
 MANIFEST = {
     "aws_vault_version": Tool("ByteNess/aws-vault", "v", "url"),
     "gh_md_toc_version": Tool("ekalinin/github-markdown-toc", "", "url"),

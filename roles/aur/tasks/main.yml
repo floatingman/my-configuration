@@ -43,19 +43,10 @@
     resilient_packages_owner: aur
   when: ansible_facts['os_family'] == "Archlinux" and aur is defined
 
-# highlight-pointer-git and slack-term-bin were previously installed from the
-# AUR but are no longer managed here (unused; the `binaries` fallback is
-# Debian-only). warp-terminal was dropped from the shell role (huge AUR build
-# that times out); hey-bin's S3 source 403s — hey now installs via direct
-# download in the shell role; clion/clion-gdb/clion-lldb sources 404 on the
-# dead download-cf.jetbrains.com CDN — clion now installs via a direct
-# tarball in the devtools role (which bundles its own debuggers). The 2026-10
-# sweep also renamed or dropped: windsurf-next (discontinued), llmfit→
-# llmfit-git, autotiling→autotiling-git, protonmail-bridge(-core)→-free
-# variants, syncthingtray-qt6→syncthingtray (extra), gdm-plymouth→gdm,
-# xorg-server-xwayland→xorg-xwayland, hyprland-qtutils→hyprland-qt-support,
-# bind-tools→bind, p7zip→7zip (repo-side renames handled by their roles).
-# lmstudio-bin was replaced by unsloth-desktop-bin in the ai role.
+# Deliberately unmanaged here: warp-terminal (AUR build times out), hey-bin
+# (S3 source 403s — direct download in the shell role), the clion family
+# (dead CDN — direct tarball in devtools), plus discontinued or renamed AUR
+# names; repo-side renames are handled by their own roles.
 - name: Remove deprecated AUR packages
   kewlfft.aur.aur:
     name:
