@@ -39,6 +39,15 @@
   become: true
   become_user: "{{ user.name }}"
 
+# In check mode the ensure-dir task cannot create the directory, and a fresh
+# host would then send get_url after a destination whose parent is missing.
+# Skip the download in that case; normal mode always has the real dir.
+- name: Check if Orca install dir exists
+  ansible.builtin.stat:
+    path: "{{ ai_orca_install_dir }}"
+  register: ai_orca_install_dir_stat
+  become: true
+
 - name: Download Orca AppImage {{ ai_orca_version }}
   ansible.builtin.get_url:
     url: "https://github.com/stablyai/orca/releases/download/v{{ ai_orca_version }}/{{ ai_orca_asset }}"
@@ -50,6 +59,7 @@
   become: true
   when:
     - ai_orca_enabled | default(true)
+    - not (ansible_check_mode and not ai_orca_install_dir_stat.stat.exists)
     - not ai_orca_download_stat.stat.exists
   register: ai_orca_download
 
