@@ -18,6 +18,13 @@ ai_omp_enabled: true
 # Herdr (terminal session manager for long-running agents)
 ai_herdr_enabled: true
 
+# Orca desktop app (AI orchestrator — worktrees, agent fleet, mobile pairing).
+# The AppImage asset name carries no version, so ai_orca_version pins the
+# release; bump it to upgrade (old downloads are cleaned up automatically).
+ai_orca_enabled: true
+ai_orca_version: "1.4.266"
+ai_orca_install_dir: /home/{{ user.name }}/Applications
+
 # Local LLM runtime (Ollama + helpers)
 ai_local_llm_enabled: true
 ai_unsloth_enabled: true

@@ -1,0 +1,160 @@
+---
+# Orca (https://orca.dev) — AI orchestrator desktop app (AppImage).
+# Installed per-user: the app auto-updates its own CLI helpers and is launched
+# by the user, so a system-wide AppImage would need sudo on every update.
+# Release asset names carry no version (orca-linux.AppImage), so the download
+# is saved under a versioned local name with a stable Orca.AppImage symlink on
+# top: bump ai_orca_version in defaults to upgrade, and the cleanup task
+# removes superseded downloads on the next run. A user-level .desktop entry
+# integrates with app launchers; the %U in Exec lets the orca:// pairing
+# scheme open the app once Orca registers it. A version marker file records
+# what the symlink points at so verification never has to exec the AppImage
+# (which would spawn the GUI). The download is not checksum-pinned because
+# each new release would otherwise need a manual digest lookup; the pinned
+# version var is the supply-chain control point.
+
+- name: Select Orca AppImage asset for machine architecture
+  ansible.builtin.set_fact:
+    ai_orca_asset: "{{ 'orca-linux-arm64.AppImage' if ansible_facts['machine'] == 'aarch64' else 'orca-linux.AppImage' }}"
+
+- name: Set versioned Orca download path
+  ansible.builtin.set_fact:
+    ai_orca_appimage: "{{ ai_orca_install_dir }}/Orca-{{ ai_orca_version }}.AppImage"
+
+- name: Ensure Orca install dir exists
+  ansible.builtin.file:
+    path: "{{ ai_orca_install_dir }}"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: "0755"
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+
+- name: Check if pinned Orca version is already downloaded
+  ansible.builtin.stat:
+    path: "{{ ai_orca_appimage }}"
+  register: ai_orca_download_stat
+  become: true
+  become_user: "{{ user.name }}"
+
+# In check mode the ensure-dir task cannot create the directory, and a fresh
+# host would then send get_url after a destination whose parent is missing.
+# Skip the download in that case; normal mode always has the real dir.
+- name: Check if Orca install dir exists
+  ansible.builtin.stat:
+    path: "{{ ai_orca_install_dir }}"
+  register: ai_orca_install_dir_stat
+  become: true
+
+- name: Download Orca AppImage {{ ai_orca_version }}
+  ansible.builtin.get_url:
+    url: "https://github.com/stablyai/orca/releases/download/v{{ ai_orca_version }}/{{ ai_orca_asset }}"
+    dest: "{{ ai_orca_appimage }}"
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: "0755"
+    timeout: 600
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+    - not (ansible_check_mode and not ai_orca_install_dir_stat.stat.exists)
+    - not ai_orca_download_stat.stat.exists
+  register: ai_orca_download
+
+- name: Point stable Orca.AppImage symlink at pinned version
+  # No owner/group here: Ansible does not reliably lchown a force-replaced
+  # link, and symlink ownership has no access semantics (target perms govern).
+  ansible.builtin.file:
+    src: "{{ ai_orca_appimage }}"
+    dest: "{{ ai_orca_install_dir }}/Orca.AppImage"
+    state: link
+    force: true
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+
+- name: Record installed Orca version marker
+  ansible.builtin.copy:
+    content: "{{ ai_orca_version }}\n"
+    dest: "{{ ai_orca_install_dir }}/.orca-appimage-version"
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: "0644"
+    force: true
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+
+# Superseded downloads from previous ai_orca_version values: the stable
+# symlink never points at them, so they are pure disk weight (the AppImage is
+# ~280 MB). Skip the exact pinned file so a concurrent relink cannot strand a
+# running app without its binary.
+- name: Remove superseded Orca AppImage downloads
+  ansible.builtin.find:
+    paths: "{{ ai_orca_install_dir }}"
+    patterns: "Orca-*.AppImage"
+    excludes: "Orca-{{ ai_orca_version }}.AppImage"
+  register: ai_orca_stale_downloads
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+  changed_when: false
+
+- name: Delete superseded Orca AppImage downloads
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+  loop: "{{ ai_orca_stale_downloads.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+- name: Ensure user applications dir exists
+  ansible.builtin.file:
+    path: "/home/{{ user.name }}/.local/share/applications"
+    state: directory
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: "0755"
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+
+- name: Install Orca desktop entry
+  ansible.builtin.template:
+    src: orca.desktop.j2
+    dest: "/home/{{ user.name }}/.local/share/applications/orca.desktop"
+    owner: "{{ user.name }}"
+    group: "{{ user.group | default(user.name) }}"
+    mode: "0644"
+  become: true
+  when:
+    - ai_orca_enabled | default(true)
+  register: ai_orca_desktop_result
+
+- name: Verify Orca installation
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: ai_orca_verify_stats
+  become: true
+  become_user: "{{ user.name }}"
+  loop:
+    - "{{ ai_orca_install_dir }}/Orca.AppImage"
+    - "{{ ai_orca_install_dir }}/.orca-appimage-version"
+    - "/home/{{ user.name }}/.local/share/applications/orca.desktop"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Display Orca installation status
+  ansible.builtin.debug:
+    msg: >-
+      Orca {{ ai_orca_version }}
+      {{ 'installed (appimage, symlink, desktop entry)'
+         if (ai_orca_verify_stats.results | map(attribute='stat.exists') | select('equalto', false) | list | length == 0)
+         else 'installation incomplete' }}
+  when:
+    - ai_orca_enabled | default(true)

@@ -122,6 +122,11 @@ ai_forgecode_enabled: true        # Install ForgeCode (AI coding harness)
 ai_forgecode_zsh_enabled: true    # Enable ForgeCode ZSH plugin integration
 ai_omp_enabled: true             # Install omp (oh-my-pi, AI coding agent with LSP/DAP/subagents)
 ai_herdr_enabled: true            # Install herdr (terminal session manager for long-running agents)
+# Orca desktop app is GUI-only: leave false on headless machines (saves a ~280 MB
+# AppImage download); opt in by setting true and picking a version if needed.
+ai_orca_enabled: false            # Install Orca desktop app (AI orchestrator, AppImage in ~/Applications)
+# ai_orca_version: "1.4.266"       # Pinned Orca release (release asset names carry no version)
+# ai_orca_install_dir: /home/{{ user.name }}/Applications   # Where the AppImage + symlink live
 
 # Proton Pass CLI (installed per-user via the official installer script)
 # pass_cli_channel: beta      # beta | stable  (beta enables release-track switching)
